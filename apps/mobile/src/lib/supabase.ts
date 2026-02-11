@@ -4,8 +4,7 @@ import { Platform } from "react-native";
 
 // Supabase project credentials (public / anon key — safe to expose in client)
 const SUPABASE_URL = "https://yektpwhycxusblnueplm.supabase.co";
-const SUPABASE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlla3Rwd2h5Y3h1c2JsbnVlcGxtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk0MDg4MDEsImV4cCI6MjA1NDk4NDgwMX0.VvClpxGjsGMR9JWsMjLYaM7K8BFxrAyMQyDhVOxnNx4";
+const SUPABASE_ANON_KEY = "sb_publishable_BN5r8pNWC40Eahc8h5NqpA_imO5Ky-f";
 
 // Custom storage adapter for React Native
 const ExpoSecureStorage = {
