@@ -1,6 +1,6 @@
 # ROADMAP
 
-Letzte Aktualisierung: 2026-02-11 (Supabase DB + JWT Auth live)
+Letzte Aktualisierung: 2026-02-11 (Deck/Card CRUD in Mobile App)
 
 ## Gesamtstatus
 
@@ -89,6 +89,11 @@ Letzte Aktualisierung: 2026-02-11 (Supabase DB + JWT Auth live)
 - [x] Tests in Unit (in-memory) und Integration (Supabase) aufgeteilt
 - [x] Smoke Test: Health, Auth 401, Deck CRUD, Card CRUD, FSRS Review, Due Cards, Scan/Gemini, Subscription — alle bestanden
 - [x] **Daten-Persistenz verifiziert**: Decks + Karten bleiben nach Redeploy erhalten
+- [x] **Deck-Management in Mobile App**: Tippen → Deck-Detail, Long-Press → Umbenennen/Löschen, "+ Neu"-Button
+- [x] **Card-Management**: Karten anzeigen, bearbeiten (Tap), löschen (Long-Press), manuell hinzufügen (Editor-Modal)
+- [x] **Karten zu bestehendem Deck**: Scan-Ergebnis in neues ODER vorhandenes Deck speichern (Auswahl-Dialog)
+- [x] Stack-Navigation mit Back-Button für Deck-Detail-Screen
+- [x] API-Client erweitert: updateDeck, deleteDeck, listCardsInDeck, updateCard, deleteCard
 
 ## Phase 2 - Beta Launch (4-6 Wochen, Scaffold umgesetzt)
 
@@ -148,3 +153,4 @@ Letzte Aktualisierung: 2026-02-11 (Supabase DB + JWT Auth live)
 - 2026-02-11: Supabase Auth implementiert: Login/Register/Passwort-Reset, Auth-Guard, JWT-Token in API-Calls, Profil mit Abmelden.
 - 2026-02-11: Gemini-Prompt auf 5-25 Karten erweitert; Separate Loading-States für Generieren vs. Speichern im Scan-Screen.
 - 2026-02-11: **Supabase-DB-Anbindung**: In-Memory Store durch Postgres ersetzt; JWT Auth-Middleware; alle API-Routes authentifiziert; Daten-Persistenz verifiziert.
+- 2026-02-11: **Deck/Card CRUD**: Deck-Detail-Screen, Card-Editor-Modal, Umbenennen/Löschen via Long-Press, Karten zu bestehendem Deck hinzufügen.
