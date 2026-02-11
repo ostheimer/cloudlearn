@@ -1,6 +1,6 @@
 # ROADMAP
 
-Letzte Aktualisierung: 2026-02-11 (UI-Redesign + Flip-Animation + Fortschrittsbalken)
+Letzte Aktualisierung: 2026-02-11 (Swipe + Toggle)
 
 ## Gesamtstatus
 
@@ -173,9 +173,9 @@ Letzte Aktualisierung: 2026-02-11 (UI-Redesign + Flip-Animation + Fortschrittsba
 | # | Ticket | Feature | Aufwand | Impact | Status |
 |---|--------|---------|---------|--------|--------|
 | A1 | CL-A01 | **Karte umdrehen (Tap + Flip-Animation)** | Klein | Riesig | ✅ Done |
-| A2 | CL-A02 | **Swipe links/rechts** (weiß ich / weiß ich nicht) | Mittel | Riesig | ❌ Offen |
+| A2 | CL-A02 | **Swipe links/rechts** (weiß ich / weiß ich nicht) | Mittel | Riesig | ✅ Done |
 | A3 | CL-A03 | **Fortschrittsbalken** in Lernsession (3/12 Karten) | Klein | Groß | ✅ Done |
-| A4 | CL-A04 | **Begriff ↔ Definition umschalten** (Wechsel-Symbol) | Klein | Groß | ❌ Offen |
+| A4 | CL-A04 | **Begriff ↔ Definition umschalten** (Wechsel-Symbol) | Klein | Groß | ✅ Done |
 | A5 | CL-A05 | **Stern/Favorit** markieren (Subset lernen) | Klein | Mittel | ❌ Offen |
 
 ### Priorität B — Engagement & Motivation
@@ -279,3 +279,5 @@ Voraussetzung: Phase 2 + stabile Nutzerbasis.
 - 2026-02-11: **Vercel-Bereinigung**: `cloudlearn`-Projekt gelöscht; `clearn-api` + `clearn-web` mit Git verbunden; Root Directories korrekt gesetzt; Auto-Deploy verifiziert.
 - 2026-02-11: **Wettbewerbsanalyse + Feature-Priorisierung**: Quizlet/Anki/Brainscape verglichen; 21 konkrete Feature-Tickets in 4 Prioritätsstufen (A–D) definiert; Ist-Stand (funktionsfähig vs. Scaffold) dokumentiert; Phase 2+3 als TODO korrigiert (waren fälschlich als [x] markiert).
 - 2026-02-11: **UI-Redesign**: Lucide Icons (statt Emojis), Theme-System (colors/spacing/radius/typography/shadows), 3D-Flip-Animation (CL-A01), Fortschrittsbalken (CL-A03), react-native-reanimated für GPU-beschleunigte Animationen.
+- 2026-02-11: **Swipe-Gesten (CL-A02)**: Links wischen = "Nochmal" (rot), rechts = "Gewusst" (grün). PanGestureHandler mit Schwelle (30% Bildschirm / Velocity 500px/s), animierte Farboverlays + Labels. Buttons bleiben als Alternative.
+- 2026-02-11: **Begriff ↔ Definition Toggle (CL-A04)**: Wechsel-Button (ArrowLeftRight-Icon) in der Header-Leiste. Tauscht Vorder-/Rückseite für alle Karten der Session. Visuelles Label zeigt aktuellen Modus.
