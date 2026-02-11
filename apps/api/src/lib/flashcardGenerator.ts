@@ -5,7 +5,7 @@ import { getEnv } from "./env";
 const SYSTEM_PROMPT = `You are an expert flashcard creator for students. Given study material (text or an image of study material), create high-quality flashcards.
 
 Rules:
-- Create 3-10 flashcards depending on content density
+- Create 5-25 flashcards depending on content density (more content = more cards)
 - Each flashcard has: front (question), back (answer), type (basic/cloze), difficulty (easy/medium/hard), tags
 - For "basic" type: front is a clear question, back is the answer
 - For "cloze" type: front is a sentence with a blank (use "______" for the gap), back is ONLY the missing word/phrase

@@ -39,6 +39,7 @@ export default function ScanScreen() {
 
   const [mode, setMode] = useState<InputMode>("choose");
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [cards, setCards] = useState<Flashcard[]>([]);
   const [model, setModel] = useState("");
   const [saved, setSaved] = useState(false);
@@ -149,7 +150,7 @@ export default function ScanScreen() {
 
   const handleSaveAndLearn = async () => {
     if (!userId || cards.length === 0) return;
-    setLoading(true);
+    setSaving(true);
     try {
       const { deck } = await createDeck(userId, `Scan ${new Date().toLocaleDateString("de")}`, [
         "scan",
@@ -176,7 +177,7 @@ export default function ScanScreen() {
       const msg = error instanceof Error ? error.message : "Unbekannter Fehler";
       Alert.alert("Fehler beim Speichern", msg);
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
@@ -313,7 +314,7 @@ export default function ScanScreen() {
         </Text>
 
         {/* Loading overlay */}
-        {loading && (
+        {(loading || saving) && (
           <View
             style={{
               backgroundColor: "#f3f4f6",
@@ -323,12 +324,16 @@ export default function ScanScreen() {
               gap: 12,
             }}
           >
-            <ActivityIndicator size="large" color="#6366f1" />
+            <ActivityIndicator size="large" color={saving ? "#059669" : "#6366f1"} />
             <Text style={{ fontSize: 16, color: "#374151", fontWeight: "600" }}>
-              {imageUri ? "Bild wird analysiert..." : "Flashcards werden generiert..."}
+              {saving
+                ? "Karten werden gespeichert..."
+                : imageUri
+                  ? "Bild wird analysiert..."
+                  : "Flashcards werden generiert..."}
             </Text>
             <Text style={{ fontSize: 13, color: "#6b7280" }}>
-              Gemini AI verarbeitet dein Material
+              {saving ? `${cards.length} Karten werden in deinem Deck gespeichert` : "Gemini AI verarbeitet dein Material"}
             </Text>
           </View>
         )}
@@ -503,7 +508,7 @@ export default function ScanScreen() {
             {!saved && (
               <TouchableOpacity
                 onPress={handleSaveAndLearn}
-                disabled={loading}
+                disabled={saving}
                 style={{
                   backgroundColor: "#059669",
                   borderRadius: 12,
