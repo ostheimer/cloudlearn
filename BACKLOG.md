@@ -508,7 +508,7 @@ Home-Screen um Streak-Anzeige, Mini-Statistik (heute gelernt), nächste fällige
 ### CL-C01 - Test-Modus (Multiple Choice, Wahr/Falsch)
 
 - **Priorität:** P2
-- **Status:** Offen
+- **Status:** ✅ Done (2026-02-11)
 - **Schätzung:** 3-4 PT
 - **Abhängigkeiten:** keine
 
@@ -530,7 +530,7 @@ Prüfungssimulation: Aus den Karten eines Decks werden automatisch MC-Fragen und
 ### CL-C02 - Match-Spiel (Begriffe zuordnen)
 
 - **Priorität:** P2
-- **Status:** Offen
+- **Status:** ✅ Done (2026-02-11)
 - **Schätzung:** 3-4 PT
 - **Abhängigkeiten:** keine
 
@@ -547,7 +547,7 @@ Spielerisches Zuordnen: Begriffe und Definitionen werden gemischt angezeigt. Nut
 ### CL-C03 - Auto-Play (Karten-Slideshow)
 
 - **Priorität:** P2
-- **Status:** Offen
+- **Status:** ✅ Done (2026-02-11)
 - **Schätzung:** 1 PT
 - **Abhängigkeiten:** CL-A01 (Flip-Animation)
 
@@ -564,7 +564,7 @@ Play-Button startet automatischen Durchlauf: Karte zeigen → warten → umdrehe
 ### CL-C04 - Image Occlusion
 
 - **Priorität:** P2
-- **Status:** Offen
+- **Status:** ✅ Done (2026-02-11) — Scaffold: Bild-Auswahl + Rechteck-Zeichnung + Karten-Erstellung
 - **Schätzung:** 4-5 PT
 - **Abhängigkeiten:** keine
 

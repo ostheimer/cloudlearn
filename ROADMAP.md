@@ -1,6 +1,6 @@
 # ROADMAP
 
-Letzte Aktualisierung: 2026-02-11 (Prio A+B komplett)
+Letzte Aktualisierung: 2026-02-11 (Prio A+B+C komplett, E2E-Tests)
 
 ## Gesamtstatus
 
@@ -35,7 +35,7 @@ Letzte Aktualisierung: 2026-02-11 (Prio A+B komplett)
 | Test-Modus (MC, Wahr/Falsch) | ✅ | ❌ | ❌ | ❌ |
 | Match-Spiel (Timer) | ✅ | ❌ | ❌ | ❌ |
 | Statistiken/Analytics | ✅ | ✅ | ✅ | **✅** (Home) |
-| Image Occlusion | Diagramme | Add-on | ❌ | ❌ |
+| Image Occlusion | ✅ (Scaffold) | Add-on | ❌ | ❌ |
 | Offline-Lernen | ✅ | ✅ | Teilweise | ❌ |
 | KI-Kartenerstellung | Bezahlt | ❌ | ❌ | **✅ USP** |
 | Kamera → Karten | ❌ | ❌ | ❌ | **✅ USP** |
@@ -68,6 +68,11 @@ Letzte Aktualisierung: 2026-02-11 (Prio A+B komplett)
 | **Profil** | E-Mail-Anzeige, Abo-Status, Sprache, Abmelden |
 | **Daten-Persistenz** | Alles in Supabase PostgreSQL mit JWT-Auth |
 | **Auto-Deploy** | Git-Push → Vercel baut `clearn-api` + `clearn-web` automatisch |
+| **Test-Modus (MC)** | Deck-basierter Quiz mit MC + Wahr/Falsch, Timer, Score, Ergebnis-Übersicht |
+| **Match-Spiel** | Begriffe zuordnen (6 Paare), Timer, Fehler-Zähler, Sterne-Bewertung |
+| **Auto-Play** | Automatischer Karten-Durchlauf (1s/3s/5s/10s), Play/Pause, TTS-Integration |
+| **Image Occlusion** | Bild-Upload, Rechteck-Zeichnung, Bereiche benennen, Karten-Erstellung |
+| **E2E-Tests** | 14 Playwright-Tests (11 API + 3 Web), alle bestanden |
 
 ### Scaffold vorhanden, NICHT funktionsfähig
 
@@ -196,10 +201,10 @@ Letzte Aktualisierung: 2026-02-11 (Prio A+B komplett)
 
 | # | Ticket | Feature | Aufwand | Impact | Status |
 |---|--------|---------|---------|--------|--------|
-| C1 | CL-C01 | **Test-Modus** (Multiple Choice, Wahr/Falsch aus Kartenpool) | Groß | Groß | ❌ Offen |
-| C2 | CL-C02 | **Match-Spiel** (Begriffe zuordnen, Timer, Highscore) | Groß | Mittel | ❌ Offen |
-| C3 | CL-C03 | **Auto-Play** (Karten automatisch durchlaufen, einstellbare Geschwindigkeit) | Klein | Klein | ❌ Offen |
-| C4 | CL-C04 | **Image Occlusion** (Bildteile verdecken als Lernkarte) | Groß | Mittel | ❌ Offen |
+| C1 | CL-C01 | **Test-Modus** (Multiple Choice, Wahr/Falsch aus Kartenpool) | Groß | Groß | ✅ Done |
+| C2 | CL-C02 | **Match-Spiel** (Begriffe zuordnen, Timer, Highscore) | Groß | Mittel | ✅ Done |
+| C3 | CL-C03 | **Auto-Play** (Karten automatisch durchlaufen, einstellbare Geschwindigkeit) | Klein | Klein | ✅ Done |
+| C4 | CL-C04 | **Image Occlusion** (Bildteile verdecken als Lernkarte) | Groß | Mittel | ✅ Done (Scaffold) |
 
 ### Priorität D — Daten, Ökosystem & Monetarisierung
 
@@ -231,7 +236,7 @@ Voraussetzung: Priorität A + B abgeschlossen.
 
 Voraussetzung: Phase 2 + stabile Nutzerbasis.
 
-- [ ] Erweiterte Lernmodi: Test-Modus, Match-Spiel, Auto-Play (CL-C01–C03)
+- [x] Erweiterte Lernmodi: Test-Modus, Match-Spiel, Auto-Play, Image Occlusion (CL-C01–C04)
 - [ ] PDF-Import (CL-D02)
 - [ ] Anki-Import/Export (CL-D03, CL-D04)
 - [ ] Paywall + RevenueCat (CL-D06)
@@ -292,3 +297,8 @@ Voraussetzung: Phase 2 + stabile Nutzerbasis.
 - 2026-02-11: **Push-Erinnerungen (CL-B04)**: expo-notifications, tägliche lokale Notification, konfigurierbare Uhrzeit (7-21 Uhr), An/Aus-Toggle im Profil-Screen, Android-Channel.
 - 2026-02-11: **Home-Screen aufwerten (CL-B05)**: Streak-Banner mit Flammen-Icon, Tagesziel-Fortschrittsbalken, 3-KPI-Reihe (Fällig/Decks/Genauigkeit), Streak-Warnung wenn heute nicht gelernt.
 - 2026-02-11: **QA & Bugfix-Runde**: TypeScript-Fehler in `offlineQueueStore.ts` behoben (`@clearn/domain`/`@clearn/contracts` durch Inline-Typen ersetzt), Expo SDK 54 Paketversionen korrigiert (gesture-handler ~2.28.0, reanimated ~4.1.1, svg 15.12.1). API-Tests 19/19, Mobile-Tests 15/15, iOS-Bundle fehlerfrei (3374 Module), API Smoke-Test 10/10 bestanden.
+- 2026-02-11: **Test-Modus (CL-C01)**: Neuer `quiz.tsx` Screen mit Multiple-Choice und Wahr/Falsch-Fragen. Automatische Distraktoren aus anderen Deck-Karten. Timer optional, Score + Ergebnis-Übersicht. Deck-Detail zeigt "Test"-Button ab 2+ Karten.
+- 2026-02-11: **Match-Spiel (CL-C02)**: Neuer `match.tsx` Screen mit Kachel-Grid (6 Paare max). Timer, Fehler-Zähler, Sterne-Bewertung (0-3). Visuelles Feedback bei Match/Fehler. Deck-Detail zeigt "Match"-Button.
+- 2026-02-11: **Auto-Play (CL-C03)**: Play/Pause-Button im Learn-Screen Header. Geschwindigkeit 1s/3s/5s/10s. Automatisches Flip + "Good"-Rating + nächste Karte. TTS-Vorlesen während Auto-Play.
+- 2026-02-11: **Image Occlusion (CL-C04)**: Neuer `occlusion.tsx` Screen. Bild-Auswahl (Galerie), PanResponder für Rechteck-Zeichnung. Bereiche benennen/löschen, Speichern als Deck mit Karten.
+- 2026-02-11: **E2E-Tests (Playwright)**: 14 Tests aufgesetzt und bestanden — 11 API-Tests (Health, Auth 401, Auth 200, Deck-CRUD, Card-CRUD, Starred, Review + FSRS, Streak, Stats, Cleanup) + 3 Web-Tests (Landing Page, Responsive, Performance). `playwright.config.ts` mit API + Web Projekten.
