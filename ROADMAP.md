@@ -1,6 +1,6 @@
 # ROADMAP
 
-Letzte Aktualisierung: 2026-02-12 (FSRS-Bug behoben, 4-Level Swipe, UI-Fixes)
+Letzte Aktualisierung: 2026-02-12 (Quizlet-Style Swipe, Dark Mode, FSRS-Fix)
 
 ## Gesamtstatus
 
@@ -306,3 +306,5 @@ Voraussetzung: Phase 2 + stabile Nutzerbasis.
 - 2026-02-12: **FSRS-Bug behoben**: `reviewService.ts` lädt jetzt bestehende FSRS-Kartenwerte aus der DB statt jedes Mal eine leere Karte zu erzeugen. Intervalle wachsen jetzt korrekt (erst Minuten → Stunden → Tage → Wochen → Monate). Neue DB-Felder: `fsrs_elapsed_days`, `fsrs_scheduled_days`, `fsrs_learning_steps`.
 - 2026-02-12: **4-Level Swipe-Rating**: Swipe-Distanz/Geschwindigkeit mappt auf alle 4 FSRS-Ratings (sanft links=Schwer, stark links=Nochmal, sanft rechts=Gut, stark rechts=Leicht). Visuelle Labels und Farboverlays pro Stufe.
 - 2026-02-12: **UI-Verbesserungen**: 4 Bewertungs-Buttons immer sichtbar (kein "Antwort anzeigen"-Gate), Tap togglet Karte immer (Front↔Back), Swipe immer aktiv (ohne vorheriges Tippen).
+- 2026-02-12: **Quizlet-Style Free-Drag Swipe**: Karte folgt Finger frei in 2D mit Tinder-artiger Rotation. Labels "NOCHMAL"/"GEMERKT" blenden graduell ein mit Skalierung. Loslassen nach Threshold: Karte fliegt raus + Rating; vorher: federndes Snap-Back. Hintergrund-Farbindikator (rot/grün).
+- 2026-02-12: **Dark Mode**: Komplett neues Farbschema (22 Farben), persistenter Zustand via Zustand+AsyncStorage. Toggle im Profil-Screen (Moon/Sun-Icon). `useColors()` Hook für dynamische Theme-Farben.
