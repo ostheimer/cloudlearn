@@ -30,7 +30,7 @@ export async function generateFlashcardsAsync(
   try {
     const raw = await generateFlashcardsFromText(text, language);
     const cards = flashcardListSchema.parse(raw);
-    return { cards, model: "gemini-2.5-flash", fallbackUsed: false };
+    return { cards, model: "gemini-3-flash", fallbackUsed: false };
   } catch (error) {
     // Fallback to heuristic
     const fallbackCards = generateFlashcardsFromTextSync(text, language);
@@ -49,7 +49,7 @@ export async function generateFlashcardsFromImageAsync(
 ): Promise<{ cards: Flashcard[]; model: string; fallbackUsed: boolean }> {
   const raw = await generateFlashcardsFromImage(imageBase64, mimeType, language);
   const cards = flashcardListSchema.parse(raw);
-  return { cards, model: "gemini-2.5-flash-vision", fallbackUsed: false };
+  return { cards, model: "gemini-3-flash-vision", fallbackUsed: false };
 }
 
 /**

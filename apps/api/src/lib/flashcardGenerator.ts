@@ -90,7 +90,7 @@ async function callGemini(
   apiKey: string,
   userContent: GeminiContent
 ): Promise<Flashcard[]> {
-  const model = "gemini-2.5-flash";
+  const model = "gemini-3-flash-preview";
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   const body = {
