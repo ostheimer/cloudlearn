@@ -1,10 +1,8 @@
 import { type NextRequest } from "next/server";
-import { z } from "zod";
 import { jsonError, jsonOk, normalizeError } from "@/lib/http";
 import { createRequestContext } from "@/lib/observability";
+import { getAuthUser } from "@/lib/auth";
 import { listCardsInDeck } from "@/services/deckService";
-
-const querySchema = z.object({ userId: z.string().uuid() });
 
 interface Params {
   params: Promise<{ id: string }>;
@@ -13,11 +11,11 @@ interface Params {
 export async function GET(request: NextRequest, { params }: Params) {
   const { requestId } = createRequestContext(request.headers);
   try {
+    const auth = await getAuthUser(request);
+    if (!auth) return jsonError(requestId, "UNAUTHORIZED", "Authentication required", 401);
+
     const { id } = await params;
-    const query = querySchema.parse({
-      userId: request.nextUrl.searchParams.get("userId")
-    });
-    const cards = listCardsInDeck(query.userId, id);
+    const cards = await listCardsInDeck(auth.userId, id);
     return jsonOk(requestId, { requestId, cards });
   } catch (error) {
     const normalized = normalizeError(error);

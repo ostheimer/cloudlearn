@@ -1,35 +1,28 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { createDeckForUser } from "@/services/deckService";
-import { processScan } from "@/services/scanService";
-import { exportDeckAsApkg } from "@/services/ankiExportService";
 import { createB2bClass, listB2bClasses, resetB2bStore } from "@/services/b2bService";
 import {
   completePdfJob,
   enqueuePdfImport,
   failPdfJob,
   markPdfJobProcessing,
-  resetPdfJobs
+  resetPdfJobs,
 } from "@/services/pdfImportService";
 import {
   canProcessMathpix,
   consumeMathpixCost,
   getMathpixSpend,
-  resetMathpixCosts
+  resetMathpixCosts,
 } from "@/services/mathpixService";
 import {
   listCommunityDecks,
   publishCommunityDeck,
-  resetCommunityDeckStore
+  resetCommunityDeckStore,
 } from "@/services/communityDeckService";
-import { resetStore } from "@/lib/inMemoryStore";
-import { resetIdempotencyStore } from "@/lib/idempotencyStore";
 
 const userId = "6e5db9e4-7e48-4e11-8d8c-6ca90c18d42a";
 
-describe("growth services", () => {
+describe("growth services — unit tests (in-memory, no DB)", () => {
   beforeEach(() => {
-    resetStore();
-    resetIdempotencyStore();
     resetPdfJobs();
     resetMathpixCosts();
     resetCommunityDeckStore();
@@ -51,35 +44,18 @@ describe("growth services", () => {
     expect(canProcessMathpix(userId, 0.001)).toBe(false);
   });
 
-  it("exports decks in apkg format", () => {
-    const deck = createDeckForUser({ userId, title: "Export", tags: [] });
-    processScan(
-      {
-        userId,
-        extractedText: "Merksatz eins. Merksatz zwei.",
-        sourceLanguage: "de",
-        idempotencyKey: "scan-key-export-001",
-        deckId: deck.id
-      },
-      "req-export"
-    );
-    const exportFile = exportDeckAsApkg(userId, deck.id);
-    expect(exportFile.fileName.endsWith(".apkg")).toBe(true);
-    expect(exportFile.content).toContain("apkg-mock");
-  });
-
   it("flags abusive community decks", () => {
     publishCommunityDeck({
       userId,
       deckId: "2d0afe28-6be8-46fb-a85a-df88d3db9f5f",
       title: "Normales Deck",
-      description: "hilfreich"
+      description: "hilfreich",
     });
     publishCommunityDeck({
       userId,
       deckId: "6f0ff1ad-8f34-4b06-9ef2-6d4f6cda95f1",
       title: "Scam Angebot",
-      description: "spam content"
+      description: "spam content",
     });
 
     expect(listCommunityDecks("approved")).toHaveLength(1);
@@ -90,15 +66,49 @@ describe("growth services", () => {
     createB2bClass({
       tenantId: "school-a",
       teacherUserId: userId,
-      className: "10A"
+      className: "10A",
     });
     createB2bClass({
       tenantId: "school-b",
       teacherUserId: "0b25d170-8d32-47f0-9e4a-5631161fb2b4",
-      className: "11B"
+      className: "11B",
     });
 
     expect(listB2bClasses("school-a")).toHaveLength(1);
     expect(listB2bClasses("school-b")).toHaveLength(1);
+  });
+});
+
+// Integration tests for DB-dependent services
+const HAS_DB =
+  !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
+  !!process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+describe.skipIf(!HAS_DB)("growth services — integration (Supabase)", () => {
+  it("exports decks in apkg format", async () => {
+    const { createDeckForUser } = await import("@/services/deckService");
+    const { createCardForUser } = await import("@/services/cardService");
+    const { exportDeckAsApkg } = await import("@/services/ankiExportService");
+
+    const deck = await createDeckForUser({
+      userId,
+      title: "Export Test",
+      tags: [],
+    });
+    await createCardForUser({
+      userId,
+      deckId: deck.id,
+      card: {
+        front: "Merksatz eins",
+        back: "Antwort eins",
+        type: "basic",
+        difficulty: "medium",
+        tags: [],
+      },
+    });
+
+    const exportFile = await exportDeckAsApkg(userId, deck.id);
+    expect(exportFile.fileName.endsWith(".apkg")).toBe(true);
+    expect(exportFile.content).toContain("apkg-mock");
   });
 });

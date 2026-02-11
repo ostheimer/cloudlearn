@@ -1,5 +1,8 @@
-import { listDueCards } from "@/lib/inMemoryStore";
+import { listDueCards } from "@/lib/db";
 
-export function getDueCards(userId: string, nowIso = new Date().toISOString()) {
+export async function getDueCards(
+  userId: string,
+  nowIso = new Date().toISOString()
+) {
   return listDueCards(userId, nowIso);
 }

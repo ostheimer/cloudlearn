@@ -1,7 +1,10 @@
 import { syncRequestSchema, type SyncResponse } from "@/lib/contracts";
 import { storeReview } from "./reviewService";
 
-export function syncOperations(input: unknown, requestId: string): SyncResponse {
+export async function syncOperations(
+  input: unknown,
+  requestId: string
+): Promise<SyncResponse> {
   const parsed = syncRequestSchema.parse(input);
   const acceptedOperationIds: string[] = [];
   const rejectedOperationIds: string[] = [];
@@ -9,7 +12,7 @@ export function syncOperations(input: unknown, requestId: string): SyncResponse 
   for (const operation of parsed.operations) {
     try {
       if (operation.operationType === "review") {
-        storeReview(operation.payload, requestId);
+        await storeReview(operation.payload, requestId);
       }
       acceptedOperationIds.push(operation.operationId);
     } catch {
@@ -21,6 +24,6 @@ export function syncOperations(input: unknown, requestId: string): SyncResponse 
     requestId,
     acceptedOperationIds,
     rejectedOperationIds,
-    serverTimestamp: new Date().toISOString()
+    serverTimestamp: new Date().toISOString(),
   };
 }

@@ -1,30 +1,27 @@
 import { subscriptionStatusSchema, type SubscriptionStatus } from "@/lib/contracts";
+import { getSubscriptionTier, updateSubscriptionTier } from "@/lib/db";
 
-const subscriptions = new Map<string, SubscriptionStatus>();
-
-export function getSubscriptionStatus(userId: string): SubscriptionStatus {
-  const existing = subscriptions.get(userId);
-  if (existing) {
-    return existing;
-  }
-
-  const fallback: SubscriptionStatus = {
+export async function getSubscriptionStatus(
+  userId: string
+): Promise<SubscriptionStatus> {
+  const { tier, expiresAt, isActive } = await getSubscriptionTier(userId);
+  return {
     userId,
-    tier: "free",
-    isActive: true,
-    expiresAt: null
+    tier: tier as "free" | "pro",
+    isActive,
+    expiresAt,
   };
-
-  subscriptions.set(userId, fallback);
-  return fallback;
 }
 
-export function updateSubscriptionStatus(input: SubscriptionStatus): SubscriptionStatus {
+export async function updateSubscriptionStatus(
+  input: SubscriptionStatus
+): Promise<SubscriptionStatus> {
   const parsed = subscriptionStatusSchema.parse(input);
-  subscriptions.set(parsed.userId, parsed);
+  await updateSubscriptionTier(
+    parsed.userId,
+    parsed.tier,
+    parsed.isActive,
+    parsed.expiresAt
+  );
   return parsed;
-}
-
-export function resetSubscriptionStore(): void {
-  subscriptions.clear();
 }

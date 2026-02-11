@@ -77,6 +77,8 @@ Letzte Aktualisierung: 2026-02-11
 - [x] Auth-Guard: Automatischer Redirect (nicht eingeloggt → Auth-Screen, eingeloggt → Tabs)
 - [x] JWT-Token wird automatisch an alle API-Requests angehängt
 - [x] Profil: E-Mail-Anzeige + Abmelden-Button
+- [x] Gemini-Prompt: 5-25 Karten statt 3-10 (dynamisch nach Inhaltsdichte)
+- [x] Fix: Separate Loading-States (Generieren vs. Speichern) — korrekte Ladeanzeige
 
 ## Phase 2 - Beta Launch (4-6 Wochen, Scaffold umgesetzt)
 
@@ -134,3 +136,4 @@ Letzte Aktualisierung: 2026-02-11
 - 2026-02-11: Echte Gemini 2.5 Flash API angebunden: Text- und Bild-Input für KI-generierte Flashcards. Heuristik-Fallback bei fehlendem API-Key.
 - 2026-02-11: Upgrade auf Gemini 3 Flash; Cloze-Karten-Display-Fix; Foto→AI→Flashcards→Review auf iPhone erfolgreich getestet.
 - 2026-02-11: Supabase Auth implementiert: Login/Register/Passwort-Reset, Auth-Guard, JWT-Token in API-Calls, Profil mit Abmelden.
+- 2026-02-11: Gemini-Prompt auf 5-25 Karten erweitert; Separate Loading-States für Generieren vs. Speichern im Scan-Screen.

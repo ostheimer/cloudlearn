@@ -1,13 +1,17 @@
 import { type NextRequest } from "next/server";
 import { jsonError, jsonOk, normalizeError } from "@/lib/http";
 import { createRequestContext } from "@/lib/observability";
+import { getAuthUser } from "@/lib/auth";
 import { createCardForUser } from "@/services/cardService";
 
 export async function POST(request: NextRequest) {
   const { requestId } = createRequestContext(request.headers);
   try {
+    const auth = await getAuthUser(request);
+    if (!auth) return jsonError(requestId, "UNAUTHORIZED", "Authentication required", 401);
+
     const body = await request.json();
-    const card = createCardForUser(body);
+    const card = await createCardForUser({ ...body, userId: auth.userId });
     return jsonOk(requestId, { requestId, card }, 201);
   } catch (error) {
     const normalized = normalizeError(error);

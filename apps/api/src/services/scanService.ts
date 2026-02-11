@@ -1,11 +1,24 @@
-import { flashcardListSchema, scanProcessRequestSchema, type ScanProcessResponse } from "@/lib/contracts";
-import { createCard, createDeck, listDecks } from "@/lib/inMemoryStore";
+import {
+  flashcardListSchema,
+  scanProcessRequestSchema,
+  type ScanProcessResponse,
+} from "@/lib/contracts";
+import { createCard, createDeck, getDeck, listDecks, recordScan } from "@/lib/db";
 import { getIdempotentResult, storeIdempotentResult } from "@/lib/idempotencyStore";
-import { generateFlashcardsAsync, generateFlashcardsFromImageAsync } from "@/lib/llm";
+import {
+  generateFlashcardsAsync,
+  generateFlashcardsFromImageAsync,
+} from "@/lib/llm";
 
-export async function processScan(input: unknown, requestId: string): Promise<ScanProcessResponse> {
+export async function processScan(
+  input: unknown,
+  requestId: string,
+  userId: string
+): Promise<ScanProcessResponse> {
   const parsed = scanProcessRequestSchema.parse(input);
-  const existing = getIdempotentResult<ScanProcessResponse>(parsed.idempotencyKey);
+  const existing = getIdempotentResult<ScanProcessResponse>(
+    parsed.idempotencyKey
+  );
   if (existing) {
     return existing;
   }
@@ -22,21 +35,34 @@ export async function processScan(input: unknown, requestId: string): Promise<Sc
     );
   } else if (parsed.extractedText) {
     // Text input → Gemini Text (with heuristic fallback)
-    generated = await generateFlashcardsAsync(parsed.extractedText, parsed.sourceLanguage);
+    generated = await generateFlashcardsAsync(
+      parsed.extractedText,
+      parsed.sourceLanguage
+    );
   } else {
     throw new Error("Either extractedText or imageBase64 must be provided");
   }
 
   const cards = flashcardListSchema.parse(generated.cards);
 
-  const existingDeck = parsed.deckId
-    ? listDecks(parsed.userId).find((item) => item.id === parsed.deckId)
-    : null;
-  const deck = existingDeck ?? createDeck(parsed.userId, "Automatisch erstellt", ["scan"]);
+  // Use authenticated userId instead of body userId
+  let deck = parsed.deckId ? await getDeck(parsed.deckId) : null;
+  if (!deck) {
+    deck = await createDeck(userId, "Automatisch erstellt", ["scan"]);
+  }
 
   for (const card of cards) {
-    createCard(parsed.userId, deck.id, card);
+    await createCard(userId, deck.id, card);
   }
+
+  // Record scan in history
+  await recordScan(
+    userId,
+    generated.model,
+    cards.length,
+    "",
+    parsed.extractedText ?? undefined
+  );
 
   const response: ScanProcessResponse = {
     requestId,

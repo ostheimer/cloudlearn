@@ -4,13 +4,19 @@ import {
   createReview,
   findReviewByIdempotencyKey,
   getCard,
-  updateCardFsrs
-} from "@/lib/inMemoryStore";
+  updateCardFsrs,
+} from "@/lib/db";
 
-export function storeReview(input: unknown, requestId: string): ReviewResponse {
+export async function storeReview(
+  input: unknown,
+  requestId: string
+): Promise<ReviewResponse> {
   const parsed = reviewRequestSchema.parse(input);
-  const existing = findReviewByIdempotencyKey(parsed.idempotencyKey);
-  const card = getCard(parsed.cardId);
+  const existing = await findReviewByIdempotencyKey(
+    parsed.userId,
+    parsed.idempotencyKey
+  );
+  const card = await getCard(parsed.cardId);
 
   if (!card) {
     throw new Error("Card not found");
@@ -29,31 +35,34 @@ export function storeReview(input: unknown, requestId: string): ReviewResponse {
       cardId: parsed.cardId,
       rating: parsed.rating,
       reviewedAt: parsed.reviewedAt,
-      idempotencyKey: parsed.idempotencyKey
+      idempotencyKey: parsed.idempotencyKey,
     };
 
     if (parsed.reviewDurationMs !== undefined) {
       reviewInput.reviewDurationMs = parsed.reviewDurationMs;
     }
 
-    createReview(reviewInput);
+    await createReview(reviewInput);
   }
 
   const fsrsCard = createNewFsrsCard();
   const next = applyReview(fsrsCard, parsed.rating, new Date(parsed.reviewedAt));
 
-  const normalizedStateMap: Record<number, "new" | "learning" | "review" | "relearning"> = {
+  const normalizedStateMap: Record<
+    number,
+    "new" | "learning" | "review" | "relearning"
+  > = {
     0: "new",
     1: "learning",
     2: "review",
-    3: "relearning"
+    3: "relearning",
   };
 
-  const updatedCard = updateCardFsrs(parsed.cardId, {
+  const updatedCard = await updateCardFsrs(parsed.cardId, {
     fsrsDue: next.card.due.toISOString(),
     fsrsStability: next.card.stability,
     fsrsDifficulty: next.card.difficulty,
-    fsrsState: normalizedStateMap[next.card.state] ?? "review"
+    fsrsState: normalizedStateMap[next.card.state] ?? "review",
   });
 
   if (!updatedCard) {
@@ -66,6 +75,6 @@ export function storeReview(input: unknown, requestId: string): ReviewResponse {
     nextDueAt: updatedCard.fsrsDue,
     stability: updatedCard.fsrsStability,
     difficulty: updatedCard.fsrsDifficulty,
-    state: updatedCard.fsrsState
+    state: updatedCard.fsrsState,
   };
 }
