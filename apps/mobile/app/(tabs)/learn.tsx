@@ -65,6 +65,18 @@ export default function LearnScreen() {
   const current = cards[index];
   const remaining = Math.max(cards.length - index, 0);
 
+  // Parse cloze cards: replace {{c1::answer}} with ___ on front, extract answer for back
+  const formatCloze = (text: string): { display: string; clozeAnswer: string | null } => {
+    const match = text.match(/\{\{c\d+::(.+?)\}\}/);
+    if (!match) return { display: text, clozeAnswer: null };
+    const clozeAnswer = match[1];
+    const display = text.replace(/\{\{c\d+::.+?\}\}/g, "______");
+    return { display, clozeAnswer };
+  };
+
+  const frontParsed = current ? formatCloze(current.front) : { display: "", clozeAnswer: null };
+  const displayBack = frontParsed.clozeAnswer ?? current?.back ?? "";
+
   const ratingButton = (label: string, rating: ReviewRating, color: string) => (
     <TouchableOpacity
       onPress={() => handleRate(rating)}
@@ -149,7 +161,7 @@ export default function LearnScreen() {
                   marginBottom: revealed ? 24 : 0,
                 }}
               >
-                {current?.front}
+                {frontParsed.display}
               </Text>
               {revealed && (
                 <>
@@ -161,8 +173,8 @@ export default function LearnScreen() {
                       marginBottom: 24,
                     }}
                   />
-                  <Text style={{ fontSize: 17, color: "#374151", textAlign: "center" }}>
-                    {current?.back}
+                  <Text style={{ fontSize: 17, color: "#374151", textAlign: "center", fontWeight: frontParsed.clozeAnswer ? "700" : "400" }}>
+                    {displayBack}
                   </Text>
                 </>
               )}

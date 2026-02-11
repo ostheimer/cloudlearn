@@ -451,7 +451,10 @@ export default function ScanScreen() {
               via {model}
             </Text>
 
-            {cards.map((card, idx) => (
+            {cards.map((card, idx) => {
+              // Format cloze syntax for preview
+              const frontDisplay = card.front.replace(/\{\{c\d+::(.+?)\}\}/g, "[$1]");
+              return (
               <View
                 key={idx}
                 style={{
@@ -463,7 +466,7 @@ export default function ScanScreen() {
                 }}
               >
                 <Text style={{ fontWeight: "600", fontSize: 15, marginBottom: 6 }}>
-                  {card.front}
+                  {frontDisplay}
                 </Text>
                 <Text style={{ color: "#4b5563", fontSize: 14 }}>{card.back}</Text>
                 <View style={{ flexDirection: "row", gap: 6, marginTop: 8 }}>
@@ -493,7 +496,8 @@ export default function ScanScreen() {
                   </Text>
                 </View>
               </View>
-            ))}
+            );
+            })}
 
             {/* Save and learn */}
             {!saved && (
