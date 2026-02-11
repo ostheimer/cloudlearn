@@ -16,12 +16,17 @@ export const flashcardListSchema = z.array(flashcardSchema).min(1).max(50);
 
 export const scanProcessRequestSchema = z.object({
   userId: z.string().uuid(),
-  extractedText: z.string().min(1).max(20_000),
+  extractedText: z.string().min(1).max(20_000).optional(),
+  imageBase64: z.string().min(100).max(10_000_000).optional(),
+  imageMimeType: z.enum(["image/jpeg", "image/png", "image/webp"]).optional(),
   idempotencyKey: z.string().min(8).max(128),
   sourceLanguage: z.string().min(2).max(10).default("de"),
   sourceImageUrl: z.string().url().optional(),
   deckId: z.string().uuid().optional()
-});
+}).refine(
+  (data) => Boolean(data.extractedText) || Boolean(data.imageBase64),
+  { message: "Either extractedText or imageBase64 must be provided" }
+);
 
 export const scanProcessResponseSchema = z.object({
   requestId: z.string().min(8),

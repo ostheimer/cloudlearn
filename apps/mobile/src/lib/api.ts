@@ -86,6 +86,25 @@ export async function scanText(
   });
 }
 
+export async function scanImage(
+  userId: string,
+  imageBase64: string,
+  mimeType: "image/jpeg" | "image/png" | "image/webp" = "image/jpeg",
+  language = "de"
+): Promise<ScanResponse> {
+  const idempotencyKey = `scan-img-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  return request<ScanResponse>("/api/v1/scan/process", {
+    method: "POST",
+    body: JSON.stringify({
+      userId,
+      imageBase64,
+      imageMimeType: mimeType,
+      idempotencyKey,
+      sourceLanguage: language,
+    }),
+  });
+}
+
 export async function createDeck(
   userId: string,
   title: string,

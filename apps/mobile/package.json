@@ -13,6 +13,8 @@
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
     "expo": "^54.0.20",
+    "expo-camera": "~17.0.10",
+    "expo-image-picker": "~17.0.10",
     "expo-router": "^6.0.14",
     "expo-status-bar": "~3.0.9",
     "i18next": "^25.6.3",

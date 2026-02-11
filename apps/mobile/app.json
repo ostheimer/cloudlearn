@@ -7,6 +7,29 @@
     "scheme": "clearn",
     "userInterfaceStyle": "automatic",
     "assetBundlePatterns": ["**/*"],
-    "platforms": ["ios", "android", "web"]
+    "platforms": ["ios", "android", "web"],
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "clearn benötigt Kamera-Zugriff, um Lernmaterial zu fotografieren und daraus Flashcards zu erstellen."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "clearn benötigt Zugriff auf deine Fotos, um Lernmaterial auszuwählen und daraus Flashcards zu erstellen."
+        }
+      ]
+    ],
+    "ios": {
+      "infoPlist": {
+        "NSCameraUsageDescription": "clearn benötigt Kamera-Zugriff, um Lernmaterial zu fotografieren und daraus Flashcards zu erstellen.",
+        "NSPhotoLibraryUsageDescription": "clearn benötigt Zugriff auf deine Fotos, um Lernmaterial auszuwählen und daraus Flashcards zu erstellen."
+      }
+    },
+    "android": {
+      "permissions": ["CAMERA", "READ_EXTERNAL_STORAGE"]
+    }
   }
 }

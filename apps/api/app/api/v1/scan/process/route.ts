@@ -26,13 +26,14 @@ export async function POST(request: NextRequest) {
       return jsonError(requestId, "PAYWALL_REQUIRED", "Free scan quota exceeded", 402);
     }
 
-    const result = processScan(body, requestId);
+    const result = await processScan(body, requestId);
     logInfo("scan_processed", {
       requestId,
       userId,
       cards: result.cards.length,
       model: result.model,
-      freeScansRemaining: Number.isFinite(quota.remaining) ? quota.remaining : null
+      hasImage: Boolean(body.imageBase64),
+      freeScansRemaining: Number.isFinite(quota.remaining) ? quota.remaining : null,
     });
     return jsonOk(requestId, result);
   } catch (error) {
