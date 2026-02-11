@@ -1,6 +1,6 @@
 # BACKLOG
 
-Letzte Aktualisierung: 2026-02-10
+Letzte Aktualisierung: 2026-02-11
 
 ## Ziel
 
@@ -274,3 +274,419 @@ Ein Ticket ist erst "Done", wenn:
 - CL-302 (Offline Sync) ist hohes Risiko und sollte nicht nach hinten verschoben werden.
 - CL-203 (KI Endpoint) braucht frueh stabile Testdaten, sonst drohen spaete Regressions.
 - CL-102 (RLS) muss vor breiter Feature-Entwicklung solide stehen, um Nacharbeiten zu vermeiden.
+
+---
+
+## Feature-Tickets: Priorität A — Lern-Experience
+
+### CL-A01 - Karte umdrehen (Tap + Flip-Animation)
+
+- **Priorität:** P0
+- **Status:** Offen
+- **Schätzung:** 1-2 PT
+- **Abhängigkeiten:** keine
+- **Referenz:** Quizlet Flashcard-Modus
+
+**Beschreibung**
+Im Learn-Screen wird die Karte als große Fläche dargestellt. Tippen auf die Karte dreht sie mit einer 3D-Flip-Animation um (Vorderseite → Rückseite und zurück). Die aktuelle Button-basierte Lösung (Antwort zeigen) wird ersetzt.
+
+**Akzeptanzkriterien**
+- [ ] Karte ist als großer, tappbarer Bereich dargestellt (min. 60% der Bildschirmhöhe)
+- [ ] Tippen auf Karte dreht sie mit einer flüssigen 3D-Flip-Animation um (~300ms)
+- [ ] Nochmaliges Tippen dreht zurück zur Vorderseite
+- [ ] Rating-Buttons (Again/Hard/Good/Easy) erscheinen erst nach dem Umdrehen
+- [ ] Cloze-Karten: Vorderseite zeigt Lücke, Rückseite die Antwort
+
+**Testfälle**
+- **Unit:** Flip-State toggled korrekt (front ↔ back)
+- **E2E:** Karte tippen → Animation sichtbar → Rückseite gezeigt → Buttons erscheinen
+
+### CL-A02 - Swipe links/rechts (weiß ich / weiß ich nicht)
+
+- **Priorität:** P0
+- **Status:** Offen
+- **Schätzung:** 2-3 PT
+- **Abhängigkeiten:** CL-A01
+
+**Beschreibung**
+Neben den Buttons können Karten per Swipe-Geste bewertet werden. Swipe nach rechts = "Gewusst" (mapped auf "Good"), Swipe nach links = "Nicht gewusst" (mapped auf "Again"). Visuelle Indikatoren (grün/rot) zeigen die Richtung an.
+
+**Akzeptanzkriterien**
+- [ ] Swipe rechts → Karte animiert nach rechts mit grünem Overlay → Rating "Good" wird gesendet
+- [ ] Swipe links → Karte animiert nach links mit rotem Overlay → Rating "Again" wird gesendet
+- [ ] Swipe-Schwelle: mindestens 30% der Bildschirmbreite oder Geschwindigkeit > 500px/s
+- [ ] Sanfter Rücksprung bei zu kurzem Swipe (< Schwelle)
+- [ ] Rating-Buttons (Again/Hard/Good/Easy) bleiben als Alternative verfügbar
+- [ ] Nächste Karte fliegt von unten/rechts ein (Deck-Gefühl)
+
+**Testfälle**
+- **Unit:** Swipe-Gesten-Erkennung mit verschiedenen Distanzen/Geschwindigkeiten
+- **E2E:** Karte nach rechts wischen → nächste Karte erscheint → Review in DB gespeichert
+
+### CL-A03 - Fortschrittsbalken in Lernsession
+
+- **Priorität:** P0
+- **Status:** Offen
+- **Schätzung:** 0,5 PT
+- **Abhängigkeiten:** keine
+
+**Beschreibung**
+Oben im Learn-Screen zeigt ein Fortschrittsbalken an, wie viele Karten in der aktuellen Session bereits bearbeitet wurden (z.B. "5 / 12"). Visueller Balken + Textanzeige.
+
+**Akzeptanzkriterien**
+- [ ] Fortschrittsbalken sichtbar oben im Learn-Screen
+- [ ] Text: "X / Y" (bearbeitete / gesamte Karten in Session)
+- [ ] Balken füllt sich proportional
+- [ ] Farbe wechselt bei 100% (z.B. grün)
+- [ ] "Raus"-Button (unten links) zum vorzeitigen Beenden der Session
+
+**Testfälle**
+- **Unit:** Fortschritts-Berechnung (0/10 → 5/10 → 10/10)
+- **E2E:** Karte bewerten → Balken aktualisiert sich → bei letzter Karte Gratulation
+
+### CL-A04 - Begriff ↔ Definition umschalten
+
+- **Priorität:** P1
+- **Status:** Offen
+- **Schätzung:** 1 PT
+- **Abhängigkeiten:** CL-A01
+
+**Beschreibung**
+Ein Wechsel-Symbol (⇄) oberhalb der Karte ermöglicht es, zwischen "Begriff zuerst" (Standard: Frage vorne) und "Definition zuerst" (Antwort vorne) umzuschalten. Nützlich zum Lernen in beide Richtungen.
+
+**Akzeptanzkriterien**
+- [ ] Wechsel-Symbol (⇄) oberhalb der Karte sichtbar
+- [ ] Tippen wechselt die Zuordnung: front ↔ back für alle Karten der Session
+- [ ] Visuelles Label zeigt aktuellen Modus: "Begriff → Definition" oder "Definition → Begriff"
+- [ ] Einstellung wird pro Session beibehalten
+- [ ] Auch in den Einstellungen (Settings-Icon) umschaltbar
+
+**Testfälle**
+- **Unit:** Toggle-State: front/back Zuordnung korrekt getauscht
+- **E2E:** Toggle drücken → Karte zeigt jetzt die Antwort vorne
+
+### CL-A05 - Stern/Favorit markieren
+
+- **Priorität:** P1
+- **Status:** Offen
+- **Schätzung:** 1-2 PT
+- **Abhängigkeiten:** keine (DB-Spalte nötig)
+
+**Beschreibung**
+Auf jeder Karte (im Learn- und Deck-Detail-Screen) gibt es ein Stern-Symbol. Tippen markiert/entmarkiert die Karte als Favorit. Im Learn-Screen kann man filtern: "Nur markierte Karten lernen".
+
+**Akzeptanzkriterien**
+- [ ] Stern-Icon (☆/★) auf Karten im Learn-Screen und Deck-Detail
+- [ ] Tippen toggled Favorit-Status (sofort visuell + API-Call)
+- [ ] DB: `starred` Boolean-Spalte auf `cards`-Tabelle
+- [ ] Filter-Option im Learn-Screen: "Nur markierte Karten"
+- [ ] Deck-Detail zeigt Stern-Status bei jeder Karte
+- [ ] API: `PATCH /api/v1/cards/:id` akzeptiert `starred` Feld
+
+**Testfälle**
+- **Unit:** Stern-Toggle-Logik
+- **Integration:** API setzt/entfernt `starred`; Filter gibt nur markierte zurück
+- **E2E:** Stern drücken → Karte markiert → Filter aktivieren → nur markierte Karten
+
+---
+
+## Feature-Tickets: Priorität B — Engagement & Motivation
+
+### CL-B01 - Streaks (Tagesserien)
+
+- **Priorität:** P1
+- **Status:** Offen
+- **Schätzung:** 2-3 PT
+- **Abhängigkeiten:** keine (DB-Tracking nötig)
+
+**Beschreibung**
+Nutzer sehen ihren aktuellen Streak (aufeinanderfolgende Tage mit mindestens 1 Review). Visuell prominent auf Home-Screen und nach Session-Ende. Streak-Verlust-Warnung wenn heute noch nicht gelernt.
+
+**Akzeptanzkriterien**
+- [ ] DB: `streaks`-Tabelle oder Spalten auf `profiles` (current_streak, longest_streak, last_review_date)
+- [ ] Home-Screen: Streak-Anzeige mit Flammen-Icon (🔥) und Zahl
+- [ ] Nach Review-Session: "Streak: X Tage!" Animation
+- [ ] Streak-Warnung auf Home: "Dein Streak läuft heute ab!" (wenn noch nicht gelernt)
+- [ ] Streak bricht um Mitternacht (Nutzer-Zeitzone)
+- [ ] Streak zählt ab der ersten Review des Tages
+
+**Testfälle**
+- **Unit:** Streak-Berechnung (aufeinanderfolgende Tage, Mitternachts-Grenze)
+- **Integration:** Review speichern → Streak aktualisiert
+- **E2E:** Tag 1 lernen → Tag 2 lernen → Streak = 2 → Tag 3 nicht lernen → Streak = 0
+
+### CL-B02 - Statistiken-Screen
+
+- **Priorität:** P1
+- **Status:** Offen (API-Endpoint `/api/v1/stats` existiert)
+- **Schätzung:** 2-3 PT
+- **Abhängigkeiten:** CL-B01 (Streak-Daten)
+
+**Beschreibung**
+Eigener Tab oder Bereich mit Lernstatistiken: Karten gelernt (heute/Woche/gesamt), Genauigkeit (% korrekt), Streak-Verlauf, Deck-Fortschritt (% gemeistert), Lernzeit.
+
+**Akzeptanzkriterien**
+- [ ] Stats-Screen erreichbar (eigener Tab oder von Home)
+- [ ] Anzeige: Karten heute / diese Woche / gesamt gelernt
+- [ ] Genauigkeit: % der Reviews mit "Good" oder "Easy"
+- [ ] Streak-Kalender (Heatmap der letzten 30 Tage)
+- [ ] Deck-Fortschritt: Balkengrafik pro Deck (% im Review-Status)
+- [ ] Daten kommen live von `/api/v1/stats`
+
+**Testfälle**
+- **Unit:** Statistik-Berechnungen (Genauigkeit, Fortschritt)
+- **Integration:** Reviews durchführen → Stats-API gibt korrekte Werte
+- **E2E:** 5 Karten lernen → Stats-Screen zeigt "5 heute gelernt"
+
+### CL-B03 - Vorlesen (TTS)
+
+- **Priorität:** P2
+- **Status:** Offen
+- **Schätzung:** 1 PT
+- **Abhängigkeiten:** keine
+
+**Beschreibung**
+Lautsprecher-Button auf Karten-Vorder- und Rückseite. Nutzt `expo-speech` (On-Device TTS) zum Vorlesen des Textes. Sprache wird automatisch erkannt oder aus Deck-Einstellungen übernommen.
+
+**Akzeptanzkriterien**
+- [ ] Lautsprecher-Icon (🔊) auf Vorder- und Rückseite der Karte
+- [ ] Tippen liest den Text per TTS vor
+- [ ] Sprache: automatisch aus Karten-Tags oder Deck-Sprache
+- [ ] Funktioniert offline (On-Device TTS)
+- [ ] Button zeigt Lade-/Abspiel-Status
+
+**Testfälle**
+- **Unit:** TTS-Aufruf mit korrektem Text und Sprache
+- **E2E:** Button drücken → Text wird vorgelesen (manueller Test)
+
+### CL-B04 - Push-Erinnerungen
+
+- **Priorität:** P1
+- **Status:** Offen
+- **Schätzung:** 2-3 PT
+- **Abhängigkeiten:** keine
+
+**Beschreibung**
+Tägliche Push-Notification: "Du hast X fällige Karten!" Konfigurierbare Uhrzeit und Ruhezeiten in den Profil-Einstellungen.
+
+**Akzeptanzkriterien**
+- [ ] `expo-notifications` eingebunden
+- [ ] Lokale Notification täglich zur eingestellten Uhrzeit
+- [ ] Inhalt: Anzahl fälliger Karten
+- [ ] Profil-Settings: Uhrzeit wählen, Notifications an/aus
+- [ ] Ruhezeiten (z.B. 22:00–08:00) konfigurierbar
+- [ ] Tippen auf Notification öffnet Learn-Screen
+
+**Testfälle**
+- **Unit:** Notification-Scheduling-Logik
+- **E2E:** Notification-Permission erteilen → Notification erscheint zur eingestellten Zeit
+
+### CL-B05 - Home-Screen aufwerten
+
+- **Priorität:** P1
+- **Status:** Offen
+- **Schätzung:** 1-2 PT
+- **Abhängigkeiten:** CL-B01 (Streaks), CL-B02 (Stats)
+
+**Beschreibung**
+Home-Screen um Streak-Anzeige, Mini-Statistik (heute gelernt), nächste fällige Karten-Preview und Lernziel-Tracker erweitern.
+
+**Akzeptanzkriterien**
+- [ ] Streak-Anzeige (🔥 X Tage) prominent sichtbar
+- [ ] "Heute gelernt: X Karten" Zähler
+- [ ] Preview der nächsten 3 fälligen Karten (antippbar)
+- [ ] Tages-Lernziel: "5/10 Karten heute" mit Fortschrittsring
+- [ ] Motivations-Nachricht basierend auf Fortschritt
+
+**Testfälle**
+- **E2E:** Karten lernen → Home-Screen zeigt aktualisierte Werte
+
+---
+
+## Feature-Tickets: Priorität C — Erweiterte Lernmodi
+
+### CL-C01 - Test-Modus (Multiple Choice, Wahr/Falsch)
+
+- **Priorität:** P2
+- **Status:** Offen
+- **Schätzung:** 3-4 PT
+- **Abhängigkeiten:** keine
+
+**Beschreibung**
+Prüfungssimulation: Aus den Karten eines Decks werden automatisch MC-Fragen und Wahr/Falsch-Fragen generiert. Timer optional. Ergebnis-Übersicht am Ende.
+
+**Akzeptanzkriterien**
+- [ ] Test starten von Deck-Detail oder Learn-Screen
+- [ ] Fragetypen: Multiple Choice (4 Optionen, 1 korrekt), Wahr/Falsch
+- [ ] Falsche Optionen werden aus anderen Karten des Decks generiert
+- [ ] Timer pro Frage (optional, konfigurierbar)
+- [ ] Ergebnis: Score, falsch beantwortete Karten markiert
+- [ ] Falsche Karten können direkt zum Review hinzugefügt werden
+
+**Testfälle**
+- **Unit:** MC-Options-Generator (keine Duplikate, korrekte Antwort enthalten)
+- **E2E:** Test starten → Fragen beantworten → Ergebnis sehen
+
+### CL-C02 - Match-Spiel (Begriffe zuordnen)
+
+- **Priorität:** P2
+- **Status:** Offen
+- **Schätzung:** 3-4 PT
+- **Abhängigkeiten:** keine
+
+**Beschreibung**
+Spielerisches Zuordnen: Begriffe und Definitionen werden gemischt angezeigt. Nutzer tippt Paare an. Timer + Highscore.
+
+**Akzeptanzkriterien**
+- [ ] 6-8 Karten pro Runde (Begriff + Definition getrennt)
+- [ ] Tippen auf Begriff, dann auf Definition → Match (grün) oder Fehler (rot)
+- [ ] Timer läuft, Highscore wird gespeichert
+- [ ] Animation bei Match (Karten verschwinden)
+- [ ] Ergebnis: Zeit, Fehler, Highscore-Vergleich
+
+### CL-C03 - Auto-Play (Karten-Slideshow)
+
+- **Priorität:** P2
+- **Status:** Offen
+- **Schätzung:** 1 PT
+- **Abhängigkeiten:** CL-A01 (Flip-Animation)
+
+**Beschreibung**
+Play-Button startet automatischen Durchlauf: Karte zeigen → warten → umdrehen → warten → nächste Karte. Geschwindigkeit einstellbar. Pausieren/Stoppen jederzeit.
+
+**Akzeptanzkriterien**
+- [ ] Play-Button (▶) im Learn-Screen
+- [ ] Automatischer Ablauf: Vorderseite (3s) → Flip → Rückseite (3s) → nächste Karte
+- [ ] Geschwindigkeit einstellbar (1s/3s/5s/10s)
+- [ ] Pause/Stop jederzeit möglich
+- [ ] Optional: TTS vorlesen bei jeder Seite (wenn CL-B03 implementiert)
+
+### CL-C04 - Image Occlusion
+
+- **Priorität:** P2
+- **Status:** Offen
+- **Schätzung:** 4-5 PT
+- **Abhängigkeiten:** keine
+
+**Beschreibung**
+Nutzer kann auf einem Bild Bereiche markieren (Rechtecke), die verdeckt werden. Beim Lernen wird jeweils ein Bereich aufgedeckt → der Rest ist verdeckt. Ideal für Anatomie, Diagramme, Karten.
+
+**Akzeptanzkriterien**
+- [ ] Bild hochladen → Bereiche mit Fingern/Rechteck markieren
+- [ ] Pro markiertem Bereich wird eine Karte erstellt
+- [ ] Beim Lernen: markierter Bereich verdeckt, Rest sichtbar
+- [ ] Tippen → Bereich wird aufgedeckt
+- [ ] Mehrere Bereiche pro Bild möglich
+
+---
+
+## Feature-Tickets: Priorität D — Daten, Ökosystem & Monetarisierung
+
+### CL-D01 - Offline-Lernen (SQLite-Cache)
+
+- **Priorität:** P1
+- **Status:** Offen (Scaffold für Offline-Queue existiert)
+- **Schätzung:** 4-5 PT
+- **Abhängigkeiten:** keine
+
+**Beschreibung**
+Fällige Karten werden lokal in SQLite gecached. Reviews werden offline gespeichert und bei Verbindung synchronisiert. Conflict-Resolution bei gleichzeitiger Nutzung auf mehreren Geräten.
+
+**Akzeptanzkriterien**
+- [ ] SQLite-DB mit lokaler Kopie von Decks + fälligen Karten
+- [ ] Review-Queue: Offline-Reviews werden lokal gespeichert
+- [ ] Sync bei Verbindungsherstellung (automatisch)
+- [ ] Conflict-Resolution: Server-Timestamp gewinnt bei Konflikt
+- [ ] Visueller Indikator: Online/Offline-Status + "X Reviews warten auf Sync"
+
+### CL-D02 - PDF-Import
+
+- **Priorität:** P1
+- **Status:** Offen (Job-Queue-Scaffold existiert)
+- **Schätzung:** 3-4 PT
+- **Abhängigkeiten:** keine
+
+**Beschreibung**
+PDF hochladen → Text extrahieren → KI generiert Flashcards → neues Deck. Unterstützt mehrseitige PDFs. Upload via R2 Signed URL.
+
+**Akzeptanzkriterien**
+- [ ] PDF-Upload im Scan-Screen (zusätzliche Option)
+- [ ] Serverseitige Text-Extraktion (pdf-parse oder ähnlich)
+- [ ] KI-Verarbeitung wie bei Text-Input (Gemini)
+- [ ] Fortschrittsanzeige für längere PDFs
+- [ ] Max. Dateigröße: 10 MB (Free), 50 MB (Pro)
+
+### CL-D03 - Anki-Import
+
+- **Priorität:** P2
+- **Status:** Offen
+- **Schätzung:** 3-4 PT
+
+**Beschreibung**
+.apkg-Dateien (Anki-Export) importieren → clearn-Decks mit Karten erstellen. Unterstützt Basic- und Cloze-Karten. Medien-Anhänge optional.
+
+### CL-D04 - Anki-Export
+
+- **Priorität:** P2
+- **Status:** Offen (Mock-Scaffold existiert)
+- **Schätzung:** 2-3 PT
+
+**Beschreibung**
+clearn-Decks als .apkg exportieren (Anki-kompatibel). Kein Vendor-Lock-in.
+
+### CL-D05 - Apple/Google Sign-In (OAuth)
+
+- **Priorität:** P2
+- **Status:** Offen
+- **Schätzung:** 2-3 PT
+
+**Beschreibung**
+Zusätzlich zu E-Mail/Passwort: Sign-In with Apple und Google OAuth über Supabase Auth.
+
+### CL-D06 - Paywall + RevenueCat
+
+- **Priorität:** P1
+- **Status:** Offen (Scaffold existiert)
+- **Schätzung:** 3-4 PT
+
+**Beschreibung**
+Echte In-App-Käufe über RevenueCat. Free-Tier-Limits (z.B. 5 Scans/Monat), Pro-Tier ohne Limits. Paywall-Screen bei Limit-Erreichen.
+
+### CL-D07 - Community-Decks
+
+- **Priorität:** P2
+- **Status:** Offen (In-Memory-Scaffold existiert)
+- **Schätzung:** 4-5 PT
+
+**Beschreibung**
+Decks teilen, öffentlich durchsuchen, bewerten, kopieren. Moderation und Abuse-Prevention.
+
+### CL-D08 - Onboarding-Flow
+
+- **Priorität:** P1
+- **Status:** Offen (Scaffold existiert)
+- **Schätzung:** 2 PT
+
+**Beschreibung**
+Erster Start → Beispiel-Scan → erste Review → Erfolgserlebnis in unter 2 Minuten. Keine Registrierung nötig für den ersten Durchlauf.
+
+---
+
+## Empfohlene Umsetzungsreihenfolge
+
+### Sprint Prio-A (1-2 Wochen)
+- **CL-A01** Karte umdrehen (Flip)
+- **CL-A02** Swipe links/rechts
+- **CL-A03** Fortschrittsbalken
+- **CL-A04** Begriff ↔ Definition
+- **CL-A05** Stern/Favorit
+
+### Sprint Prio-B (2-3 Wochen)
+- **CL-B01** Streaks
+- **CL-B02** Statistiken-Screen
+- **CL-B03** Vorlesen (TTS)
+- **CL-B04** Push-Erinnerungen
+- **CL-B05** Home-Screen aufwerten
+
+### Sprint Prio-C/D (fortlaufend)
+- Nach Bedarf und Nutzer-Feedback priorisieren

@@ -1,14 +1,82 @@
 # ROADMAP
 
-Letzte Aktualisierung: 2026-02-11 (KI-generierte Deck-Titel)
+Letzte Aktualisierung: 2026-02-11 (Feature-Prioritäten + Wettbewerbsanalyse)
 
 ## Gesamtstatus
 
-- Projektphase: **Delivery Scaffold abgeschlossen (Implementierung + Tests)**
+- Projektphase: **MVP-Kern funktionsfähig, UX-Verbesserungen + Feature-Ausbau nötig**
 - Produktname: **clearn.ai** (vereinheitlicht)
 - Plattformfokus: **Mobile first (iOS/Android)**
 - Sprache: **Deutsch default**, erste Uebersetzung **Englisch**
 - Detailliertes Umsetzungs-Backlog: **`BACKLOG.md`**
+
+---
+
+## Wettbewerbsanalyse
+
+### Unsere USPs (Alleinstellungsmerkmale)
+- **Kamera → KI → Flashcards** in einem Flow (kein Wettbewerber bietet das)
+- **FSRS v5** (wissenschaftlich bester Spaced-Repetition-Algorithmus)
+- **KI-generierte Deck-Titel** und inhaltlich passende Karten (Gemini 3 Flash)
+- **Bild-Input** für KI-Verarbeitung (Vision → Flashcards)
+
+### Feature-Vergleich mit Wettbewerbern
+
+| Feature | Quizlet | Anki | Brainscape | **clearn.ai** |
+|---------|:---:|:---:|:---:|:---:|
+| Karte umdrehen (Tap/Animation) | ✅ | ✅ | ✅ | ❌ |
+| Swipe links/rechts (weiß/weiß nicht) | ✅ | ❌ | ✅ | ❌ |
+| Vorlesen (TTS) | ✅ | Add-on | ❌ | ❌ |
+| Stern/Favorit markieren | ✅ | Flag | ❌ | ❌ |
+| Auto-Play (Slideshow) | ✅ | ❌ | ❌ | ❌ |
+| Begriff ↔ Definition umschalten | ✅ | ✅ | ❌ | ❌ |
+| Fortschrittsbalken in Session | ✅ | ✅ | ✅ | ❌ |
+| Streaks (Tagesserien) | ✅ | ❌ | ✅ | ❌ |
+| Test-Modus (MC, Wahr/Falsch) | ✅ | ❌ | ❌ | ❌ |
+| Match-Spiel (Timer) | ✅ | ❌ | ❌ | ❌ |
+| Statistiken/Analytics | ✅ | ✅ | ✅ | API da, kein Screen |
+| Image Occlusion | Diagramme | Add-on | ❌ | ❌ |
+| Offline-Lernen | ✅ | ✅ | Teilweise | ❌ |
+| KI-Kartenerstellung | Bezahlt | ❌ | ❌ | **✅ USP** |
+| Kamera → Karten | ❌ | ❌ | ❌ | **✅ USP** |
+| FSRS-Algorithmus | ❌ (einfach) | ✅ | Eigener | **✅** |
+| Community-Decks | ✅ (riesig) | ✅ | ✅ | Scaffold |
+| Push-Erinnerungen | ✅ | ❌ | ✅ | ❌ |
+| PDF-Import | ❌ | Add-on | ❌ | Scaffold |
+| Anki-Import/Export | ❌ | Nativ | ❌ | Scaffold |
+
+---
+
+## Funktionaler Ist-Stand (2026-02-11)
+
+### Voll funktionsfähig (End-to-End mit echten Daten)
+
+| Feature | Beschreibung |
+|---------|-------------|
+| **Scan → KI → Flashcards** | Kamera, Galerie oder Text → Gemini 3 Flash → Karten |
+| **Deck-Management** | Erstellen, Umbenennen, Löschen, Suchen, KI-generierte Titel |
+| **Card-Management** | Anzeigen, Bearbeiten, Löschen, Manuell hinzufügen (Editor-Modal) |
+| **Karten zu bestehendem Deck** | Scan-Ergebnis in neues ODER vorhandenes Deck speichern |
+| **FSRS-Review** | Again/Hard/Good/Easy mit persistenter Zustandsverwaltung |
+| **Home-Dashboard** | Fällige Karten, Deck-Anzahl, CTA zum Lernen/Scannen |
+| **Auth** | Login, Registrierung, Passwort-Reset (Supabase) |
+| **Profil** | E-Mail-Anzeige, Abo-Status, Sprache, Abmelden |
+| **Daten-Persistenz** | Alles in Supabase PostgreSQL mit JWT-Auth |
+| **Auto-Deploy** | Git-Push → Vercel baut `clearn-api` + `clearn-web` automatisch |
+
+### Scaffold vorhanden, NICHT funktionsfähig
+
+| Feature | Problem |
+|---------|---------|
+| Statistiken | API existiert, kein Mobile-Screen |
+| Offline-Sync | Store existiert, wird nie aufgerufen |
+| Paywall | Screen existiert, kein Weg dorthin, kein RevenueCat |
+| PDF-Import | Nur Job-Queue, kein echtes Parsing |
+| Anki-Export | Mock-Daten |
+| Mathe-Formeln (Mathpix) | Mock |
+| Community-Decks | In-Memory, kein Mobile-Screen |
+| B2B Dashboard | In-Memory, kein Mobile-Screen |
+| Beta-Feedback | In-Memory, kein Mobile-Screen |
 
 ## Phase 0 - Konzeptschärfung (abgeschlossen)
 
@@ -96,29 +164,81 @@ Letzte Aktualisierung: 2026-02-11 (KI-generierte Deck-Titel)
 - [x] API-Client erweitert: updateDeck, deleteDeck, listCardsInDeck, updateCard, deleteCard
 - [x] **KI-generierter Deck-Titel**: Gemini erstellt passenden Titel (z.B. "Zellbiologie Grundlagen") statt generischem "Scan DD.MM.YYYY"
 
-## Phase 2 - Beta Launch (4-6 Wochen, Scaffold umgesetzt)
+---
 
-- [x] Onboarding-Flow mit erstem Lernerfolg in < 2 Minuten
-- [x] Statistiken-Dashboard
-- [x] Push-Notifications (Preferences + Quiet Hours)
-- [x] Incident-Runbook + Restore-Test in Regelbetrieb
-- [x] Landing Page + App Store Optimierung (Scaffold)
-- [x] Beta-Launch DACH vorbereitet (Feedback/Triage Loop)
+## Feature-Prioritäten (nach Nutzer-Impact)
 
-## Phase 3 - Growth (laufend, Scaffold umgesetzt)
+### Priorität A — Lern-Experience (macht oder bricht die App)
 
-- [x] Erweiterte Lernmodi (MCQ, Matching, Cloze+)
-- [x] PDF-Import (Queue/Retry)
-- [x] Mathpix-Integration (Kostenkontrolle)
-- [x] Anki-Export
-- [x] Community-Decks (Moderation/Abuse-Prevention)
-- [x] Web-App
-- [x] B2B-Dashboard (Mandantenisolation)
+| # | Ticket | Feature | Aufwand | Impact | Status |
+|---|--------|---------|---------|--------|--------|
+| A1 | CL-A01 | **Karte umdrehen (Tap + Flip-Animation)** | Klein | Riesig | ❌ Offen |
+| A2 | CL-A02 | **Swipe links/rechts** (weiß ich / weiß ich nicht) | Mittel | Riesig | ❌ Offen |
+| A3 | CL-A03 | **Fortschrittsbalken** in Lernsession (3/12 Karten) | Klein | Groß | ❌ Offen |
+| A4 | CL-A04 | **Begriff ↔ Definition umschalten** (Wechsel-Symbol) | Klein | Groß | ❌ Offen |
+| A5 | CL-A05 | **Stern/Favorit** markieren (Subset lernen) | Klein | Mittel | ❌ Offen |
+
+### Priorität B — Engagement & Motivation
+
+| # | Ticket | Feature | Aufwand | Impact | Status |
+|---|--------|---------|---------|--------|--------|
+| B1 | CL-B01 | **Streaks** (Tagesserien + visuelles Tracking) | Mittel | Groß | ❌ Offen |
+| B2 | CL-B02 | **Statistiken-Screen** (Karten gelernt, Genauigkeit, Streak, Verlauf) | Mittel | Groß | ❌ Offen |
+| B3 | CL-B03 | **Vorlesen (TTS)** (Button auf Karten-Vorder-/Rückseite) | Klein | Mittel | ❌ Offen |
+| B4 | CL-B04 | **Push-Erinnerungen** ("5 Karten fällig!", konfigurierbar) | Mittel | Groß | ❌ Offen |
+| B5 | CL-B05 | **Home-Screen aufwerten** (Streak, nächste fällige Karten, Lernziele) | Mittel | Groß | ❌ Offen |
+
+### Priorität C — Erweiterte Lernmodi
+
+| # | Ticket | Feature | Aufwand | Impact | Status |
+|---|--------|---------|---------|--------|--------|
+| C1 | CL-C01 | **Test-Modus** (Multiple Choice, Wahr/Falsch aus Kartenpool) | Groß | Groß | ❌ Offen |
+| C2 | CL-C02 | **Match-Spiel** (Begriffe zuordnen, Timer, Highscore) | Groß | Mittel | ❌ Offen |
+| C3 | CL-C03 | **Auto-Play** (Karten automatisch durchlaufen, einstellbare Geschwindigkeit) | Klein | Klein | ❌ Offen |
+| C4 | CL-C04 | **Image Occlusion** (Bildteile verdecken als Lernkarte) | Groß | Mittel | ❌ Offen |
+
+### Priorität D — Daten, Ökosystem & Monetarisierung
+
+| # | Ticket | Feature | Aufwand | Impact | Status |
+|---|--------|---------|---------|--------|--------|
+| D1 | CL-D01 | **Offline-Lernen** (SQLite-Cache + Sync bei Verbindung) | Groß | Groß | ❌ Offen |
+| D2 | CL-D02 | **PDF-Import** (echtes Parsing → KI → Karten) | Groß | Groß | ❌ Offen |
+| D3 | CL-D03 | **Anki-Import** (.apkg → clearn-Decks) | Mittel | Mittel | ❌ Offen |
+| D4 | CL-D04 | **Anki-Export** (clearn-Decks → .apkg) | Mittel | Mittel | ❌ Offen |
+| D5 | CL-D05 | **Apple/Google Sign-In** (OAuth neben E-Mail) | Mittel | Mittel | ❌ Offen |
+| D6 | CL-D06 | **Paywall + RevenueCat** (echte In-App-Käufe) | Groß | Groß | ❌ Offen |
+| D7 | CL-D07 | **Community-Decks** (teilen, bewerten, suchen) | Groß | Groß | ❌ Offen |
+| D8 | CL-D08 | **Onboarding-Flow** (Erster Lernerfolg in < 2 Min) | Mittel | Groß | ❌ Offen |
+
+---
+
+## Phase 2 - Beta Launch (TODO — Scaffold vorhanden, nicht funktionsfähig)
+
+Voraussetzung: Priorität A + B abgeschlossen.
+
+- [ ] Statistiken-Dashboard (CL-B02)
+- [ ] Streaks + Push-Notifications (CL-B01, CL-B04)
+- [ ] Onboarding-Flow (CL-D08)
+- [ ] Incident-Runbook + Restore-Test in Regelbetrieb
+- [ ] Landing Page + App Store Optimierung
+- [ ] TestFlight Beta-Launch DACH
+
+## Phase 3 - Growth (TODO — Scaffold vorhanden, nicht funktionsfähig)
+
+Voraussetzung: Phase 2 + stabile Nutzerbasis.
+
+- [ ] Erweiterte Lernmodi: Test-Modus, Match-Spiel, Auto-Play (CL-C01–C03)
+- [ ] PDF-Import (CL-D02)
+- [ ] Anki-Import/Export (CL-D03, CL-D04)
+- [ ] Paywall + RevenueCat (CL-D06)
+- [ ] Community-Decks (CL-D07)
+- [ ] Web-App (funktionsfähig machen)
+- [ ] B2B-Dashboard
 
 ## Exit-Kriterien
 
-- Phase 1 -> 2: Crash-free > 99,5%, Time to First Card < 30s, stabiler End-to-End Sync
-- Phase 2 -> 3: D7 Retention > 25%, Review Completion > 65%, Trial -> Paid > 35%
+- Phase 1 → 2: Crash-free > 99,5 %, Time to First Card < 30s, Priorität A abgeschlossen
+- Phase 2 → 3: D7 Retention > 25 %, Review Completion > 65 %, Trial → Paid > 35 %
 
 ## Aenderungsprotokoll
 
@@ -156,3 +276,5 @@ Letzte Aktualisierung: 2026-02-11 (KI-generierte Deck-Titel)
 - 2026-02-11: **Supabase-DB-Anbindung**: In-Memory Store durch Postgres ersetzt; JWT Auth-Middleware; alle API-Routes authentifiziert; Daten-Persistenz verifiziert.
 - 2026-02-11: **Deck/Card CRUD**: Deck-Detail-Screen, Card-Editor-Modal, Umbenennen/Löschen via Long-Press, Karten zu bestehendem Deck hinzufügen.
 - 2026-02-11: **KI-generierte Deck-Titel**: Gemini-Prompt liefert `{ title, cards }` statt nur `[cards]`; Titel wird in Scan-Ergebnis + beim Speichern verwendet.
+- 2026-02-11: **Vercel-Bereinigung**: `cloudlearn`-Projekt gelöscht; `clearn-api` + `clearn-web` mit Git verbunden; Root Directories korrekt gesetzt; Auto-Deploy verifiziert.
+- 2026-02-11: **Wettbewerbsanalyse + Feature-Priorisierung**: Quizlet/Anki/Brainscape verglichen; 21 konkrete Feature-Tickets in 4 Prioritätsstufen (A–D) definiert; Ist-Stand (funktionsfähig vs. Scaffold) dokumentiert; Phase 2+3 als TODO korrigiert (waren fälschlich als [x] markiert).

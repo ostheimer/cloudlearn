@@ -25,7 +25,8 @@
 - [Monetarisierung](#monetarisierung)
 - [Entwicklungs-Roadmap](#entwicklungs-roadmap)
 - [Backlog (Detailplanung)](#backlog-detailplanung)
-- [Implementierungsstatus (2026-02-10)](#implementierungsstatus-2026-02-10)
+- [Warum clearn.ai? — Alleinstellungsmerkmale (USPs)](#warum-clearnai--alleinstellungsmerkmale-usps)
+- [Implementierungsstatus (2026-02-11)](#implementierungsstatus-2026-02-11)
 - [Risiken & Gegenmassnahmen](#risiken--gegenmassnahmen)
 - [Setup & Entwicklung](#setup--entwicklung)
 - [Projektstruktur](#projektstruktur)
@@ -52,6 +53,26 @@
 **Zielgruppe:** Alle Altersgruppen — Schüler, Studenten, Berufstätige, Lifelong Learners  
 **Primärmarkt:** DACH (Deutschland, Österreich, Schweiz)  
 **Kernversprechen:** Vom Foto zum Wissen in unter 30 Sekunden
+
+---
+
+## Warum clearn.ai? — Alleinstellungsmerkmale (USPs)
+
+| USP | Beschreibung | Wettbewerb |
+|-----|-------------|------------|
+| **Kamera → KI → Flashcards** | Foto aufnehmen → Gemini analysiert → fertige Lernkarten in Sekunden | Kein Wettbewerber bietet diesen End-to-End-Flow |
+| **Bild-Input für KI** | Auch handschriftliche Notizen, Tafelbilder, Lehrbuchseiten werden erkannt | Quizlet: nur Text-AI; Anki: keine KI |
+| **FSRS v5 Algorithmus** | Wissenschaftlich optimaler Spaced-Repetition-Algorithmus | Quizlet: einfaches SRS; Brainscape: eigener Algorithmus |
+| **KI-generierte Titel** | Deck-Titel passend zum Inhalt (nicht "Deck 1") | Kein Wettbewerber |
+| **Kostenlos starten, kein Abo nötig** | Kernfunktionen kostenlos, KI-Scans mit Fair-Use-Limit | Quizlet: Abo für KI; Anki iOS: 25 $ einmalig |
+
+### Wettbewerber im Überblick
+
+- **Quizlet** — Größte Community, polierte UI, 8 Lernmodi, aber: einfaches SRS, KI nur bezahlt, Werbung
+- **Anki** — Bester Algorithmus, maximale Flexibilität, aber: veraltete UI, steile Lernkurve, iOS-App kostet 25 $
+- **Brainscape** — Gute Analytics, Confidence-basiert, aber: wenig Free-Content, eingeschränkt offline
+
+**clearn.ai positioniert sich als:** Anki-Qualität (FSRS) + Quizlet-UX + KI-First (Kamera → Karten).
 
 ---
 
@@ -803,15 +824,34 @@ Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testfa
 
 ---
 
-## Implementierungsstatus (2026-02-10)
+## Implementierungsstatus (2026-02-11)
 
-- Monorepo mit `apps/mobile`, `apps/api`, `packages/contracts`, `packages/domain`, `packages/testkit` ist eingerichtet.
-- API-Scaffold fuer `api/v1` ist implementiert (Scan, Decks, Cards, Learn, Subscription, Upload Sign, Beta, Import, Export, Community, B2B).
-- Supabase Migrationen inkl. RLS Policies sind unter `apps/api/supabase/migrations` vorhanden.
-- Mobile Scaffold mit Auth/Tabs, Capture-, OCR-Editor-, Review-, Paywall-, Onboarding-, Stats- und i18n-Flow ist implementiert.
-- Web Scaffold mit Landing Page und Learn-Client ist unter `apps/web` vorhanden.
-- Offline-Queue, FSRS-Basislogik, Signed-URL-Flow, Growth-Services und Contract-Validation sind testabgedeckt.
-- Workspace-Checks laufen mit `pnpm run ci` und `pnpm run orchestrator:verify`.
+### Voll funktionsfähig (End-to-End mit echten Daten)
+
+- **Scan → KI → Flashcards**: Kamera, Galerie oder Text → Gemini 3 Flash → strukturierte Lernkarten
+- **Deck-Management**: Erstellen, Umbenennen, Löschen, Suchen, KI-generierte Titel
+- **Card-Management**: Anzeigen, Bearbeiten, Löschen, Manuell hinzufügen (Editor-Modal)
+- **Karten zu bestehendem Deck**: Scan-Ergebnis in neues ODER vorhandenes Deck speichern
+- **FSRS-Review**: Again/Hard/Good/Easy mit persistenter Zustandsverwaltung in Supabase
+- **Home-Dashboard**: Fällige Karten, Deck-Anzahl, CTA zum Lernen/Scannen
+- **Auth**: Login, Registrierung, Passwort-Reset (Supabase Auth + JWT)
+- **Profil**: E-Mail-Anzeige, Abo-Status, Sprache, Abmelden
+- **Daten-Persistenz**: Alles in Supabase PostgreSQL mit JWT-Auth-Middleware
+- **Auto-Deploy**: Git-Push → Vercel baut `clearn-api` + `clearn-web` automatisch
+
+### Scaffold vorhanden, noch nicht funktionsfähig
+
+- Statistiken (API existiert, kein Mobile-Screen)
+- Offline-Sync (Store existiert, wird nicht aufgerufen)
+- Paywall (Screen existiert, kein Weg dorthin, kein RevenueCat)
+- PDF-Import, Anki-Export, Mathpix, Community-Decks, B2B (Mock/In-Memory)
+
+### Nächste Schritte (siehe `ROADMAP.md` und `BACKLOG.md`)
+
+- **Priorität A**: Flashcard-UX verbessern (Flip-Animation, Swipe, Fortschrittsbalken, Stern/Favorit)
+- **Priorität B**: Engagement (Streaks, Statistiken, TTS, Push-Notifications)
+- **Priorität C**: Erweiterte Lernmodi (Test, Match-Spiel, Auto-Play, Image Occlusion)
+- **Priorität D**: Daten & Ökosystem (Offline, PDF-Import, Anki, OAuth, Paywall, Community)
 
 ---
 
