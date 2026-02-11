@@ -178,6 +178,50 @@ export async function reviewCard(
   });
 }
 
+// --- Deck Management ---
+
+export async function updateDeck(
+  deckId: string,
+  updates: { title?: string; tags?: string[] }
+): Promise<{ deck: Deck }> {
+  return request<{ deck: Deck }>(`/api/v1/decks/${deckId}`, {
+    method: "PATCH",
+    body: JSON.stringify(updates),
+  });
+}
+
+export async function deleteDeck(deckId: string): Promise<{ deleted: boolean }> {
+  return request<{ deleted: boolean }>(`/api/v1/decks/${deckId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function listCardsInDeck(
+  deckId: string
+): Promise<{ cards: Card[] }> {
+  return request<{ cards: Card[] }>(`/api/v1/decks/${deckId}/cards`);
+}
+
+// --- Card Management ---
+
+export async function updateCard(
+  cardId: string,
+  updates: { front?: string; back?: string; type?: string; difficulty?: string; tags?: string[] }
+): Promise<{ card: Card }> {
+  return request<{ card: Card }>(`/api/v1/cards/${cardId}`, {
+    method: "PATCH",
+    body: JSON.stringify(updates),
+  });
+}
+
+export async function deleteCard(cardId: string): Promise<{ deleted: boolean }> {
+  return request<{ deleted: boolean }>(`/api/v1/cards/${cardId}`, {
+    method: "DELETE",
+  });
+}
+
+// --- Subscription ---
+
 export async function getSubscriptionStatus(
   userId: string
 ): Promise<{ status: { tier: string; isActive: boolean } }> {

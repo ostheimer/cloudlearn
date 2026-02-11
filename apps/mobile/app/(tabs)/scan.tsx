@@ -22,7 +22,9 @@ import {
   scanImage,
   createDeck,
   createCard,
+  listDecks,
   type Flashcard,
+  type Deck,
 } from "../../src/lib/api";
 import { useReviewSession } from "../../src/features/review/reviewSession";
 
@@ -148,18 +150,13 @@ export default function ScanScreen() {
     }
   };
 
-  const handleSaveAndLearn = async () => {
+  const saveCardsToDeck = async (deckId: string, deckTitle: string) => {
     if (!userId || cards.length === 0) return;
     setSaving(true);
     try {
-      const { deck } = await createDeck(userId, `Scan ${new Date().toLocaleDateString("de")}`, [
-        "scan",
-        "auto",
-      ]);
-
       const savedCards = [];
       for (const card of cards) {
-        const { card: savedCard } = await createCard(userId, deck.id, card);
+        const { card: savedCard } = await createCard(userId, deckId, card);
         savedCards.push(savedCard);
       }
 
@@ -170,7 +167,7 @@ export default function ScanScreen() {
 
       Alert.alert(
         "Gespeichert!",
-        `${savedCards.length} Karten in "${deck.title}" gespeichert.`,
+        `${savedCards.length} Karten in "${deckTitle}" gespeichert.`,
         [{ text: "Jetzt lernen", onPress: () => router.push("/(tabs)/learn") }]
       );
     } catch (error: unknown) {
@@ -179,6 +176,61 @@ export default function ScanScreen() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleSaveNewDeck = async () => {
+    if (!userId || cards.length === 0) return;
+    setSaving(true);
+    try {
+      const { deck } = await createDeck(userId, `Scan ${new Date().toLocaleDateString("de")}`, [
+        "scan",
+        "auto",
+      ]);
+      await saveCardsToDeck(deck.id, deck.title);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : "Unbekannter Fehler";
+      Alert.alert("Fehler beim Speichern", msg);
+      setSaving(false);
+    }
+  };
+
+  const handleSaveToExistingDeck = async () => {
+    if (!userId) return;
+    try {
+      const { decks: existingDecks } = await listDecks(userId);
+      if (existingDecks.length === 0) {
+        Alert.alert("Keine Decks", "Du hast noch keine Decks. Es wird ein neues erstellt.", [
+          { text: "OK", onPress: handleSaveNewDeck },
+        ]);
+        return;
+      }
+      // Show deck picker
+      const buttons = existingDecks.slice(0, 8).map((d: Deck) => ({
+        text: d.title,
+        onPress: () => saveCardsToDeck(d.id, d.title),
+      }));
+      buttons.push({ text: "Abbrechen", onPress: () => {} });
+      Alert.alert(
+        "Deck wählen",
+        `${cards.length} Karten hinzufügen zu:`,
+        buttons
+      );
+    } catch {
+      Alert.alert("Fehler", "Decks konnten nicht geladen werden.");
+    }
+  };
+
+  const handleSaveAndLearn = () => {
+    if (!userId || cards.length === 0) return;
+    Alert.alert(
+      "Karten speichern",
+      `${cards.length} Karten speichern in:`,
+      [
+        { text: "Neues Deck", onPress: handleSaveNewDeck },
+        { text: "Bestehendes Deck", onPress: handleSaveToExistingDeck },
+        { text: "Abbrechen", style: "cancel" },
+      ]
+    );
   };
 
   const resetAll = () => {

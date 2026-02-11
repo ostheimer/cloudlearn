@@ -1,4 +1,4 @@
-import { Slot, useRouter, useSegments } from "expo-router";
+import { Stack, useRouter, useSegments } from "expo-router";
 import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -57,7 +57,23 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <Slot />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+        }}
+      >
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="auth" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="deck/[id]"
+          options={{
+            headerShown: true,
+            headerBackTitle: "Decks",
+            headerTintColor: "#6366f1",
+            headerStyle: { backgroundColor: "#f8f9fa" },
+          }}
+        />
+      </Stack>
     </SafeAreaProvider>
   );
 }
