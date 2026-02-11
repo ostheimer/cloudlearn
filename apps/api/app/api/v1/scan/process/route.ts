@@ -15,6 +15,8 @@ export async function POST(request: NextRequest) {
     if (!auth) return jsonError(requestId, "UNAUTHORIZED", "Authentication required", 401);
 
     const body = await request.json();
+    // Inject authenticated userId (override client-provided value)
+    body.userId = auth.userId;
     const userId = auth.userId;
     const userSubscription = await getSubscriptionStatus(userId);
     const plan = userSubscription.tier;
