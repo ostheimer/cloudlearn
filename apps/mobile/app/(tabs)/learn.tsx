@@ -68,9 +68,13 @@ export default function LearnScreen() {
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
 
+  // ─── Entrance animation for new cards ─────────────────────────────────────
+  const cardScale = useSharedValue(1);
+  const cardOpacity = useSharedValue(1);
+
   // ─── Animated styles ─────────────────────────────────────────────────────
 
-  // Card wrapper: translateX + translateY + rotation (Tinder-like tilt)
+  // Card wrapper: translateX + translateY + rotation (Tinder-like tilt) + scale/opacity for entrance
   const cardWrapperStyle = useAnimatedStyle(() => {
     const rotate = interpolate(
       translateX.value,
@@ -83,7 +87,9 @@ export default function LearnScreen() {
         { translateX: translateX.value },
         { translateY: translateY.value },
         { rotate: `${rotate}deg` },
+        { scale: cardScale.value },
       ],
+      opacity: cardOpacity.value,
     };
   });
 
@@ -128,13 +134,19 @@ export default function LearnScreen() {
     return { opacity };
   });
 
-  // ─── Reset on card change ─────────────────────────────────────────────────
+  // ─── Reset on card change with entrance animation ──────────────────────────
   useEffect(() => {
     setFlipped(false);
     flipProgress.value = withTiming(0, { duration: 200 });
+    // Reset position instantly (old card is off-screen already)
     translateX.value = 0;
     translateY.value = 0;
-  }, [index, flipProgress, translateX, translateY]);
+    // Entrance animation: scale up from small + fade in
+    cardScale.value = 0.88;
+    cardOpacity.value = 0;
+    cardScale.value = withSpring(1, { damping: 14, stiffness: 160 });
+    cardOpacity.value = withTiming(1, { duration: 200, easing: Easing.out(Easing.cubic) });
+  }, [index, flipProgress, translateX, translateY, cardScale, cardOpacity]);
 
   // Animate flip
   useEffect(() => {
@@ -270,20 +282,31 @@ export default function LearnScreen() {
       const dist = Math.abs(e.translationX);
 
       if (dist > SWIPE_THRESHOLD) {
-        // Past threshold → fly off and rate
+        // Past threshold → fly off screen and rate
         const isRight = e.translationX > 0;
         const flyX = isRight ? SCREEN_WIDTH * 1.5 : -SCREEN_WIDTH * 1.5;
-        const flyY = e.translationY + e.velocityY * 0.15;
+        const flyY = e.translationY + e.velocityY * 0.2;
         const rating: ReviewRating = isRight ? "good" : "again";
 
-        translateX.value = withTiming(flyX, { duration: 300 });
-        translateY.value = withTiming(flyY, { duration: 300 }, () => {
+        // Calculate duration based on velocity — faster swipe = faster fly-out
+        const remainingDist = Math.abs(flyX - e.translationX);
+        const speed = Math.max(Math.abs(e.velocityX), 800);
+        const flyDuration = Math.min(Math.max((remainingDist / speed) * 1000, 200), 450);
+
+        translateX.value = withTiming(flyX, {
+          duration: flyDuration,
+          easing: Easing.in(Easing.cubic),
+        });
+        translateY.value = withTiming(flyY, {
+          duration: flyDuration,
+          easing: Easing.in(Easing.cubic),
+        }, () => {
           runOnJS(handleSwipe)(rating);
         });
       } else {
-        // Snap back with spring
-        translateX.value = withSpring(0, { damping: 15, stiffness: 150 });
-        translateY.value = withSpring(0, { damping: 15, stiffness: 150 });
+        // Snap back with bouncy spring (lower damping = more bounce)
+        translateX.value = withSpring(0, { damping: 8, stiffness: 120, mass: 0.8 });
+        translateY.value = withSpring(0, { damping: 8, stiffness: 120, mass: 0.8 });
       }
     });
 

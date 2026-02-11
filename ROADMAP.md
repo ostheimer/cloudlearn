@@ -1,6 +1,6 @@
 # ROADMAP
 
-Letzte Aktualisierung: 2026-02-12 (Quizlet-Style Swipe, Dark Mode, FSRS-Fix)
+Letzte Aktualisierung: 2026-02-12 (Swipe-Animationen, Dark Mode, FSRS-Fix)
 
 ## Gesamtstatus
 
@@ -308,3 +308,4 @@ Voraussetzung: Phase 2 + stabile Nutzerbasis.
 - 2026-02-12: **UI-Verbesserungen**: 4 Bewertungs-Buttons immer sichtbar (kein "Antwort anzeigen"-Gate), Tap togglet Karte immer (Front↔Back), Swipe immer aktiv (ohne vorheriges Tippen).
 - 2026-02-12: **Quizlet-Style Free-Drag Swipe**: Karte folgt Finger frei in 2D mit Tinder-artiger Rotation. Labels "NOCHMAL"/"GEMERKT" blenden graduell ein mit Skalierung. Loslassen nach Threshold: Karte fliegt raus + Rating; vorher: federndes Snap-Back. Hintergrund-Farbindikator (rot/grün).
 - 2026-02-12: **Dark Mode**: Komplett neues Farbschema (22 Farben), persistenter Zustand via Zustand+AsyncStorage. Toggle im Profil-Screen (Moon/Sun-Icon). `useColors()` Hook für dynamische Theme-Farben.
+- 2026-02-12: **Swipe-Animationen verbessert**: Sichtbare Fly-out-Animation (Karte fliegt nach links/rechts weg mit geschwindigkeitsbasierter Duration + Easing). Neue Karte erscheint mit Scale+Opacity-Eingangsanimation (spring von 0.88→1.0 + fade-in). Bouncy Snap-back beim Zurückfedern (damping: 8, stiffness: 120).
