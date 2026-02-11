@@ -20,3 +20,4 @@ mobile-session-complete.png
 apps/api/.next/
 apps/web/.next/
 supabase/.temp/
+.env*.local

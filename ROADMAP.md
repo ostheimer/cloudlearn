@@ -1,6 +1,6 @@
 # ROADMAP
 
-Letzte Aktualisierung: 2026-02-11 (Deck/Card CRUD in Mobile App)
+Letzte Aktualisierung: 2026-02-11 (KI-generierte Deck-Titel)
 
 ## Gesamtstatus
 
@@ -94,6 +94,7 @@ Letzte Aktualisierung: 2026-02-11 (Deck/Card CRUD in Mobile App)
 - [x] **Karten zu bestehendem Deck**: Scan-Ergebnis in neues ODER vorhandenes Deck speichern (Auswahl-Dialog)
 - [x] Stack-Navigation mit Back-Button für Deck-Detail-Screen
 - [x] API-Client erweitert: updateDeck, deleteDeck, listCardsInDeck, updateCard, deleteCard
+- [x] **KI-generierter Deck-Titel**: Gemini erstellt passenden Titel (z.B. "Zellbiologie Grundlagen") statt generischem "Scan DD.MM.YYYY"
 
 ## Phase 2 - Beta Launch (4-6 Wochen, Scaffold umgesetzt)
 
@@ -154,3 +155,4 @@ Letzte Aktualisierung: 2026-02-11 (Deck/Card CRUD in Mobile App)
 - 2026-02-11: Gemini-Prompt auf 5-25 Karten erweitert; Separate Loading-States für Generieren vs. Speichern im Scan-Screen.
 - 2026-02-11: **Supabase-DB-Anbindung**: In-Memory Store durch Postgres ersetzt; JWT Auth-Middleware; alle API-Routes authentifiziert; Daten-Persistenz verifiziert.
 - 2026-02-11: **Deck/Card CRUD**: Deck-Detail-Screen, Card-Editor-Modal, Umbenennen/Löschen via Long-Press, Karten zu bestehendem Deck hinzufügen.
+- 2026-02-11: **KI-generierte Deck-Titel**: Gemini-Prompt liefert `{ title, cards }` statt nur `[cards]`; Titel wird in Scan-Ergebnis + beim Speichern verwendet.
