@@ -28,6 +28,12 @@ export interface CardRecord extends Flashcard {
   fsrsStability: number;
   fsrsDifficulty: number;
   fsrsState: "new" | "learning" | "review" | "relearning";
+  fsrsReps: number;
+  fsrsLapses: number;
+  fsrsElapsedDays: number;
+  fsrsScheduledDays: number;
+  fsrsLearningSteps: number;
+  fsrsLastReview: string | null;
   deletedAt?: string | null;
 }
 
@@ -84,6 +90,12 @@ function mapCardRow(row: any): CardRecord {
     fsrsStability: row.fsrs_stability ?? 0,
     fsrsDifficulty: row.fsrs_difficulty ?? 0,
     fsrsState: row.fsrs_state ?? "new",
+    fsrsReps: row.fsrs_reps ?? 0,
+    fsrsLapses: row.fsrs_lapses ?? 0,
+    fsrsElapsedDays: row.fsrs_elapsed_days ?? 0,
+    fsrsScheduledDays: row.fsrs_scheduled_days ?? 0,
+    fsrsLearningSteps: row.fsrs_learning_steps ?? 0,
+    fsrsLastReview: row.fsrs_last_review ?? null,
     deletedAt: row.deleted_at ?? null,
   };
 }
@@ -289,7 +301,19 @@ export async function getCard(cardId: string): Promise<CardRecord | null> {
 
 export async function updateCardFsrs(
   cardId: string,
-  next: Pick<CardRecord, "fsrsDue" | "fsrsStability" | "fsrsDifficulty" | "fsrsState">
+  next: Pick<
+    CardRecord,
+    | "fsrsDue"
+    | "fsrsStability"
+    | "fsrsDifficulty"
+    | "fsrsState"
+    | "fsrsReps"
+    | "fsrsLapses"
+    | "fsrsElapsedDays"
+    | "fsrsScheduledDays"
+    | "fsrsLearningSteps"
+    | "fsrsLastReview"
+  >
 ): Promise<CardRecord | null> {
   const db = getDb();
   const { data, error } = await db
@@ -299,6 +323,12 @@ export async function updateCardFsrs(
       fsrs_stability: next.fsrsStability,
       fsrs_difficulty: next.fsrsDifficulty,
       fsrs_state: next.fsrsState,
+      fsrs_reps: next.fsrsReps,
+      fsrs_lapses: next.fsrsLapses,
+      fsrs_elapsed_days: next.fsrsElapsedDays,
+      fsrs_scheduled_days: next.fsrsScheduledDays,
+      fsrs_learning_steps: next.fsrsLearningSteps,
+      fsrs_last_review: next.fsrsLastReview,
       updated_at: new Date().toISOString(),
     })
     .eq("id", cardId)

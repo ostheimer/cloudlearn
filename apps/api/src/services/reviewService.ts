@@ -1,4 +1,4 @@
-import { applyReview, createNewFsrsCard } from "@/lib/domain";
+import { applyReview, createNewFsrsCard, reconstructFsrsCard } from "@/lib/domain";
 import { reviewRequestSchema, type ReviewResponse } from "@/lib/contracts";
 import {
   createReview,
@@ -7,6 +7,13 @@ import {
   updateCardFsrs,
   updateStreakAfterReview,
 } from "@/lib/db";
+
+const STATE_NUM_TO_STR: Record<number, "new" | "learning" | "review" | "relearning"> = {
+  0: "new",
+  1: "learning",
+  2: "review",
+  3: "relearning",
+};
 
 export async function storeReview(
   input: unknown,
@@ -49,24 +56,41 @@ export async function storeReview(
     updateStreakAfterReview(parsed.userId).catch(() => {});
   }
 
-  const fsrsCard = createNewFsrsCard();
-  const next = applyReview(fsrsCard, parsed.rating, new Date(parsed.reviewedAt));
+  // Reconstruct the FSRS card from persisted DB state (NOT a blank new card!)
+  // This ensures the algorithm considers previous reviews for scheduling.
+  const isNewCard =
+    card.fsrsState === "new" &&
+    card.fsrsReps === 0 &&
+    card.fsrsStability === 0;
 
-  const normalizedStateMap: Record<
-    number,
-    "new" | "learning" | "review" | "relearning"
-  > = {
-    0: "new",
-    1: "learning",
-    2: "review",
-    3: "relearning",
-  };
+  const fsrsCard = isNewCard
+    ? createNewFsrsCard()
+    : reconstructFsrsCard({
+        fsrsDue: card.fsrsDue,
+        fsrsStability: card.fsrsStability,
+        fsrsDifficulty: card.fsrsDifficulty,
+        fsrsState: card.fsrsState,
+        fsrsReps: card.fsrsReps,
+        fsrsLapses: card.fsrsLapses,
+        fsrsElapsedDays: card.fsrsElapsedDays,
+        fsrsScheduledDays: card.fsrsScheduledDays,
+        fsrsLearningSteps: card.fsrsLearningSteps,
+        fsrsLastReview: card.fsrsLastReview,
+      });
+
+  const next = applyReview(fsrsCard, parsed.rating, new Date(parsed.reviewedAt));
 
   const updatedCard = await updateCardFsrs(parsed.cardId, {
     fsrsDue: next.card.due.toISOString(),
     fsrsStability: next.card.stability,
     fsrsDifficulty: next.card.difficulty,
-    fsrsState: normalizedStateMap[next.card.state] ?? "review",
+    fsrsState: STATE_NUM_TO_STR[next.card.state] ?? "review",
+    fsrsReps: next.card.reps,
+    fsrsLapses: next.card.lapses,
+    fsrsElapsedDays: next.card.elapsed_days,
+    fsrsScheduledDays: next.card.scheduled_days,
+    fsrsLearningSteps: next.card.learning_steps,
+    fsrsLastReview: next.card.last_review?.toISOString() ?? null,
   });
 
   if (!updatedCard) {

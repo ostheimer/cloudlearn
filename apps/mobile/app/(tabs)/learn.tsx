@@ -27,7 +27,6 @@ import Animated, {
 import {
   CheckCircle2,
   RotateCcw,
-  ArrowRight,
   ArrowLeftRight,
   ThumbsUp,
   ThumbsDown,
@@ -48,8 +47,10 @@ import { getDueCards, reviewCard, updateCard } from "../../src/lib/api";
 import { colors, spacing, radius, typography, shadows } from "../../src/theme";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.3;
+const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.25;
+const SWIPE_STRONG_THRESHOLD = SCREEN_WIDTH * 0.55;
 const SWIPE_VELOCITY = 500;
+const SWIPE_STRONG_VELOCITY = 1200;
 
 export default function LearnScreen() {
   const { t } = useTranslation();
@@ -62,8 +63,9 @@ export default function LearnScreen() {
   // Track starred status per card id (local mirror)
   const [starredMap, setStarredMap] = useState<Record<string, boolean>>({});
 
-  // Flip animation
+  // Flip animation (independent toggle, not tied to revealed)
   const flipProgress = useSharedValue(0);
+  const [flipped, setFlipped] = useState(false);
   // Swipe animation
   const translateX = useSharedValue(0);
 
@@ -92,7 +94,7 @@ export default function LearnScreen() {
     };
   });
 
-  // Swipe overlay styles (green/red indicator)
+  // Swipe overlay styles (color intensity based on distance)
   const swipeOverlayStyle = useAnimatedStyle(() => {
     const opacity = interpolate(
       Math.abs(translateX.value),
@@ -101,8 +103,14 @@ export default function LearnScreen() {
     );
     const bgColor = interpolateColor(
       translateX.value,
-      [-SWIPE_THRESHOLD, 0, SWIPE_THRESHOLD],
-      ["rgba(239,68,68,0.15)", "rgba(0,0,0,0)", "rgba(16,185,129,0.15)"]
+      [-SWIPE_STRONG_THRESHOLD, -SWIPE_THRESHOLD, 0, SWIPE_THRESHOLD, SWIPE_STRONG_THRESHOLD],
+      [
+        "rgba(239,68,68,0.25)",   // strong left = again (red)
+        "rgba(251,146,60,0.15)",  // gentle left = hard (orange)
+        "rgba(0,0,0,0)",          // center
+        "rgba(16,185,129,0.15)",  // gentle right = good (green)
+        "rgba(59,130,246,0.25)",  // strong right = easy (blue)
+      ]
     );
     return {
       opacity,
@@ -110,39 +118,58 @@ export default function LearnScreen() {
     };
   });
 
-  const swipeLabelLeftStyle = useAnimatedStyle(() => {
+  // Left swipe labels: gentle = SCHWER, strong = NOCHMAL
+  const swipeLabelLeftGentleStyle = useAnimatedStyle(() => {
     const opacity = interpolate(
       translateX.value,
-      [-SWIPE_THRESHOLD, -SWIPE_THRESHOLD * 0.4, 0],
-      [1, 0.5, 0]
+      [-SWIPE_STRONG_THRESHOLD, -SWIPE_THRESHOLD, -SWIPE_THRESHOLD * 0.4, 0],
+      [0, 1, 0.5, 0]
     );
     return { opacity };
   });
 
-  const swipeLabelRightStyle = useAnimatedStyle(() => {
+  const swipeLabelLeftStrongStyle = useAnimatedStyle(() => {
     const opacity = interpolate(
       translateX.value,
-      [0, SWIPE_THRESHOLD * 0.4, SWIPE_THRESHOLD],
-      [0, 0.5, 1]
+      [-SWIPE_STRONG_THRESHOLD * 1.1, -SWIPE_STRONG_THRESHOLD, -SWIPE_THRESHOLD],
+      [1, 0.8, 0]
+    );
+    return { opacity };
+  });
+
+  // Right swipe labels: gentle = GUT, strong = LEICHT
+  const swipeLabelRightGentleStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(
+      translateX.value,
+      [0, SWIPE_THRESHOLD * 0.4, SWIPE_THRESHOLD, SWIPE_STRONG_THRESHOLD],
+      [0, 0.5, 1, 0]
+    );
+    return { opacity };
+  });
+
+  const swipeLabelRightStrongStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(
+      translateX.value,
+      [SWIPE_THRESHOLD, SWIPE_STRONG_THRESHOLD, SWIPE_STRONG_THRESHOLD * 1.1],
+      [0, 0.8, 1]
     );
     return { opacity };
   });
 
   // Reset animations when card changes
   useEffect(() => {
-    flipProgress.value = 0;
+    setFlipped(false);
+    flipProgress.value = withTiming(0, { duration: 200 });
     translateX.value = 0;
   }, [index, flipProgress, translateX]);
 
-  // Animate flip when revealed
+  // Animate flip based on flipped state (independent toggle)
   useEffect(() => {
-    if (revealed) {
-      flipProgress.value = withTiming(1, {
-        duration: 400,
-        easing: Easing.out(Easing.cubic),
-      });
-    }
-  }, [revealed, flipProgress]);
+    flipProgress.value = withTiming(flipped ? 1 : 0, {
+      duration: 400,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [flipped, flipProgress]);
 
   // --- Data loading ---
   const loadDueCards = useCallback(async () => {
@@ -175,6 +202,8 @@ export default function LearnScreen() {
 
   // --- Rating handlers ---
   const handleRate = async (rating: ReviewRating) => {
+    // Auto-reveal if user rates before flipping
+    if (!revealed) reveal();
     const result = rateCurrent(rating);
     if (!result || !userId) return;
 
@@ -188,18 +217,19 @@ export default function LearnScreen() {
     }
   };
 
-  const handleSwipeRight = () => {
-    handleRate("good");
-  };
-
-  const handleSwipeLeft = () => {
-    handleRate("again");
+  // Swipe handlers: distance/velocity maps to FSRS rating
+  // Right gentle = good, right strong/fast = easy
+  // Left gentle = hard, left strong/fast = again
+  const handleSwipe = (rating: ReviewRating) => {
+    if (!revealed) reveal();
+    handleRate(rating);
   };
 
   const handleFlip = () => {
-    if (!revealed) {
-      reveal();
-    }
+    // Always toggle the card visually
+    setFlipped((prev) => !prev);
+    // Mark as revealed on first flip (for rating/progress)
+    if (!revealed) reveal();
   };
 
   // TTS: speak card text
@@ -298,28 +328,33 @@ export default function LearnScreen() {
     }
   };
 
-  // --- Swipe gesture ---
+  // --- Swipe gesture (always enabled, 4-level rating) ---
   const panGesture = Gesture.Pan()
-    .enabled(revealed) // Only swipe after card is flipped
     .onUpdate((e) => {
       translateX.value = e.translationX;
     })
     .onEnd((e) => {
-      const shouldSwipeRight =
-        e.translationX > SWIPE_THRESHOLD ||
-        (e.velocityX > SWIPE_VELOCITY && e.translationX > 40);
-      const shouldSwipeLeft =
-        e.translationX < -SWIPE_THRESHOLD ||
-        (e.velocityX < -SWIPE_VELOCITY && e.translationX < -40);
+      const dist = Math.abs(e.translationX);
+      const vel = Math.abs(e.velocityX);
 
-      if (shouldSwipeRight) {
-        translateX.value = withTiming(SCREEN_WIDTH * 1.5, { duration: 250 }, () => {
-          runOnJS(handleSwipeRight)();
-        });
-      } else if (shouldSwipeLeft) {
-        translateX.value = withTiming(-SCREEN_WIDTH * 1.5, { duration: 250 }, () => {
-          runOnJS(handleSwipeLeft)();
-        });
+      // Right swipe: gentle = good, strong/fast = easy
+      const isRight = e.translationX > 0;
+      const passesThreshold =
+        dist > SWIPE_THRESHOLD || (vel > SWIPE_VELOCITY && dist > 40);
+      const isStrong =
+        dist > SWIPE_STRONG_THRESHOLD || vel > SWIPE_STRONG_VELOCITY;
+
+      if (passesThreshold) {
+        const rating: ReviewRating = isRight
+          ? isStrong ? "easy" : "good"      // Right: easy (strong) or good (gentle)
+          : isStrong ? "again" : "hard";    // Left: again (strong) or hard (gentle)
+        const direction = isRight ? 1 : -1;
+
+        translateX.value = withTiming(
+          direction * SCREEN_WIDTH * 1.5,
+          { duration: 250 },
+          () => { runOnJS(handleSwipe)(rating); }
+        );
       } else {
         // Snap back
         translateX.value = withSpring(0, {
@@ -329,11 +364,9 @@ export default function LearnScreen() {
       }
     });
 
-  // Tap gesture for flipping
+  // Tap gesture for flipping (always toggles)
   const tapGesture = Gesture.Tap().onEnd(() => {
-    if (!revealed) {
-      runOnJS(handleFlip)();
-    }
+    runOnJS(handleFlip)();
   });
 
   // Compose: tap + pan (simultaneous so tap works on front, pan on back)
@@ -649,53 +682,33 @@ export default function LearnScreen() {
                 </View>
               </View>
 
-              {/* Swipe hint (only when revealed) */}
-              {revealed && (
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    paddingHorizontal: spacing.sm,
-                  }}
-                >
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: spacing.xs,
-                    }}
-                  >
-                    <ThumbsDown size={12} color={colors.ratingAgain} />
-                    <Text
-                      style={{
-                        fontSize: typography.xs,
-                        color: colors.ratingAgain,
-                        fontWeight: typography.medium,
-                      }}
-                    >
-                      ← Nochmal
-                    </Text>
-                  </View>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: spacing.xs,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontSize: typography.xs,
-                        color: colors.ratingGood,
-                        fontWeight: typography.medium,
-                      }}
-                    >
-                      Gewusst →
-                    </Text>
-                    <ThumbsUp size={12} color={colors.ratingGood} />
-                  </View>
+              {/* Swipe hint (always visible, 4 levels) */}
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  paddingHorizontal: spacing.xs,
+                }}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                  <ThumbsDown size={11} color={colors.ratingAgain} />
+                  <Text style={{ fontSize: 10, color: colors.ratingAgain, fontWeight: typography.medium }}>
+                    ←← Nochmal
+                  </Text>
+                  <Text style={{ fontSize: 10, color: colors.ratingHard, fontWeight: typography.medium, marginLeft: 4 }}>
+                    ← Schwer
+                  </Text>
                 </View>
-              )}
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                  <Text style={{ fontSize: 10, color: colors.ratingGood, fontWeight: typography.medium, marginRight: 4 }}>
+                    Gut →
+                  </Text>
+                  <Text style={{ fontSize: 10, color: colors.ratingEasy, fontWeight: typography.medium }}>
+                    Leicht →→
+                  </Text>
+                  <ThumbsUp size={11} color={colors.ratingGood} />
+                </View>
+              </View>
 
               {/* Flashcard with swipe + flip */}
               <GestureDetector gesture={composedGesture}>
@@ -722,15 +735,41 @@ export default function LearnScreen() {
                     ]}
                   />
 
-                  {/* Swipe left label */}
+                  {/* Swipe left labels: gentle = SCHWER, strong = NOCHMAL */}
                   <Animated.View
                     style={[
-                      swipeLabelLeftStyle,
+                      swipeLabelLeftGentleStyle,
                       {
                         position: "absolute",
                         top: 20,
                         right: 20,
                         zIndex: 20,
+                        backgroundColor: colors.ratingHard,
+                        paddingHorizontal: spacing.md,
+                        paddingVertical: spacing.sm,
+                        borderRadius: radius.sm,
+                        pointerEvents: "none",
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        color: colors.textInverse,
+                        fontWeight: typography.bold,
+                        fontSize: typography.sm,
+                      }}
+                    >
+                      SCHWER
+                    </Text>
+                  </Animated.View>
+                  <Animated.View
+                    style={[
+                      swipeLabelLeftStrongStyle,
+                      {
+                        position: "absolute",
+                        top: 20,
+                        right: 20,
+                        zIndex: 21,
                         backgroundColor: colors.ratingAgain,
                         paddingHorizontal: spacing.md,
                         paddingVertical: spacing.sm,
@@ -750,10 +789,10 @@ export default function LearnScreen() {
                     </Text>
                   </Animated.View>
 
-                  {/* Swipe right label */}
+                  {/* Swipe right labels: gentle = GUT, strong = LEICHT */}
                   <Animated.View
                     style={[
-                      swipeLabelRightStyle,
+                      swipeLabelRightGentleStyle,
                       {
                         position: "absolute",
                         top: 20,
@@ -774,7 +813,33 @@ export default function LearnScreen() {
                         fontSize: typography.sm,
                       }}
                     >
-                      GEWUSST
+                      GUT
+                    </Text>
+                  </Animated.View>
+                  <Animated.View
+                    style={[
+                      swipeLabelRightStrongStyle,
+                      {
+                        position: "absolute",
+                        top: 20,
+                        left: 20,
+                        zIndex: 21,
+                        backgroundColor: colors.ratingEasy,
+                        paddingHorizontal: spacing.md,
+                        paddingVertical: spacing.sm,
+                        borderRadius: radius.sm,
+                        pointerEvents: "none",
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        color: colors.textInverse,
+                        fontWeight: typography.bold,
+                        fontSize: typography.sm,
+                      }}
+                    >
+                      LEICHT
                     </Text>
                   </Animated.View>
 
@@ -938,40 +1003,13 @@ export default function LearnScreen() {
                 </View>
               </GestureDetector>
 
-              {/* Rating buttons (visible after flip) */}
-              {revealed ? (
-                <View style={{ flexDirection: "row", gap: spacing.sm }}>
-                  {ratingButton("Nochmal", "again", colors.ratingAgain)}
-                  {ratingButton("Schwer", "hard", colors.ratingHard)}
-                  {ratingButton("Gut", "good", colors.ratingGood)}
-                  {ratingButton("Leicht", "easy", colors.ratingEasy)}
-                </View>
-              ) : (
-                <TouchableOpacity
-                  onPress={handleFlip}
-                  activeOpacity={0.8}
-                  style={{
-                    backgroundColor: colors.primary,
-                    borderRadius: radius.md,
-                    paddingVertical: 16,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: spacing.sm,
-                  }}
-                >
-                  <ArrowRight size={18} color={colors.textInverse} />
-                  <Text
-                    style={{
-                      color: colors.textInverse,
-                      fontSize: typography.lg,
-                      fontWeight: typography.bold,
-                    }}
-                  >
-                    Antwort anzeigen
-                  </Text>
-                </TouchableOpacity>
-              )}
+              {/* Rating buttons (always visible) */}
+              <View style={{ flexDirection: "row", gap: spacing.sm }}>
+                {ratingButton("Nochmal", "again", colors.ratingAgain)}
+                {ratingButton("Schwer", "hard", colors.ratingHard)}
+                {ratingButton("Gut", "good", colors.ratingGood)}
+                {ratingButton("Leicht", "easy", colors.ratingEasy)}
+              </View>
             </View>
           )}
         </View>
