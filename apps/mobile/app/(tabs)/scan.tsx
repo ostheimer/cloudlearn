@@ -15,6 +15,17 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
+import {
+  Camera,
+  ImageIcon,
+  PenLine,
+  Lightbulb,
+  Save,
+  RotateCcw,
+  Sparkles,
+  ChevronRight,
+  X,
+} from "lucide-react-native";
 import { useSessionStore } from "../../src/store/sessionStore";
 import { useOcrEditorState } from "../../src/features/ocr/ocrEditorState";
 import {
@@ -27,6 +38,7 @@ import {
   type Deck,
 } from "../../src/lib/api";
 import { useReviewSession } from "../../src/features/review/reviewSession";
+import { colors, spacing, radius, typography, shadows } from "../../src/theme";
 
 type InputMode = "choose" | "camera" | "text";
 
@@ -109,13 +121,18 @@ export default function ScanScreen() {
 
   // --- Processing ---
 
-  const getMimeType = (uri: string): "image/jpeg" | "image/png" | "image/webp" => {
+  const getMimeType = (
+    uri: string
+  ): "image/jpeg" | "image/png" | "image/webp" => {
     if (uri.toLowerCase().endsWith(".png")) return "image/png";
     if (uri.toLowerCase().endsWith(".webp")) return "image/webp";
     return "image/jpeg";
   };
 
-  const processImage = async (base64: string, mimeType: "image/jpeg" | "image/png" | "image/webp") => {
+  const processImage = async (
+    base64: string,
+    mimeType: "image/jpeg" | "image/png" | "image/webp"
+  ) => {
     if (!userId) return;
     setLoading(true);
     setCards([]);
@@ -126,7 +143,8 @@ export default function ScanScreen() {
       setModel(result.model);
       setDeckTitle(result.deckTitle ?? "");
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Unbekannter Fehler";
+      const msg =
+        error instanceof Error ? error.message : "Unbekannter Fehler";
       Alert.alert("Fehler bei der Bildverarbeitung", msg);
     } finally {
       setLoading(false);
@@ -146,14 +164,15 @@ export default function ScanScreen() {
       setModel(result.model);
       setDeckTitle(result.deckTitle ?? "");
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Unbekannter Fehler";
+      const msg =
+        error instanceof Error ? error.message : "Unbekannter Fehler";
       Alert.alert("Fehler", msg);
     } finally {
       setLoading(false);
     }
   };
 
-  const saveCardsToDeck = async (deckId: string, deckTitle: string) => {
+  const saveCardsToDeck = async (deckId: string, title: string) => {
     if (!userId || cards.length === 0) return;
     setSaving(true);
     try {
@@ -170,11 +189,17 @@ export default function ScanScreen() {
 
       Alert.alert(
         "Gespeichert!",
-        `${savedCards.length} Karten in "${deckTitle}" gespeichert.`,
-        [{ text: "Jetzt lernen", onPress: () => router.push("/(tabs)/learn") }]
+        `${savedCards.length} Karten in "${title}" gespeichert.`,
+        [
+          {
+            text: "Jetzt lernen",
+            onPress: () => router.push("/(tabs)/learn"),
+          },
+        ]
       );
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Unbekannter Fehler";
+      const msg =
+        error instanceof Error ? error.message : "Unbekannter Fehler";
       Alert.alert("Fehler beim Speichern", msg);
     } finally {
       setSaving(false);
@@ -185,12 +210,13 @@ export default function ScanScreen() {
     if (!userId || cards.length === 0) return;
     setSaving(true);
     try {
-      // Use AI-generated title or fallback to date-based title
-      const title = deckTitle || `Scan ${new Date().toLocaleDateString("de")}`;
+      const title =
+        deckTitle || `Scan ${new Date().toLocaleDateString("de")}`;
       const { deck } = await createDeck(userId, title, ["scan", "auto"]);
       await saveCardsToDeck(deck.id, deck.title);
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Unbekannter Fehler";
+      const msg =
+        error instanceof Error ? error.message : "Unbekannter Fehler";
       Alert.alert("Fehler beim Speichern", msg);
       setSaving(false);
     }
@@ -201,22 +227,19 @@ export default function ScanScreen() {
     try {
       const { decks: existingDecks } = await listDecks(userId);
       if (existingDecks.length === 0) {
-        Alert.alert("Keine Decks", "Du hast noch keine Decks. Es wird ein neues erstellt.", [
-          { text: "OK", onPress: handleSaveNewDeck },
-        ]);
+        Alert.alert(
+          "Keine Decks",
+          "Du hast noch keine Decks. Es wird ein neues erstellt.",
+          [{ text: "OK", onPress: handleSaveNewDeck }]
+        );
         return;
       }
-      // Show deck picker
       const buttons = existingDecks.slice(0, 8).map((d: Deck) => ({
         text: d.title,
         onPress: () => saveCardsToDeck(d.id, d.title),
       }));
-      buttons.push({ text: "Abbrechen", onPress: () => {} });
-      Alert.alert(
-        "Deck wählen",
-        `${cards.length} Karten hinzufügen zu:`,
-        buttons
-      );
+      buttons.push({ text: "Abbrechen", onPress: async () => {} });
+      Alert.alert("Deck wählen", `${cards.length} Karten hinzufügen zu:`, buttons);
     } catch {
       Alert.alert("Fehler", "Decks konnten nicht geladen werden.");
     }
@@ -224,15 +247,11 @@ export default function ScanScreen() {
 
   const handleSaveAndLearn = () => {
     if (!userId || cards.length === 0) return;
-    Alert.alert(
-      "Karten speichern",
-      `${cards.length} Karten speichern in:`,
-      [
-        { text: "Neues Deck", onPress: handleSaveNewDeck },
-        { text: "Bestehendes Deck", onPress: handleSaveToExistingDeck },
-        { text: "Abbrechen", style: "cancel" },
-      ]
-    );
+    Alert.alert("Karten speichern", `${cards.length} Karten speichern in:`, [
+      { text: "Neues Deck", onPress: handleSaveNewDeck },
+      { text: "Bestehendes Deck", onPress: handleSaveToExistingDeck },
+      { text: "Abbrechen", style: "cancel" },
+    ]);
   };
 
   const resetAll = () => {
@@ -250,11 +269,7 @@ export default function ScanScreen() {
   if (mode === "camera") {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: "#000" }}>
-        <CameraView
-          ref={cameraRef}
-          style={{ flex: 1 }}
-          facing="back"
-        >
+        <CameraView ref={cameraRef} style={{ flex: 1 }} facing="back">
           <View
             style={{
               flex: 1,
@@ -272,13 +287,27 @@ export default function ScanScreen() {
                 borderRadius: 36,
                 backgroundColor: "#fff",
                 borderWidth: 4,
-                borderColor: "#d1d5db",
-                marginBottom: 16,
+                borderColor: "rgba(255,255,255,0.5)",
+                marginBottom: spacing.lg,
               }}
             />
-            {/* Back button */}
-            <TouchableOpacity onPress={() => setMode("choose")}>
-              <Text style={{ color: "#fff", fontSize: 16, fontWeight: "600" }}>
+            {/* Cancel button */}
+            <TouchableOpacity
+              onPress={() => setMode("choose")}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: spacing.sm,
+              }}
+            >
+              <X size={18} color="#fff" />
+              <Text
+                style={{
+                  color: "#fff",
+                  fontSize: typography.lg,
+                  fontWeight: typography.semibold,
+                }}
+              >
                 Abbrechen
               </Text>
             </TouchableOpacity>
@@ -291,12 +320,45 @@ export default function ScanScreen() {
   // --- Text Input View ---
   if (mode === "text") {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: "#f8f9fa" }}>
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 16 }}>
-          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-            <Text style={{ fontSize: 22, fontWeight: "700" }}>Text eingeben</Text>
-            <TouchableOpacity onPress={() => setMode("choose")}>
-              <Text style={{ color: "#6366f1", fontSize: 16, fontWeight: "600" }}>Zurück</Text>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}
+        >
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <Text
+              style={{
+                fontSize: typography.xxl,
+                fontWeight: typography.bold,
+                color: colors.text,
+              }}
+            >
+              Text eingeben
+            </Text>
+            <TouchableOpacity
+              onPress={() => setMode("choose")}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: spacing.xs,
+              }}
+            >
+              <X size={16} color={colors.primary} />
+              <Text
+                style={{
+                  color: colors.primary,
+                  fontSize: typography.base,
+                  fontWeight: typography.semibold,
+                }}
+              >
+                Zurück
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -305,15 +367,15 @@ export default function ScanScreen() {
             value={editedText}
             onChangeText={setEditedText}
             placeholder="Tippe oder füge hier deinen Lerntext ein..."
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={colors.textTertiary}
             style={{
               minHeight: 180,
               borderWidth: 1,
-              borderColor: "#d1d5db",
-              borderRadius: 12,
+              borderColor: colors.border,
+              borderRadius: radius.md,
               padding: 14,
-              fontSize: 16,
-              backgroundColor: "#fff",
+              fontSize: typography.base,
+              backgroundColor: colors.surface,
               textAlignVertical: "top",
             }}
           />
@@ -327,32 +389,55 @@ export default function ScanScreen() {
                 )
               }
               style={{
-                backgroundColor: "#e5e7eb",
-                borderRadius: 10,
-                padding: 12,
+                backgroundColor: colors.surfaceSecondary,
+                borderRadius: radius.md,
+                padding: spacing.md,
                 alignItems: "center",
               }}
             >
-              <Text style={{ color: "#374151", fontWeight: "500" }}>Beispieltext laden</Text>
+              <Text
+                style={{
+                  color: colors.textSecondary,
+                  fontWeight: typography.medium,
+                }}
+              >
+                Beispieltext laden
+              </Text>
             </TouchableOpacity>
           )}
 
           <TouchableOpacity
             onPress={handleGenerateFromText}
             disabled={loading || !editedText.trim()}
+            activeOpacity={0.8}
             style={{
-              backgroundColor: loading || !editedText.trim() ? "#9ca3af" : "#6366f1",
-              borderRadius: 12,
-              padding: 16,
+              backgroundColor:
+                loading || !editedText.trim()
+                  ? colors.textTertiary
+                  : colors.primary,
+              borderRadius: radius.md,
+              paddingVertical: 16,
+              flexDirection: "row",
               alignItems: "center",
+              justifyContent: "center",
+              gap: spacing.sm,
             }}
           >
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.textInverse} />
             ) : (
-              <Text style={{ color: "#fff", fontSize: 16, fontWeight: "700" }}>
-                Flashcards generieren
-              </Text>
+              <>
+                <Sparkles size={18} color={colors.textInverse} />
+                <Text
+                  style={{
+                    color: colors.textInverse,
+                    fontSize: typography.lg,
+                    fontWeight: typography.bold,
+                  }}
+                >
+                  Flashcards generieren
+                </Text>
+              </>
             )}
           </TouchableOpacity>
         </ScrollView>
@@ -362,9 +447,18 @@ export default function ScanScreen() {
 
   // --- Main Choose Mode + Results View ---
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#f8f9fa" }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 16 }}>
-        <Text style={{ fontSize: 22, fontWeight: "700" }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}
+      >
+        <Text
+          style={{
+            fontSize: typography.xxl,
+            fontWeight: typography.bold,
+            color: colors.text,
+          }}
+        >
           {cards.length > 0 ? "Ergebnis" : "Lernmaterial erfassen"}
         </Text>
 
@@ -372,36 +466,52 @@ export default function ScanScreen() {
         {(loading || saving) && (
           <View
             style={{
-              backgroundColor: "#f3f4f6",
-              borderRadius: 16,
-              padding: 32,
+              backgroundColor: colors.surfaceSecondary,
+              borderRadius: radius.lg,
+              padding: spacing.xxxl,
               alignItems: "center",
-              gap: 12,
+              gap: spacing.md,
             }}
           >
-            <ActivityIndicator size="large" color={saving ? "#059669" : "#6366f1"} />
-            <Text style={{ fontSize: 16, color: "#374151", fontWeight: "600" }}>
+            <ActivityIndicator
+              size="large"
+              color={saving ? colors.success : colors.primary}
+            />
+            <Text
+              style={{
+                fontSize: typography.lg,
+                color: colors.text,
+                fontWeight: typography.semibold,
+              }}
+            >
               {saving
                 ? "Karten werden gespeichert..."
                 : imageUri
                   ? "Bild wird analysiert..."
                   : "Flashcards werden generiert..."}
             </Text>
-            <Text style={{ fontSize: 13, color: "#6b7280" }}>
-              {saving ? `${cards.length} Karten werden in deinem Deck gespeichert` : "Gemini AI verarbeitet dein Material"}
+            <Text
+              style={{ fontSize: typography.sm, color: colors.textSecondary }}
+            >
+              {saving
+                ? `${cards.length} Karten werden in deinem Deck gespeichert`
+                : "Gemini AI verarbeitet dein Material"}
             </Text>
           </View>
         )}
 
-        {/* Input mode buttons (only when no results and not loading) */}
+        {/* Input mode buttons */}
         {cards.length === 0 && !loading && (
-          <View style={{ gap: 12 }}>
-            {/* Captured image preview */}
+          <View style={{ gap: spacing.md }}>
             {imageUri && (
-              <View style={{ alignItems: "center", marginBottom: 8 }}>
+              <View style={{ alignItems: "center", marginBottom: spacing.sm }}>
                 <Image
                   source={{ uri: imageUri }}
-                  style={{ width: "100%", height: 200, borderRadius: 12 }}
+                  style={{
+                    width: "100%",
+                    height: 200,
+                    borderRadius: radius.md,
+                  }}
                   resizeMode="cover"
                 />
               </View>
@@ -410,83 +520,177 @@ export default function ScanScreen() {
             {/* Camera button */}
             <TouchableOpacity
               onPress={openCamera}
+              activeOpacity={0.8}
               style={{
-                backgroundColor: "#6366f1",
-                borderRadius: 16,
-                padding: 20,
+                backgroundColor: colors.primary,
+                borderRadius: radius.lg,
+                padding: spacing.xl,
                 flexDirection: "row",
                 alignItems: "center",
-                gap: 14,
+                gap: spacing.lg,
+                ...shadows.md,
               }}
             >
-              <Text style={{ fontSize: 32 }}>📸</Text>
+              <View
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: radius.md,
+                  backgroundColor: "rgba(255,255,255,0.2)",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <Camera size={24} color={colors.textInverse} />
+              </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: "#fff", fontSize: 17, fontWeight: "700" }}>
+                <Text
+                  style={{
+                    color: colors.textInverse,
+                    fontSize: typography.lg,
+                    fontWeight: typography.bold,
+                  }}
+                >
                   Foto aufnehmen
                 </Text>
-                <Text style={{ color: "#c7d2fe", fontSize: 13, marginTop: 2 }}>
+                <Text
+                  style={{
+                    color: "rgba(255,255,255,0.7)",
+                    fontSize: typography.sm,
+                    marginTop: 2,
+                  }}
+                >
                   Lehrbuch, Tafel, Notizen fotografieren
                 </Text>
               </View>
+              <ChevronRight size={20} color="rgba(255,255,255,0.5)" />
             </TouchableOpacity>
 
             {/* Gallery button */}
             <TouchableOpacity
               onPress={handlePickFromGallery}
+              activeOpacity={0.8}
               style={{
-                backgroundColor: "#059669",
-                borderRadius: 16,
-                padding: 20,
+                backgroundColor: colors.success,
+                borderRadius: radius.lg,
+                padding: spacing.xl,
                 flexDirection: "row",
                 alignItems: "center",
-                gap: 14,
+                gap: spacing.lg,
+                ...shadows.md,
               }}
             >
-              <Text style={{ fontSize: 32 }}>🖼️</Text>
+              <View
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: radius.md,
+                  backgroundColor: "rgba(255,255,255,0.2)",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <ImageIcon size={24} color={colors.textInverse} />
+              </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: "#fff", fontSize: 17, fontWeight: "700" }}>
+                <Text
+                  style={{
+                    color: colors.textInverse,
+                    fontSize: typography.lg,
+                    fontWeight: typography.bold,
+                  }}
+                >
                   Aus Galerie wählen
                 </Text>
-                <Text style={{ color: "#a7f3d0", fontSize: 13, marginTop: 2 }}>
+                <Text
+                  style={{
+                    color: "rgba(255,255,255,0.7)",
+                    fontSize: typography.sm,
+                    marginTop: 2,
+                  }}
+                >
                   Vorhandenes Foto oder Screenshot
                 </Text>
               </View>
+              <ChevronRight size={20} color="rgba(255,255,255,0.5)" />
             </TouchableOpacity>
 
             {/* Text input button */}
             <TouchableOpacity
               onPress={() => setMode("text")}
+              activeOpacity={0.8}
               style={{
-                backgroundColor: "#f59e0b",
-                borderRadius: 16,
-                padding: 20,
+                backgroundColor: colors.warning,
+                borderRadius: radius.lg,
+                padding: spacing.xl,
                 flexDirection: "row",
                 alignItems: "center",
-                gap: 14,
+                gap: spacing.lg,
+                ...shadows.md,
               }}
             >
-              <Text style={{ fontSize: 32 }}>✏️</Text>
+              <View
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: radius.md,
+                  backgroundColor: "rgba(255,255,255,0.2)",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <PenLine size={24} color={colors.textInverse} />
+              </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: "#fff", fontSize: 17, fontWeight: "700" }}>
+                <Text
+                  style={{
+                    color: colors.textInverse,
+                    fontSize: typography.lg,
+                    fontWeight: typography.bold,
+                  }}
+                >
                   Text eingeben
                 </Text>
-                <Text style={{ color: "#fef3c7", fontSize: 13, marginTop: 2 }}>
+                <Text
+                  style={{
+                    color: "rgba(255,255,255,0.7)",
+                    fontSize: typography.sm,
+                    marginTop: 2,
+                  }}
+                >
                   Text tippen oder einfügen
                 </Text>
               </View>
+              <ChevronRight size={20} color="rgba(255,255,255,0.5)" />
             </TouchableOpacity>
 
             {/* Info text */}
             <View
               style={{
-                backgroundColor: "#eff6ff",
-                borderRadius: 12,
+                backgroundColor: colors.infoLight,
+                borderRadius: radius.md,
                 padding: 14,
-                marginTop: 4,
+                marginTop: spacing.xs,
+                flexDirection: "row",
+                alignItems: "flex-start",
+                gap: spacing.md,
               }}
             >
-              <Text style={{ color: "#1e40af", fontSize: 13, lineHeight: 20 }}>
-                💡 Gemini AI analysiert dein Material und erstellt automatisch Flashcards — aus Fotos, Screenshots oder Text.
+              <Lightbulb
+                size={18}
+                color={colors.info}
+                style={{ marginTop: 1 }}
+              />
+              <Text
+                style={{
+                  color: colors.info,
+                  fontSize: typography.sm,
+                  lineHeight: 20,
+                  flex: 1,
+                }}
+              >
+                Gemini AI analysiert dein Material und erstellt automatisch
+                Flashcards — aus Fotos, Screenshots oder Text.
               </Text>
             </View>
           </View>
@@ -494,74 +698,124 @@ export default function ScanScreen() {
 
         {/* Generated cards */}
         {cards.length > 0 && !loading && (
-          <View style={{ gap: 12 }}>
-            {/* Image preview if from photo */}
+          <View style={{ gap: spacing.md }}>
             {imageUri && (
               <Image
                 source={{ uri: imageUri }}
-                style={{ width: "100%", height: 120, borderRadius: 12 }}
+                style={{
+                  width: "100%",
+                  height: 120,
+                  borderRadius: radius.md,
+                }}
                 resizeMode="cover"
               />
             )}
 
             {deckTitle ? (
-              <Text style={{ fontSize: 18, fontWeight: "700", color: "#111827" }}>
+              <Text
+                style={{
+                  fontSize: typography.xl,
+                  fontWeight: typography.bold,
+                  color: colors.text,
+                }}
+              >
                 {deckTitle}
               </Text>
             ) : null}
-            <Text style={{ fontSize: 16, fontWeight: "600", color: "#374151" }}>
-              {cards.length} Karten generiert
-            </Text>
-            <Text style={{ fontSize: 13, color: "#6b7280", marginTop: -8 }}>
-              via {model}
-            </Text>
 
-            {cards.map((card, idx) => {
-              // Format cloze syntax for preview
-              const frontDisplay = card.front.replace(/\{\{c\d+::(.+?)\}\}/g, "[$1]");
-              return (
-              <View
-                key={idx}
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <Text
                 style={{
-                  backgroundColor: "#fff",
-                  borderRadius: 12,
-                  padding: 14,
-                  borderWidth: 1,
-                  borderColor: "#e5e7eb",
+                  fontSize: typography.base,
+                  fontWeight: typography.semibold,
+                  color: colors.textSecondary,
                 }}
               >
-                <Text style={{ fontWeight: "600", fontSize: 15, marginBottom: 6 }}>
-                  {frontDisplay}
-                </Text>
-                <Text style={{ color: "#4b5563", fontSize: 14 }}>{card.back}</Text>
-                <View style={{ flexDirection: "row", gap: 6, marginTop: 8 }}>
+                {cards.length} Karten generiert
+              </Text>
+              <Text
+                style={{ fontSize: typography.xs, color: colors.textTertiary }}
+              >
+                via {model}
+              </Text>
+            </View>
+
+            {cards.map((card, idx) => {
+              const frontDisplay = card.front.replace(
+                /\{\{c\d+::(.+?)\}\}/g,
+                "[$1]"
+              );
+              return (
+                <View
+                  key={idx}
+                  style={{
+                    backgroundColor: colors.surface,
+                    borderRadius: radius.md,
+                    padding: 14,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                  }}
+                >
                   <Text
                     style={{
-                      fontSize: 11,
-                      backgroundColor: "#f3f4f6",
-                      paddingHorizontal: 8,
-                      paddingVertical: 2,
-                      borderRadius: 6,
-                      color: "#6b7280",
+                      fontWeight: typography.semibold,
+                      fontSize: typography.base,
+                      marginBottom: spacing.sm,
+                      color: colors.text,
                     }}
                   >
-                    {card.type}
+                    {frontDisplay}
                   </Text>
                   <Text
                     style={{
-                      fontSize: 11,
-                      backgroundColor: "#f3f4f6",
-                      paddingHorizontal: 8,
-                      paddingVertical: 2,
-                      borderRadius: 6,
-                      color: "#6b7280",
+                      color: colors.textSecondary,
+                      fontSize: typography.sm + 1,
                     }}
                   >
-                    {card.difficulty}
+                    {card.back}
                   </Text>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      gap: spacing.sm,
+                      marginTop: spacing.sm,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: typography.xs,
+                        backgroundColor: colors.surfaceSecondary,
+                        paddingHorizontal: spacing.sm,
+                        paddingVertical: 2,
+                        borderRadius: radius.sm,
+                        color: colors.textTertiary,
+                        overflow: "hidden",
+                      }}
+                    >
+                      {card.type}
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: typography.xs,
+                        backgroundColor: colors.surfaceSecondary,
+                        paddingHorizontal: spacing.sm,
+                        paddingVertical: 2,
+                        borderRadius: radius.sm,
+                        color: colors.textTertiary,
+                        overflow: "hidden",
+                      }}
+                    >
+                      {card.difficulty}
+                    </Text>
+                  </View>
                 </View>
-              </View>
-            );
+              );
             })}
 
             {/* Save and learn */}
@@ -569,14 +823,26 @@ export default function ScanScreen() {
               <TouchableOpacity
                 onPress={handleSaveAndLearn}
                 disabled={saving}
+                activeOpacity={0.8}
                 style={{
-                  backgroundColor: "#059669",
-                  borderRadius: 12,
-                  padding: 16,
+                  backgroundColor: colors.success,
+                  borderRadius: radius.md,
+                  paddingVertical: 16,
+                  flexDirection: "row",
                   alignItems: "center",
+                  justifyContent: "center",
+                  gap: spacing.sm,
+                  ...shadows.md,
                 }}
               >
-                <Text style={{ color: "#fff", fontSize: 16, fontWeight: "700" }}>
+                <Save size={18} color={colors.textInverse} />
+                <Text
+                  style={{
+                    color: colors.textInverse,
+                    fontSize: typography.lg,
+                    fontWeight: typography.bold,
+                  }}
+                >
                   Speichern & Lernen
                 </Text>
               </TouchableOpacity>
@@ -585,14 +851,25 @@ export default function ScanScreen() {
             {/* New scan */}
             <TouchableOpacity
               onPress={resetAll}
+              activeOpacity={0.8}
               style={{
-                backgroundColor: "#f3f4f6",
-                borderRadius: 12,
-                padding: 14,
+                backgroundColor: colors.surfaceSecondary,
+                borderRadius: radius.md,
+                paddingVertical: 14,
+                flexDirection: "row",
                 alignItems: "center",
+                justifyContent: "center",
+                gap: spacing.sm,
               }}
             >
-              <Text style={{ color: "#374151", fontSize: 15, fontWeight: "600" }}>
+              <RotateCcw size={16} color={colors.textSecondary} />
+              <Text
+                style={{
+                  color: colors.textSecondary,
+                  fontSize: typography.base,
+                  fontWeight: typography.semibold,
+                }}
+              >
                 Neuen Scan starten
               </Text>
             </TouchableOpacity>

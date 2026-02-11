@@ -15,6 +15,13 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
+  Plus,
+  CreditCard,
+  X,
+  Check,
+  ChevronRight,
+} from "lucide-react-native";
+import {
   listCardsInDeck,
   createCard,
   updateCard,
@@ -22,6 +29,7 @@ import {
   type Card,
 } from "../../src/lib/api";
 import { useSessionStore } from "../../src/store/sessionStore";
+import { colors, spacing, radius, typography, shadows } from "../../src/theme";
 
 // Card editor modal component
 function CardEditor({
@@ -31,8 +39,18 @@ function CardEditor({
   onCancel,
 }: {
   visible: boolean;
-  card: { front: string; back: string; type: string; difficulty: string } | null;
-  onSave: (data: { front: string; back: string; type: string; difficulty: string }) => void;
+  card: {
+    front: string;
+    back: string;
+    type: string;
+    difficulty: string;
+  } | null;
+  onSave: (data: {
+    front: string;
+    back: string;
+    type: string;
+    difficulty: string;
+  }) => void;
   onCancel: () => void;
 }) {
   const [front, setFront] = useState("");
@@ -57,39 +75,80 @@ function CardEditor({
   const isValid = front.trim().length > 0 && back.trim().length > 0;
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+    >
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
-        <SafeAreaView style={{ flex: 1, backgroundColor: "#f8f9fa" }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
           {/* Header */}
           <View
             style={{
               flexDirection: "row",
               justifyContent: "space-between",
               alignItems: "center",
-              padding: 16,
+              padding: spacing.lg,
               borderBottomWidth: 1,
-              borderBottomColor: "#e5e7eb",
-              backgroundColor: "#fff",
+              borderBottomColor: colors.border,
+              backgroundColor: colors.surface,
             }}
           >
-            <TouchableOpacity onPress={onCancel}>
-              <Text style={{ color: "#6b7280", fontSize: 16 }}>Abbrechen</Text>
+            <TouchableOpacity
+              onPress={onCancel}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: spacing.xs,
+              }}
+            >
+              <X size={18} color={colors.textSecondary} />
+              <Text
+                style={{
+                  color: colors.textSecondary,
+                  fontSize: typography.base,
+                }}
+              >
+                Abbrechen
+              </Text>
             </TouchableOpacity>
-            <Text style={{ fontWeight: "700", fontSize: 17 }}>
+            <Text
+              style={{
+                fontWeight: typography.bold,
+                fontSize: typography.lg,
+                color: colors.text,
+              }}
+            >
               {card ? "Karte bearbeiten" : "Neue Karte"}
             </Text>
             <TouchableOpacity
-              onPress={() => onSave({ front: front.trim(), back: back.trim(), type, difficulty })}
+              onPress={() =>
+                onSave({
+                  front: front.trim(),
+                  back: back.trim(),
+                  type,
+                  difficulty,
+                })
+              }
               disabled={!isValid}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: spacing.xs,
+              }}
             >
+              <Check
+                size={18}
+                color={isValid ? colors.primary : colors.textTertiary}
+              />
               <Text
                 style={{
-                  color: isValid ? "#6366f1" : "#d1d5db",
-                  fontSize: 16,
-                  fontWeight: "700",
+                  color: isValid ? colors.primary : colors.textTertiary,
+                  fontSize: typography.base,
+                  fontWeight: typography.bold,
                 }}
               >
                 Speichern
@@ -97,70 +156,115 @@ function CardEditor({
             </TouchableOpacity>
           </View>
 
-          <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }}>
+          <ScrollView
+            contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}
+          >
             {/* Front */}
-            <View style={{ gap: 6 }}>
-              <Text style={{ fontWeight: "600", color: "#374151" }}>Vorderseite (Frage)</Text>
+            <View style={{ gap: spacing.sm }}>
+              <Text
+                style={{
+                  fontWeight: typography.semibold,
+                  color: colors.textSecondary,
+                  fontSize: typography.sm,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.5,
+                }}
+              >
+                Vorderseite (Frage)
+              </Text>
               <TextInput
                 value={front}
                 onChangeText={setFront}
                 placeholder="Frage eingeben..."
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={colors.textTertiary}
                 multiline
                 style={{
                   borderWidth: 1,
-                  borderColor: "#d1d5db",
-                  borderRadius: 12,
+                  borderColor: colors.border,
+                  borderRadius: radius.md,
                   padding: 14,
-                  fontSize: 16,
-                  backgroundColor: "#fff",
+                  fontSize: typography.base,
+                  backgroundColor: colors.surface,
                   minHeight: 80,
                   textAlignVertical: "top",
+                  color: colors.text,
                 }}
               />
             </View>
 
             {/* Back */}
-            <View style={{ gap: 6 }}>
-              <Text style={{ fontWeight: "600", color: "#374151" }}>Rückseite (Antwort)</Text>
+            <View style={{ gap: spacing.sm }}>
+              <Text
+                style={{
+                  fontWeight: typography.semibold,
+                  color: colors.textSecondary,
+                  fontSize: typography.sm,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.5,
+                }}
+              >
+                Rückseite (Antwort)
+              </Text>
               <TextInput
                 value={back}
                 onChangeText={setBack}
                 placeholder="Antwort eingeben..."
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={colors.textTertiary}
                 multiline
                 style={{
                   borderWidth: 1,
-                  borderColor: "#d1d5db",
-                  borderRadius: 12,
+                  borderColor: colors.border,
+                  borderRadius: radius.md,
                   padding: 14,
-                  fontSize: 16,
-                  backgroundColor: "#fff",
+                  fontSize: typography.base,
+                  backgroundColor: colors.surface,
                   minHeight: 80,
                   textAlignVertical: "top",
+                  color: colors.text,
                 }}
               />
             </View>
 
             {/* Type selector */}
-            <View style={{ gap: 6 }}>
-              <Text style={{ fontWeight: "600", color: "#374151" }}>Kartentyp</Text>
-              <View style={{ flexDirection: "row", gap: 8 }}>
+            <View style={{ gap: spacing.sm }}>
+              <Text
+                style={{
+                  fontWeight: typography.semibold,
+                  color: colors.textSecondary,
+                  fontSize: typography.sm,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.5,
+                }}
+              >
+                Kartentyp
+              </Text>
+              <View style={{ flexDirection: "row", gap: spacing.sm }}>
                 {(["basic", "cloze"] as const).map((t) => (
                   <TouchableOpacity
                     key={t}
                     onPress={() => setType(t)}
+                    activeOpacity={0.8}
                     style={{
                       flex: 1,
-                      padding: 12,
-                      borderRadius: 10,
+                      paddingVertical: spacing.md,
+                      borderRadius: radius.md,
                       borderWidth: 2,
-                      borderColor: type === t ? "#6366f1" : "#e5e7eb",
-                      backgroundColor: type === t ? "#eef2ff" : "#fff",
+                      borderColor:
+                        type === t ? colors.primary : colors.border,
+                      backgroundColor:
+                        type === t ? colors.primaryLight : colors.surface,
                       alignItems: "center",
                     }}
                   >
-                    <Text style={{ fontWeight: "600", color: type === t ? "#6366f1" : "#6b7280" }}>
+                    <Text
+                      style={{
+                        fontWeight: typography.semibold,
+                        color:
+                          type === t
+                            ? colors.primary
+                            : colors.textSecondary,
+                      }}
+                    >
                       {t === "basic" ? "Basic" : "Lückentext"}
                     </Text>
                   </TouchableOpacity>
@@ -169,33 +273,65 @@ function CardEditor({
             </View>
 
             {/* Difficulty selector */}
-            <View style={{ gap: 6 }}>
-              <Text style={{ fontWeight: "600", color: "#374151" }}>Schwierigkeit</Text>
-              <View style={{ flexDirection: "row", gap: 8 }}>
+            <View style={{ gap: spacing.sm }}>
+              <Text
+                style={{
+                  fontWeight: typography.semibold,
+                  color: colors.textSecondary,
+                  fontSize: typography.sm,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.5,
+                }}
+              >
+                Schwierigkeit
+              </Text>
+              <View style={{ flexDirection: "row", gap: spacing.sm }}>
                 {(["easy", "medium", "hard"] as const).map((d) => {
-                  const labels = { easy: "Leicht", medium: "Mittel", hard: "Schwer" };
-                  const colors = { easy: "#10b981", medium: "#f59e0b", hard: "#ef4444" };
+                  const meta = {
+                    easy: {
+                      label: "Leicht",
+                      color: colors.success,
+                      bg: colors.successLight,
+                    },
+                    medium: {
+                      label: "Mittel",
+                      color: colors.warning,
+                      bg: colors.warningLight,
+                    },
+                    hard: {
+                      label: "Schwer",
+                      color: colors.error,
+                      bg: colors.errorLight,
+                    },
+                  };
+                  const { label, color, bg } = meta[d];
                   return (
                     <TouchableOpacity
                       key={d}
                       onPress={() => setDifficulty(d)}
+                      activeOpacity={0.8}
                       style={{
                         flex: 1,
-                        padding: 12,
-                        borderRadius: 10,
+                        paddingVertical: spacing.md,
+                        borderRadius: radius.md,
                         borderWidth: 2,
-                        borderColor: difficulty === d ? colors[d] : "#e5e7eb",
-                        backgroundColor: difficulty === d ? `${colors[d]}15` : "#fff",
+                        borderColor:
+                          difficulty === d ? color : colors.border,
+                        backgroundColor:
+                          difficulty === d ? bg : colors.surface,
                         alignItems: "center",
                       }}
                     >
                       <Text
                         style={{
-                          fontWeight: "600",
-                          color: difficulty === d ? colors[d] : "#6b7280",
+                          fontWeight: typography.semibold,
+                          color:
+                            difficulty === d
+                              ? color
+                              : colors.textSecondary,
                         }}
                       >
-                        {labels[d]}
+                        {label}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -304,11 +440,11 @@ export default function DeckDetailScreen() {
     setSaving(true);
     try {
       if (editingCard) {
-        // Update existing card
         const { card: updated } = await updateCard(editingCard.id, data);
-        setCards((prev) => prev.map((c) => (c.id === editingCard.id ? updated : c)));
+        setCards((prev) =>
+          prev.map((c) => (c.id === editingCard.id ? updated : c))
+        );
       } else {
-        // Create new card
         const { card: created } = await createCard(userId, deckId, {
           ...data,
           tags: [],
@@ -325,15 +461,13 @@ export default function DeckDetailScreen() {
   };
 
   // Difficulty badge colors
-  const difficultyColors: Record<string, string> = {
-    easy: "#10b981",
-    medium: "#f59e0b",
-    hard: "#ef4444",
-  };
-  const difficultyLabels: Record<string, string> = {
-    easy: "Leicht",
-    medium: "Mittel",
-    hard: "Schwer",
+  const difficultyMeta: Record<
+    string,
+    { color: string; label: string }
+  > = {
+    easy: { color: colors.success, label: "Leicht" },
+    medium: { color: colors.warning, label: "Mittel" },
+    hard: { color: colors.error, label: "Schwer" },
   };
 
   return (
@@ -342,10 +476,15 @@ export default function DeckDetailScreen() {
         options={{
           title: deckTitle,
           headerBackTitle: "Decks",
+          headerTintColor: colors.primary,
+          headerStyle: { backgroundColor: colors.background },
         }}
       />
-      <SafeAreaView edges={["bottom"]} style={{ flex: 1, backgroundColor: "#f8f9fa" }}>
-        <View style={{ flex: 1, padding: 16, gap: 12 }}>
+      <SafeAreaView
+        edges={["bottom"]}
+        style={{ flex: 1, backgroundColor: colors.background }}
+      >
+        <View style={{ flex: 1, padding: spacing.lg, gap: spacing.md }}>
           {/* Header with card count + add button */}
           <View
             style={{
@@ -354,123 +493,204 @@ export default function DeckDetailScreen() {
               alignItems: "center",
             }}
           >
-            <Text style={{ fontSize: 15, color: "#6b7280" }}>
-              {loading ? "Lade..." : `${cards.length} Karte${cards.length !== 1 ? "n" : ""}`}
+            <Text
+              style={{
+                fontSize: typography.base,
+                color: colors.textSecondary,
+                fontWeight: typography.medium,
+              }}
+            >
+              {loading
+                ? "Lade..."
+                : `${cards.length} Karte${cards.length !== 1 ? "n" : ""}`}
             </Text>
             <TouchableOpacity
               onPress={handleAddCard}
+              activeOpacity={0.8}
               style={{
-                backgroundColor: "#6366f1",
-                borderRadius: 10,
+                backgroundColor: colors.primary,
+                borderRadius: radius.md,
                 paddingHorizontal: 14,
-                paddingVertical: 8,
+                paddingVertical: spacing.sm,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: spacing.xs,
               }}
             >
-              <Text style={{ color: "#fff", fontWeight: "700", fontSize: 15 }}>+ Karte</Text>
+              <Plus
+                size={16}
+                color={colors.textInverse}
+                strokeWidth={3}
+              />
+              <Text
+                style={{
+                  color: colors.textInverse,
+                  fontWeight: typography.bold,
+                  fontSize: typography.base,
+                }}
+              >
+                Karte
+              </Text>
             </TouchableOpacity>
           </View>
 
           {/* Card list */}
           {loading ? (
-            <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-              <ActivityIndicator size="large" color="#6366f1" />
+            <View
+              style={{
+                flex: 1,
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <ActivityIndicator size="large" color={colors.primary} />
             </View>
           ) : (
             <ScrollView
               refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                />
               }
-              contentContainerStyle={{ gap: 10, paddingBottom: 24 }}
+              contentContainerStyle={{
+                gap: spacing.sm + 2,
+                paddingBottom: spacing.xxl,
+              }}
             >
               {cards.length === 0 ? (
-                <View style={{ alignItems: "center", paddingTop: 40, gap: 8 }}>
-                  <Text style={{ fontSize: 40 }}>🃏</Text>
+                <View
+                  style={{
+                    alignItems: "center",
+                    paddingTop: 40,
+                    gap: spacing.md,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 64,
+                      height: 64,
+                      borderRadius: 32,
+                      backgroundColor: colors.surfaceSecondary,
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
+                    <CreditCard size={28} color={colors.textTertiary} />
+                  </View>
                   <Text
                     style={{
-                      fontSize: 16,
-                      color: "#6b7280",
+                      fontSize: typography.base,
+                      color: colors.textSecondary,
                       textAlign: "center",
                       lineHeight: 22,
                     }}
                   >
-                    Noch keine Karten in diesem Deck.{"\n"}Tippe "+ Karte" oder scanne neuen Inhalt.
+                    Noch keine Karten in diesem Deck.{"\n"}Tippe "+ Karte"
+                    oder scanne neuen Inhalt.
                   </Text>
                 </View>
               ) : (
-                cards.map((card, index) => (
-                  <TouchableOpacity
-                    key={card.id}
-                    onPress={() => handleEditCard(card)}
-                    onLongPress={() => handleCardLongPress(card)}
-                    activeOpacity={0.7}
-                    style={{
-                      backgroundColor: "#fff",
-                      borderRadius: 12,
-                      padding: 14,
-                      borderWidth: 1,
-                      borderColor: "#e5e7eb",
-                    }}
-                  >
-                    {/* Card number + difficulty badge */}
-                    <View
+                cards.map((card, idx) => {
+                  const meta = difficultyMeta[card.difficulty] ?? {
+                    color: colors.textSecondary,
+                    label: card.difficulty,
+                  };
+                  return (
+                    <TouchableOpacity
+                      key={card.id}
+                      onPress={() => handleEditCard(card)}
+                      onLongPress={() => handleCardLongPress(card)}
+                      activeOpacity={0.7}
                       style={{
-                        flexDirection: "row",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        marginBottom: 8,
+                        backgroundColor: colors.surface,
+                        borderRadius: radius.md,
+                        padding: 14,
+                        borderWidth: 1,
+                        borderColor: colors.border,
+                        ...shadows.sm,
                       }}
                     >
-                      <Text style={{ fontSize: 12, color: "#9ca3af", fontWeight: "500" }}>
-                        #{index + 1} • {card.type === "cloze" ? "Lückentext" : "Basic"}
-                      </Text>
-                      <Text
+                      {/* Card number + difficulty badge */}
+                      <View
                         style={{
-                          fontSize: 11,
-                          color: difficultyColors[card.difficulty] ?? "#6b7280",
-                          fontWeight: "700",
-                          textTransform: "uppercase",
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          marginBottom: spacing.sm,
                         }}
                       >
-                        {difficultyLabels[card.difficulty] ?? card.difficulty}
+                        <Text
+                          style={{
+                            fontSize: typography.xs,
+                            color: colors.textTertiary,
+                            fontWeight: typography.medium,
+                          }}
+                        >
+                          #{idx + 1} ·{" "}
+                          {card.type === "cloze"
+                            ? "Lückentext"
+                            : "Basic"}
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: typography.xs,
+                            color: meta.color,
+                            fontWeight: typography.bold,
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          {meta.label}
+                        </Text>
+                      </View>
+
+                      {/* Front (question) */}
+                      <Text
+                        style={{
+                          fontWeight: typography.semibold,
+                          fontSize: typography.base,
+                          color: colors.text,
+                        }}
+                        numberOfLines={2}
+                      >
+                        {card.front}
                       </Text>
-                    </View>
 
-                    {/* Front (question) */}
-                    <Text
-                      style={{ fontWeight: "600", fontSize: 15, color: "#111827" }}
-                      numberOfLines={2}
-                    >
-                      {card.front}
-                    </Text>
+                      {/* Divider */}
+                      <View
+                        style={{
+                          height: 1,
+                          backgroundColor: colors.borderLight,
+                          marginVertical: spacing.sm,
+                        }}
+                      />
 
-                    {/* Divider */}
-                    <View
-                      style={{
-                        height: 1,
-                        backgroundColor: "#f3f4f6",
-                        marginVertical: 8,
-                      }}
-                    />
-
-                    {/* Back (answer) */}
-                    <Text style={{ fontSize: 14, color: "#4b5563" }} numberOfLines={2}>
-                      {card.back}
-                    </Text>
-                  </TouchableOpacity>
-                ))
+                      {/* Back (answer) */}
+                      <Text
+                        style={{
+                          fontSize: typography.sm + 1,
+                          color: colors.textSecondary,
+                        }}
+                        numberOfLines={2}
+                      >
+                        {card.back}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })
               )}
 
-              {/* Hint */}
               {cards.length > 0 && (
                 <Text
                   style={{
-                    fontSize: 12,
-                    color: "#9ca3af",
+                    fontSize: typography.xs,
+                    color: colors.textTertiary,
                     textAlign: "center",
-                    marginTop: 8,
+                    marginTop: spacing.sm,
                   }}
                 >
-                  Tippe auf eine Karte zum Bearbeiten • Halte gedrückt für mehr Optionen
+                  Tippe auf eine Karte zum Bearbeiten · Halte gedrückt
+                  für mehr Optionen
                 </Text>
               )}
             </ScrollView>

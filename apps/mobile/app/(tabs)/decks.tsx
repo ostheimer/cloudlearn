@@ -11,9 +11,22 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  Plus,
+  Search,
+  Layers,
+  ChevronRight,
+} from "lucide-react-native";
 import { useSessionStore } from "../../src/store/sessionStore";
-import { listDecks, updateDeck, deleteDeck, createDeck, type Deck } from "../../src/lib/api";
+import {
+  listDecks,
+  updateDeck,
+  deleteDeck,
+  createDeck,
+  type Deck,
+} from "../../src/lib/api";
 import { searchDecks } from "../../src/lib/searchDecks";
+import { colors, spacing, radius, typography, shadows } from "../../src/theme";
 
 export default function DecksScreen() {
   const router = useRouter();
@@ -57,7 +70,7 @@ export default function DecksScreen() {
         { text: "Abbrechen", style: "cancel" },
         {
           text: "Erstellen",
-          onPress: async (title) => {
+          onPress: async (title: string | undefined) => {
             if (!title?.trim() || !userId) return;
             try {
               await createDeck(userId, title.trim());
@@ -82,7 +95,7 @@ export default function DecksScreen() {
         { text: "Abbrechen", style: "cancel" },
         {
           text: "Speichern",
-          onPress: async (newTitle) => {
+          onPress: async (newTitle: string | undefined) => {
             if (!newTitle?.trim()) return;
             try {
               await updateDeck(deck.id, { title: newTitle.trim() });
@@ -138,54 +151,122 @@ export default function DecksScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#f8f9fa" }}>
-      <View style={{ flex: 1, padding: 16, gap: 12 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <View style={{ flex: 1, padding: spacing.lg, gap: spacing.md }}>
         {/* Header */}
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-          <Text style={{ fontSize: 22, fontWeight: "700" }}>Decks</Text>
-          <TouchableOpacity
-            onPress={handleCreateDeck}
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <Text
             style={{
-              backgroundColor: "#6366f1",
-              borderRadius: 10,
-              paddingHorizontal: 14,
-              paddingVertical: 8,
+              fontSize: typography.xxl,
+              fontWeight: typography.bold,
+              color: colors.text,
             }}
           >
-            <Text style={{ color: "#fff", fontWeight: "700", fontSize: 15 }}>+ Neu</Text>
+            Decks
+          </Text>
+          <TouchableOpacity
+            onPress={handleCreateDeck}
+            activeOpacity={0.8}
+            style={{
+              backgroundColor: colors.primary,
+              borderRadius: radius.md,
+              paddingHorizontal: 14,
+              paddingVertical: spacing.sm,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: spacing.xs,
+            }}
+          >
+            <Plus size={16} color={colors.textInverse} strokeWidth={3} />
+            <Text
+              style={{
+                color: colors.textInverse,
+                fontWeight: typography.bold,
+                fontSize: typography.base,
+              }}
+            >
+              Neu
+            </Text>
           </TouchableOpacity>
         </View>
 
         {/* Search */}
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Deck suchen..."
-          placeholderTextColor="#9ca3af"
-          style={{
-            borderWidth: 1,
-            borderColor: "#d1d5db",
-            borderRadius: 12,
-            padding: 12,
-            fontSize: 16,
-            backgroundColor: "#fff",
-          }}
-        />
+        <View style={{ position: "relative" }}>
+          <Search
+            size={18}
+            color={colors.textTertiary}
+            style={{ position: "absolute", left: 14, top: 14, zIndex: 1 }}
+          />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Deck suchen..."
+            placeholderTextColor={colors.textTertiary}
+            style={{
+              borderWidth: 1,
+              borderColor: colors.border,
+              borderRadius: radius.md,
+              paddingVertical: spacing.md,
+              paddingLeft: 42,
+              paddingRight: spacing.md,
+              fontSize: typography.base,
+              backgroundColor: colors.surface,
+            }}
+          />
+        </View>
 
         {/* Deck list */}
         {loading ? (
-          <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-            <ActivityIndicator size="large" color="#6366f1" />
+          <View
+            style={{
+              flex: 1,
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <ActivityIndicator size="large" color={colors.primary} />
           </View>
         ) : (
           <ScrollView
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-            contentContainerStyle={{ gap: 10, paddingBottom: 24 }}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+            contentContainerStyle={{ gap: spacing.sm + 2, paddingBottom: spacing.xxl }}
           >
             {filtered.length === 0 ? (
-              <View style={{ alignItems: "center", paddingTop: 40, gap: 8 }}>
-                <Text style={{ fontSize: 40 }}>📚</Text>
-                <Text style={{ fontSize: 16, color: "#6b7280", textAlign: "center" }}>
+              <View
+                style={{
+                  alignItems: "center",
+                  paddingTop: 40,
+                  gap: spacing.md,
+                }}
+              >
+                <View
+                  style={{
+                    width: 64,
+                    height: 64,
+                    borderRadius: 32,
+                    backgroundColor: colors.surfaceSecondary,
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
+                >
+                  <Layers size={28} color={colors.textTertiary} />
+                </View>
+                <Text
+                  style={{
+                    fontSize: typography.base,
+                    color: colors.textSecondary,
+                    textAlign: "center",
+                    lineHeight: 22,
+                  }}
+                >
                   {decks.length === 0
                     ? "Noch keine Decks.\nScanne einen Text, um dein erstes Deck zu erstellen."
                     : "Kein Deck gefunden."}
@@ -199,45 +280,86 @@ export default function DecksScreen() {
                   onLongPress={() => handleDeckLongPress(deck)}
                   activeOpacity={0.7}
                   style={{
-                    backgroundColor: "#fff",
-                    borderRadius: 12,
+                    backgroundColor: colors.surface,
+                    borderRadius: radius.md,
                     padding: 14,
                     borderWidth: 1,
-                    borderColor: "#e5e7eb",
+                    borderColor: colors.border,
+                    ...shadows.sm,
                   }}
                 >
-                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                    <Text style={{ fontWeight: "600", fontSize: 16, flex: 1 }}>{deck.title}</Text>
-                    <Text style={{ color: "#9ca3af", fontSize: 20 }}>›</Text>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontWeight: typography.semibold,
+                        fontSize: typography.base,
+                        flex: 1,
+                        color: colors.text,
+                      }}
+                    >
+                      {deck.title}
+                    </Text>
+                    <ChevronRight
+                      size={18}
+                      color={colors.textTertiary}
+                    />
                   </View>
-                  <View style={{ flexDirection: "row", gap: 6, marginTop: 6 }}>
-                    {deck.tags.map((tag) => (
-                      <Text
-                        key={tag}
-                        style={{
-                          fontSize: 12,
-                          backgroundColor: "#f3f4f6",
-                          paddingHorizontal: 8,
-                          paddingVertical: 2,
-                          borderRadius: 6,
-                          color: "#6b7280",
-                        }}
-                      >
-                        {tag}
-                      </Text>
-                    ))}
-                  </View>
-                  <Text style={{ fontSize: 12, color: "#9ca3af", marginTop: 6 }}>
+                  {deck.tags.length > 0 && (
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        gap: spacing.sm,
+                        marginTop: spacing.sm,
+                      }}
+                    >
+                      {deck.tags.map((tag) => (
+                        <Text
+                          key={tag}
+                          style={{
+                            fontSize: typography.xs,
+                            backgroundColor: colors.surfaceSecondary,
+                            paddingHorizontal: spacing.sm,
+                            paddingVertical: 2,
+                            borderRadius: radius.sm,
+                            color: colors.textTertiary,
+                            overflow: "hidden",
+                          }}
+                        >
+                          {tag}
+                        </Text>
+                      ))}
+                    </View>
+                  )}
+                  <Text
+                    style={{
+                      fontSize: typography.xs,
+                      color: colors.textTertiary,
+                      marginTop: spacing.sm,
+                    }}
+                  >
                     {new Date(deck.createdAt).toLocaleDateString("de")}
                   </Text>
                 </TouchableOpacity>
               ))
             )}
 
-            {/* Hint */}
             {filtered.length > 0 && (
-              <Text style={{ fontSize: 12, color: "#9ca3af", textAlign: "center", marginTop: 8 }}>
-                Tippe auf ein Deck für Details • Halte gedrückt zum Bearbeiten/Löschen
+              <Text
+                style={{
+                  fontSize: typography.xs,
+                  color: colors.textTertiary,
+                  textAlign: "center",
+                  marginTop: spacing.sm,
+                }}
+              >
+                Tippe auf ein Deck für Details · Halte gedrückt zum
+                Bearbeiten/Löschen
               </Text>
             )}
           </ScrollView>

@@ -2,9 +2,16 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  Mail,
+  Crown,
+  Globe,
+  LogOut,
+} from "lucide-react-native";
 import { i18n } from "../../src/i18n";
 import { useSessionStore } from "../../src/store/sessionStore";
 import { getSubscriptionStatus } from "../../src/lib/api";
+import { colors, spacing, radius, typography, shadows } from "../../src/theme";
 
 export default function ProfileScreen() {
   const { t } = useTranslation();
@@ -20,91 +27,213 @@ export default function ProfileScreen() {
       .catch(() => setTier("unbekannt"));
   }, [userId]);
 
-  return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#f8f9fa" }}>
-      <View style={{ flex: 1, gap: 16, padding: 16 }}>
-        <Text style={{ fontSize: 22, fontWeight: "700" }}>{t("profileTab")}</Text>
+  const tierLabel = tier === "free" ? "Free" : tier === "pro" ? "Pro" : tier;
 
-        <View
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <View style={{ flex: 1, gap: spacing.lg, padding: spacing.lg }}>
+        <Text
           style={{
-            backgroundColor: "#fff",
-            borderRadius: 12,
-            padding: 16,
-            borderWidth: 1,
-            borderColor: "#e5e7eb",
-            gap: 8,
+            fontSize: typography.xxl,
+            fontWeight: typography.bold,
+            color: colors.text,
           }}
         >
-          <Text style={{ fontSize: 14, color: "#6b7280" }}>E-Mail</Text>
-          <Text style={{ fontSize: 15, fontWeight: "500" }}>{email ?? "—"}</Text>
-          <Text style={{ fontSize: 14, color: "#6b7280", marginTop: 8 }}>Abo-Stufe</Text>
-          <Text style={{ fontSize: 16, fontWeight: "600" }}>
-            {tier === "free" ? "Free" : tier === "pro" ? "Pro" : tier}
-          </Text>
-        </View>
+          {t("profileTab")}
+        </Text>
 
-        <Text style={{ fontSize: 16, fontWeight: "600" }}>Sprache</Text>
-        <View style={{ flexDirection: "row", gap: 10 }}>
-          <TouchableOpacity
-            onPress={() => void i18n.changeLanguage("de")}
-            style={{
-              flex: 1,
-              backgroundColor: i18n.language === "de" ? "#111827" : "#e5e7eb",
-              borderRadius: 10,
-              padding: 14,
-              alignItems: "center",
-            }}
-          >
-            <Text
+        {/* Account info card */}
+        <View
+          style={{
+            backgroundColor: colors.surface,
+            borderRadius: radius.lg,
+            padding: spacing.lg,
+            borderWidth: 1,
+            borderColor: colors.border,
+            gap: spacing.lg,
+            ...shadows.sm,
+          }}
+        >
+          {/* Email */}
+          <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.md }}>
+            <View
               style={{
-                color: i18n.language === "de" ? "#fff" : "#111827",
-                fontWeight: "600",
+                width: 40,
+                height: 40,
+                borderRadius: radius.md,
+                backgroundColor: colors.primaryLight,
+                justifyContent: "center",
+                alignItems: "center",
               }}
             >
-              Deutsch
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => void i18n.changeLanguage("en")}
-            style={{
-              flex: 1,
-              backgroundColor: i18n.language === "en" ? "#111827" : "#e5e7eb",
-              borderRadius: 10,
-              padding: 14,
-              alignItems: "center",
-            }}
-          >
-            <Text
+              <Mail size={18} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text
+                style={{
+                  fontSize: typography.xs,
+                  color: colors.textTertiary,
+                  textTransform: "uppercase",
+                  fontWeight: typography.semibold,
+                  letterSpacing: 0.5,
+                }}
+              >
+                E-Mail
+              </Text>
+              <Text
+                style={{
+                  fontSize: typography.base,
+                  fontWeight: typography.medium,
+                  color: colors.text,
+                  marginTop: 2,
+                }}
+              >
+                {email ?? "—"}
+              </Text>
+            </View>
+          </View>
+
+          {/* Divider */}
+          <View style={{ height: 1, backgroundColor: colors.borderLight }} />
+
+          {/* Subscription */}
+          <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.md }}>
+            <View
               style={{
-                color: i18n.language === "en" ? "#fff" : "#111827",
-                fontWeight: "600",
+                width: 40,
+                height: 40,
+                borderRadius: radius.md,
+                backgroundColor: colors.warningLight,
+                justifyContent: "center",
+                alignItems: "center",
               }}
             >
-              English
-            </Text>
-          </TouchableOpacity>
+              <Crown size={18} color={colors.warning} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text
+                style={{
+                  fontSize: typography.xs,
+                  color: colors.textTertiary,
+                  textTransform: "uppercase",
+                  fontWeight: typography.semibold,
+                  letterSpacing: 0.5,
+                }}
+              >
+                Abo-Stufe
+              </Text>
+              <Text
+                style={{
+                  fontSize: typography.base,
+                  fontWeight: typography.semibold,
+                  color: colors.text,
+                  marginTop: 2,
+                }}
+              >
+                {tierLabel}
+              </Text>
+            </View>
+          </View>
         </View>
 
+        {/* Language section */}
+        <View style={{ gap: spacing.sm }}>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: spacing.sm,
+              marginBottom: spacing.xs,
+            }}
+          >
+            <Globe size={16} color={colors.textSecondary} />
+            <Text
+              style={{
+                fontSize: typography.base,
+                fontWeight: typography.semibold,
+                color: colors.text,
+              }}
+            >
+              Sprache
+            </Text>
+          </View>
+          <View style={{ flexDirection: "row", gap: spacing.sm + 2 }}>
+            {(["de", "en"] as const).map((lang) => {
+              const isActive = i18n.language === lang;
+              return (
+                <TouchableOpacity
+                  key={lang}
+                  onPress={() => void i18n.changeLanguage(lang)}
+                  activeOpacity={0.8}
+                  style={{
+                    flex: 1,
+                    backgroundColor: isActive
+                      ? colors.primary
+                      : colors.surface,
+                    borderRadius: radius.md,
+                    paddingVertical: 14,
+                    alignItems: "center",
+                    borderWidth: isActive ? 0 : 1,
+                    borderColor: colors.border,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: isActive
+                        ? colors.textInverse
+                        : colors.text,
+                      fontWeight: typography.semibold,
+                      fontSize: typography.base,
+                    }}
+                  >
+                    {lang === "de" ? "Deutsch" : "English"}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* Spacer */}
         <View style={{ flex: 1 }} />
 
         {/* Sign out button */}
         <TouchableOpacity
           onPress={signOut}
+          activeOpacity={0.8}
           style={{
-            backgroundColor: "#ef4444",
-            borderRadius: 12,
-            padding: 16,
+            backgroundColor: colors.errorLight,
+            borderRadius: radius.md,
+            paddingVertical: 16,
+            flexDirection: "row",
             alignItems: "center",
-            marginBottom: 12,
+            justifyContent: "center",
+            gap: spacing.sm,
+            marginBottom: spacing.md,
+            borderWidth: 1,
+            borderColor: "rgba(239,68,68,0.2)",
           }}
         >
-          <Text style={{ color: "#fff", fontSize: 16, fontWeight: "700" }}>
+          <LogOut size={18} color={colors.error} />
+          <Text
+            style={{
+              color: colors.error,
+              fontSize: typography.lg,
+              fontWeight: typography.bold,
+            }}
+          >
             {t("signOut")}
           </Text>
         </TouchableOpacity>
 
-        <Text style={{ fontSize: 12, color: "#9ca3af", textAlign: "center" }}>
-          clearn.ai v0.1.0 — API: clearn-api.vercel.app
+        <Text
+          style={{
+            fontSize: typography.xs,
+            color: colors.textTertiary,
+            textAlign: "center",
+          }}
+        >
+          clearn.ai v0.1.0
         </Text>
       </View>
     </SafeAreaView>

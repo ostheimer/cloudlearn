@@ -11,7 +11,9 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { BookOpen } from "lucide-react-native";
 import { useSessionStore } from "../src/store/sessionStore";
+import { colors, spacing, radius, typography } from "../src/theme";
 
 type AuthMode = "login" | "register" | "reset";
 
@@ -92,8 +94,18 @@ export default function AuthScreen() {
     reset: "Link senden",
   };
 
+  const inputStyle = {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: 14,
+    fontSize: typography.base,
+    color: colors.text,
+  } as const;
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#f8f9fa" }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
@@ -102,28 +114,53 @@ export default function AuthScreen() {
           contentContainerStyle={{
             flexGrow: 1,
             justifyContent: "center",
-            padding: 24,
+            padding: spacing.xxl,
           }}
           keyboardShouldPersistTaps="handled"
         >
           {/* Logo / Branding */}
           <View style={{ alignItems: "center", marginBottom: 40 }}>
-            <Text style={{ fontSize: 48, marginBottom: 8 }}>🧠</Text>
-            <Text style={{ fontSize: 32, fontWeight: "800", color: "#111827" }}>
+            <View
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: radius.lg,
+                backgroundColor: colors.primaryLight,
+                justifyContent: "center",
+                alignItems: "center",
+                marginBottom: spacing.md,
+              }}
+            >
+              <BookOpen size={36} color={colors.primary} />
+            </View>
+            <Text
+              style={{
+                fontSize: typography.xxxl,
+                fontWeight: typography.extrabold,
+                color: colors.text,
+                letterSpacing: -0.5,
+              }}
+            >
               clearn
             </Text>
-            <Text style={{ fontSize: 15, color: "#6b7280", marginTop: 4 }}>
-              Foto → Flashcards → Wissen
+            <Text
+              style={{
+                fontSize: typography.base,
+                color: colors.textSecondary,
+                marginTop: spacing.xs,
+              }}
+            >
+              Foto — Flashcards — Wissen
             </Text>
           </View>
 
           {/* Title */}
           <Text
             style={{
-              fontSize: 22,
-              fontWeight: "700",
-              color: "#111827",
-              marginBottom: 24,
+              fontSize: typography.xxl,
+              fontWeight: typography.bold,
+              color: colors.text,
+              marginBottom: spacing.xxl,
               textAlign: "center",
             }}
           >
@@ -132,83 +169,89 @@ export default function AuthScreen() {
 
           {/* Email */}
           <View style={{ marginBottom: 14 }}>
-            <Text style={{ fontSize: 13, color: "#374151", marginBottom: 6, fontWeight: "600" }}>
+            <Text
+              style={{
+                fontSize: typography.sm,
+                color: colors.textSecondary,
+                marginBottom: spacing.sm,
+                fontWeight: typography.semibold,
+              }}
+            >
               E-Mail
             </Text>
             <TextInput
               value={email}
               onChangeText={setEmail}
               placeholder="deine@email.de"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={colors.textTertiary}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
-              style={{
-                backgroundColor: "#fff",
-                borderWidth: 1,
-                borderColor: "#d1d5db",
-                borderRadius: 12,
-                padding: 14,
-                fontSize: 16,
-              }}
+              style={inputStyle}
             />
           </View>
 
           {/* Password */}
           {mode !== "reset" && (
             <View style={{ marginBottom: 14 }}>
-              <Text style={{ fontSize: 13, color: "#374151", marginBottom: 6, fontWeight: "600" }}>
+              <Text
+                style={{
+                  fontSize: typography.sm,
+                  color: colors.textSecondary,
+                  marginBottom: spacing.sm,
+                  fontWeight: typography.semibold,
+                }}
+              >
                 Passwort
               </Text>
               <TextInput
                 value={password}
                 onChangeText={setPassword}
                 placeholder="••••••••"
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={colors.textTertiary}
                 secureTextEntry
-                style={{
-                  backgroundColor: "#fff",
-                  borderWidth: 1,
-                  borderColor: "#d1d5db",
-                  borderRadius: 12,
-                  padding: 14,
-                  fontSize: 16,
-                }}
+                style={inputStyle}
               />
             </View>
           )}
 
-          {/* Confirm Password (Register only) */}
+          {/* Confirm Password */}
           {mode === "register" && (
             <View style={{ marginBottom: 14 }}>
-              <Text style={{ fontSize: 13, color: "#374151", marginBottom: 6, fontWeight: "600" }}>
+              <Text
+                style={{
+                  fontSize: typography.sm,
+                  color: colors.textSecondary,
+                  marginBottom: spacing.sm,
+                  fontWeight: typography.semibold,
+                }}
+              >
                 Passwort bestätigen
               </Text>
               <TextInput
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 placeholder="••••••••"
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={colors.textTertiary}
                 secureTextEntry
-                style={{
-                  backgroundColor: "#fff",
-                  borderWidth: 1,
-                  borderColor: "#d1d5db",
-                  borderRadius: 12,
-                  padding: 14,
-                  fontSize: 16,
-                }}
+                style={inputStyle}
               />
             </View>
           )}
 
-          {/* Forgot Password link (Login only) */}
+          {/* Forgot Password link */}
           {mode === "login" && (
             <TouchableOpacity
               onPress={() => setMode("reset")}
-              style={{ alignSelf: "flex-end", marginBottom: 20 }}
+              style={{ alignSelf: "flex-end", marginBottom: spacing.xl }}
             >
-              <Text style={{ color: "#6366f1", fontSize: 14, fontWeight: "500" }}>
+              <Text
+                style={{
+                  color: colors.primary,
+                  fontSize: typography.sm + 1,
+                  fontWeight: typography.medium,
+                }}
+              >
                 Passwort vergessen?
               </Text>
             </TouchableOpacity>
@@ -218,37 +261,70 @@ export default function AuthScreen() {
           <TouchableOpacity
             onPress={handleSubmit}
             disabled={loading}
+            activeOpacity={0.8}
             style={{
-              backgroundColor: loading ? "#9ca3af" : "#6366f1",
-              borderRadius: 12,
-              padding: 16,
+              backgroundColor: loading
+                ? colors.textTertiary
+                : colors.primary,
+              borderRadius: radius.md,
+              paddingVertical: 16,
               alignItems: "center",
-              marginTop: mode === "login" ? 0 : 8,
+              marginTop: mode === "login" ? 0 : spacing.sm,
             }}
           >
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.textInverse} />
             ) : (
-              <Text style={{ color: "#fff", fontSize: 17, fontWeight: "700" }}>
+              <Text
+                style={{
+                  color: colors.textInverse,
+                  fontSize: typography.lg,
+                  fontWeight: typography.bold,
+                }}
+              >
                 {buttonLabels[mode]}
               </Text>
             )}
           </TouchableOpacity>
 
           {/* Mode switch */}
-          <View style={{ marginTop: 24, alignItems: "center" }}>
+          <View style={{ marginTop: spacing.xxl, alignItems: "center" }}>
             {mode === "login" ? (
               <TouchableOpacity onPress={() => setMode("register")}>
-                <Text style={{ color: "#6b7280", fontSize: 15 }}>
+                <Text
+                  style={{
+                    color: colors.textSecondary,
+                    fontSize: typography.base,
+                  }}
+                >
                   Noch kein Konto?{" "}
-                  <Text style={{ color: "#6366f1", fontWeight: "600" }}>Registrieren</Text>
+                  <Text
+                    style={{
+                      color: colors.primary,
+                      fontWeight: typography.semibold,
+                    }}
+                  >
+                    Registrieren
+                  </Text>
                 </Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity onPress={() => setMode("login")}>
-                <Text style={{ color: "#6b7280", fontSize: 15 }}>
+                <Text
+                  style={{
+                    color: colors.textSecondary,
+                    fontSize: typography.base,
+                  }}
+                >
                   Bereits ein Konto?{" "}
-                  <Text style={{ color: "#6366f1", fontWeight: "600" }}>Anmelden</Text>
+                  <Text
+                    style={{
+                      color: colors.primary,
+                      fontWeight: typography.semibold,
+                    }}
+                  >
+                    Anmelden
+                  </Text>
                 </Text>
               </TouchableOpacity>
             )}
