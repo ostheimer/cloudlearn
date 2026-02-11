@@ -1,7 +1,13 @@
 // Design tokens for clearn.ai mobile app
-// Consistent colors, spacing, and typography across all screens
+// Supports light and dark mode
 
-export const colors = {
+import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+// ─── Color schemes ───────────────────────────────────────────────────────────
+
+const lightColors = {
   // Primary
   primary: "#6366f1",
   primaryLight: "#eef2ff",
@@ -41,6 +47,87 @@ export const colors = {
   accentLight: "#f5f3ff",
 } as const;
 
+const darkColors = {
+  // Primary
+  primary: "#818cf8",
+  primaryLight: "#1e1b4b",
+  primaryDark: "#a5b4fc",
+
+  // Neutral
+  background: "#0f172a",
+  surface: "#1e293b",
+  surfaceSecondary: "#334155",
+  border: "#475569",
+  borderLight: "#334155",
+
+  // Text
+  text: "#f1f5f9",
+  textSecondary: "#94a3b8",
+  textTertiary: "#64748b",
+  textInverse: "#0f172a",
+
+  // Semantic
+  success: "#34d399",
+  successLight: "#064e3b",
+  warning: "#fbbf24",
+  warningLight: "#451a03",
+  error: "#f87171",
+  errorLight: "#450a0a",
+  info: "#60a5fa",
+  infoLight: "#1e3a5f",
+
+  // Rating buttons
+  ratingAgain: "#f87171",
+  ratingHard: "#fbbf24",
+  ratingGood: "#34d399",
+  ratingEasy: "#60a5fa",
+
+  // Gradients / accent
+  accent: "#a78bfa",
+  accentLight: "#2e1065",
+} as const;
+
+// Use string-based type so light and dark schemes are interchangeable
+export type ColorScheme = { [K in keyof typeof lightColors]: string };
+export type ThemeMode = "light" | "dark";
+
+// ─── Theme store ─────────────────────────────────────────────────────────────
+
+interface ThemeState {
+  mode: ThemeMode;
+  toggle: () => void;
+  setMode: (mode: ThemeMode) => void;
+}
+
+export const useThemeStore = create<ThemeState>()(
+  persist(
+    (set) => ({
+      mode: "light",
+      toggle: () => set((s) => ({ mode: s.mode === "light" ? "dark" : "light" })),
+      setMode: (mode) => set({ mode }),
+    }),
+    {
+      name: "clearn-theme",
+      storage: createJSONStorage(() => AsyncStorage),
+    }
+  )
+);
+
+// ─── Hook to get current colors ──────────────────────────────────────────────
+
+export function useColors(): ColorScheme {
+  const mode = useThemeStore((s) => s.mode);
+  return mode === "dark" ? darkColors : lightColors;
+}
+
+// ─── Static exports (for non-hook contexts) ─────────────────────────────────
+
+export const colors = lightColors; // fallback for static imports
+export const getColors = (mode: ThemeMode): ColorScheme =>
+  mode === "dark" ? darkColors : lightColors;
+
+// ─── Layout tokens (unchanged) ───────────────────────────────────────────────
+
 export const spacing = {
   xs: 4,
   sm: 8,
@@ -79,21 +166,21 @@ export const typography = {
 
 export const shadows = {
   sm: {
-    shadowColor: "#0f172a",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
     shadowRadius: 3,
     elevation: 1,
   },
   md: {
-    shadowColor: "#0f172a",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 3,
   },
   lg: {
-    shadowColor: "#0f172a",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 16,
