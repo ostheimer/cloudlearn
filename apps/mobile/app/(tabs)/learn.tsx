@@ -138,14 +138,15 @@ export default function LearnScreen() {
   useEffect(() => {
     setFlipped(false);
     flipProgress.value = withTiming(0, { duration: 200 });
-    // Reset position instantly (old card is off-screen already)
+    // Position + visibility already reset by worklet callback (for swipes).
+    // Set again here as fallback for button ratings / initial load.
     translateX.value = 0;
     translateY.value = 0;
-    // Entrance animation: scale up from small + fade in
-    cardScale.value = 0.88;
     cardOpacity.value = 0;
-    cardScale.value = withSpring(1, { damping: 14, stiffness: 160 });
-    cardOpacity.value = withTiming(1, { duration: 200, easing: Easing.out(Easing.cubic) });
+    cardScale.value = 0.85;
+    // Entrance: spring scale up + fade in (slight delay to ensure card content updated)
+    cardScale.value = withSpring(1, { damping: 12, stiffness: 150 });
+    cardOpacity.value = withTiming(1, { duration: 280, easing: Easing.out(Easing.cubic) });
   }, [index, flipProgress, translateX, translateY, cardScale, cardOpacity]);
 
   // Animate flip
@@ -293,20 +294,30 @@ export default function LearnScreen() {
         const speed = Math.max(Math.abs(e.velocityX), 800);
         const flyDuration = Math.min(Math.max((remainingDist / speed) * 1000, 200), 450);
 
-        translateX.value = withTiming(flyX, {
-          duration: flyDuration,
-          easing: Easing.in(Easing.cubic),
-        });
+        // Animate fly-out on Y (no callback needed)
         translateY.value = withTiming(flyY, {
           duration: flyDuration,
           easing: Easing.in(Easing.cubic),
+        });
+
+        // Animate fly-out on X — callback runs on UI thread AFTER animation completes
+        translateX.value = withTiming(flyX, {
+          duration: flyDuration,
+          easing: Easing.in(Easing.cubic),
         }, () => {
+          // UI thread: immediately hide card and reset position
+          // This prevents the "flash back to center" glitch
+          cardOpacity.value = 0;
+          cardScale.value = 0.85;
+          translateX.value = 0;
+          translateY.value = 0;
+          // Now safely trigger JS state change (card is invisible + centered)
           runOnJS(handleSwipe)(rating);
         });
       } else {
-        // Snap back with bouncy spring (lower damping = more bounce)
-        translateX.value = withSpring(0, { damping: 8, stiffness: 120, mass: 0.8 });
-        translateY.value = withSpring(0, { damping: 8, stiffness: 120, mass: 0.8 });
+        // Snap back with very bouncy spring (low damping = visible overshoot/wobble)
+        translateX.value = withSpring(0, { damping: 5, stiffness: 90, mass: 0.7 });
+        translateY.value = withSpring(0, { damping: 5, stiffness: 90, mass: 0.7 });
       }
     });
 
