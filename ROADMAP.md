@@ -66,6 +66,10 @@ Letzte Aktualisierung: 2026-02-11
 - [x] iPhone-Test via Expo Go erfolgreich: App lädt fehlerfrei, alle Tabs erreichbar, Paketversionen synchronisiert
 - [x] CORS-Middleware für API deployed (erlaubt Mobile- und Web-Zugriff)
 - [x] Expo-Paketversionen auf SDK-54-Kompatibilität aktualisiert (expo-status-bar, react-native, react-native-screens)
+- [x] Kamera-Integration: expo-camera + expo-image-picker mit Permissions (iOS/Android)
+- [x] Scan-Screen: 3 Input-Modi (Foto aufnehmen, Galerie wählen, Text eingeben)
+- [x] Echte Gemini 2.5 Flash API-Integration (Text→Flashcards + Vision/Bild→Flashcards)
+- [x] Scan-API: imageBase64 + imageMimeType Support, async Gemini-Aufrufe mit Heuristik-Fallback
 
 ## Phase 2 - Beta Launch (4-6 Wochen, Scaffold umgesetzt)
 
@@ -119,3 +123,5 @@ Letzte Aktualisierung: 2026-02-11
 - 2026-02-11: Mobile App (Expo) für Handy-Test vorbereitet: Workspace-Deps ersetzt, API-Client integriert, Screens mit Live-API verbunden.
 - 2026-02-11: CORS-Middleware in `apps/api/middleware.ts` implementiert und deployed.
 - 2026-02-11: Expo-Paketversionen auf SDK-54-Kompatibilität fixiert; iPhone-Test via Expo Go erfolgreich (alle Tabs + API-Anbindung funktionsfähig).
+- 2026-02-11: Kamera-Integration implementiert: expo-camera + expo-image-picker, Scan-Screen mit 3 Modi (Kamera/Galerie/Text).
+- 2026-02-11: Echte Gemini 2.5 Flash API angebunden: Text- und Bild-Input für KI-generierte Flashcards. Heuristik-Fallback bei fehlendem API-Key.
