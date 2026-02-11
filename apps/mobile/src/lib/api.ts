@@ -55,6 +55,7 @@ export interface ScanResponse {
   model: string;
   fallbackUsed: boolean;
   cards: Flashcard[];
+  deckTitle?: string;
 }
 
 export interface Deck {

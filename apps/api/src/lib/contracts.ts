@@ -32,7 +32,8 @@ export const scanProcessResponseSchema = z.object({
   requestId: z.string().min(8),
   model: z.string().min(2),
   fallbackUsed: z.boolean().default(false),
-  cards: flashcardListSchema
+  cards: flashcardListSchema,
+  deckTitle: z.string().min(1).max(100).optional()
 });
 
 export type ScanProcessResponse = z.infer<typeof scanProcessResponseSchema>;

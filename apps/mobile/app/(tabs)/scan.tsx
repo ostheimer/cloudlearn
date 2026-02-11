@@ -44,6 +44,7 @@ export default function ScanScreen() {
   const [saving, setSaving] = useState(false);
   const [cards, setCards] = useState<Flashcard[]>([]);
   const [model, setModel] = useState("");
+  const [deckTitle, setDeckTitle] = useState("");
   const [saved, setSaved] = useState(false);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
@@ -123,6 +124,7 @@ export default function ScanScreen() {
       const result = await scanImage(userId, base64, mimeType);
       setCards(result.cards);
       setModel(result.model);
+      setDeckTitle(result.deckTitle ?? "");
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "Unbekannter Fehler";
       Alert.alert("Fehler bei der Bildverarbeitung", msg);
@@ -142,6 +144,7 @@ export default function ScanScreen() {
       const result = await scanText(userId, editedText);
       setCards(result.cards);
       setModel(result.model);
+      setDeckTitle(result.deckTitle ?? "");
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "Unbekannter Fehler";
       Alert.alert("Fehler", msg);
@@ -182,10 +185,9 @@ export default function ScanScreen() {
     if (!userId || cards.length === 0) return;
     setSaving(true);
     try {
-      const { deck } = await createDeck(userId, `Scan ${new Date().toLocaleDateString("de")}`, [
-        "scan",
-        "auto",
-      ]);
+      // Use AI-generated title or fallback to date-based title
+      const title = deckTitle || `Scan ${new Date().toLocaleDateString("de")}`;
+      const { deck } = await createDeck(userId, title, ["scan", "auto"]);
       await saveCardsToDeck(deck.id, deck.title);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "Unbekannter Fehler";
@@ -236,6 +238,7 @@ export default function ScanScreen() {
   const resetAll = () => {
     setCards([]);
     setModel("");
+    setDeckTitle("");
     setSaved(false);
     setImageUri(null);
     setImageBase64(null);
@@ -501,6 +504,11 @@ export default function ScanScreen() {
               />
             )}
 
+            {deckTitle ? (
+              <Text style={{ fontSize: 18, fontWeight: "700", color: "#111827" }}>
+                {deckTitle}
+              </Text>
+            ) : null}
             <Text style={{ fontSize: 16, fontWeight: "600", color: "#374151" }}>
               {cards.length} Karten generiert
             </Text>

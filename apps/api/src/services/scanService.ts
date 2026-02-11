@@ -3,11 +3,12 @@ import {
   scanProcessRequestSchema,
   type ScanProcessResponse,
 } from "@/lib/contracts";
-import { createCard, createDeck, getDeck, listDecks, recordScan } from "@/lib/db";
+import { createCard, createDeck, getDeck, recordScan } from "@/lib/db";
 import { getIdempotentResult, storeIdempotentResult } from "@/lib/idempotencyStore";
 import {
   generateFlashcardsAsync,
   generateFlashcardsFromImageAsync,
+  type LLMGenerationResult,
 } from "@/lib/llm";
 
 export async function processScan(
@@ -23,7 +24,7 @@ export async function processScan(
     return existing;
   }
 
-  let generated: { cards: unknown[]; model: string; fallbackUsed: boolean };
+  let generated: LLMGenerationResult;
 
   if (parsed.imageBase64) {
     // Image input → Gemini Vision
@@ -48,7 +49,8 @@ export async function processScan(
   // Use authenticated userId instead of body userId
   let deck = parsed.deckId ? await getDeck(parsed.deckId) : null;
   if (!deck) {
-    deck = await createDeck(userId, "Automatisch erstellt", ["scan"]);
+    // Use AI-generated title instead of generic "Automatisch erstellt"
+    deck = await createDeck(userId, generated.title, ["scan"]);
   }
 
   for (const card of cards) {
@@ -69,6 +71,7 @@ export async function processScan(
     model: generated.model,
     fallbackUsed: generated.fallbackUsed,
     cards,
+    deckTitle: generated.title,
   };
 
   storeIdempotentResult(parsed.idempotencyKey, response);
