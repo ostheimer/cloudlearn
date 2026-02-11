@@ -31,13 +31,16 @@ import {
   ArrowLeftRight,
   ThumbsUp,
   ThumbsDown,
+  Star,
+  Volume2,
 } from "lucide-react-native";
+import * as Speech from "expo-speech";
 import {
   useReviewSession,
   type ReviewRating,
 } from "../../src/features/review/reviewSession";
 import { useSessionStore } from "../../src/store/sessionStore";
-import { getDueCards, reviewCard } from "../../src/lib/api";
+import { getDueCards, reviewCard, updateCard } from "../../src/lib/api";
 import { colors, spacing, radius, typography, shadows } from "../../src/theme";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -52,6 +55,8 @@ export default function LearnScreen() {
   const [loading, setLoading] = useState(false);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [showBackFirst, setShowBackFirst] = useState(false);
+  // Track starred status per card id (local mirror)
+  const [starredMap, setStarredMap] = useState<Record<string, boolean>>({});
 
   // Flip animation
   const flipProgress = useSharedValue(0);
@@ -142,7 +147,11 @@ export default function LearnScreen() {
     try {
       const { cards: due } = await getDueCards(userId);
       if (due.length > 0) {
-        start(due.map((c) => ({ id: c.id, front: c.front, back: c.back })));
+        // Populate starred map from API data
+        const starMap: Record<string, boolean> = {};
+        due.forEach((c) => { starMap[c.id] = c.starred ?? false; });
+        setStarredMap(starMap);
+        start(due.map((c) => ({ id: c.id, front: c.front, back: c.back, starred: c.starred })));
       } else {
         start([]);
       }
@@ -186,6 +195,43 @@ export default function LearnScreen() {
   const handleFlip = () => {
     if (!revealed) {
       reveal();
+    }
+  };
+
+  // TTS: speak card text
+  const [speaking, setSpeaking] = useState(false);
+  const speakText = async (text: string) => {
+    if (speaking) {
+      await Speech.stop();
+      setSpeaking(false);
+      return;
+    }
+    setSpeaking(true);
+    Speech.speak(text, {
+      language: "de-DE",
+      onDone: () => setSpeaking(false),
+      onStopped: () => setSpeaking(false),
+      onError: () => setSpeaking(false),
+    });
+  };
+
+  // Stop speech on card change
+  useEffect(() => {
+    Speech.stop();
+    setSpeaking(false);
+  }, [index]);
+
+  // Toggle starred for current card
+  const toggleStar = async () => {
+    if (!current) return;
+    const cardId = current.id;
+    const newVal = !starredMap[cardId];
+    setStarredMap((prev) => ({ ...prev, [cardId]: newVal }));
+    try {
+      await updateCard(cardId, { starred: newVal });
+    } catch {
+      // Revert on error
+      setStarredMap((prev) => ({ ...prev, [cardId]: !newVal }));
     }
   };
 
@@ -253,6 +299,7 @@ export default function LearnScreen() {
 
   const frontParsed = formatCloze(effectiveFront);
   const displayBack = frontParsed.clozeAnswer ?? effectiveBack;
+  const isStarred = current ? !!starredMap[current.id] : false;
 
   const ratingButton = (
     label: string,
@@ -637,6 +684,39 @@ export default function LearnScreen() {
                       },
                     ]}
                   >
+                    {/* Top-right action buttons */}
+                    <View
+                      style={{
+                        position: "absolute",
+                        top: spacing.md,
+                        right: spacing.md,
+                        zIndex: 30,
+                        flexDirection: "row",
+                        gap: spacing.md,
+                      }}
+                    >
+                      <TouchableOpacity
+                        onPress={() => speakText(effectiveFront)}
+                        activeOpacity={0.6}
+                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                      >
+                        <Volume2
+                          size={20}
+                          color={speaking ? colors.primary : colors.textTertiary}
+                        />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={toggleStar}
+                        activeOpacity={0.6}
+                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                      >
+                        <Star
+                          size={20}
+                          color={isStarred ? colors.warning : colors.textTertiary}
+                          fill={isStarred ? colors.warning : "none"}
+                        />
+                      </TouchableOpacity>
+                    </View>
                     <Text
                       style={{
                         fontSize: typography.xl,
@@ -682,6 +762,39 @@ export default function LearnScreen() {
                       },
                     ]}
                   >
+                    {/* Top-right action buttons (back) */}
+                    <View
+                      style={{
+                        position: "absolute",
+                        top: spacing.md,
+                        right: spacing.md,
+                        zIndex: 30,
+                        flexDirection: "row",
+                        gap: spacing.md,
+                      }}
+                    >
+                      <TouchableOpacity
+                        onPress={() => speakText(displayBack)}
+                        activeOpacity={0.6}
+                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                      >
+                        <Volume2
+                          size={20}
+                          color={speaking ? colors.primary : colors.textTertiary}
+                        />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={toggleStar}
+                        activeOpacity={0.6}
+                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                      >
+                        <Star
+                          size={20}
+                          color={isStarred ? colors.warning : colors.textTertiary}
+                          fill={isStarred ? colors.warning : "none"}
+                        />
+                      </TouchableOpacity>
+                    </View>
                     <Text
                       style={{
                         fontSize: typography.xl,

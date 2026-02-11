@@ -5,6 +5,7 @@ import {
   findReviewByIdempotencyKey,
   getCard,
   updateCardFsrs,
+  updateStreakAfterReview,
 } from "@/lib/db";
 
 export async function storeReview(
@@ -43,6 +44,9 @@ export async function storeReview(
     }
 
     await createReview(reviewInput);
+
+    // Update streak (fire-and-forget for first review of the day)
+    updateStreakAfterReview(parsed.userId).catch(() => {});
   }
 
   const fsrsCard = createNewFsrsCard();

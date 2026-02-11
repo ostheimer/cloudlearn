@@ -1,17 +1,29 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Text, TouchableOpacity, View } from "react-native";
+import { Alert, Switch, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   Mail,
   Crown,
   Globe,
   LogOut,
+  Bell,
+  Clock,
 } from "lucide-react-native";
 import { i18n } from "../../src/i18n";
 import { useSessionStore } from "../../src/store/sessionStore";
 import { getSubscriptionStatus } from "../../src/lib/api";
 import { colors, spacing, radius, typography, shadows } from "../../src/theme";
+import {
+  requestNotificationPermissions,
+  scheduleDailyReminder,
+  cancelDailyReminder,
+  hasScheduledReminder,
+} from "../../src/lib/notifications";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+const REMINDER_KEY = "clearn_reminder_enabled";
+const REMINDER_HOUR_KEY = "clearn_reminder_hour";
 
 export default function ProfileScreen() {
   const { t } = useTranslation();
@@ -19,6 +31,8 @@ export default function ProfileScreen() {
   const email = useSessionStore((state) => state.email);
   const signOut = useSessionStore((state) => state.signOut);
   const [tier, setTier] = useState("...");
+  const [reminderEnabled, setReminderEnabled] = useState(false);
+  const [reminderHour, setReminderHour] = useState(19); // Default 19:00
 
   useEffect(() => {
     if (!userId) return;
@@ -26,6 +40,54 @@ export default function ProfileScreen() {
       .then((res) => setTier(res.status.tier))
       .catch(() => setTier("unbekannt"));
   }, [userId]);
+
+  // Load notification state
+  useEffect(() => {
+    AsyncStorage.getItem(REMINDER_KEY).then((val) => {
+      if (val === "true") setReminderEnabled(true);
+    });
+    AsyncStorage.getItem(REMINDER_HOUR_KEY).then((val) => {
+      if (val) setReminderHour(parseInt(val, 10));
+    });
+  }, []);
+
+  const toggleReminder = async (value: boolean) => {
+    if (value) {
+      const granted = await requestNotificationPermissions();
+      if (!granted) {
+        Alert.alert(
+          "Berechtigung benötigt",
+          "Bitte erlaube Benachrichtigungen in den Einstellungen."
+        );
+        return;
+      }
+      await scheduleDailyReminder(reminderHour, 0);
+      setReminderEnabled(true);
+      await AsyncStorage.setItem(REMINDER_KEY, "true");
+    } else {
+      await cancelDailyReminder();
+      setReminderEnabled(false);
+      await AsyncStorage.setItem(REMINDER_KEY, "false");
+    }
+  };
+
+  const changeReminderHour = () => {
+    const hours = [7, 8, 9, 10, 12, 14, 17, 18, 19, 20, 21];
+    const options = hours.map((h) => ({
+      text: `${h}:00`,
+      onPress: async () => {
+        setReminderHour(h);
+        await AsyncStorage.setItem(REMINDER_HOUR_KEY, String(h));
+        if (reminderEnabled) {
+          await scheduleDailyReminder(h, 0);
+        }
+      },
+    }));
+    Alert.alert("Erinnerungszeit", "Wann möchtest du erinnert werden?", [
+      ...options,
+      { text: "Abbrechen", style: "cancel" },
+    ]);
+  };
 
   const tierLabel = tier === "free" ? "Free" : tier === "pro" ? "Pro" : tier;
 
@@ -136,6 +198,116 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* Notification settings */}
+        <View
+          style={{
+            backgroundColor: colors.surface,
+            borderRadius: radius.lg,
+            padding: spacing.lg,
+            borderWidth: 1,
+            borderColor: colors.border,
+            gap: spacing.md,
+            ...shadows.sm,
+          }}
+        >
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.md }}>
+              <View
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: radius.md,
+                  backgroundColor: reminderEnabled ? colors.primaryLight : colors.surfaceSecondary,
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <Bell size={18} color={reminderEnabled ? colors.primary : colors.textTertiary} />
+              </View>
+              <View>
+                <Text
+                  style={{
+                    fontSize: typography.base,
+                    fontWeight: typography.semibold,
+                    color: colors.text,
+                  }}
+                >
+                  Tägliche Erinnerung
+                </Text>
+                <Text
+                  style={{
+                    fontSize: typography.xs,
+                    color: colors.textTertiary,
+                    marginTop: 2,
+                  }}
+                >
+                  Erinnert dich ans Lernen
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={reminderEnabled}
+              onValueChange={toggleReminder}
+              trackColor={{ false: colors.surfaceSecondary, true: colors.primaryLight }}
+              thumbColor={reminderEnabled ? colors.primary : colors.textTertiary}
+            />
+          </View>
+
+          {reminderEnabled && (
+            <>
+              <View style={{ height: 1, backgroundColor: colors.borderLight }} />
+              <TouchableOpacity
+                onPress={changeReminderHour}
+                activeOpacity={0.7}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.md }}>
+                  <View
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: radius.md,
+                      backgroundColor: colors.surfaceSecondary,
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Clock size={18} color={colors.textSecondary} />
+                  </View>
+                  <Text
+                    style={{
+                      fontSize: typography.base,
+                      color: colors.text,
+                      fontWeight: typography.medium,
+                    }}
+                  >
+                    Uhrzeit
+                  </Text>
+                </View>
+                <Text
+                  style={{
+                    fontSize: typography.base,
+                    color: colors.primary,
+                    fontWeight: typography.bold,
+                  }}
+                >
+                  {reminderHour}:00
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+
         {/* Language section */}
         <View style={{ gap: spacing.sm }}>
           <View
@@ -233,7 +405,7 @@ export default function ProfileScreen() {
             textAlign: "center",
           }}
         >
-          clearn.ai v0.1.0
+          clearn.ai v0.2.0
         </Text>
       </View>
     </SafeAreaView>

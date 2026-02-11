@@ -2,16 +2,24 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { BookOpen, ScanLine, Layers, ChevronRight } from "lucide-react-native";
+import {
+  BookOpen,
+  ScanLine,
+  Layers,
+  ChevronRight,
+  Flame,
+  Target,
+  TrendingUp,
+  Award,
+} from "lucide-react-native";
 import { useSessionStore } from "../../src/store/sessionStore";
-import { getDueCards, listDecks } from "../../src/lib/api";
+import { getStats, type StatsResponse } from "../../src/lib/api";
 import { colors, spacing, radius, typography, shadows } from "../../src/theme";
 
 export default function HomeScreen() {
   const router = useRouter();
   const userId = useSessionStore((state) => state.userId);
-  const [dueCount, setDueCount] = useState(0);
-  const [deckCount, setDeckCount] = useState(0);
+  const [stats, setStats] = useState<StatsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -21,23 +29,29 @@ export default function HomeScreen() {
       return;
     }
 
-    Promise.all([
-      getDueCards(userId).catch(() => ({ cards: [] })),
-      listDecks(userId).catch(() => ({ decks: [] })),
-    ])
-      .then(([dueRes, deckRes]) => {
-        setDueCount(dueRes.cards.length);
-        setDeckCount(deckRes.decks.length);
-      })
+    getStats()
+      .then((res) => setStats(res.stats))
       .catch((e) => setError(String(e)))
       .finally(() => setLoading(false));
   }, [userId]);
 
+  const dueCount = stats?.dueCards ?? 0;
+  const deckCount = stats?.totalDecks ?? 0;
+  const streak = stats?.currentStreak ?? 0;
+  const reviewsToday = stats?.reviewsToday ?? 0;
+  const dailyGoal = stats?.dailyGoal ?? 10;
+  const dailyProgress = dailyGoal > 0 ? Math.min(reviewsToday / dailyGoal, 1) : 0;
+  const accuracyPercent = Math.round((stats?.accuracyRate ?? 0) * 100);
+
+  // Determine whether user has reviewed today
+  const today = new Date().toISOString().split("T")[0];
+  const reviewedToday = stats?.lastReviewDate === today;
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-      <View style={{ flex: 1, padding: spacing.xl, gap: spacing.xl }}>
+      <View style={{ flex: 1, padding: spacing.xl, gap: spacing.lg }}>
         {/* Header */}
-        <View style={{ paddingTop: spacing.xl }}>
+        <View style={{ paddingTop: spacing.lg }}>
           <Text
             style={{
               fontSize: typography.xxxl,
@@ -71,14 +85,144 @@ export default function HomeScreen() {
               <Text style={{ color: colors.error }}>{error}</Text>
             ) : null}
 
-            {/* Stats cards */}
-            <View style={{ flexDirection: "row", gap: spacing.md }}>
+            {/* Streak banner */}
+            <View
+              style={{
+                backgroundColor: streak > 0 ? "#FFF7ED" : colors.surfaceSecondary,
+                borderRadius: radius.lg,
+                padding: spacing.lg,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: spacing.md,
+                borderWidth: 1,
+                borderColor: streak > 0 ? "#FDBA74" : colors.border,
+              }}
+            >
+              <View
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 24,
+                  backgroundColor: streak > 0 ? "#FED7AA" : colors.surfaceSecondary,
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <Flame
+                  size={26}
+                  color={streak > 0 ? "#EA580C" : colors.textTertiary}
+                  fill={streak > 0 ? "#FB923C" : "none"}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    fontSize: 28,
+                    fontWeight: typography.extrabold,
+                    color: streak > 0 ? "#EA580C" : colors.textTertiary,
+                  }}
+                >
+                  {streak} {streak === 1 ? "Tag" : "Tage"}
+                </Text>
+                <Text
+                  style={{
+                    fontSize: typography.sm,
+                    color: streak > 0 ? "#C2410C" : colors.textTertiary,
+                    marginTop: 2,
+                  }}
+                >
+                  {streak === 0
+                    ? "Starte deinen Streak!"
+                    : !reviewedToday
+                      ? "Lerne heute, um deinen Streak zu halten!"
+                      : "Weiter so!"}
+                </Text>
+              </View>
+              {stats?.longestStreak && stats.longestStreak > 0 ? (
+                <View style={{ alignItems: "center" }}>
+                  <Award size={16} color={colors.textTertiary} />
+                  <Text
+                    style={{
+                      fontSize: typography.xs,
+                      color: colors.textTertiary,
+                      marginTop: 2,
+                    }}
+                  >
+                    Best: {stats.longestStreak}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+
+            {/* Daily goal progress */}
+            <View
+              style={{
+                backgroundColor: colors.surface,
+                borderRadius: radius.lg,
+                padding: spacing.lg,
+                borderWidth: 1,
+                borderColor: colors.border,
+                gap: spacing.sm,
+              }}
+            >
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+                  <Target size={18} color={colors.primary} />
+                  <Text
+                    style={{
+                      fontSize: typography.base,
+                      fontWeight: typography.semibold,
+                      color: colors.text,
+                    }}
+                  >
+                    Tagesziel
+                  </Text>
+                </View>
+                <Text
+                  style={{
+                    fontSize: typography.sm,
+                    fontWeight: typography.bold,
+                    color: dailyProgress >= 1 ? colors.success : colors.primary,
+                  }}
+                >
+                  {reviewsToday}/{dailyGoal} Karten
+                </Text>
+              </View>
+              {/* Progress bar */}
+              <View
+                style={{
+                  height: 8,
+                  backgroundColor: colors.surfaceSecondary,
+                  borderRadius: 4,
+                  overflow: "hidden",
+                }}
+              >
+                <View
+                  style={{
+                    height: "100%",
+                    width: `${Math.max(dailyProgress * 100, 1)}%`,
+                    backgroundColor: dailyProgress >= 1 ? colors.success : colors.primary,
+                    borderRadius: 4,
+                  }}
+                />
+              </View>
+            </View>
+
+            {/* Stats cards row */}
+            <View style={{ flexDirection: "row", gap: spacing.sm }}>
+              {/* Due cards */}
               <View
                 style={{
                   flex: 1,
                   backgroundColor: colors.surface,
                   borderRadius: radius.lg,
-                  padding: spacing.xl,
+                  padding: spacing.md,
                   alignItems: "center",
                   borderWidth: 1,
                   borderColor: colors.border,
@@ -87,23 +231,23 @@ export default function HomeScreen() {
               >
                 <View
                   style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: radius.md,
+                    width: 36,
+                    height: 36,
+                    borderRadius: radius.sm,
                     backgroundColor: dueCount > 0 ? colors.primaryLight : colors.surfaceSecondary,
                     justifyContent: "center",
                     alignItems: "center",
-                    marginBottom: spacing.md,
+                    marginBottom: spacing.sm,
                   }}
                 >
                   <BookOpen
-                    size={22}
+                    size={18}
                     color={dueCount > 0 ? colors.primary : colors.textTertiary}
                   />
                 </View>
                 <Text
                   style={{
-                    fontSize: 28,
+                    fontSize: 22,
                     fontWeight: typography.extrabold,
                     color: colors.text,
                   }}
@@ -112,21 +256,22 @@ export default function HomeScreen() {
                 </Text>
                 <Text
                   style={{
-                    fontSize: typography.sm,
+                    fontSize: typography.xs,
                     color: colors.textSecondary,
-                    marginTop: spacing.xs,
+                    marginTop: 2,
                   }}
                 >
-                  Fällige Karten
+                  Fällig
                 </Text>
               </View>
 
+              {/* Decks */}
               <View
                 style={{
                   flex: 1,
                   backgroundColor: colors.surface,
                   borderRadius: radius.lg,
-                  padding: spacing.xl,
+                  padding: spacing.md,
                   alignItems: "center",
                   borderWidth: 1,
                   borderColor: colors.border,
@@ -135,20 +280,20 @@ export default function HomeScreen() {
               >
                 <View
                   style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: radius.md,
+                    width: 36,
+                    height: 36,
+                    borderRadius: radius.sm,
                     backgroundColor: colors.surfaceSecondary,
                     justifyContent: "center",
                     alignItems: "center",
-                    marginBottom: spacing.md,
+                    marginBottom: spacing.sm,
                   }}
                 >
-                  <Layers size={22} color={colors.textSecondary} />
+                  <Layers size={18} color={colors.textSecondary} />
                 </View>
                 <Text
                   style={{
-                    fontSize: 28,
+                    fontSize: 22,
                     fontWeight: typography.extrabold,
                     color: colors.text,
                   }}
@@ -157,12 +302,64 @@ export default function HomeScreen() {
                 </Text>
                 <Text
                   style={{
-                    fontSize: typography.sm,
+                    fontSize: typography.xs,
                     color: colors.textSecondary,
-                    marginTop: spacing.xs,
+                    marginTop: 2,
                   }}
                 >
                   Decks
+                </Text>
+              </View>
+
+              {/* Accuracy */}
+              <View
+                style={{
+                  flex: 1,
+                  backgroundColor: colors.surface,
+                  borderRadius: radius.lg,
+                  padding: spacing.md,
+                  alignItems: "center",
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  ...shadows.sm,
+                }}
+              >
+                <View
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: radius.sm,
+                    backgroundColor:
+                      accuracyPercent >= 70 ? colors.successLight : colors.surfaceSecondary,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    marginBottom: spacing.sm,
+                  }}
+                >
+                  <TrendingUp
+                    size={18}
+                    color={
+                      accuracyPercent >= 70 ? colors.success : colors.textTertiary
+                    }
+                  />
+                </View>
+                <Text
+                  style={{
+                    fontSize: 22,
+                    fontWeight: typography.extrabold,
+                    color: colors.text,
+                  }}
+                >
+                  {(stats?.reviewsTotal ?? 0) > 0 ? `${accuracyPercent}%` : "—"}
+                </Text>
+                <Text
+                  style={{
+                    fontSize: typography.xs,
+                    color: colors.textSecondary,
+                    marginTop: 2,
+                  }}
+                >
+                  Genauigkeit
                 </Text>
               </View>
             </View>

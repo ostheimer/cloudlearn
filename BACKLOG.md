@@ -368,7 +368,7 @@ Ein Wechsel-Symbol (⇄) oberhalb der Karte ermöglicht es, zwischen "Begriff zu
 ### CL-A05 - Stern/Favorit markieren
 
 - **Priorität:** P1
-- **Status:** Offen
+- **Status:** ✅ Done (2026-02-11)
 - **Schätzung:** 1-2 PT
 - **Abhängigkeiten:** keine (DB-Spalte nötig)
 
@@ -395,7 +395,7 @@ Auf jeder Karte (im Learn- und Deck-Detail-Screen) gibt es ein Stern-Symbol. Tip
 ### CL-B01 - Streaks (Tagesserien)
 
 - **Priorität:** P1
-- **Status:** Offen
+- **Status:** ✅ Done (2026-02-11)
 - **Schätzung:** 2-3 PT
 - **Abhängigkeiten:** keine (DB-Tracking nötig)
 
@@ -418,7 +418,7 @@ Nutzer sehen ihren aktuellen Streak (aufeinanderfolgende Tage mit mindestens 1 R
 ### CL-B02 - Statistiken-Screen
 
 - **Priorität:** P1
-- **Status:** Offen (API-Endpoint `/api/v1/stats` existiert)
+- **Status:** ✅ Done (2026-02-11) — Stats im Home-Screen integriert
 - **Schätzung:** 2-3 PT
 - **Abhängigkeiten:** CL-B01 (Streak-Daten)
 
@@ -441,7 +441,7 @@ Eigener Tab oder Bereich mit Lernstatistiken: Karten gelernt (heute/Woche/gesamt
 ### CL-B03 - Vorlesen (TTS)
 
 - **Priorität:** P2
-- **Status:** Offen
+- **Status:** ✅ Done (2026-02-11)
 - **Schätzung:** 1 PT
 - **Abhängigkeiten:** keine
 
@@ -462,7 +462,7 @@ Lautsprecher-Button auf Karten-Vorder- und Rückseite. Nutzt `expo-speech` (On-D
 ### CL-B04 - Push-Erinnerungen
 
 - **Priorität:** P1
-- **Status:** Offen
+- **Status:** ✅ Done (2026-02-11)
 - **Schätzung:** 2-3 PT
 - **Abhängigkeiten:** keine
 
@@ -484,7 +484,7 @@ Tägliche Push-Notification: "Du hast X fällige Karten!" Konfigurierbare Uhrzei
 ### CL-B05 - Home-Screen aufwerten
 
 - **Priorität:** P1
-- **Status:** Offen
+- **Status:** ✅ Done (2026-02-11)
 - **Schätzung:** 1-2 PT
 - **Abhängigkeiten:** CL-B01 (Streaks), CL-B02 (Stats)
 

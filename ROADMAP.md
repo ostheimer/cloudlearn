@@ -1,6 +1,6 @@
 # ROADMAP
 
-Letzte Aktualisierung: 2026-02-11 (Swipe + Toggle)
+Letzte Aktualisierung: 2026-02-11 (Prio A+B komplett)
 
 ## Gesamtstatus
 
@@ -24,24 +24,24 @@ Letzte Aktualisierung: 2026-02-11 (Swipe + Toggle)
 
 | Feature | Quizlet | Anki | Brainscape | **clearn.ai** |
 |---------|:---:|:---:|:---:|:---:|
-| Karte umdrehen (Tap/Animation) | ✅ | ✅ | ✅ | ❌ |
-| Swipe links/rechts (weiß/weiß nicht) | ✅ | ❌ | ✅ | ❌ |
-| Vorlesen (TTS) | ✅ | Add-on | ❌ | ❌ |
-| Stern/Favorit markieren | ✅ | Flag | ❌ | ❌ |
+| Karte umdrehen (Tap/Animation) | ✅ | ✅ | ✅ | **✅** |
+| Swipe links/rechts (weiß/weiß nicht) | ✅ | ❌ | ✅ | **✅** |
+| Vorlesen (TTS) | ✅ | Add-on | ❌ | **✅** |
+| Stern/Favorit markieren | ✅ | Flag | ❌ | **✅** |
 | Auto-Play (Slideshow) | ✅ | ❌ | ❌ | ❌ |
-| Begriff ↔ Definition umschalten | ✅ | ✅ | ❌ | ❌ |
-| Fortschrittsbalken in Session | ✅ | ✅ | ✅ | ❌ |
-| Streaks (Tagesserien) | ✅ | ❌ | ✅ | ❌ |
+| Begriff ↔ Definition umschalten | ✅ | ✅ | ❌ | **✅** |
+| Fortschrittsbalken in Session | ✅ | ✅ | ✅ | **✅** |
+| Streaks (Tagesserien) | ✅ | ❌ | ✅ | **✅** |
 | Test-Modus (MC, Wahr/Falsch) | ✅ | ❌ | ❌ | ❌ |
 | Match-Spiel (Timer) | ✅ | ❌ | ❌ | ❌ |
-| Statistiken/Analytics | ✅ | ✅ | ✅ | API da, kein Screen |
+| Statistiken/Analytics | ✅ | ✅ | ✅ | **✅** (Home) |
 | Image Occlusion | Diagramme | Add-on | ❌ | ❌ |
 | Offline-Lernen | ✅ | ✅ | Teilweise | ❌ |
 | KI-Kartenerstellung | Bezahlt | ❌ | ❌ | **✅ USP** |
 | Kamera → Karten | ❌ | ❌ | ❌ | **✅ USP** |
 | FSRS-Algorithmus | ❌ (einfach) | ✅ | Eigener | **✅** |
 | Community-Decks | ✅ (riesig) | ✅ | ✅ | Scaffold |
-| Push-Erinnerungen | ✅ | ❌ | ✅ | ❌ |
+| Push-Erinnerungen | ✅ | ❌ | ✅ | **✅** |
 | PDF-Import | ❌ | Add-on | ❌ | Scaffold |
 | Anki-Import/Export | ❌ | Nativ | ❌ | Scaffold |
 
@@ -58,7 +58,12 @@ Letzte Aktualisierung: 2026-02-11 (Swipe + Toggle)
 | **Card-Management** | Anzeigen, Bearbeiten, Löschen, Manuell hinzufügen (Editor-Modal) |
 | **Karten zu bestehendem Deck** | Scan-Ergebnis in neues ODER vorhandenes Deck speichern |
 | **FSRS-Review** | Again/Hard/Good/Easy mit persistenter Zustandsverwaltung |
-| **Home-Dashboard** | Fällige Karten, Deck-Anzahl, CTA zum Lernen/Scannen |
+| **Home-Dashboard** | Fällige Karten, Deck-Anzahl, Streak, Tagesziel, Genauigkeit, CTA |
+| **Stern/Favorit** | Karten in Learn + Deck-Detail markieren, Sync mit DB |
+| **Streaks** | Tagesserien-Tracking (current + longest), Streak-Banner auf Home |
+| **Vorlesen (TTS)** | expo-speech auf Karten-Vorder-/Rückseite (de-DE) |
+| **Push-Erinnerungen** | Lokale tägliche Notification, konfigurierbare Uhrzeit, An/Aus-Toggle |
+| **Statistiken** | Reviews heute/Woche/gesamt, Genauigkeit, Lernverlauf (30 Tage) |
 | **Auth** | Login, Registrierung, Passwort-Reset (Supabase) |
 | **Profil** | E-Mail-Anzeige, Abo-Status, Sprache, Abmelden |
 | **Daten-Persistenz** | Alles in Supabase PostgreSQL mit JWT-Auth |
@@ -68,7 +73,6 @@ Letzte Aktualisierung: 2026-02-11 (Swipe + Toggle)
 
 | Feature | Problem |
 |---------|---------|
-| Statistiken | API existiert, kein Mobile-Screen |
 | Offline-Sync | Store existiert, wird nie aufgerufen |
 | Paywall | Screen existiert, kein Weg dorthin, kein RevenueCat |
 | PDF-Import | Nur Job-Queue, kein echtes Parsing |
@@ -176,17 +180,17 @@ Letzte Aktualisierung: 2026-02-11 (Swipe + Toggle)
 | A2 | CL-A02 | **Swipe links/rechts** (weiß ich / weiß ich nicht) | Mittel | Riesig | ✅ Done |
 | A3 | CL-A03 | **Fortschrittsbalken** in Lernsession (3/12 Karten) | Klein | Groß | ✅ Done |
 | A4 | CL-A04 | **Begriff ↔ Definition umschalten** (Wechsel-Symbol) | Klein | Groß | ✅ Done |
-| A5 | CL-A05 | **Stern/Favorit** markieren (Subset lernen) | Klein | Mittel | ❌ Offen |
+| A5 | CL-A05 | **Stern/Favorit** markieren (Subset lernen) | Klein | Mittel | ✅ Done |
 
 ### Priorität B — Engagement & Motivation
 
 | # | Ticket | Feature | Aufwand | Impact | Status |
 |---|--------|---------|---------|--------|--------|
-| B1 | CL-B01 | **Streaks** (Tagesserien + visuelles Tracking) | Mittel | Groß | ❌ Offen |
-| B2 | CL-B02 | **Statistiken-Screen** (Karten gelernt, Genauigkeit, Streak, Verlauf) | Mittel | Groß | ❌ Offen |
-| B3 | CL-B03 | **Vorlesen (TTS)** (Button auf Karten-Vorder-/Rückseite) | Klein | Mittel | ❌ Offen |
-| B4 | CL-B04 | **Push-Erinnerungen** ("5 Karten fällig!", konfigurierbar) | Mittel | Groß | ❌ Offen |
-| B5 | CL-B05 | **Home-Screen aufwerten** (Streak, nächste fällige Karten, Lernziele) | Mittel | Groß | ❌ Offen |
+| B1 | CL-B01 | **Streaks** (Tagesserien + visuelles Tracking) | Mittel | Groß | ✅ Done |
+| B2 | CL-B02 | **Statistiken** (Karten gelernt, Genauigkeit, Streak, Tagesziel) | Mittel | Groß | ✅ Done |
+| B3 | CL-B03 | **Vorlesen (TTS)** (Button auf Karten-Vorder-/Rückseite) | Klein | Mittel | ✅ Done |
+| B4 | CL-B04 | **Push-Erinnerungen** ("Lernzeit!", konfigurierbar) | Mittel | Groß | ✅ Done |
+| B5 | CL-B05 | **Home-Screen aufwerten** (Streak, Tagesziel, Genauigkeit) | Mittel | Groß | ✅ Done |
 
 ### Priorität C — Erweiterte Lernmodi
 
@@ -281,3 +285,9 @@ Voraussetzung: Phase 2 + stabile Nutzerbasis.
 - 2026-02-11: **UI-Redesign**: Lucide Icons (statt Emojis), Theme-System (colors/spacing/radius/typography/shadows), 3D-Flip-Animation (CL-A01), Fortschrittsbalken (CL-A03), react-native-reanimated für GPU-beschleunigte Animationen.
 - 2026-02-11: **Swipe-Gesten (CL-A02)**: Links wischen = "Nochmal" (rot), rechts = "Gewusst" (grün). PanGestureHandler mit Schwelle (30% Bildschirm / Velocity 500px/s), animierte Farboverlays + Labels. Buttons bleiben als Alternative.
 - 2026-02-11: **Begriff ↔ Definition Toggle (CL-A04)**: Wechsel-Button (ArrowLeftRight-Icon) in der Header-Leiste. Tauscht Vorder-/Rückseite für alle Karten der Session. Visuelles Label zeigt aktuellen Modus.
+- 2026-02-11: **Stern/Favorit (CL-A05)**: DB-Migration (`starred` boolean auf `cards`), API-Update (PATCH), Star-Icon im Learn-Screen (Vorder+Rückseite) und Deck-Detail (pro Karte). Optimistisches UI-Update.
+- 2026-02-11: **Streaks (CL-B01)**: DB-Migration (`current_streak`, `longest_streak`, `last_review_date`, `daily_goal` auf `profiles`), Streak-Update nach jeder Review, Streak-Banner + Best-Streak auf Home.
+- 2026-02-11: **Statistiken (CL-B02)**: Stats-API erweitert (Reviews heute/Woche/gesamt, Genauigkeit, Lernverlauf 30 Tage), Home-Screen mit Tagesziel-Fortschrittsbalken + Genauigkeits-KPI.
+- 2026-02-11: **Vorlesen/TTS (CL-B03)**: expo-speech integriert, Lautsprecher-Button auf Karten-Vorder- und Rückseite, Sprache de-DE, automatischer Stopp bei Kartenwechsel.
+- 2026-02-11: **Push-Erinnerungen (CL-B04)**: expo-notifications, tägliche lokale Notification, konfigurierbare Uhrzeit (7-21 Uhr), An/Aus-Toggle im Profil-Screen, Android-Channel.
+- 2026-02-11: **Home-Screen aufwerten (CL-B05)**: Streak-Banner mit Flammen-Icon, Tagesziel-Fortschrittsbalken, 3-KPI-Reihe (Fällig/Decks/Genauigkeit), Streak-Warnung wenn heute nicht gelernt.

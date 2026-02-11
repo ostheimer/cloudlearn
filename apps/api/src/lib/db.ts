@@ -23,6 +23,7 @@ export interface CardRecord extends Flashcard {
   id: string;
   userId: string;
   deckId: string;
+  starred: boolean;
   fsrsDue: string;
   fsrsStability: number;
   fsrsDifficulty: number;
@@ -78,6 +79,7 @@ function mapCardRow(row: any): CardRecord {
     type: row.card_type ?? "basic",
     difficulty: row.difficulty ?? "medium",
     tags: row.tags ?? [],
+    starred: row.starred ?? false,
     fsrsDue: row.fsrs_due,
     fsrsStability: row.fsrs_stability ?? 0,
     fsrsDifficulty: row.fsrs_difficulty ?? 0,
@@ -221,7 +223,7 @@ export async function createCard(
 
 export async function updateCard(
   cardId: string,
-  updates: Partial<Pick<CardRecord, "front" | "back" | "type" | "difficulty" | "tags">>
+  updates: Partial<Pick<CardRecord, "front" | "back" | "type" | "difficulty" | "tags" | "starred">>
 ): Promise<CardRecord | null> {
   const db = getDb();
   const dbUpdates: Record<string, unknown> = {
@@ -232,6 +234,7 @@ export async function updateCard(
   if (updates.type !== undefined) dbUpdates.card_type = updates.type;
   if (updates.difficulty !== undefined) dbUpdates.difficulty = updates.difficulty;
   if (updates.tags !== undefined) dbUpdates.tags = updates.tags;
+  if (updates.starred !== undefined) dbUpdates.starred = updates.starred;
 
   const { data, error } = await db
     .from("cards")
@@ -359,6 +362,154 @@ export async function listDueCards(
     .order("fsrs_due", { ascending: true });
   if (error) throw new Error(`listDueCards: ${error.message}`);
   return (data ?? []).map(mapCardRow);
+}
+
+// ─── Streaks & Stats ────────────────────────────────────────────────────────
+
+export interface StreakInfo {
+  currentStreak: number;
+  longestStreak: number;
+  lastReviewDate: string | null;
+  dailyGoal: number;
+}
+
+export async function getStreakInfo(userId: string): Promise<StreakInfo> {
+  const db = getDb();
+  const { data, error } = await db
+    .from("profiles")
+    .select("current_streak, longest_streak, last_review_date, daily_goal")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error || !data) return { currentStreak: 0, longestStreak: 0, lastReviewDate: null, dailyGoal: 10 };
+  return {
+    currentStreak: data.current_streak ?? 0,
+    longestStreak: data.longest_streak ?? 0,
+    lastReviewDate: data.last_review_date ?? null,
+    dailyGoal: data.daily_goal ?? 10,
+  };
+}
+
+/**
+ * Update streak after a review. Call after each review.
+ * Compares last_review_date with today (user timezone = UTC for simplicity).
+ */
+export async function updateStreakAfterReview(userId: string): Promise<StreakInfo> {
+  const db = getDb();
+  const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD in UTC
+
+  const current = await getStreakInfo(userId);
+
+  let newStreak = current.currentStreak;
+  if (current.lastReviewDate === today) {
+    // Already reviewed today — no change
+    return current;
+  } else if (current.lastReviewDate) {
+    const lastDate = new Date(current.lastReviewDate);
+    const todayDate = new Date(today);
+    const diffDays = Math.floor((todayDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays === 1) {
+      // Consecutive day
+      newStreak = current.currentStreak + 1;
+    } else {
+      // Gap — reset streak
+      newStreak = 1;
+    }
+  } else {
+    // First ever review
+    newStreak = 1;
+  }
+
+  const newLongest = Math.max(newStreak, current.longestStreak);
+
+  const { error } = await db
+    .from("profiles")
+    .update({
+      current_streak: newStreak,
+      longest_streak: newLongest,
+      last_review_date: today,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", userId);
+
+  if (error) throw new Error(`updateStreakAfterReview: ${error.message}`);
+
+  return {
+    currentStreak: newStreak,
+    longestStreak: newLongest,
+    lastReviewDate: today,
+    dailyGoal: current.dailyGoal,
+  };
+}
+
+/**
+ * Get aggregated review stats for a user.
+ */
+export async function getReviewStats(userId: string): Promise<{
+  reviewsToday: number;
+  reviewsThisWeek: number;
+  reviewsTotal: number;
+  accuracyRate: number;
+  reviewsByDay: Array<{ date: string; count: number }>;
+}> {
+  const db = getDb();
+  const now = new Date();
+  const todayStart = new Date(now.toISOString().split("T")[0] + "T00:00:00Z").toISOString();
+  const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const monthStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  // Reviews today
+  const { count: todayCount } = await db
+    .from("review_logs")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .gte("reviewed_at", todayStart);
+
+  // Reviews this week
+  const { count: weekCount } = await db
+    .from("review_logs")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .gte("reviewed_at", weekStart);
+
+  // Reviews total
+  const { count: totalCount } = await db
+    .from("review_logs")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", userId);
+
+  // Accuracy (good+easy out of total)
+  const { count: goodCount } = await db
+    .from("review_logs")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .gte("rating", 3); // 3=good, 4=easy
+
+  const total = totalCount ?? 0;
+  const good = goodCount ?? 0;
+  const accuracyRate = total > 0 ? good / total : 0;
+
+  // Daily counts for last 30 days (for heatmap)
+  const { data: dailyData } = await db
+    .from("review_logs")
+    .select("reviewed_at")
+    .eq("user_id", userId)
+    .gte("reviewed_at", monthStart)
+    .order("reviewed_at", { ascending: true });
+
+  const dayMap: Record<string, number> = {};
+  (dailyData ?? []).forEach((r) => {
+    const day = r.reviewed_at.split("T")[0];
+    dayMap[day] = (dayMap[day] ?? 0) + 1;
+  });
+  const reviewsByDay = Object.entries(dayMap).map(([date, count]) => ({ date, count }));
+
+  return {
+    reviewsToday: todayCount ?? 0,
+    reviewsThisWeek: weekCount ?? 0,
+    reviewsTotal: total,
+    accuracyRate: Math.round(accuracyRate * 100) / 100,
+    reviewsByDay,
+  };
 }
 
 // ─── Subscription (from profiles table) ─────────────────────────────────────

@@ -76,6 +76,7 @@ export interface Card {
   type: string;
   difficulty: string;
   tags: string[];
+  starred: boolean;
   fsrsDue: string;
   fsrsState: string;
 }
@@ -87,6 +88,20 @@ export interface ReviewResponse {
   stability: number;
   difficulty: number;
   state: string;
+}
+
+export interface StatsResponse {
+  totalDecks: number;
+  dueCards: number;
+  currentStreak: number;
+  longestStreak: number;
+  lastReviewDate: string | null;
+  dailyGoal: number;
+  reviewsToday: number;
+  reviewsThisWeek: number;
+  reviewsTotal: number;
+  accuracyRate: number;
+  reviewsByDay: Array<{ date: string; count: number }>;
 }
 
 // --- API Methods ---
@@ -207,7 +222,7 @@ export async function listCardsInDeck(
 
 export async function updateCard(
   cardId: string,
-  updates: { front?: string; back?: string; type?: string; difficulty?: string; tags?: string[] }
+  updates: { front?: string; back?: string; type?: string; difficulty?: string; tags?: string[]; starred?: boolean }
 ): Promise<{ card: Card }> {
   return request<{ card: Card }>(`/api/v1/cards/${cardId}`, {
     method: "PATCH",
@@ -229,4 +244,10 @@ export async function getSubscriptionStatus(
   return request<{ status: { tier: string; isActive: boolean } }>(
     `/api/v1/subscription/status?userId=${userId}`
   );
+}
+
+// --- Stats ---
+
+export async function getStats(): Promise<{ stats: StatsResponse }> {
+  return request<{ stats: StatsResponse }>("/api/v1/stats");
 }

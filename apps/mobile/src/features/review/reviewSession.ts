@@ -6,6 +6,7 @@ export interface ReviewCard {
   id: string;
   front: string;
   back: string;
+  starred?: boolean;
 }
 
 interface ReviewSessionState {

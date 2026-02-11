@@ -15,6 +15,7 @@ const updateCardSchema = z.object({
   type: flashcardSchema.shape.type.optional(),
   difficulty: flashcardSchema.shape.difficulty.optional(),
   tags: flashcardSchema.shape.tags.optional(),
+  starred: z.boolean().optional(),
 });
 
 export async function createCardForUser(input: unknown) {
@@ -30,12 +31,14 @@ export async function updateCardForUser(input: unknown) {
     type: "basic" | "cloze" | "mcq" | "matching";
     difficulty: "easy" | "medium" | "hard";
     tags: string[];
+    starred: boolean;
   }> = {};
   if (parsed.front !== undefined) updates.front = parsed.front;
   if (parsed.back !== undefined) updates.back = parsed.back;
   if (parsed.type !== undefined) updates.type = parsed.type;
   if (parsed.difficulty !== undefined) updates.difficulty = parsed.difficulty;
   if (parsed.tags !== undefined) updates.tags = parsed.tags;
+  if (parsed.starred !== undefined) updates.starred = parsed.starred;
   return updateCard(parsed.cardId, updates);
 }
 

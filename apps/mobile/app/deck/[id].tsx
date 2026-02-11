@@ -20,6 +20,7 @@ import {
   X,
   Check,
   ChevronRight,
+  Star,
 } from "lucide-react-native";
 import {
   listCardsInDeck,
@@ -418,6 +419,22 @@ export default function DeckDetailScreen() {
     );
   };
 
+  const handleToggleStar = async (card: Card) => {
+    const newVal = !card.starred;
+    // Optimistic update
+    setCards((prev) =>
+      prev.map((c) => (c.id === card.id ? { ...c, starred: newVal } : c))
+    );
+    try {
+      await updateCard(card.id, { starred: newVal });
+    } catch {
+      // Revert on error
+      setCards((prev) =>
+        prev.map((c) => (c.id === card.id ? { ...c, starred: !newVal } : c))
+      );
+    }
+  };
+
   const handleCardLongPress = (card: Card) => {
     Alert.alert("Karte", "Was möchtest du tun?", [
       { text: "Bearbeiten", onPress: () => handleEditCard(card) },
@@ -611,7 +628,7 @@ export default function DeckDetailScreen() {
                         ...shadows.sm,
                       }}
                     >
-                      {/* Card number + difficulty badge */}
+                      {/* Card number + star + difficulty badge */}
                       <View
                         style={{
                           flexDirection: "row",
@@ -632,16 +649,29 @@ export default function DeckDetailScreen() {
                             ? "Lückentext"
                             : "Basic"}
                         </Text>
-                        <Text
-                          style={{
-                            fontSize: typography.xs,
-                            color: meta.color,
-                            fontWeight: typography.bold,
-                            textTransform: "uppercase",
-                          }}
-                        >
-                          {meta.label}
-                        </Text>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+                          <TouchableOpacity
+                            onPress={() => handleToggleStar(card)}
+                            activeOpacity={0.6}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <Star
+                              size={16}
+                              color={card.starred ? colors.warning : colors.textTertiary}
+                              fill={card.starred ? colors.warning : "none"}
+                            />
+                          </TouchableOpacity>
+                          <Text
+                            style={{
+                              fontSize: typography.xs,
+                              color: meta.color,
+                              fontWeight: typography.bold,
+                              textTransform: "uppercase",
+                            }}
+                          >
+                            {meta.label}
+                          </Text>
+                        </View>
                       </View>
 
                       {/* Front (question) */}
