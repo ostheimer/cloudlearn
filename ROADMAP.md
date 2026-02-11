@@ -1,6 +1,6 @@
 # ROADMAP
 
-Letzte Aktualisierung: 2026-02-11 (Prio A+B+C komplett, E2E-Tests)
+Letzte Aktualisierung: 2026-02-12 (FSRS-Bug behoben, 4-Level Swipe, UI-Fixes)
 
 ## Gesamtstatus
 
@@ -25,7 +25,7 @@ Letzte Aktualisierung: 2026-02-11 (Prio A+B+C komplett, E2E-Tests)
 | Feature | Quizlet | Anki | Brainscape | **clearn.ai** |
 |---------|:---:|:---:|:---:|:---:|
 | Karte umdrehen (Tap/Animation) | ✅ | ✅ | ✅ | **✅** |
-| Swipe links/rechts (weiß/weiß nicht) | ✅ | ❌ | ✅ | **✅** |
+| Swipe links/rechts (4-Stufen-Rating) | ✅ | ❌ | ✅ | **✅** |
 | Vorlesen (TTS) | ✅ | Add-on | ❌ | **✅** |
 | Stern/Favorit markieren | ✅ | Flag | ❌ | **✅** |
 | Auto-Play (Slideshow) | ✅ | ❌ | ❌ | ❌ |
@@ -302,3 +302,7 @@ Voraussetzung: Phase 2 + stabile Nutzerbasis.
 - 2026-02-11: **Auto-Play (CL-C03)**: Play/Pause-Button im Learn-Screen Header. Geschwindigkeit 1s/3s/5s/10s. Automatisches Flip + "Good"-Rating + nächste Karte. TTS-Vorlesen während Auto-Play.
 - 2026-02-11: **Image Occlusion (CL-C04)**: Neuer `occlusion.tsx` Screen. Bild-Auswahl (Galerie), PanResponder für Rechteck-Zeichnung. Bereiche benennen/löschen, Speichern als Deck mit Karten.
 - 2026-02-11: **E2E-Tests (Playwright)**: 14 Tests aufgesetzt und bestanden — 11 API-Tests (Health, Auth 401, Auth 200, Deck-CRUD, Card-CRUD, Starred, Review + FSRS, Streak, Stats, Cleanup) + 3 Web-Tests (Landing Page, Responsive, Performance). `playwright.config.ts` mit API + Web Projekten.
+- 2026-02-12: **Expo Go SDK 54 Fix**: `react-native-reanimated@4.1.1` + `react-native-worklets@0.5.1` gepinnt für Worklets-Kompatibilität.
+- 2026-02-12: **FSRS-Bug behoben**: `reviewService.ts` lädt jetzt bestehende FSRS-Kartenwerte aus der DB statt jedes Mal eine leere Karte zu erzeugen. Intervalle wachsen jetzt korrekt (erst Minuten → Stunden → Tage → Wochen → Monate). Neue DB-Felder: `fsrs_elapsed_days`, `fsrs_scheduled_days`, `fsrs_learning_steps`.
+- 2026-02-12: **4-Level Swipe-Rating**: Swipe-Distanz/Geschwindigkeit mappt auf alle 4 FSRS-Ratings (sanft links=Schwer, stark links=Nochmal, sanft rechts=Gut, stark rechts=Leicht). Visuelle Labels und Farboverlays pro Stufe.
+- 2026-02-12: **UI-Verbesserungen**: 4 Bewertungs-Buttons immer sichtbar (kein "Antwort anzeigen"-Gate), Tap togglet Karte immer (Front↔Back), Swipe immer aktiv (ohne vorheriges Tippen).
