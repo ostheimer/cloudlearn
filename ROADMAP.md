@@ -73,6 +73,10 @@ Letzte Aktualisierung: 2026-02-11
 - [x] Upgrade auf Gemini 3 Flash (schnellstes + günstigstes Modell, Dez 2025)
 - [x] Cloze-Karten-Fix: korrekte Lückenanzeige im Learn-Screen + verbesserter Gemini-Prompt
 - [x] Kompletter Foto→AI→Flashcards→FSRS-Review Flow auf iPhone getestet und funktionsfähig
+- [x] Supabase Auth: Echtes Login/Register/Passwort-Reset (E-Mail + Passwort)
+- [x] Auth-Guard: Automatischer Redirect (nicht eingeloggt → Auth-Screen, eingeloggt → Tabs)
+- [x] JWT-Token wird automatisch an alle API-Requests angehängt
+- [x] Profil: E-Mail-Anzeige + Abmelden-Button
 
 ## Phase 2 - Beta Launch (4-6 Wochen, Scaffold umgesetzt)
 
@@ -129,3 +133,4 @@ Letzte Aktualisierung: 2026-02-11
 - 2026-02-11: Kamera-Integration implementiert: expo-camera + expo-image-picker, Scan-Screen mit 3 Modi (Kamera/Galerie/Text).
 - 2026-02-11: Echte Gemini 2.5 Flash API angebunden: Text- und Bild-Input für KI-generierte Flashcards. Heuristik-Fallback bei fehlendem API-Key.
 - 2026-02-11: Upgrade auf Gemini 3 Flash; Cloze-Karten-Display-Fix; Foto→AI→Flashcards→Review auf iPhone erfolgreich getestet.
+- 2026-02-11: Supabase Auth implementiert: Login/Register/Passwort-Reset, Auth-Guard, JWT-Token in API-Calls, Profil mit Abmelden.
