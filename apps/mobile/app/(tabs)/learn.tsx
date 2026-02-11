@@ -105,61 +105,27 @@ export default function LearnScreen() {
     };
   });
 
-  // "NOCHMAL" label (left swipe) - gradual fade-in
+  // "NOCHMAL" label (left swipe) - centered, gradual fade-in
   const labelLeftStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(
-      translateX.value,
-      [0, -SWIPE_THRESHOLD * 0.3, -SWIPE_THRESHOLD],
-      [0, 0.4, 1],
-      Extrapolation.CLAMP
-    );
-    // Scale up as it becomes more visible
-    const scale = interpolate(
-      translateX.value,
-      [0, -SWIPE_THRESHOLD],
-      [0.6, 1],
-      Extrapolation.CLAMP
-    );
+    const progress = Math.abs(Math.min(translateX.value, 0)) / SWIPE_THRESHOLD;
+    const opacity = interpolate(progress, [0, 0.2, 0.7, 1], [0, 0, 0.6, 1], Extrapolation.CLAMP);
+    const scale = interpolate(progress, [0, 0.3, 1], [0.5, 0.8, 1.1], Extrapolation.CLAMP);
     return { opacity, transform: [{ scale }] };
   });
 
-  // "GEMERKT" label (right swipe) - gradual fade-in
+  // "GEMERKT" label (right swipe) - centered, gradual fade-in
   const labelRightStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(
-      translateX.value,
-      [0, SWIPE_THRESHOLD * 0.3, SWIPE_THRESHOLD],
-      [0, 0.4, 1],
-      Extrapolation.CLAMP
-    );
-    const scale = interpolate(
-      translateX.value,
-      [0, SWIPE_THRESHOLD],
-      [0.6, 1],
-      Extrapolation.CLAMP
-    );
+    const progress = Math.abs(Math.max(translateX.value, 0)) / SWIPE_THRESHOLD;
+    const opacity = interpolate(progress, [0, 0.2, 0.7, 1], [0, 0, 0.6, 1], Extrapolation.CLAMP);
+    const scale = interpolate(progress, [0, 0.3, 1], [0.5, 0.8, 1.1], Extrapolation.CLAMP);
     return { opacity, transform: [{ scale }] };
   });
 
-  // Background color hint behind card
-  const bgHintStyle = useAnimatedStyle(() => {
-    const leftOpacity = interpolate(
-      translateX.value,
-      [0, -SWIPE_THRESHOLD * 0.5, -SWIPE_THRESHOLD],
-      [0, 0.15, 0.35],
-      Extrapolation.CLAMP
-    );
-    const rightOpacity = interpolate(
-      translateX.value,
-      [0, SWIPE_THRESHOLD * 0.5, SWIPE_THRESHOLD],
-      [0, 0.15, 0.35],
-      Extrapolation.CLAMP
-    );
-    const isLeft = translateX.value < 0;
-    return {
-      backgroundColor: isLeft
-        ? `rgba(239,68,68,${leftOpacity})`
-        : `rgba(16,185,129,${rightOpacity})`,
-    };
+  // Card text fades out as card moves away from center
+  const cardTextOpacity = useAnimatedStyle(() => {
+    const progress = Math.abs(translateX.value) / SWIPE_THRESHOLD;
+    const opacity = interpolate(progress, [0, 0.4, 1], [1, 0.7, 0], Extrapolation.CLAMP);
+    return { opacity };
   });
 
   // ─── Reset on card change ─────────────────────────────────────────────────
@@ -487,17 +453,6 @@ export default function LearnScreen() {
 
               {/* Card area */}
               <View style={{ flex: 1, position: "relative" }}>
-                {/* Background color hint */}
-                <Animated.View
-                  style={[
-                    bgHintStyle,
-                    {
-                      position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-                      borderRadius: radius.xl, zIndex: 0,
-                    },
-                  ]}
-                />
-
                 {/* Draggable card wrapper */}
                 <GestureDetector gesture={composedGesture}>
                   <Animated.View
@@ -506,38 +461,38 @@ export default function LearnScreen() {
                       { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 5 },
                     ]}
                   >
-                    {/* "NOCHMAL" label - on card, fades in on left swipe */}
+                    {/* "NOCHMAL" label - centered on card, fades in on left swipe */}
                     <Animated.View
                       style={[
                         labelLeftStyle,
                         {
-                          position: "absolute", top: 24, right: 24, zIndex: 30,
-                          backgroundColor: c.ratingAgain,
-                          paddingHorizontal: 16, paddingVertical: 8,
-                          borderRadius: radius.sm, borderWidth: 2, borderColor: "#fff",
+                          position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+                          zIndex: 30, justifyContent: "center", alignItems: "center",
+                          backgroundColor: "rgba(239,68,68,0.85)",
+                          borderRadius: radius.xl,
                         },
                       ]}
                       pointerEvents="none"
                     >
-                      <Text style={{ color: "#fff", fontWeight: typography.bold, fontSize: typography.lg }}>
+                      <Text style={{ color: "#fff", fontWeight: typography.extrabold, fontSize: 32, letterSpacing: 2 }}>
                         NOCHMAL
                       </Text>
                     </Animated.View>
 
-                    {/* "GEMERKT" label - on card, fades in on right swipe */}
+                    {/* "GEMERKT" label - centered on card, fades in on right swipe */}
                     <Animated.View
                       style={[
                         labelRightStyle,
                         {
-                          position: "absolute", top: 24, left: 24, zIndex: 30,
-                          backgroundColor: c.ratingGood,
-                          paddingHorizontal: 16, paddingVertical: 8,
-                          borderRadius: radius.sm, borderWidth: 2, borderColor: "#fff",
+                          position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+                          zIndex: 30, justifyContent: "center", alignItems: "center",
+                          backgroundColor: "rgba(16,185,129,0.85)",
+                          borderRadius: radius.xl,
                         },
                       ]}
                       pointerEvents="none"
                     >
-                      <Text style={{ color: "#fff", fontWeight: typography.bold, fontSize: typography.lg }}>
+                      <Text style={{ color: "#fff", fontWeight: typography.extrabold, fontSize: 32, letterSpacing: 2 }}>
                         GEMERKT
                       </Text>
                     </Animated.View>
@@ -554,9 +509,10 @@ export default function LearnScreen() {
                         },
                       ]}
                     >
+                      {/* Action buttons (always visible) */}
                       <View style={{
                         position: "absolute", top: spacing.md, right: spacing.md,
-                        zIndex: 30, flexDirection: "row", gap: spacing.md,
+                        zIndex: 35, flexDirection: "row", gap: spacing.md,
                       }}>
                         <TouchableOpacity onPress={() => speakText(effectiveFront)} activeOpacity={0.6} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
                           <Volume2 size={20} color={speaking ? c.primary : c.textTertiary} />
@@ -565,17 +521,20 @@ export default function LearnScreen() {
                           <Star size={20} color={isStarred ? c.warning : c.textTertiary} fill={isStarred ? c.warning : "none"} />
                         </TouchableOpacity>
                       </View>
-                      <Text style={{
-                        fontSize: typography.xl, fontWeight: typography.semibold,
-                        textAlign: "center", color: c.text, lineHeight: 30,
-                      }}>
-                        {frontParsed.display}
-                      </Text>
-                      {!revealed && (
-                        <Text style={{ marginTop: spacing.xl, color: c.textTertiary, fontSize: typography.sm }}>
-                          Tippen zum Umdrehen
+                      {/* Text content fades out on swipe */}
+                      <Animated.View style={[cardTextOpacity, { alignItems: "center" }]}>
+                        <Text style={{
+                          fontSize: typography.xl, fontWeight: typography.semibold,
+                          textAlign: "center", color: c.text, lineHeight: 30,
+                        }}>
+                          {frontParsed.display}
                         </Text>
-                      )}
+                        {!revealed && (
+                          <Text style={{ marginTop: spacing.xl, color: c.textTertiary, fontSize: typography.sm }}>
+                            Tippen zum Umdrehen
+                          </Text>
+                        )}
+                      </Animated.View>
                     </Animated.View>
 
                     {/* Back face */}
@@ -592,7 +551,7 @@ export default function LearnScreen() {
                     >
                       <View style={{
                         position: "absolute", top: spacing.md, right: spacing.md,
-                        zIndex: 30, flexDirection: "row", gap: spacing.md,
+                        zIndex: 35, flexDirection: "row", gap: spacing.md,
                       }}>
                         <TouchableOpacity onPress={() => speakText(displayBack)} activeOpacity={0.6} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
                           <Volume2 size={20} color={speaking ? c.primary : c.textTertiary} />
@@ -601,13 +560,16 @@ export default function LearnScreen() {
                           <Star size={20} color={isStarred ? c.warning : c.textTertiary} fill={isStarred ? c.warning : "none"} />
                         </TouchableOpacity>
                       </View>
-                      <Text style={{
-                        fontSize: typography.xl,
-                        fontWeight: frontParsed.clozeAnswer ? typography.bold : typography.normal,
-                        textAlign: "center", color: c.text, lineHeight: 30,
-                      }}>
-                        {displayBack}
-                      </Text>
+                      {/* Text content fades out on swipe */}
+                      <Animated.View style={[cardTextOpacity, { alignItems: "center" }]}>
+                        <Text style={{
+                          fontSize: typography.xl,
+                          fontWeight: frontParsed.clozeAnswer ? typography.bold : typography.normal,
+                          textAlign: "center", color: c.text, lineHeight: 30,
+                        }}>
+                          {displayBack}
+                        </Text>
+                      </Animated.View>
                     </Animated.View>
                   </Animated.View>
                 </GestureDetector>
