@@ -291,3 +291,4 @@ Voraussetzung: Phase 2 + stabile Nutzerbasis.
 - 2026-02-11: **Vorlesen/TTS (CL-B03)**: expo-speech integriert, Lautsprecher-Button auf Karten-Vorder- und Rückseite, Sprache de-DE, automatischer Stopp bei Kartenwechsel.
 - 2026-02-11: **Push-Erinnerungen (CL-B04)**: expo-notifications, tägliche lokale Notification, konfigurierbare Uhrzeit (7-21 Uhr), An/Aus-Toggle im Profil-Screen, Android-Channel.
 - 2026-02-11: **Home-Screen aufwerten (CL-B05)**: Streak-Banner mit Flammen-Icon, Tagesziel-Fortschrittsbalken, 3-KPI-Reihe (Fällig/Decks/Genauigkeit), Streak-Warnung wenn heute nicht gelernt.
+- 2026-02-11: **QA & Bugfix-Runde**: TypeScript-Fehler in `offlineQueueStore.ts` behoben (`@clearn/domain`/`@clearn/contracts` durch Inline-Typen ersetzt), Expo SDK 54 Paketversionen korrigiert (gesture-handler ~2.28.0, reanimated ~4.1.1, svg 15.12.1). API-Tests 19/19, Mobile-Tests 15/15, iOS-Bundle fehlerfrei (3374 Module), API Smoke-Test 10/10 bestanden.

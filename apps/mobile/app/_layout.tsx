@@ -73,6 +73,33 @@ export default function RootLayout() {
             headerStyle: { backgroundColor: "#f8f9fa" },
           }}
         />
+        <Stack.Screen
+          name="quiz"
+          options={{
+            headerShown: true,
+            headerBackTitle: "Zurück",
+            headerTintColor: "#6366f1",
+            headerStyle: { backgroundColor: "#f8f9fa" },
+          }}
+        />
+        <Stack.Screen
+          name="match"
+          options={{
+            headerShown: true,
+            headerBackTitle: "Zurück",
+            headerTintColor: "#6366f1",
+            headerStyle: { backgroundColor: "#f8f9fa" },
+          }}
+        />
+        <Stack.Screen
+          name="occlusion"
+          options={{
+            headerShown: true,
+            headerBackTitle: "Zurück",
+            headerTintColor: "#6366f1",
+            headerStyle: { backgroundColor: "#f8f9fa" },
+          }}
+        />
       </Stack>
     </SafeAreaProvider>
   );

@@ -21,6 +21,9 @@ import {
   Check,
   ChevronRight,
   Star,
+  Brain,
+  Puzzle,
+  ImagePlus,
 } from "lucide-react-native";
 import {
   listCardsInDeck,
@@ -550,6 +553,102 @@ export default function DeckDetailScreen() {
               </Text>
             </TouchableOpacity>
           </View>
+
+          {/* Study mode buttons */}
+          {!loading && cards.length >= 2 && (
+            <View style={{ flexDirection: "row", gap: spacing.sm }}>
+              <TouchableOpacity
+                onPress={() =>
+                  router.push({
+                    pathname: "/quiz",
+                    params: { deckId, deckTitle },
+                  })
+                }
+                activeOpacity={0.7}
+                style={{
+                  flex: 1,
+                  backgroundColor: colors.primaryLight,
+                  borderRadius: radius.md,
+                  paddingVertical: spacing.md,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: spacing.sm,
+                }}
+              >
+                <Brain size={16} color={colors.primary} />
+                <Text
+                  style={{
+                    fontSize: typography.sm,
+                    fontWeight: typography.semibold,
+                    color: colors.primary,
+                  }}
+                >
+                  Test
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() =>
+                  router.push({
+                    pathname: "/match",
+                    params: { deckId, deckTitle },
+                  })
+                }
+                activeOpacity={0.7}
+                style={{
+                  flex: 1,
+                  backgroundColor: colors.accentLight,
+                  borderRadius: radius.md,
+                  paddingVertical: spacing.md,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: spacing.sm,
+                }}
+              >
+                <Puzzle size={16} color={colors.accent} />
+                <Text
+                  style={{
+                    fontSize: typography.sm,
+                    fontWeight: typography.semibold,
+                    color: colors.accent,
+                  }}
+                >
+                  Match
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() =>
+                  router.push({
+                    pathname: "/occlusion",
+                    params: { deckTitle },
+                  })
+                }
+                activeOpacity={0.7}
+                style={{
+                  flex: 1,
+                  backgroundColor: colors.infoLight,
+                  borderRadius: radius.md,
+                  paddingVertical: spacing.md,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: spacing.sm,
+                }}
+              >
+                <ImagePlus size={16} color={colors.info} />
+                <Text
+                  style={{
+                    fontSize: typography.sm,
+                    fontWeight: typography.semibold,
+                    color: colors.info,
+                  }}
+                >
+                  Occlusion
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* Card list */}
           {loading ? (

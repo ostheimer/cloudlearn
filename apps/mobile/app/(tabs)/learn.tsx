@@ -33,6 +33,10 @@ import {
   ThumbsDown,
   Star,
   Volume2,
+  Play,
+  Pause,
+  Square,
+  Timer,
 } from "lucide-react-native";
 import * as Speech from "expo-speech";
 import {
@@ -221,6 +225,65 @@ export default function LearnScreen() {
     setSpeaking(false);
   }, [index]);
 
+  // --- Auto-Play ---
+  const [autoPlaying, setAutoPlaying] = useState(false);
+  const [autoPlaySpeed, setAutoPlaySpeed] = useState(3); // seconds per side
+  const autoPlayRef = { current: null as ReturnType<typeof setTimeout> | null };
+
+  // Stop auto-play on unmount or completion
+  useEffect(() => {
+    if (completed && autoPlaying) {
+      setAutoPlaying(false);
+    }
+  }, [completed, autoPlaying]);
+
+  // Auto-play loop
+  useEffect(() => {
+    if (!autoPlaying || completed || cards.length === 0) return;
+
+    const tick = () => {
+      if (!autoPlaying) return;
+      const { revealed: isRevealed } = useReviewSession.getState();
+      if (!isRevealed) {
+        // Show answer (flip)
+        reveal();
+      } else {
+        // Rate "good" and move to next
+        handleRate("good");
+      }
+    };
+
+    autoPlayRef.current = setTimeout(tick, autoPlaySpeed * 1000);
+    return () => {
+      if (autoPlayRef.current) clearTimeout(autoPlayRef.current);
+    };
+  }, [autoPlaying, revealed, index, autoPlaySpeed, completed, cards.length]);
+
+  // Also speak during auto-play if TTS is possible
+  useEffect(() => {
+    if (!autoPlaying || !current) return;
+    const text = revealed ? displayBack : frontParsed?.display ?? effectiveFront;
+    if (text) {
+      Speech.speak(text, { language: "de-DE" });
+    }
+    return () => { Speech.stop(); };
+  }, [autoPlaying, revealed, index]);
+
+  const toggleAutoPlay = () => {
+    if (autoPlaying) {
+      setAutoPlaying(false);
+      Speech.stop();
+    } else {
+      setAutoPlaying(true);
+    }
+  };
+
+  const cycleSpeed = () => {
+    const speeds = [1, 3, 5, 10];
+    const idx = speeds.indexOf(autoPlaySpeed);
+    setAutoPlaySpeed(speeds[(idx + 1) % speeds.length]!);
+  };
+
   // Toggle starred for current card
   const toggleStar = async () => {
     if (!current) return;
@@ -352,39 +415,91 @@ export default function LearnScreen() {
               {t("reviewHeadline")}
             </Text>
 
-            {/* Toggle: Begriff ↔ Definition */}
+            {/* Header buttons row */}
             {cards.length > 0 && !completed && (
-              <TouchableOpacity
-                onPress={() => setShowBackFirst((prev) => !prev)}
-                activeOpacity={0.7}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: spacing.xs,
-                  backgroundColor: showBackFirst
-                    ? colors.primaryLight
-                    : colors.surfaceSecondary,
-                  paddingHorizontal: spacing.md,
-                  paddingVertical: spacing.sm,
-                  borderRadius: radius.full,
-                }}
-              >
-                <ArrowLeftRight
-                  size={14}
-                  color={showBackFirst ? colors.primary : colors.textTertiary}
-                />
-                <Text
+              <View style={{ flexDirection: "row", gap: spacing.sm, alignItems: "center" }}>
+                {/* Auto-Play controls */}
+                <TouchableOpacity
+                  onPress={toggleAutoPlay}
+                  activeOpacity={0.7}
                   style={{
-                    fontSize: typography.xs,
-                    fontWeight: typography.semibold,
-                    color: showBackFirst
-                      ? colors.primary
-                      : colors.textTertiary,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: spacing.xs,
+                    backgroundColor: autoPlaying
+                      ? colors.primaryLight
+                      : colors.surfaceSecondary,
+                    paddingHorizontal: spacing.md,
+                    paddingVertical: spacing.sm,
+                    borderRadius: radius.full,
                   }}
                 >
-                  {showBackFirst ? "Definition → Begriff" : "Begriff → Definition"}
-                </Text>
-              </TouchableOpacity>
+                  {autoPlaying ? (
+                    <Pause size={14} color={colors.primary} />
+                  ) : (
+                    <Play size={14} color={colors.textTertiary} />
+                  )}
+                  {autoPlaying && (
+                    <Text
+                      style={{
+                        fontSize: typography.xs,
+                        fontWeight: typography.semibold,
+                        color: colors.primary,
+                      }}
+                    >
+                      Auto
+                    </Text>
+                  )}
+                </TouchableOpacity>
+                {/* Speed control (only visible during auto-play) */}
+                {autoPlaying && (
+                  <TouchableOpacity
+                    onPress={cycleSpeed}
+                    activeOpacity={0.7}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: spacing.xs,
+                      backgroundColor: colors.surfaceSecondary,
+                      paddingHorizontal: spacing.md,
+                      paddingVertical: spacing.sm,
+                      borderRadius: radius.full,
+                    }}
+                  >
+                    <Timer size={12} color={colors.textSecondary} />
+                    <Text
+                      style={{
+                        fontSize: typography.xs,
+                        fontWeight: typography.semibold,
+                        color: colors.textSecondary,
+                      }}
+                    >
+                      {autoPlaySpeed}s
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                {/* Toggle: Begriff ↔ Definition */}
+                <TouchableOpacity
+                  onPress={() => setShowBackFirst((prev) => !prev)}
+                  activeOpacity={0.7}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: spacing.xs,
+                    backgroundColor: showBackFirst
+                      ? colors.primaryLight
+                      : colors.surfaceSecondary,
+                    paddingHorizontal: spacing.md,
+                    paddingVertical: spacing.sm,
+                    borderRadius: radius.full,
+                  }}
+                >
+                  <ArrowLeftRight
+                    size={14}
+                    color={showBackFirst ? colors.primary : colors.textTertiary}
+                  />
+                </TouchableOpacity>
+              </View>
             )}
           </View>
 
