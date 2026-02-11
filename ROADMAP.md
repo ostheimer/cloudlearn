@@ -70,6 +70,9 @@ Letzte Aktualisierung: 2026-02-11
 - [x] Scan-Screen: 3 Input-Modi (Foto aufnehmen, Galerie wählen, Text eingeben)
 - [x] Echte Gemini 2.5 Flash API-Integration (Text→Flashcards + Vision/Bild→Flashcards)
 - [x] Scan-API: imageBase64 + imageMimeType Support, async Gemini-Aufrufe mit Heuristik-Fallback
+- [x] Upgrade auf Gemini 3 Flash (schnellstes + günstigstes Modell, Dez 2025)
+- [x] Cloze-Karten-Fix: korrekte Lückenanzeige im Learn-Screen + verbesserter Gemini-Prompt
+- [x] Kompletter Foto→AI→Flashcards→FSRS-Review Flow auf iPhone getestet und funktionsfähig
 
 ## Phase 2 - Beta Launch (4-6 Wochen, Scaffold umgesetzt)
 
@@ -125,3 +128,4 @@ Letzte Aktualisierung: 2026-02-11
 - 2026-02-11: Expo-Paketversionen auf SDK-54-Kompatibilität fixiert; iPhone-Test via Expo Go erfolgreich (alle Tabs + API-Anbindung funktionsfähig).
 - 2026-02-11: Kamera-Integration implementiert: expo-camera + expo-image-picker, Scan-Screen mit 3 Modi (Kamera/Galerie/Text).
 - 2026-02-11: Echte Gemini 2.5 Flash API angebunden: Text- und Bild-Input für KI-generierte Flashcards. Heuristik-Fallback bei fehlendem API-Key.
+- 2026-02-11: Upgrade auf Gemini 3 Flash; Cloze-Karten-Display-Fix; Foto→AI→Flashcards→Review auf iPhone erfolgreich getestet.
