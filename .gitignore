@@ -15,3 +15,8 @@ test-results
 .vercel
 mobile-home.png
 mobile-session-complete.png
+
+# Build artifacts
+apps/api/.next/
+apps/web/.next/
+supabase/.temp/
