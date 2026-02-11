@@ -1,12 +1,33 @@
 // API client for communicating with the clearn backend
+import { supabase } from "./supabase";
+
 const API_BASE = "https://clearn-api.vercel.app";
+
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      headers["Authorization"] = `Bearer ${session.access_token}`;
+    }
+  } catch {
+    // Continue without auth header
+  }
+
+  return headers;
+}
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE}${path}`;
+  const authHeaders = await getAuthHeaders();
+
   const res = await fetch(url, {
     ...options,
     headers: {
-      "Content-Type": "application/json",
+      ...authHeaders,
       ...options?.headers,
     },
   });

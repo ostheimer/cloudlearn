@@ -9,6 +9,8 @@ import { getSubscriptionStatus } from "../../src/lib/api";
 export default function ProfileScreen() {
   const { t } = useTranslation();
   const userId = useSessionStore((state) => state.userId);
+  const email = useSessionStore((state) => state.email);
+  const signOut = useSessionStore((state) => state.signOut);
   const [tier, setTier] = useState("...");
 
   useEffect(() => {
@@ -33,8 +35,8 @@ export default function ProfileScreen() {
             gap: 8,
           }}
         >
-          <Text style={{ fontSize: 14, color: "#6b7280" }}>User ID</Text>
-          <Text style={{ fontSize: 13, fontFamily: "monospace" }}>{userId}</Text>
+          <Text style={{ fontSize: 14, color: "#6b7280" }}>E-Mail</Text>
+          <Text style={{ fontSize: 15, fontWeight: "500" }}>{email ?? "—"}</Text>
           <Text style={{ fontSize: 14, color: "#6b7280", marginTop: 8 }}>Abo-Stufe</Text>
           <Text style={{ fontSize: 16, fontWeight: "600" }}>
             {tier === "free" ? "Free" : tier === "pro" ? "Pro" : tier}
@@ -84,6 +86,22 @@ export default function ProfileScreen() {
         </View>
 
         <View style={{ flex: 1 }} />
+
+        {/* Sign out button */}
+        <TouchableOpacity
+          onPress={signOut}
+          style={{
+            backgroundColor: "#ef4444",
+            borderRadius: 12,
+            padding: 16,
+            alignItems: "center",
+            marginBottom: 12,
+          }}
+        >
+          <Text style={{ color: "#fff", fontSize: 16, fontWeight: "700" }}>
+            {t("signOut")}
+          </Text>
+        </TouchableOpacity>
 
         <Text style={{ fontSize: 12, color: "#9ca3af", textAlign: "center" }}>
           clearn.ai v0.1.0 — API: clearn-api.vercel.app
