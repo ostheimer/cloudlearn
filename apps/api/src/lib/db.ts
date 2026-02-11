@@ -395,7 +395,7 @@ export async function getStreakInfo(userId: string): Promise<StreakInfo> {
  */
 export async function updateStreakAfterReview(userId: string): Promise<StreakInfo> {
   const db = getDb();
-  const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD in UTC
+  const today: string = new Date().toISOString().split("T")[0] ?? "";
 
   const current = await getStreakInfo(userId);
 
@@ -453,7 +453,7 @@ export async function getReviewStats(userId: string): Promise<{
 }> {
   const db = getDb();
   const now = new Date();
-  const todayStart = new Date(now.toISOString().split("T")[0] + "T00:00:00Z").toISOString();
+  const todayStart = new Date((now.toISOString().split("T")[0] ?? "") + "T00:00:00Z").toISOString();
   const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const monthStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
@@ -498,7 +498,7 @@ export async function getReviewStats(userId: string): Promise<{
 
   const dayMap: Record<string, number> = {};
   (dailyData ?? []).forEach((r) => {
-    const day = r.reviewed_at.split("T")[0];
+    const day = r.reviewed_at.split("T")[0] ?? "";
     dayMap[day] = (dayMap[day] ?? 0) + 1;
   });
   const reviewsByDay = Object.entries(dayMap).map(([date, count]) => ({ date, count }));
