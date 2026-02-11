@@ -1,0 +1,147 @@
+// API client for communicating with the clearn backend
+const API_BASE = "https://clearn-api.vercel.app";
+
+async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const url = `${API_BASE}${path}`;
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options?.headers,
+    },
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.message ?? `API error ${res.status}`);
+  }
+
+  return res.json();
+}
+
+// --- Types ---
+
+export interface Flashcard {
+  front: string;
+  back: string;
+  type: string;
+  difficulty: string;
+  tags: string[];
+}
+
+export interface ScanResponse {
+  requestId: string;
+  model: string;
+  fallbackUsed: boolean;
+  cards: Flashcard[];
+}
+
+export interface Deck {
+  id: string;
+  userId: string;
+  title: string;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Card {
+  id: string;
+  userId: string;
+  deckId: string;
+  front: string;
+  back: string;
+  type: string;
+  difficulty: string;
+  tags: string[];
+  fsrsDue: string;
+  fsrsState: string;
+}
+
+export interface ReviewResponse {
+  requestId: string;
+  cardId: string;
+  nextDueAt: string;
+  stability: number;
+  difficulty: number;
+  state: string;
+}
+
+// --- API Methods ---
+
+export async function scanText(
+  userId: string,
+  text: string,
+  language = "de"
+): Promise<ScanResponse> {
+  const idempotencyKey = `scan-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  return request<ScanResponse>("/api/v1/scan/process", {
+    method: "POST",
+    body: JSON.stringify({
+      userId,
+      extractedText: text,
+      idempotencyKey,
+      sourceLanguage: language,
+    }),
+  });
+}
+
+export async function createDeck(
+  userId: string,
+  title: string,
+  tags: string[] = []
+): Promise<{ deck: Deck }> {
+  return request<{ deck: Deck }>("/api/v1/decks", {
+    method: "POST",
+    body: JSON.stringify({ userId, title, tags }),
+  });
+}
+
+export async function listDecks(
+  userId: string
+): Promise<{ decks: Deck[] }> {
+  return request<{ decks: Deck[] }>(`/api/v1/decks?userId=${userId}`);
+}
+
+export async function createCard(
+  userId: string,
+  deckId: string,
+  card: { front: string; back: string; type: string; difficulty: string; tags: string[] }
+): Promise<{ card: Card }> {
+  return request<{ card: Card }>("/api/v1/cards", {
+    method: "POST",
+    body: JSON.stringify({ userId, deckId, card }),
+  });
+}
+
+export async function getDueCards(
+  userId: string
+): Promise<{ cards: Card[] }> {
+  return request<{ cards: Card[] }>(`/api/v1/learn/due?userId=${userId}`);
+}
+
+export async function reviewCard(
+  userId: string,
+  cardId: string,
+  rating: "again" | "hard" | "good" | "easy"
+): Promise<ReviewResponse> {
+  const idempotencyKey = `review-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  return request<ReviewResponse>(`/api/v1/cards/${cardId}/review`, {
+    method: "POST",
+    body: JSON.stringify({
+      userId,
+      cardId,
+      rating,
+      reviewedAt: new Date().toISOString(),
+      idempotencyKey,
+    }),
+  });
+}
+
+export async function getSubscriptionStatus(
+  userId: string
+): Promise<{ status: { tier: string; isActive: boolean } }> {
+  return request<{ status: { tier: string; isActive: boolean } }>(
+    `/api/v1/subscription/status?userId=${userId}`
+  );
+}

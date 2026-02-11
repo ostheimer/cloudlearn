@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name": "clearn",
+    "slug": "clearn",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "clearn",
+    "userInterfaceStyle": "automatic",
+    "assetBundlePatterns": ["**/*"],
+    "platforms": ["ios", "android", "web"]
+  }
+}
