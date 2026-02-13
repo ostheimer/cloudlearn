@@ -1,6 +1,6 @@
 # ROADMAP
 
-Letzte Aktualisierung: 2026-02-13 (Vitest Workspace-Konfiguration fuer Monorepo-Root, Supabase-Migration, Vercel-Bereinigung)
+Letzte Aktualisierung: 2026-02-14 (Bibliothek-Tab mit Kursen/Ordnern, Kurs-/Ordner-Detail-Screens, Segmented Control)
 
 ## Gesamtstatus
 
@@ -85,6 +85,9 @@ Letzte Aktualisierung: 2026-02-13 (Vitest Workspace-Konfiguration fuer Monorepo-
 | **Deck-Details** | Modal mit Kartenanzahl, Erstelldatum, Tags, zugeordnete Kurse/Ordner |
 | **Offline-Download** | Deck + Karten in AsyncStorage cachen, visueller Indikator (Download-Icon) |
 | **Deck bearbeiten** | Titel und Tags über Modal direkt im Deck-Detail bearbeitbar |
+| **Bibliothek-Tab** | Segmented Control (Decks/Kurse/Ordner), erstellt/umbenennt/löscht alle drei Typen |
+| **Kurs-Detail-Screen** | Zeigt zugeordnete Decks, Umbenennen/Löschen, Deck entfernen per Long-Press |
+| **Ordner-Detail-Screen** | Zeigt Unterordner + Decks, Umbenennen/Löschen, verschachtelte Navigation |
 
 ### Scaffold vorhanden, NICHT funktionsfähig
 
@@ -340,3 +343,7 @@ Voraussetzung: Phase 2 + stabile Nutzerbasis.
 - 2026-02-13: **Vercel-Bereinigung (erneut)**: Versehentlich neu erstelltes `cloudlearn` Root-Vercel-Projekt endgültig gelöscht (verursachte Error-Deploys bei jedem Push). Lokale `.vercel`-Config im Repo-Root entfernt. `clearn-api` + `clearn-web` bleiben die einzigen aktiven Projekte.
 - 2026-02-13: **Alle Tests bestanden**: 28/28 E2E-Playwright-Tests, 29 API-Unit-Tests, 24 Mobile-Unit-Tests — keine Regressionen.
 - 2026-02-13: **Vitest Workspace-Konfiguration**: Root `vitest.config.ts` mit `test.projects` für alle 6 Workspaces. `npx vitest run` vom Root liefert jetzt 67 passed / 14 skipped über alle Packages. Playwright-Specs korrekt ausgeschlossen. `migrations.test.ts` Pfad-Fix (`import.meta.url` statt `process.cwd()`). `apps/web/vitest.config.ts` hinzugefügt.
+- 2026-02-14: **Bibliothek-Tab**: Decks-Tab durch "Bibliothek" ersetzt mit Segmented Control (Decks | Kurse | Ordner). Unified Search, Create/Rename/Delete per Long-Press-Menü, Library-Icon in Tab-Bar.
+- 2026-02-14: **Kurs-Detail-Screen** (`/course/[id]`): Zugeordnete Decks anzeigen, Umbenennen/Löschen via Drei-Punkte-Menü, Deck per Long-Press aus Kurs entfernen.
+- 2026-02-14: **Ordner-Detail-Screen** (`/folder/[id]`): Unterordner + Decks anzeigen mit verschachtelter Navigation, Umbenennen/Löschen, Deck per Long-Press entfernen.
+- 2026-02-14: **API-Client erweitert**: `listDecksInCourse()` + `listDecksInFolder()` hinzugefügt. 69 neue i18n-Keys (de + en).
