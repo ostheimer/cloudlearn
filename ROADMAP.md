@@ -1,6 +1,6 @@
 # ROADMAP
 
-Letzte Aktualisierung: 2026-02-13 (Learn-Screen Redesign: zentriertes Layout, Swipe-Counter, Icons ausserhalb Karte, groessere Schrift, verbesserte Animationen, i18n)
+Letzte Aktualisierung: 2026-02-13 (Supabase-Migration courses/folders eingespielt, cloudlearn Root-Vercel-Projekt endgueltig entfernt)
 
 ## Gesamtstatus
 
@@ -335,3 +335,6 @@ Voraussetzung: Phase 2 + stabile Nutzerbasis.
 - 2026-02-12: **Learn-UX-Feinschliff**: Langsameres Snap-Back, längerer sichtbarer Fly-out, Exit-Button (`X`) im Lernmodus, Zurück-Navigation zur letzten Karte (Arrow-Button), Tab-Bar im Lernmodus ausgeblendet.
 - 2026-02-12: **Theme-Verhalten verbessert**: Tab-Bar nutzt nun dasselbe dynamische Farbschema wie der Rest der App; neuer Systemmodus (folgt Geräte-Light/Dark) mit Auswahl in Profil.
 - 2026-02-13: **Learn-Screen Redesign**: Header + Kartenfortschritt zentriert; Swipe-Counter (rot/grün) für falsch/richtig; Lautsprecher- und Stern-Icons von Karte entfernt (unten rechts platziert); Schriftgröße erhöht; "Gemerkt→" entfernt; Zurück-Pfeil nur noch als Icon unter den Buttons; Fly-Out langsamer + sichtbarer; Snap-Back noch weicher; alle hartkodierten Strings in i18n überführt (de+en).
+- 2026-02-13: **Supabase-Migration eingespielt**: `courses`, `folders`, `course_decks`, `folder_decks` Tabellen + `share_token`/`source_deck_id` auf `decks` in Production-DB angelegt (via `supabase db push`).
+- 2026-02-13: **Vercel-Bereinigung (erneut)**: Versehentlich neu erstelltes `cloudlearn` Root-Vercel-Projekt endgültig gelöscht (verursachte Error-Deploys bei jedem Push). Lokale `.vercel`-Config im Repo-Root entfernt. `clearn-api` + `clearn-web` bleiben die einzigen aktiven Projekte.
+- 2026-02-13: **Alle Tests bestanden**: 28/28 E2E-Playwright-Tests, 29 API-Unit-Tests, 24 Mobile-Unit-Tests — keine Regressionen.
