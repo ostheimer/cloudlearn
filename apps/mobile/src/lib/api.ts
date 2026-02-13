@@ -350,6 +350,12 @@ export async function removeDeckFromCourse(
   });
 }
 
+export async function listDecksInCourse(
+  courseId: string
+): Promise<{ decks: Deck[] }> {
+  return request<{ decks: Deck[] }>(`/api/v1/courses/${courseId}/decks`);
+}
+
 // --- Folders ---
 
 export interface Folder {
@@ -410,6 +416,12 @@ export async function removeDeckFromFolder(
   return request<{ removed: boolean }>(`/api/v1/folders/${folderId}/decks?deckId=${deckId}`, {
     method: "DELETE",
   });
+}
+
+export async function listDecksInFolder(
+  folderId: string
+): Promise<{ decks: Deck[] }> {
+  return request<{ decks: Deck[] }>(`/api/v1/folders/${folderId}/decks`);
 }
 
 // --- Deck Actions (Duplicate, Share, Export, Details) ---

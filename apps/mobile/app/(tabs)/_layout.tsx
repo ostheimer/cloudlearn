@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Home, ScanLine, Brain, Layers, User } from "lucide-react-native";
+import { Home, ScanLine, Brain, Library, User } from "lucide-react-native";
 import { useColors } from "../../src/theme";
 
 export default function TabsLayout() {
@@ -50,8 +50,8 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="decks"
         options={{
-          title: "Decks",
-          tabBarIcon: ({ color, size }) => <Layers size={size} color={color} />,
+          title: "Bibliothek",
+          tabBarIcon: ({ color, size }) => <Library size={size} color={color} />,
         }}
       />
       <Tabs.Screen
