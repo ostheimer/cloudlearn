@@ -1,10 +1,14 @@
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+
+// Resolve relative to this file so the test works from any cwd (workspace root or apps/api)
+const apiRoot = join(dirname(fileURLToPath(import.meta.url)), "../..");
 
 describe("supabase migrations", () => {
   it("contains required tables and RLS policies", () => {
-    const migrationPath = join(process.cwd(), "supabase/migrations/20260209230000_init.sql");
+    const migrationPath = join(apiRoot, "supabase/migrations/20260209230000_init.sql");
     const sql = readFileSync(migrationPath, "utf-8");
 
     expect(sql).toContain("create table if not exists profiles");
