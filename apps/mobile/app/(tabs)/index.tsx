@@ -11,15 +11,18 @@ import {
   Target,
   TrendingUp,
   Award,
+  Clock,
 } from "lucide-react-native";
 import { useSessionStore } from "../../src/store/sessionStore";
-import { getStats, type StatsResponse } from "../../src/lib/api";
-import { colors, spacing, radius, typography, shadows } from "../../src/theme";
+import { getStats, listDecks, type StatsResponse, type Deck } from "../../src/lib/api";
+import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
 
 export default function HomeScreen() {
+  const colors = useColors();
   const router = useRouter();
   const userId = useSessionStore((state) => state.userId);
   const [stats, setStats] = useState<StatsResponse | null>(null);
+  const [recentDeck, setRecentDeck] = useState<Deck | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -29,8 +32,17 @@ export default function HomeScreen() {
       return;
     }
 
-    getStats()
-      .then((res) => setStats(res.stats))
+    Promise.all([
+      getStats().then((res) => setStats(res.stats)),
+      listDecks(userId).then((res) => {
+        if (res.decks.length > 0) {
+          const sorted = [...res.decks].sort(
+            (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+          );
+          setRecentDeck(sorted[0] ?? null);
+        }
+      }),
+    ])
       .catch((e) => setError(String(e)))
       .finally(() => setLoading(false));
   }, [userId]);
@@ -88,14 +100,14 @@ export default function HomeScreen() {
             {/* Streak banner */}
             <View
               style={{
-                backgroundColor: streak > 0 ? "#FFF7ED" : colors.surfaceSecondary,
+                backgroundColor: streak > 0 ? colors.warningLight : colors.surfaceSecondary,
                 borderRadius: radius.lg,
                 padding: spacing.lg,
                 flexDirection: "row",
                 alignItems: "center",
                 gap: spacing.md,
                 borderWidth: 1,
-                borderColor: streak > 0 ? "#FDBA74" : colors.border,
+                borderColor: streak > 0 ? colors.warning : colors.border,
               }}
             >
               <View
@@ -103,15 +115,16 @@ export default function HomeScreen() {
                   width: 48,
                   height: 48,
                   borderRadius: 24,
-                  backgroundColor: streak > 0 ? "#FED7AA" : colors.surfaceSecondary,
+                  backgroundColor: streak > 0 ? colors.warning : colors.surfaceSecondary,
                   justifyContent: "center",
                   alignItems: "center",
+                  opacity: streak > 0 ? 0.25 : 1,
                 }}
               >
                 <Flame
                   size={26}
-                  color={streak > 0 ? "#EA580C" : colors.textTertiary}
-                  fill={streak > 0 ? "#FB923C" : "none"}
+                  color={streak > 0 ? colors.warning : colors.textTertiary}
+                  fill={streak > 0 ? colors.warning : "none"}
                 />
               </View>
               <View style={{ flex: 1 }}>
@@ -119,7 +132,7 @@ export default function HomeScreen() {
                   style={{
                     fontSize: 28,
                     fontWeight: typography.extrabold,
-                    color: streak > 0 ? "#EA580C" : colors.textTertiary,
+                    color: streak > 0 ? colors.warning : colors.textTertiary,
                   }}
                 >
                   {streak} {streak === 1 ? "Tag" : "Tage"}
@@ -127,7 +140,7 @@ export default function HomeScreen() {
                 <Text
                   style={{
                     fontSize: typography.sm,
-                    color: streak > 0 ? "#C2410C" : colors.textTertiary,
+                    color: streak > 0 ? colors.textSecondary : colors.textTertiary,
                     marginTop: 2,
                   }}
                 >
@@ -363,6 +376,60 @@ export default function HomeScreen() {
                 </Text>
               </View>
             </View>
+
+            {/* Recently used deck */}
+            {recentDeck && (
+              <TouchableOpacity
+                onPress={() => router.push(`/deck/${recentDeck.id}`)}
+                activeOpacity={0.8}
+                style={{
+                  backgroundColor: colors.surface,
+                  borderRadius: radius.lg,
+                  padding: spacing.lg,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: spacing.md,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  ...shadows.sm,
+                }}
+              >
+                <View
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: radius.sm,
+                    backgroundColor: colors.primaryLight,
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
+                >
+                  <Clock size={18} color={colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontSize: typography.xs,
+                      color: colors.textTertiary,
+                      marginBottom: 2,
+                    }}
+                  >
+                    Zuletzt gelernt
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: typography.base,
+                      fontWeight: typography.semibold,
+                      color: colors.text,
+                    }}
+                    numberOfLines={1}
+                  >
+                    {recentDeck.title}
+                  </Text>
+                </View>
+                <ChevronRight size={18} color={colors.textTertiary} />
+              </TouchableOpacity>
+            )}
 
             {/* Action buttons */}
             <View style={{ gap: spacing.md }}>

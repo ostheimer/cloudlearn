@@ -23,7 +23,7 @@ import {
 } from "lucide-react-native";
 import { useSessionStore } from "../src/store/sessionStore";
 import { createDeck, createCard } from "../src/lib/api";
-import { colors, spacing, radius, typography, shadows } from "../src/theme";
+import { useColors, spacing, radius, typography, shadows } from "../src/theme";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const IMAGE_HEIGHT = SCREEN_WIDTH * 0.8;
@@ -39,6 +39,7 @@ interface Region {
 }
 
 export default function OcclusionScreen() {
+  const colors = useColors();
   const { deckTitle } = useLocalSearchParams<{ deckTitle?: string }>();
   const router = useRouter();
   const userId = useSessionStore((s) => s.userId);

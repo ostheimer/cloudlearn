@@ -3,6 +3,24 @@ import { supabase } from "./supabase";
 
 const API_BASE = "https://clearn-api.vercel.app";
 
+export class ApiError extends Error {
+  status: number;
+  code?: string;
+
+  constructor(message: string, status: number, code?: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    if (code) {
+      this.code = code;
+    }
+  }
+}
+
+export function isApiError(error: unknown): error is ApiError {
+  return error instanceof ApiError;
+}
+
 async function getAuthHeaders(): Promise<Record<string, string>> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -32,12 +50,24 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     },
   });
 
+  const body = (await res.json().catch(() => null)) as
+    | { message?: string; code?: string }
+    | T
+    | null;
+
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.message ?? `API error ${res.status}`);
+    throw new ApiError(
+      (body as { message?: string } | null)?.message ?? `API error ${res.status}`,
+      res.status,
+      (body as { code?: string } | null)?.code
+    );
   }
 
-  return res.json();
+  if (body === null) {
+    throw new ApiError("Empty API response", res.status);
+  }
+
+  return body as T;
 }
 
 // --- Types ---
@@ -102,6 +132,13 @@ export interface StatsResponse {
   reviewsTotal: number;
   accuracyRate: number;
   reviewsByDay: Array<{ date: string; count: number }>;
+}
+
+export interface SubscriptionStatus {
+  userId: string;
+  tier: "free" | "pro" | "lifetime";
+  isActive: boolean;
+  expiresAt: string | null;
 }
 
 // --- API Methods ---
@@ -239,15 +276,178 @@ export async function deleteCard(cardId: string): Promise<{ deleted: boolean }> 
 // --- Subscription ---
 
 export async function getSubscriptionStatus(
-  userId: string
-): Promise<{ status: { tier: string; isActive: boolean } }> {
-  return request<{ status: { tier: string; isActive: boolean } }>(
-    `/api/v1/subscription/status?userId=${userId}`
-  );
+  _userId?: string
+): Promise<{ status: SubscriptionStatus }> {
+  return request<{ status: SubscriptionStatus }>("/api/v1/subscription/status");
 }
 
 // --- Stats ---
 
 export async function getStats(): Promise<{ stats: StatsResponse }> {
   return request<{ stats: StatsResponse }>("/api/v1/stats");
+}
+
+// --- Courses ---
+
+export interface Course {
+  id: string;
+  userId: string;
+  title: string;
+  description: string | null;
+  color: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function listCourses(): Promise<{ courses: Course[] }> {
+  return request<{ courses: Course[] }>("/api/v1/courses");
+}
+
+export async function createCourse(
+  title: string,
+  description?: string,
+  color?: string
+): Promise<{ course: Course }> {
+  return request<{ course: Course }>("/api/v1/courses", {
+    method: "POST",
+    body: JSON.stringify({ title, description, color }),
+  });
+}
+
+export async function updateCourseApi(
+  courseId: string,
+  updates: { title?: string; description?: string; color?: string }
+): Promise<{ course: Course }> {
+  return request<{ course: Course }>(`/api/v1/courses/${courseId}`, {
+    method: "PATCH",
+    body: JSON.stringify(updates),
+  });
+}
+
+export async function deleteCourseApi(courseId: string): Promise<{ deleted: boolean }> {
+  return request<{ deleted: boolean }>(`/api/v1/courses/${courseId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function addDeckToCourse(
+  courseId: string,
+  deckId: string,
+  position = 0
+): Promise<{ added: boolean }> {
+  return request<{ added: boolean }>(`/api/v1/courses/${courseId}/decks`, {
+    method: "POST",
+    body: JSON.stringify({ deckId, position }),
+  });
+}
+
+export async function removeDeckFromCourse(
+  courseId: string,
+  deckId: string
+): Promise<{ removed: boolean }> {
+  return request<{ removed: boolean }>(`/api/v1/courses/${courseId}/decks?deckId=${deckId}`, {
+    method: "DELETE",
+  });
+}
+
+// --- Folders ---
+
+export interface Folder {
+  id: string;
+  userId: string;
+  title: string;
+  parentId: string | null;
+  color: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function listFolders(): Promise<{ folders: Folder[] }> {
+  return request<{ folders: Folder[] }>("/api/v1/folders");
+}
+
+export async function createFolder(
+  title: string,
+  parentId?: string,
+  color?: string
+): Promise<{ folder: Folder }> {
+  return request<{ folder: Folder }>("/api/v1/folders", {
+    method: "POST",
+    body: JSON.stringify({ title, parentId, color }),
+  });
+}
+
+export async function updateFolderApi(
+  folderId: string,
+  updates: { title?: string; parentId?: string | null; color?: string }
+): Promise<{ folder: Folder }> {
+  return request<{ folder: Folder }>(`/api/v1/folders/${folderId}`, {
+    method: "PATCH",
+    body: JSON.stringify(updates),
+  });
+}
+
+export async function deleteFolderApi(folderId: string): Promise<{ deleted: boolean }> {
+  return request<{ deleted: boolean }>(`/api/v1/folders/${folderId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function addDeckToFolder(
+  folderId: string,
+  deckId: string
+): Promise<{ added: boolean }> {
+  return request<{ added: boolean }>(`/api/v1/folders/${folderId}/decks`, {
+    method: "POST",
+    body: JSON.stringify({ deckId }),
+  });
+}
+
+export async function removeDeckFromFolder(
+  folderId: string,
+  deckId: string
+): Promise<{ removed: boolean }> {
+  return request<{ removed: boolean }>(`/api/v1/folders/${folderId}/decks?deckId=${deckId}`, {
+    method: "DELETE",
+  });
+}
+
+// --- Deck Actions (Duplicate, Share, Export, Details) ---
+
+export async function duplicateDeck(deckId: string): Promise<{ deck: Deck }> {
+  return request<{ deck: Deck }>(`/api/v1/decks/${deckId}/duplicate`, {
+    method: "POST",
+  });
+}
+
+export async function shareDeck(deckId: string): Promise<{ shareToken: string; shareUrl: string }> {
+  return request<{ shareToken: string; shareUrl: string }>(`/api/v1/decks/${deckId}/share`, {
+    method: "POST",
+  });
+}
+
+export async function getSharedDeck(shareToken: string): Promise<{ deck: Deck; cards: Card[] }> {
+  return request<{ deck: Deck; cards: Card[] }>(`/api/v1/decks/share/${shareToken}`);
+}
+
+export interface DeckDetails {
+  id: string;
+  userId: string;
+  title: string;
+  tags: string[];
+  cardCount: number;
+  courses: Course[];
+  folders: Folder[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function getDeckDetails(deckId: string): Promise<{ details: DeckDetails }> {
+  return request<{ details: DeckDetails }>(`/api/v1/decks/${deckId}/details`);
+}
+
+export async function exportDeckForOffline(
+  deckId: string
+): Promise<{ deck: Deck; cards: Card[]; exportedAt: string }> {
+  return request<{ deck: Deck; cards: Card[]; exportedAt: string }>(`/api/v1/decks/${deckId}/export`);
 }

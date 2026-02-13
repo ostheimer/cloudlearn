@@ -19,7 +19,7 @@ import {
   HelpCircle,
 } from "lucide-react-native";
 import { listCardsInDeck, type Card } from "../src/lib/api";
-import { colors, spacing, radius, typography, shadows } from "../src/theme";
+import { useColors, spacing, radius, typography, shadows } from "../src/theme";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -101,6 +101,7 @@ function generateQuestions(cards: Card[], count = 10): Question[] {
 }
 
 export default function QuizScreen() {
+  const colors = useColors();
   const { deckId, deckTitle } = useLocalSearchParams<{
     deckId: string;
     deckTitle: string;

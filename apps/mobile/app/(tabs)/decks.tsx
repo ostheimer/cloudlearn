@@ -26,9 +26,10 @@ import {
   type Deck,
 } from "../../src/lib/api";
 import { searchDecks } from "../../src/lib/searchDecks";
-import { colors, spacing, radius, typography, shadows } from "../../src/theme";
+import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
 
 export default function DecksScreen() {
+  const colors = useColors();
   const router = useRouter();
   const userId = useSessionStore((state) => state.userId);
   const [query, setQuery] = useState("");

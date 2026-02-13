@@ -1,16 +1,18 @@
 import { Tabs } from "expo-router";
 import { Home, ScanLine, Brain, Layers, User } from "lucide-react-native";
-import { colors } from "../../src/theme";
+import { useColors } from "../../src/theme";
 
 export default function TabsLayout() {
+  const c = useColors();
+
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textTertiary,
+        tabBarActiveTintColor: c.primary,
+        tabBarInactiveTintColor: c.textTertiary,
         tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopColor: colors.border,
+          backgroundColor: c.surface,
+          borderTopColor: c.border,
           borderTopWidth: 1,
           paddingTop: 4,
         },
@@ -40,6 +42,9 @@ export default function TabsLayout() {
         options={{
           title: "Lernen",
           tabBarIcon: ({ color, size }) => <Brain size={size} color={color} />,
+          tabBarStyle: {
+            display: "none",
+          },
         }}
       />
       <Tabs.Screen

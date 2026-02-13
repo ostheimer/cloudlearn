@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Alert, Switch, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -15,7 +16,15 @@ import {
 import { i18n } from "../../src/i18n";
 import { useSessionStore } from "../../src/store/sessionStore";
 import { getSubscriptionStatus } from "../../src/lib/api";
-import { useColors, useThemeStore, spacing, radius, typography, shadows } from "../../src/theme";
+import {
+  useColors,
+  useResolvedThemeMode,
+  useThemeStore,
+  spacing,
+  radius,
+  typography,
+  shadows,
+} from "../../src/theme";
 import {
   requestNotificationPermissions,
   scheduleDailyReminder,
@@ -27,10 +36,13 @@ const REMINDER_KEY = "clearn_reminder_enabled";
 const REMINDER_HOUR_KEY = "clearn_reminder_hour";
 
 export default function ProfileScreen() {
+  const router = useRouter();
   const { t } = useTranslation();
   const c = useColors();
   const themeMode = useThemeStore((s) => s.mode);
-  const toggleTheme = useThemeStore((s) => s.toggle);
+  const setThemeMode = useThemeStore((s) => s.setMode);
+  const setSystemTheme = useThemeStore((s) => s.setSystem);
+  const resolvedThemeMode = useResolvedThemeMode();
   const userId = useSessionStore((state) => state.userId);
   const email = useSessionStore((state) => state.email);
   const signOut = useSessionStore((state) => state.signOut);
@@ -40,7 +52,7 @@ export default function ProfileScreen() {
 
   useEffect(() => {
     if (!userId) return;
-    getSubscriptionStatus(userId)
+    getSubscriptionStatus()
       .then((res) => setTier(res.status.tier))
       .catch(() => setTier("unbekannt"));
   }, [userId]);
@@ -88,7 +100,9 @@ export default function ProfileScreen() {
   };
 
   const tierLabel = tier === "free" ? "Free" : tier === "pro" ? "Pro" : tier;
-  const isDark = themeMode === "dark";
+  const isFreeTier = tier === "free";
+  const isDark = resolvedThemeMode === "dark";
+  const isSystemMode = themeMode === "system";
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }}>
@@ -139,41 +153,103 @@ export default function ProfileScreen() {
               <Text style={{ fontSize: typography.base, fontWeight: typography.semibold, color: c.text, marginTop: 2 }}>
                 {tierLabel}
               </Text>
+              {isFreeTier ? (
+                <TouchableOpacity
+                  onPress={() => router.push("/paywall")}
+                  activeOpacity={0.8}
+                  style={{
+                    marginTop: spacing.sm,
+                    alignSelf: "flex-start",
+                    backgroundColor: c.primaryLight,
+                    borderRadius: radius.sm,
+                    paddingHorizontal: spacing.md,
+                    paddingVertical: 6,
+                  }}
+                >
+                  <Text style={{ color: c.primary, fontSize: typography.sm, fontWeight: typography.semibold }}>
+                    {t("paywall.openCta")}
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
           </View>
         </View>
 
-        {/* Appearance: Dark Mode Toggle */}
+        {/* Appearance */}
         <View style={{
           backgroundColor: c.surface, borderRadius: radius.lg, padding: spacing.lg,
-          borderWidth: 1, borderColor: c.border, ...shadows.sm,
+          borderWidth: 1, borderColor: c.border, gap: spacing.md, ...shadows.sm,
         }}>
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.md }}>
-              <View style={{
-                width: 40, height: 40, borderRadius: radius.md,
-                backgroundColor: isDark ? c.primaryLight : c.surfaceSecondary,
-                justifyContent: "center", alignItems: "center",
-              }}>
-                {isDark
-                  ? <Moon size={18} color={c.primary} />
-                  : <Sun size={18} color={c.textTertiary} />}
-              </View>
-              <View>
-                <Text style={{ fontSize: typography.base, fontWeight: typography.semibold, color: c.text }}>
-                  Dark Mode
-                </Text>
-                <Text style={{ fontSize: typography.xs, color: c.textTertiary, marginTop: 2 }}>
-                  {isDark ? "Dunkles Design aktiv" : "Helles Design aktiv"}
-                </Text>
-              </View>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.md }}>
+            <View style={{
+              width: 40, height: 40, borderRadius: radius.md,
+              backgroundColor: isDark ? c.primaryLight : c.surfaceSecondary,
+              justifyContent: "center", alignItems: "center",
+            }}>
+              {isDark
+                ? <Moon size={18} color={c.primary} />
+                : <Sun size={18} color={c.textTertiary} />}
             </View>
-            <Switch
-              value={isDark}
-              onValueChange={toggleTheme}
-              trackColor={{ false: c.surfaceSecondary, true: c.primaryLight }}
-              thumbColor={isDark ? c.primary : c.textTertiary}
-            />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: typography.base, fontWeight: typography.semibold, color: c.text }}>
+                Design
+              </Text>
+              <Text style={{ fontSize: typography.xs, color: c.textTertiary, marginTop: 2 }}>
+                {isSystemMode
+                  ? `Folgt System (${isDark ? "Dunkel" : "Hell"})`
+                  : isDark
+                    ? "Dunkel manuell gewählt"
+                    : "Hell manuell gewählt"}
+              </Text>
+            </View>
+          </View>
+
+          <View style={{ flexDirection: "row", gap: spacing.sm }}>
+            <TouchableOpacity
+              onPress={setSystemTheme}
+              activeOpacity={0.8}
+              style={{
+                flex: 1,
+                backgroundColor: isSystemMode ? c.primary : c.surfaceSecondary,
+                borderRadius: radius.md,
+                paddingVertical: 10,
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ color: isSystemMode ? c.textInverse : c.textSecondary, fontWeight: typography.semibold }}>
+                System
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setThemeMode("light")}
+              activeOpacity={0.8}
+              style={{
+                flex: 1,
+                backgroundColor: !isSystemMode && !isDark ? c.primary : c.surfaceSecondary,
+                borderRadius: radius.md,
+                paddingVertical: 10,
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ color: !isSystemMode && !isDark ? c.textInverse : c.textSecondary, fontWeight: typography.semibold }}>
+                Hell
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setThemeMode("dark")}
+              activeOpacity={0.8}
+              style={{
+                flex: 1,
+                backgroundColor: !isSystemMode && isDark ? c.primary : c.surfaceSecondary,
+                borderRadius: radius.md,
+                paddingVertical: 10,
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ color: !isSystemMode && isDark ? c.textInverse : c.textSecondary, fontWeight: typography.semibold }}>
+                Dunkel
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
 

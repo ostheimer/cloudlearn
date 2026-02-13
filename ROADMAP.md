@@ -1,6 +1,6 @@
 # ROADMAP
 
-Letzte Aktualisierung: 2026-02-12 (Swipe-Animationen, Dark Mode, FSRS-Fix)
+Letzte Aktualisierung: 2026-02-13 (Learn-Screen Redesign: zentriertes Layout, Swipe-Counter, Icons ausserhalb Karte, groessere Schrift, verbesserte Animationen, i18n)
 
 ## Gesamtstatus
 
@@ -36,7 +36,11 @@ Letzte Aktualisierung: 2026-02-12 (Swipe-Animationen, Dark Mode, FSRS-Fix)
 | Match-Spiel (Timer) | ✅ | ❌ | ❌ | ❌ |
 | Statistiken/Analytics | ✅ | ✅ | ✅ | **✅** (Home) |
 | Image Occlusion | ✅ (Scaffold) | Add-on | ❌ | ❌ |
-| Offline-Lernen | ✅ | ✅ | Teilweise | ❌ |
+| Offline-Lernen | ✅ | ✅ | Teilweise | **✅** (Download) |
+| Deck-Aktionsmenü | ✅ | ✅ | ✅ | **✅** |
+| Ordner/Kurse | ✅ | ❌ | ❌ | **✅** |
+| Deck teilen | ✅ | ✅ | ✅ | **✅** |
+| Deck duplizieren | ✅ | ✅ | ❌ | **✅** |
 | KI-Kartenerstellung | Bezahlt | ❌ | ❌ | **✅ USP** |
 | Kamera → Karten | ❌ | ❌ | ❌ | **✅ USP** |
 | FSRS-Algorithmus | ❌ (einfach) | ✅ | Eigener | **✅** |
@@ -73,13 +77,20 @@ Letzte Aktualisierung: 2026-02-12 (Swipe-Animationen, Dark Mode, FSRS-Fix)
 | **Auto-Play** | Automatischer Karten-Durchlauf (1s/3s/5s/10s), Play/Pause, TTS-Integration |
 | **Image Occlusion** | Bild-Upload, Rechteck-Zeichnung, Bereiche benennen, Karten-Erstellung |
 | **E2E-Tests** | 14 Playwright-Tests (11 API + 3 Web), alle bestanden |
+| **Deck-Dreipunktemenü** | Bottom-Sheet mit 8 Aktionen: Download, Bearbeiten, Kurs, Ordner, Duplizieren, Teilen, Details, Löschen |
+| **Kurse** | Kurs-CRUD + Decks zu Kursen zuordnen/entfernen (DB + API + Mobile UI) |
+| **Ordner** | Ordner-CRUD + Decks zu Ordnern zuordnen/entfernen (DB + API + Mobile UI) |
+| **Deck duplizieren** | Deck + alle Karten kopieren, automatischer Titel "(Kopie)" |
+| **Deck teilen** | Share-Token generieren, Deep-Link, Native Share-Sheet |
+| **Deck-Details** | Modal mit Kartenanzahl, Erstelldatum, Tags, zugeordnete Kurse/Ordner |
+| **Offline-Download** | Deck + Karten in AsyncStorage cachen, visueller Indikator (Download-Icon) |
+| **Deck bearbeiten** | Titel und Tags über Modal direkt im Deck-Detail bearbeitbar |
 
 ### Scaffold vorhanden, NICHT funktionsfähig
 
 | Feature | Problem |
 |---------|---------|
 | Offline-Sync | Store existiert, wird nie aufgerufen |
-| Paywall | Screen existiert, kein Weg dorthin, kein RevenueCat |
 | PDF-Import | Nur Job-Queue, kein echtes Parsing |
 | Anki-Export | Mock-Daten |
 | Mathe-Formeln (Mathpix) | Mock |
@@ -117,7 +128,7 @@ Letzte Aktualisierung: 2026-02-12 (Swipe-Animationen, Dark Mode, FSRS-Fix)
 ### Reliability & Commerce
 - [x] Cloudflare R2 Upload via Signed URLs
 - [x] Offline Retry-Queue + idempotenter Sync
-- [x] Basis-Paywall (Scaffold mit Entitlements/Free-Limit)
+- [x] RevenueCat-Paywall (Offerings, Kauf/Restore, 402-Weiterleitung, Webhook-Sync)
 - [x] TestFlight / Internal Testing (Runbook + Build-Preflight)
 
 ### Implementierter Stand im Repository
@@ -215,7 +226,7 @@ Letzte Aktualisierung: 2026-02-12 (Swipe-Animationen, Dark Mode, FSRS-Fix)
 | D3 | CL-D03 | **Anki-Import** (.apkg → clearn-Decks) | Mittel | Mittel | ❌ Offen |
 | D4 | CL-D04 | **Anki-Export** (clearn-Decks → .apkg) | Mittel | Mittel | ❌ Offen |
 | D5 | CL-D05 | **Apple/Google Sign-In** (OAuth neben E-Mail) | Mittel | Mittel | ❌ Offen |
-| D6 | CL-D06 | **Paywall + RevenueCat** (echte In-App-Käufe) | Groß | Groß | ❌ Offen |
+| D6 | CL-D06 | **Paywall + RevenueCat** (echte In-App-Käufe) | Groß | Groß | 🟡 In Arbeit |
 | D7 | CL-D07 | **Community-Decks** (teilen, bewerten, suchen) | Groß | Groß | ❌ Offen |
 | D8 | CL-D08 | **Onboarding-Flow** (Erster Lernerfolg in < 2 Min) | Mittel | Groß | ❌ Offen |
 
@@ -239,7 +250,7 @@ Voraussetzung: Phase 2 + stabile Nutzerbasis.
 - [x] Erweiterte Lernmodi: Test-Modus, Match-Spiel, Auto-Play, Image Occlusion (CL-C01–C04)
 - [ ] PDF-Import (CL-D02)
 - [ ] Anki-Import/Export (CL-D03, CL-D04)
-- [ ] Paywall + RevenueCat (CL-D06)
+- [ ] Paywall + RevenueCat (CL-D06, Kernflow umgesetzt; finale Store-Offerings ausstehend)
 - [ ] Community-Decks (CL-D07)
 - [ ] Web-App (funktionsfähig machen)
 - [ ] B2B-Dashboard
@@ -268,6 +279,8 @@ Voraussetzung: Phase 2 + stabile Nutzerbasis.
 - 2026-02-10: Web/API-Apps für standalone Vercel-Deployments stabilisiert (ohne `workspace:*`-Runtime-Abhängigkeiten).
 - 2026-02-10: Production-Deploys für Web/API erfolgreich eingerichtet und verifiziert (`Ready`).
 - 2026-02-10: Production-Sicherheits-Härtung (RevenueCat Webhook fail-closed, kein `x-subscription-tier`-Override).
+- 2026-02-12: RevenueCat-Kernintegration umgesetzt: Mobile Offerings/Kauf/Restore, 402-Weiterleitung auf Paywall, Backend-Webhook-Mapping + Subscription-Fallback auf `free`, Unit-Tests ergänzt.
+- 2026-02-12: Expo-Start-Fehler behoben: `react-native-purchases` als ungültiges Config-Plugin aus `apps/mobile/app.json` entfernt; `expo config` + `pnpm --filter @clearn/mobile dev` erfolgreich verifiziert.
 - 2026-02-10: Supabase-Datenbank aufgesetzt: CLI Login + Link + Migration Push (`profiles`, `decks`, `cards`, `review_logs`, `scans` + RLS).
 - 2026-02-10: Supabase-Env-Variablen in Vercel für beide Projekte (`clearn-api`, `clearn-web`) auf Production/Preview/Development gesetzt.
 - 2026-02-10: Cloudflare R2 aktiviert, Bucket `clearn-uploads` (WEUR) erstellt, S3-Zugriff getestet (Lesen/Schreiben/Löschen OK).
@@ -309,3 +322,16 @@ Voraussetzung: Phase 2 + stabile Nutzerbasis.
 - 2026-02-12: **Quizlet-Style Free-Drag Swipe**: Karte folgt Finger frei in 2D mit Tinder-artiger Rotation. Labels "NOCHMAL"/"GEMERKT" blenden graduell ein mit Skalierung. Loslassen nach Threshold: Karte fliegt raus + Rating; vorher: federndes Snap-Back. Hintergrund-Farbindikator (rot/grün).
 - 2026-02-12: **Dark Mode**: Komplett neues Farbschema (22 Farben), persistenter Zustand via Zustand+AsyncStorage. Toggle im Profil-Screen (Moon/Sun-Icon). `useColors()` Hook für dynamische Theme-Farben.
 - 2026-02-12: **Swipe-Animationen verbessert**: Sichtbare Fly-out-Animation (Karte fliegt nach links/rechts weg mit geschwindigkeitsbasierter Duration + Easing). Neue Karte erscheint mit Scale+Opacity-Eingangsanimation (spring von 0.88→1.0 + fade-in). Bouncy Snap-back beim Zurückfedern (damping: 8, stiffness: 120).
+- 2026-02-12: **Deck-Dreipunktemenü**: Bottom Sheet (`@gorhom/bottom-sheet`) mit 8 Aktionen im Deck-Detail-Header (MoreVertical-Icon). Alle Aktionen voll funktional implementiert.
+- 2026-02-12: **Kurse**: DB-Schema (`courses`, `course_decks`), API-Routen (`/courses`, `/courses/[id]/decks`), Service-Layer, Mobile CoursePickerModal mit Erstellen + Zuordnen.
+- 2026-02-12: **Ordner**: DB-Schema (`folders`, `folder_decks` mit verschachtelter Ordnerstruktur via `parent_id`), API-Routen (`/folders`, `/folders/[id]/decks`), Mobile FolderPickerModal.
+- 2026-02-12: **Deck duplizieren**: API-Route `POST /decks/[id]/duplicate` kopiert Deck + alle Karten. Navigation zum Duplikat. Titel automatisch "(Kopie)".
+- 2026-02-12: **Deck teilen**: Share-Token (UUID) in DB, API-Routen `POST /share` + `GET /share/[token]`. Native Share-Sheet (React Native `Share.share()`) mit Deep-Link.
+- 2026-02-12: **Deck-Details-Modal**: Kartenanzahl, Erstelldatum, letzte Änderung, Tags, zugeordnete Kurse/Ordner.
+- 2026-02-12: **Offline-Download**: Deck + Karten via Export-API in AsyncStorage cachen. Grünes Download-Icon im Header wenn offline verfügbar.
+- 2026-02-12: **Deck bearbeiten**: DeckEditModal für Titel und Tags. Änderungen live im Header reflektiert.
+- 2026-02-12: **i18n erweitert**: 65+ neue Übersetzungskeys (de + en) für alle Menüpunkte, Modals, Feedback-Meldungen.
+- 2026-02-12: **Tests**: Unit-Tests für Course/Folder/Duplicate/Share Services + E2E Playwright-Tests für alle neuen API-Routen.
+- 2026-02-12: **Learn-UX-Feinschliff**: Langsameres Snap-Back, längerer sichtbarer Fly-out, Exit-Button (`X`) im Lernmodus, Zurück-Navigation zur letzten Karte (Arrow-Button), Tab-Bar im Lernmodus ausgeblendet.
+- 2026-02-12: **Theme-Verhalten verbessert**: Tab-Bar nutzt nun dasselbe dynamische Farbschema wie der Rest der App; neuer Systemmodus (folgt Geräte-Light/Dark) mit Auswahl in Profil.
+- 2026-02-13: **Learn-Screen Redesign**: Header + Kartenfortschritt zentriert; Swipe-Counter (rot/grün) für falsch/richtig; Lautsprecher- und Stern-Icons von Karte entfernt (unten rechts platziert); Schriftgröße erhöht; "Gemerkt→" entfernt; Zurück-Pfeil nur noch als Icon unter den Buttons; Fly-Out langsamer + sichtbarer; Snap-Back noch weicher; alle hartkodierten Strings in i18n überführt (de+en).

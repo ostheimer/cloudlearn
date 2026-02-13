@@ -789,7 +789,7 @@ console.log(updated.card.stability);  // Stabilität der Erinnerung
 - [x] Deck-Verwaltung (CRUD) + Suche
 - [x] Cloudflare R2 Bild-Upload via Signed URLs
 - [x] Offline Retry-Queue + idempotenter Sync
-- [x] Basis-Paywall (RevenueCat, Scaffold)
+- [x] RevenueCat-Paywall (Offerings, Kauf/Restore, Backend-Sync)
 - [x] TestFlight / Internal Testing (Runbook + Preflight-Script)
 
 ### Phase 2: Beta Launch (4-6 Wochen)
@@ -824,7 +824,7 @@ Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testfa
 
 ---
 
-## Implementierungsstatus (2026-02-11)
+## Implementierungsstatus (2026-02-13)
 
 ### Voll funktionsfähig (End-to-End mit echten Daten)
 
@@ -836,6 +836,9 @@ Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testfa
 - **Home-Dashboard**: Fällige Karten, Deck-Anzahl, CTA zum Lernen/Scannen
 - **Auth**: Login, Registrierung, Passwort-Reset (Supabase Auth + JWT)
 - **Profil**: E-Mail-Anzeige, Abo-Status, Sprache, Abmelden
+- **Paywall + RevenueCat**: Angebotsliste, Kauf, Restore, 402-Weiterleitung aus Scan-Flow, Webhook-Sync auf Backend-Tier
+- **Lernmodus UX**: Fullscreen-Kartenmodus ohne Tab-Bar, zentriertes Layout (Header + Kartenfortschritt), Swipe-Counter (rot/grün), Icons außerhalb der Karte (verhindert versehentliches Flippen), größere Schrift, weicher Snap-Back, sichtbarer Fly-out, Zurück-Pfeil als Icon
+- **Theme**: Konsistentes Light/Dark im gesamten UI inkl. Tab-Bar, optionaler Systemmodus (folgt Geräteeinstellung)
 - **Daten-Persistenz**: Alles in Supabase PostgreSQL mit JWT-Auth-Middleware
 - **Auto-Deploy**: Git-Push → Vercel baut `clearn-api` + `clearn-web` automatisch
 
@@ -843,7 +846,6 @@ Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testfa
 
 - Statistiken (API existiert, kein Mobile-Screen)
 - Offline-Sync (Store existiert, wird nicht aufgerufen)
-- Paywall (Screen existiert, kein Weg dorthin, kein RevenueCat)
 - PDF-Import, Anki-Export, Mathpix, Community-Decks, B2B (Mock/In-Memory)
 
 ### Nächste Schritte (siehe `ROADMAP.md` und `BACKLOG.md`)
@@ -913,6 +915,10 @@ R2_SIGNED_URL_TTL_SECONDS=300
 
 # RevenueCat
 REVENUECAT_WEBHOOK_SECRET=...
+EXPO_PUBLIC_REVENUECAT_IOS_API_KEY=appl_...
+EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY=goog_...
+EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_PRO=pro
+EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_LIFETIME=lifetime
 
 # Monitoring
 SENTRY_DSN=https://...
@@ -927,6 +933,8 @@ Wichtige Produktionshinweise:
 
 - `REVENUECAT_WEBHOOK_SECRET` muss in Vercel (Production) gesetzt sein, sonst liefert der Webhook `503 WEBHOOK_NOT_CONFIGURED` (fail-closed).
 - Die API vertraut in Production keinen clientseitigen Tier-Headern (z. B. `x-subscription-tier`); die Tier-Entscheidung erfolgt serverseitig.
+- RevenueCat-Käufe in Mobile benötigen einen Dev/Store-Build (nicht Expo Go), da `react-native-purchases` ein Native-Modul ist.
+- Falls beim Start `PluginError: Unable to resolve a valid config plugin for react-native-purchases` erscheint, den Plugin-Eintrag in `apps/mobile/app.json` entfernen (für die aktuell genutzte Paketversion nicht erforderlich).
 
 ### Entwicklungsserver starten
 

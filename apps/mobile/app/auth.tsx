@@ -13,11 +13,12 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BookOpen } from "lucide-react-native";
 import { useSessionStore } from "../src/store/sessionStore";
-import { colors, spacing, radius, typography } from "../src/theme";
+import { spacing, radius, typography, useColors } from "../src/theme";
 
 type AuthMode = "login" | "register" | "reset";
 
 export default function AuthScreen() {
+  const colors = useColors();
   const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

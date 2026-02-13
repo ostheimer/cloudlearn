@@ -110,6 +110,8 @@ export const revenueCatWebhookSchema = z.object({
   })
 });
 
+export type RevenueCatWebhook = z.infer<typeof revenueCatWebhookSchema>;
+
 export const betaFeedbackSchema = z.object({
   userId: z.string().uuid(),
   channel: z.enum(["in_app", "email", "interview"]).default("in_app"),

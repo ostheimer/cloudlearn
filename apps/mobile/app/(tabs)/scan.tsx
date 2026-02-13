@@ -29,6 +29,7 @@ import {
 import { useSessionStore } from "../../src/store/sessionStore";
 import { useOcrEditorState } from "../../src/features/ocr/ocrEditorState";
 import {
+  isApiError,
   scanText,
   scanImage,
   createDeck,
@@ -38,7 +39,7 @@ import {
   type Deck,
 } from "../../src/lib/api";
 import { useReviewSession } from "../../src/features/review/reviewSession";
-import { colors, spacing, radius, typography, shadows } from "../../src/theme";
+import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
 
 type InputMode = "choose" | "camera" | "text";
 
@@ -63,6 +64,7 @@ export default function ScanScreen() {
 
   const cameraRef = useRef<CameraView>(null);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  const colors = useColors();
 
   // --- Image Handling ---
 
@@ -143,6 +145,13 @@ export default function ScanScreen() {
       setModel(result.model);
       setDeckTitle(result.deckTitle ?? "");
     } catch (error: unknown) {
+      if (
+        isApiError(error) &&
+        (error.code === "PAYWALL_REQUIRED" || error.status === 402)
+      ) {
+        router.push("/paywall");
+        return;
+      }
       const msg =
         error instanceof Error ? error.message : "Unbekannter Fehler";
       Alert.alert("Fehler bei der Bildverarbeitung", msg);
@@ -164,6 +173,13 @@ export default function ScanScreen() {
       setModel(result.model);
       setDeckTitle(result.deckTitle ?? "");
     } catch (error: unknown) {
+      if (
+        isApiError(error) &&
+        (error.code === "PAYWALL_REQUIRED" || error.status === 402)
+      ) {
+        router.push("/paywall");
+        return;
+      }
       const msg =
         error instanceof Error ? error.message : "Unbekannter Fehler";
       Alert.alert("Fehler", msg);
@@ -285,7 +301,7 @@ export default function ScanScreen() {
                 width: 72,
                 height: 72,
                 borderRadius: 36,
-                backgroundColor: "#fff",
+                backgroundColor: colors.surface,
                 borderWidth: 4,
                 borderColor: "rgba(255,255,255,0.5)",
                 marginBottom: spacing.lg,

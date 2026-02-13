@@ -634,3 +634,363 @@ export async function recordScan(
   if (error) throw new Error(`recordScan: ${error.message}`);
   return data.id;
 }
+
+// ─── Courses ─────────────────────────────────────────────────────────────────
+
+export interface CourseRecord {
+  id: string;
+  userId: string;
+  title: string;
+  description: string | null;
+  color: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapCourseRow(row: any): CourseRecord {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    title: row.title,
+    description: row.description ?? null,
+    color: row.color ?? null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export async function createCourse(
+  userId: string,
+  title: string,
+  description?: string,
+  color?: string
+): Promise<CourseRecord> {
+  const db = getDb();
+  const { data, error } = await db
+    .from("courses")
+    .insert({ user_id: userId, title, description: description ?? null, color: color ?? null })
+    .select()
+    .single();
+  if (error) throw new Error(`createCourse: ${error.message}`);
+  return mapCourseRow(data);
+}
+
+export async function listCourses(userId: string): Promise<CourseRecord[]> {
+  const db = getDb();
+  const { data, error } = await db
+    .from("courses")
+    .select()
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(`listCourses: ${error.message}`);
+  return (data ?? []).map(mapCourseRow);
+}
+
+export async function getCourse(courseId: string): Promise<CourseRecord | null> {
+  const db = getDb();
+  const { data, error } = await db
+    .from("courses")
+    .select()
+    .eq("id", courseId)
+    .maybeSingle();
+  if (error || !data) return null;
+  return mapCourseRow(data);
+}
+
+export async function updateCourse(
+  courseId: string,
+  updates: Partial<Pick<CourseRecord, "title" | "description" | "color">>
+): Promise<CourseRecord | null> {
+  const db = getDb();
+  const dbUpdates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (updates.title !== undefined) dbUpdates.title = updates.title;
+  if (updates.description !== undefined) dbUpdates.description = updates.description;
+  if (updates.color !== undefined) dbUpdates.color = updates.color;
+  const { data, error } = await db
+    .from("courses")
+    .update(dbUpdates)
+    .eq("id", courseId)
+    .select()
+    .single();
+  if (error) return null;
+  return mapCourseRow(data);
+}
+
+export async function deleteCourse(courseId: string): Promise<boolean> {
+  const db = getDb();
+  const { error } = await db.from("courses").delete().eq("id", courseId);
+  return !error;
+}
+
+export async function addDeckToCourse(courseId: string, deckId: string, position = 0): Promise<boolean> {
+  const db = getDb();
+  const { error } = await db
+    .from("course_decks")
+    .upsert({ course_id: courseId, deck_id: deckId, position }, { onConflict: "course_id,deck_id" });
+  return !error;
+}
+
+export async function removeDeckFromCourse(courseId: string, deckId: string): Promise<boolean> {
+  const db = getDb();
+  const { error } = await db
+    .from("course_decks")
+    .delete()
+    .eq("course_id", courseId)
+    .eq("deck_id", deckId);
+  return !error;
+}
+
+export async function listDecksInCourse(courseId: string): Promise<DeckRecord[]> {
+  const db = getDb();
+  const { data, error } = await db
+    .from("course_decks")
+    .select("deck_id, position, decks(*)")
+    .eq("course_id", courseId)
+    .order("position", { ascending: true });
+  if (error) throw new Error(`listDecksInCourse: ${error.message}`);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data ?? []).filter((r: any) => r.decks && !r.decks.deleted_at).map((r: any) => mapDeckRow(r.decks));
+}
+
+export async function listCoursesForDeck(deckId: string): Promise<CourseRecord[]> {
+  const db = getDb();
+  const { data, error } = await db
+    .from("course_decks")
+    .select("courses(*)")
+    .eq("deck_id", deckId);
+  if (error) throw new Error(`listCoursesForDeck: ${error.message}`);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data ?? []).filter((r: any) => r.courses).map((r: any) => mapCourseRow(r.courses));
+}
+
+// ─── Folders ─────────────────────────────────────────────────────────────────
+
+export interface FolderRecord {
+  id: string;
+  userId: string;
+  title: string;
+  parentId: string | null;
+  color: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapFolderRow(row: any): FolderRecord {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    title: row.title,
+    parentId: row.parent_id ?? null,
+    color: row.color ?? null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export async function createFolder(
+  userId: string,
+  title: string,
+  parentId?: string,
+  color?: string
+): Promise<FolderRecord> {
+  const db = getDb();
+  const { data, error } = await db
+    .from("folders")
+    .insert({
+      user_id: userId,
+      title,
+      parent_id: parentId ?? null,
+      color: color ?? null,
+    })
+    .select()
+    .single();
+  if (error) throw new Error(`createFolder: ${error.message}`);
+  return mapFolderRow(data);
+}
+
+export async function listFolders(userId: string): Promise<FolderRecord[]> {
+  const db = getDb();
+  const { data, error } = await db
+    .from("folders")
+    .select()
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(`listFolders: ${error.message}`);
+  return (data ?? []).map(mapFolderRow);
+}
+
+export async function getFolder(folderId: string): Promise<FolderRecord | null> {
+  const db = getDb();
+  const { data, error } = await db
+    .from("folders")
+    .select()
+    .eq("id", folderId)
+    .maybeSingle();
+  if (error || !data) return null;
+  return mapFolderRow(data);
+}
+
+export async function updateFolder(
+  folderId: string,
+  updates: Partial<Pick<FolderRecord, "title" | "parentId" | "color">>
+): Promise<FolderRecord | null> {
+  const db = getDb();
+  const dbUpdates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (updates.title !== undefined) dbUpdates.title = updates.title;
+  if (updates.parentId !== undefined) dbUpdates.parent_id = updates.parentId;
+  if (updates.color !== undefined) dbUpdates.color = updates.color;
+  const { data, error } = await db
+    .from("folders")
+    .update(dbUpdates)
+    .eq("id", folderId)
+    .select()
+    .single();
+  if (error) return null;
+  return mapFolderRow(data);
+}
+
+export async function deleteFolder(folderId: string): Promise<boolean> {
+  const db = getDb();
+  const { error } = await db.from("folders").delete().eq("id", folderId);
+  return !error;
+}
+
+export async function addDeckToFolder(folderId: string, deckId: string): Promise<boolean> {
+  const db = getDb();
+  const { error } = await db
+    .from("folder_decks")
+    .upsert({ folder_id: folderId, deck_id: deckId }, { onConflict: "folder_id,deck_id" });
+  return !error;
+}
+
+export async function removeDeckFromFolder(folderId: string, deckId: string): Promise<boolean> {
+  const db = getDb();
+  const { error } = await db
+    .from("folder_decks")
+    .delete()
+    .eq("folder_id", folderId)
+    .eq("deck_id", deckId);
+  return !error;
+}
+
+export async function listDecksInFolder(folderId: string): Promise<DeckRecord[]> {
+  const db = getDb();
+  const { data, error } = await db
+    .from("folder_decks")
+    .select("deck_id, decks(*)")
+    .eq("folder_id", folderId);
+  if (error) throw new Error(`listDecksInFolder: ${error.message}`);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data ?? []).filter((r: any) => r.decks && !r.decks.deleted_at).map((r: any) => mapDeckRow(r.decks));
+}
+
+export async function listFoldersForDeck(deckId: string): Promise<FolderRecord[]> {
+  const db = getDb();
+  const { data, error } = await db
+    .from("folder_decks")
+    .select("folders(*)")
+    .eq("deck_id", deckId);
+  if (error) throw new Error(`listFoldersForDeck: ${error.message}`);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data ?? []).filter((r: any) => r.folders).map((r: any) => mapFolderRow(r.folders));
+}
+
+// ─── Deck Sharing & Duplication ──────────────────────────────────────────────
+
+export async function setDeckShareToken(deckId: string, shareToken: string): Promise<DeckRecord | null> {
+  const db = getDb();
+  const { data, error } = await db
+    .from("decks")
+    .update({ share_token: shareToken, updated_at: new Date().toISOString() })
+    .eq("id", deckId)
+    .is("deleted_at", null)
+    .select()
+    .single();
+  if (error) return null;
+  return mapDeckRow(data);
+}
+
+export async function getDeckByShareToken(shareToken: string): Promise<DeckRecord | null> {
+  const db = getDb();
+  const { data, error } = await db
+    .from("decks")
+    .select()
+    .eq("share_token", shareToken)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (error || !data) return null;
+  return mapDeckRow(data);
+}
+
+export async function duplicateDeck(
+  userId: string,
+  sourceDeckId: string,
+  newTitle: string
+): Promise<DeckRecord> {
+  const db = getDb();
+  // Create the new deck
+  const { data: deckData, error: deckError } = await db
+    .from("decks")
+    .insert({
+      user_id: userId,
+      title: newTitle,
+      source_deck_id: sourceDeckId,
+    })
+    .select()
+    .single();
+  if (deckError) throw new Error(`duplicateDeck: ${deckError.message}`);
+
+  const newDeckId = deckData.id;
+
+  // Copy all cards from source deck
+  const { data: cards, error: cardsError } = await db
+    .from("cards")
+    .select()
+    .eq("deck_id", sourceDeckId)
+    .is("deleted_at", null);
+  if (cardsError) throw new Error(`duplicateDeck cards: ${cardsError.message}`);
+
+  if (cards && cards.length > 0) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const newCards = cards.map((c: any) => ({
+      user_id: userId,
+      deck_id: newDeckId,
+      front: c.front,
+      back: c.back,
+      card_type: c.card_type ?? "basic",
+      difficulty: c.difficulty ?? "medium",
+      tags: c.tags ?? [],
+      fsrs_due: new Date().toISOString(),
+      fsrs_stability: 0,
+      fsrs_difficulty: 0,
+      fsrs_state: "new",
+      fsrs_reps: 0,
+      fsrs_lapses: 0,
+    }));
+    const { error: insertError } = await db.from("cards").insert(newCards);
+    if (insertError) throw new Error(`duplicateDeck insertCards: ${insertError.message}`);
+  }
+
+  return mapDeckRow(deckData);
+}
+
+export async function getDeckWithCardCount(deckId: string): Promise<(DeckRecord & { cardCount: number }) | null> {
+  const db = getDb();
+  const { data: deck, error: deckError } = await db
+    .from("decks")
+    .select()
+    .eq("id", deckId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (deckError || !deck) return null;
+
+  const { count } = await db
+    .from("cards")
+    .select("*", { count: "exact", head: true })
+    .eq("deck_id", deckId)
+    .is("deleted_at", null);
+
+  return { ...mapDeckRow(deck), cardCount: count ?? 0 };
+}

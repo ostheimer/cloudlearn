@@ -4,6 +4,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useColorScheme } from "react-native";
 
 // ─── Color schemes ───────────────────────────────────────────────────────────
 
@@ -89,22 +90,24 @@ const darkColors = {
 
 // Use string-based type so light and dark schemes are interchangeable
 export type ColorScheme = { [K in keyof typeof lightColors]: string };
-export type ThemeMode = "light" | "dark";
+export type ThemeMode = "system" | "light" | "dark";
 
 // ─── Theme store ─────────────────────────────────────────────────────────────
 
 interface ThemeState {
   mode: ThemeMode;
   toggle: () => void;
-  setMode: (mode: ThemeMode) => void;
+  setMode: (mode: Exclude<ThemeMode, "system">) => void;
+  setSystem: () => void;
 }
 
 export const useThemeStore = create<ThemeState>()(
   persist(
     (set) => ({
-      mode: "light",
+      mode: "system",
       toggle: () => set((s) => ({ mode: s.mode === "light" ? "dark" : "light" })),
       setMode: (mode) => set({ mode }),
+      setSystem: () => set({ mode: "system" }),
     }),
     {
       name: "clearn-theme",
@@ -115,8 +118,19 @@ export const useThemeStore = create<ThemeState>()(
 
 // ─── Hook to get current colors ──────────────────────────────────────────────
 
-export function useColors(): ColorScheme {
+export function useResolvedThemeMode(): "light" | "dark" {
   const mode = useThemeStore((s) => s.mode);
+  const systemTheme = useColorScheme();
+
+  if (mode === "system") {
+    return systemTheme === "dark" ? "dark" : "light";
+  }
+
+  return mode;
+}
+
+export function useColors(): ColorScheme {
+  const mode = useResolvedThemeMode();
   return mode === "dark" ? darkColors : lightColors;
 }
 

@@ -5,11 +5,15 @@ export async function getSubscriptionStatus(
   userId: string
 ): Promise<SubscriptionStatus> {
   const { tier, expiresAt, isActive } = await getSubscriptionTier(userId);
+  const paidTier = tier === "pro" || tier === "lifetime";
+  const effectiveIsActive = paidTier && isActive;
+  const effectiveTier = effectiveIsActive ? tier : "free";
+
   return {
     userId,
-    tier: tier as "free" | "pro",
-    isActive,
-    expiresAt,
+    tier: effectiveTier,
+    isActive: effectiveIsActive,
+    expiresAt: effectiveIsActive ? expiresAt : null,
   };
 }
 
@@ -17,11 +21,21 @@ export async function updateSubscriptionStatus(
   input: SubscriptionStatus
 ): Promise<SubscriptionStatus> {
   const parsed = subscriptionStatusSchema.parse(input);
+  const normalized: SubscriptionStatus =
+    parsed.tier === "free" || !parsed.isActive
+      ? {
+          ...parsed,
+          tier: "free",
+          isActive: false,
+          expiresAt: null,
+        }
+      : parsed;
+
   await updateSubscriptionTier(
-    parsed.userId,
-    parsed.tier,
-    parsed.isActive,
-    parsed.expiresAt
+    normalized.userId,
+    normalized.tier,
+    normalized.isActive,
+    normalized.expiresAt
   );
-  return parsed;
+  return normalized;
 }

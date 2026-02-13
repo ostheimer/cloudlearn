@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -27,12 +28,14 @@ import Animated, {
 import {
   CheckCircle2,
   RotateCcw,
+  ArrowLeft,
   ArrowLeftRight,
   Star,
   Volume2,
   Play,
   Pause,
   Timer,
+  X,
 } from "lucide-react-native";
 import * as Speech from "expo-speech";
 import {
@@ -50,10 +53,11 @@ const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.3;
 const MAX_ROTATION = 15; // degrees
 
 export default function LearnScreen() {
+  const router = useRouter();
   const { t } = useTranslation();
   const c = useColors();
   const userId = useSessionStore((state) => state.userId);
-  const { cards, index, revealed, completed, start, reveal, rateCurrent } =
+  const { cards, index, revealed, completed, swipedLeft, swipedRight, start, reveal, rateCurrent, canGoBack, goBack } =
     useReviewSession();
   const [loading, setLoading] = useState(false);
   const [reviewLoading, setReviewLoading] = useState(false);
@@ -210,6 +214,28 @@ export default function LearnScreen() {
     if (!revealed) reveal();
   };
 
+  const handleExitLearning = () => {
+    router.replace("/(tabs)");
+  };
+
+  const handleGoBack = () => {
+    const moved = goBack();
+    if (!moved) {
+      return;
+    }
+    translateX.value = 0;
+    translateY.value = 0;
+    setFlipped(false);
+    void Speech.stop();
+    setSpeaking(false);
+  };
+
+  const completeSwipeAfterFlyOut = (rating: ReviewRating) => {
+    setTimeout(() => {
+      handleSwipe(rating);
+    }, 350);
+  };
+
   // ─── TTS ──────────────────────────────────────────────────────────────────
   const [speaking, setSpeaking] = useState(false);
   const speakText = async (text: string) => {
@@ -285,39 +311,32 @@ export default function LearnScreen() {
       if (dist > SWIPE_THRESHOLD) {
         // Past threshold → fly off screen and rate
         const isRight = e.translationX > 0;
-        const flyX = isRight ? SCREEN_WIDTH * 1.5 : -SCREEN_WIDTH * 1.5;
-        const flyY = e.translationY + e.velocityY * 0.2;
+        const flyX = isRight ? SCREEN_WIDTH * 1.6 : -SCREEN_WIDTH * 1.6;
+        const flyY = e.translationY + e.velocityY * 0.35;
         const rating: ReviewRating = isRight ? "good" : "again";
 
-        // Calculate duration based on velocity — faster swipe = faster fly-out
+        // Calculate duration based on velocity — keep enough visible travel time.
         const remainingDist = Math.abs(flyX - e.translationX);
-        const speed = Math.max(Math.abs(e.velocityX), 800);
-        const flyDuration = Math.min(Math.max((remainingDist / speed) * 1000, 200), 450);
+        const speed = Math.max(Math.abs(e.velocityX), 600);
+        const flyDuration = Math.min(Math.max((remainingDist / speed) * 1000, 500), 1000);
 
         // Animate fly-out on Y (no callback needed)
         translateY.value = withTiming(flyY, {
           duration: flyDuration,
-          easing: Easing.in(Easing.cubic),
+          easing: Easing.out(Easing.cubic),
         });
 
-        // Animate fly-out on X — callback runs on UI thread AFTER animation completes
+        // Animate fly-out on X and only then proceed to next card.
         translateX.value = withTiming(flyX, {
           duration: flyDuration,
-          easing: Easing.in(Easing.cubic),
+          easing: Easing.out(Easing.cubic),
         }, () => {
-          // UI thread: immediately hide card and reset position
-          // This prevents the "flash back to center" glitch
-          cardOpacity.value = 0;
-          cardScale.value = 0.85;
-          translateX.value = 0;
-          translateY.value = 0;
-          // Now safely trigger JS state change (card is invisible + centered)
-          runOnJS(handleSwipe)(rating);
+          runOnJS(completeSwipeAfterFlyOut)(rating);
         });
       } else {
-        // Snap back with very bouncy spring (low damping = visible overshoot/wobble)
-        translateX.value = withSpring(0, { damping: 5, stiffness: 90, mass: 0.7 });
-        translateY.value = withSpring(0, { damping: 5, stiffness: 90, mass: 0.7 });
+        // Slower, smoother snap-back for better readability.
+        translateX.value = withSpring(0, { damping: 8, stiffness: 35, mass: 1.6 });
+        translateY.value = withSpring(0, { damping: 8, stiffness: 35, mass: 1.6 });
       }
     });
 
@@ -331,6 +350,7 @@ export default function LearnScreen() {
   // ─── Card content ─────────────────────────────────────────────────────────
   const current = cards[index];
   const progress = cards.length > 0 ? (index + (revealed ? 1 : 0)) / cards.length : 0;
+  const canGoBackOne = canGoBack();
 
   const formatCloze = (text: string): { display: string; clozeAnswer: string | null } => {
     const match = text.match(/\{\{c\d+::(.+?)\}\}/);
@@ -373,12 +393,31 @@ export default function LearnScreen() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaView style={{ flex: 1, backgroundColor: c.background }}>
         <View style={{ flex: 1, padding: spacing.lg, gap: spacing.md }}>
-          {/* Header */}
-          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-            <Text style={{ fontSize: typography.xxl, fontWeight: typography.bold, color: c.text }}>
+          {/* Header: 3-column layout with centered title */}
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            {/* Left: close button */}
+            <TouchableOpacity
+              onPress={handleExitLearning}
+              activeOpacity={0.7}
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: radius.full,
+                backgroundColor: c.surfaceSecondary,
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <X size={16} color={c.textSecondary} />
+            </TouchableOpacity>
+
+            {/* Center: title */}
+            <Text style={{ flex: 1, fontSize: typography.xxl, fontWeight: typography.bold, color: c.text, textAlign: "center" }}>
               {t("reviewHeadline")}
             </Text>
-            {cards.length > 0 && !completed && (
+
+            {/* Right: controls */}
+            {cards.length > 0 && !completed ? (
               <View style={{ flexDirection: "row", gap: spacing.sm, alignItems: "center" }}>
                 <TouchableOpacity
                   onPress={toggleAutoPlay}
@@ -425,6 +464,9 @@ export default function LearnScreen() {
                   <ArrowLeftRight size={14} color={showBackFirst ? c.primary : c.textTertiary} />
                 </TouchableOpacity>
               </View>
+            ) : (
+              // Invisible spacer to keep title centered
+              <View style={{ width: 34 }} />
             )}
           </View>
 
@@ -432,7 +474,7 @@ export default function LearnScreen() {
             <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
               <ActivityIndicator size="large" color={c.primary} />
               <Text style={{ marginTop: spacing.md, color: c.textSecondary, fontSize: typography.base }}>
-                Fällige Karten laden...
+                {t("review.loadingCards")}
               </Text>
             </View>
           ) : completed || cards.length === 0 ? (
@@ -445,10 +487,10 @@ export default function LearnScreen() {
                 <CheckCircle2 size={36} color={cards.length === 0 ? c.textTertiary : c.success} />
               </View>
               <Text style={{ fontSize: typography.xl, fontWeight: typography.semibold, textAlign: "center", color: c.text }}>
-                {cards.length === 0 ? "Keine fälligen Karten" : "Session abgeschlossen!"}
+                {cards.length === 0 ? t("review.noCards") : t("review.completed")}
               </Text>
               <Text style={{ color: c.textSecondary, textAlign: "center", fontSize: typography.base }}>
-                {cards.length === 0 ? "Scanne einen Text, um Flashcards zu generieren." : `${cards.length} Karten gelernt.`}
+                {cards.length === 0 ? t("review.noCardsHint") : t("review.cardsLearned", { count: cards.length })}
               </Text>
               <TouchableOpacity
                 onPress={loadDueCards}
@@ -461,7 +503,7 @@ export default function LearnScreen() {
               >
                 <RotateCcw size={18} color="#fff" />
                 <Text style={{ color: "#fff", fontWeight: typography.semibold, fontSize: typography.base }}>
-                  Neu laden
+                  {t("review.reload")}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -469,19 +511,36 @@ export default function LearnScreen() {
             <View style={{ flex: 1, gap: spacing.md }}>
               {/* Progress */}
               <View style={{ gap: spacing.xs }}>
-                <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                  <Text style={{ color: c.textSecondary, fontSize: typography.sm, fontWeight: typography.medium }}>
-                    Karte {index + 1} von {cards.length}
-                  </Text>
-                  <Text style={{ color: c.textTertiary, fontSize: typography.sm }}>
-                    {Math.round(progress * 100)}%
-                  </Text>
-                </View>
+                <Text style={{ color: c.textSecondary, fontSize: typography.sm, fontWeight: typography.medium, textAlign: "center" }}>
+                  {t("review.cardOf", { current: index + 1, total: cards.length })}
+                </Text>
                 <View style={{ height: 4, backgroundColor: c.surfaceSecondary, borderRadius: 2, overflow: "hidden" }}>
                   <View style={{
                     height: "100%", width: `${Math.max(progress * 100, 2)}%`,
                     backgroundColor: progress >= 1 ? c.success : c.primary, borderRadius: 2,
                   }} />
+                </View>
+              </View>
+
+              {/* Swipe counters */}
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: spacing.xs }}>
+                <View style={{
+                  minWidth: 32, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs,
+                  borderRadius: radius.sm, backgroundColor: `${c.ratingAgain}20`,
+                  alignItems: "center", justifyContent: "center",
+                }}>
+                  <Text style={{ fontSize: typography.sm, fontWeight: typography.bold, color: c.ratingAgain }}>
+                    {swipedLeft}
+                  </Text>
+                </View>
+                <View style={{
+                  minWidth: 32, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs,
+                  borderRadius: radius.sm, backgroundColor: `${c.ratingGood}20`,
+                  alignItems: "center", justifyContent: "center",
+                }}>
+                  <Text style={{ fontSize: typography.sm, fontWeight: typography.bold, color: c.ratingGood }}>
+                    {swipedRight}
+                  </Text>
                 </View>
               </View>
 
@@ -543,29 +602,17 @@ export default function LearnScreen() {
                         },
                       ]}
                     >
-                      {/* Action buttons (always visible) */}
-                      <View style={{
-                        position: "absolute", top: spacing.md, right: spacing.md,
-                        zIndex: 35, flexDirection: "row", gap: spacing.md,
-                      }}>
-                        <TouchableOpacity onPress={() => speakText(effectiveFront)} activeOpacity={0.6} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-                          <Volume2 size={20} color={speaking ? c.primary : c.textTertiary} />
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={toggleStar} activeOpacity={0.6} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-                          <Star size={20} color={isStarred ? c.warning : c.textTertiary} fill={isStarred ? c.warning : "none"} />
-                        </TouchableOpacity>
-                      </View>
                       {/* Text content fades out on swipe */}
                       <Animated.View style={[cardTextOpacity, { alignItems: "center" }]}>
                         <Text style={{
-                          fontSize: typography.xl, fontWeight: typography.semibold,
-                          textAlign: "center", color: c.text, lineHeight: 30,
+                          fontSize: typography.xxl, fontWeight: typography.semibold,
+                          textAlign: "center", color: c.text, lineHeight: 36,
                         }}>
                           {frontParsed.display}
                         </Text>
                         {!revealed && (
-                          <Text style={{ marginTop: spacing.xl, color: c.textTertiary, fontSize: typography.sm }}>
-                            Tippen zum Umdrehen
+                          <Text style={{ marginTop: spacing.xl, color: c.textTertiary, fontSize: typography.base }}>
+                            {t("review.tapToFlip")}
                           </Text>
                         )}
                       </Animated.View>
@@ -583,23 +630,12 @@ export default function LearnScreen() {
                         },
                       ]}
                     >
-                      <View style={{
-                        position: "absolute", top: spacing.md, right: spacing.md,
-                        zIndex: 35, flexDirection: "row", gap: spacing.md,
-                      }}>
-                        <TouchableOpacity onPress={() => speakText(displayBack)} activeOpacity={0.6} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-                          <Volume2 size={20} color={speaking ? c.primary : c.textTertiary} />
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={toggleStar} activeOpacity={0.6} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-                          <Star size={20} color={isStarred ? c.warning : c.textTertiary} fill={isStarred ? c.warning : "none"} />
-                        </TouchableOpacity>
-                      </View>
                       {/* Text content fades out on swipe */}
                       <Animated.View style={[cardTextOpacity, { alignItems: "center" }]}>
                         <Text style={{
-                          fontSize: typography.xl,
+                          fontSize: typography.xxl,
                           fontWeight: frontParsed.clozeAnswer ? typography.bold : typography.normal,
-                          textAlign: "center", color: c.text, lineHeight: 30,
+                          textAlign: "center", color: c.text, lineHeight: 36,
                         }}>
                           {displayBack}
                         </Text>
@@ -609,25 +645,56 @@ export default function LearnScreen() {
                 </GestureDetector>
               </View>
 
-              {/* Swipe hint */}
-              <View style={{ flexDirection: "row", justifyContent: "space-between", paddingHorizontal: spacing.sm }}>
-                <Text style={{ fontSize: typography.xs, color: c.ratingAgain, fontWeight: typography.medium }}>
-                  ← Nochmal
-                </Text>
-                <Text style={{ fontSize: typography.xs, color: c.textTertiary }}>
-                  wischen oder tippen
-                </Text>
-                <Text style={{ fontSize: typography.xs, color: c.ratingGood, fontWeight: typography.medium }}>
-                  Gemerkt →
-                </Text>
-              </View>
-
               {/* Rating buttons */}
               <View style={{ flexDirection: "row", gap: spacing.sm }}>
                 {ratingButton("Nochmal", "again", c.ratingAgain)}
                 {ratingButton("Schwer", "hard", c.ratingHard)}
                 {ratingButton("Gut", "good", c.ratingGood)}
                 {ratingButton("Leicht", "easy", c.ratingEasy)}
+              </View>
+
+              {/* Bottom row: back arrow, hint, speaker + star — pushed to bottom */}
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: spacing.sm, marginTop: spacing.lg, paddingBottom: spacing.sm }}>
+                <TouchableOpacity
+                  onPress={handleGoBack}
+                  disabled={!canGoBackOne}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+                  style={{
+                    opacity: canGoBackOne ? 1 : 0.3,
+                    width: 44,
+                    height: 44,
+                    borderRadius: radius.full,
+                    backgroundColor: c.surfaceSecondary,
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
+                >
+                  <ArrowLeft size={22} color={c.textSecondary} />
+                </TouchableOpacity>
+
+                <Text style={{ fontSize: typography.xs, color: c.textTertiary }}>
+                  {t("review.swipeOrTap")}
+                </Text>
+
+                <View style={{ flexDirection: "row", gap: spacing.lg, alignItems: "center" }}>
+                  <TouchableOpacity
+                    onPress={() => speakText(revealed ? displayBack : effectiveFront)}
+                    activeOpacity={0.6}
+                    hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+                    style={{ width: 44, height: 44, justifyContent: "center", alignItems: "center" }}
+                  >
+                    <Volume2 size={22} color={speaking ? c.primary : c.textTertiary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={toggleStar}
+                    activeOpacity={0.6}
+                    hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+                    style={{ width: 44, height: 44, justifyContent: "center", alignItems: "center" }}
+                  >
+                    <Star size={22} color={isStarred ? c.warning : c.textTertiary} fill={isStarred ? c.warning : "none"} />
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           )}

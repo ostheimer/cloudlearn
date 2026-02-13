@@ -3,6 +3,7 @@ import { revenueCatWebhookSchema } from "@/lib/contracts";
 import { getEnv } from "@/lib/env";
 import { jsonError, jsonOk, normalizeError } from "@/lib/http";
 import { createRequestContext } from "@/lib/observability";
+import { mapRevenueCatEventToSubscription } from "@/services/revenueCatService";
 import { updateSubscriptionStatus } from "@/services/subscriptionService";
 
 // Webhook route — authenticates via x-revenuecat-signature, not JWT
@@ -35,16 +36,13 @@ export async function POST(request: NextRequest) {
 
     const parsed = revenueCatWebhookSchema.parse(await request.json());
     const userId = parsed.event.app_user_id;
-    const tier = parsed.event.entitlement_ids?.includes("pro") ? "pro" : "free";
-    const expiresAt = parsed.event.expiration_at_ms
-      ? new Date(parsed.event.expiration_at_ms).toISOString()
-      : null;
+    const mappedStatus = mapRevenueCatEventToSubscription(parsed.event);
 
     const status = await updateSubscriptionStatus({
       userId,
-      tier,
-      isActive: parsed.event.type !== "CANCELLATION",
-      expiresAt,
+      tier: mappedStatus.tier,
+      isActive: mappedStatus.isActive,
+      expiresAt: mappedStatus.expiresAt,
     });
 
     return jsonOk(requestId, { requestId, status }, 201);

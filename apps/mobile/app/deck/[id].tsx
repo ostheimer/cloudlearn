@@ -12,6 +12,7 @@ import {
   Modal,
   KeyboardAvoidingView,
   Platform,
+  Share,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -24,16 +25,29 @@ import {
   Brain,
   Puzzle,
   ImagePlus,
+  MoreVertical,
+  Download,
 } from "lucide-react-native";
 import {
   listCardsInDeck,
   createCard,
   updateCard,
   deleteCard,
+  deleteDeck,
+  duplicateDeck,
+  shareDeck,
+  exportDeckForOffline,
   type Card,
 } from "../../src/lib/api";
 import { useSessionStore } from "../../src/store/sessionStore";
-import { colors, spacing, radius, typography, shadows } from "../../src/theme";
+import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
+import { useTranslation } from "react-i18next";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import DeckActionSheet from "../../src/components/DeckActionSheet";
+import CoursePickerModal from "../../src/components/CoursePickerModal";
+import FolderPickerModal from "../../src/components/FolderPickerModal";
+import DeckEditModal from "../../src/components/DeckEditModal";
+import DeckDetailsModal from "../../src/components/DeckDetailsModal";
 
 // Card editor modal component
 function CardEditor({
@@ -57,6 +71,7 @@ function CardEditor({
   }) => void;
   onCancel: () => void;
 }) {
+  const colors = useColors();
   const [front, setFront] = useState("");
   const [back, setBack] = useState("");
   const [type, setType] = useState("basic");
@@ -353,6 +368,8 @@ export default function DeckDetailScreen() {
   const { id, title } = useLocalSearchParams<{ id: string; title: string }>();
   const router = useRouter();
   const userId = useSessionStore((state) => state.userId);
+  const colors = useColors();
+  const { t } = useTranslation();
 
   const [cards, setCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
@@ -363,8 +380,18 @@ export default function DeckDetailScreen() {
   const [editingCard, setEditingCard] = useState<Card | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // Three-dot menu and modal states
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [coursePickerVisible, setCoursePickerVisible] = useState(false);
+  const [folderPickerVisible, setFolderPickerVisible] = useState(false);
+  const [editDeckVisible, setEditDeckVisible] = useState(false);
+  const [detailsVisible, setDetailsVisible] = useState(false);
+  const [currentDeckTitle, setCurrentDeckTitle] = useState(title ?? "Deck");
+  const [currentDeckTags, setCurrentDeckTags] = useState<string[]>([]);
+  const [isOffline, setIsOffline] = useState(false);
+
   const deckId = id ?? "";
-  const deckTitle = title ?? "Deck";
+  const deckTitle = currentDeckTitle;
 
   const loadCards = useCallback(async () => {
     if (!deckId) return;
@@ -381,14 +408,104 @@ export default function DeckDetailScreen() {
 
   useEffect(() => {
     loadCards();
-  }, [loadCards]);
+    // Check offline status
+    AsyncStorage.getItem(`offline_deck_${deckId}`).then((data) => {
+      setIsOffline(!!data);
+    });
+  }, [loadCards, deckId]);
 
   const onRefresh = () => {
     setRefreshing(true);
     loadCards();
   };
 
-  // --- Actions ---
+  // --- Deck menu actions ---
+
+  const handleDownloadOffline = async () => {
+    if (isOffline) {
+      Alert.alert(t("common.success"), t("deckAction.alreadyOffline"));
+      return;
+    }
+    try {
+      const data = await exportDeckForOffline(deckId);
+      await AsyncStorage.setItem(`offline_deck_${deckId}`, JSON.stringify(data));
+      setIsOffline(true);
+      Alert.alert(t("common.success"), t("deckAction.downloadSuccess"));
+    } catch {
+      Alert.alert(t("common.error"), t("deckAction.downloadError"));
+    }
+  };
+
+  const handleEditDeck = () => {
+    setEditDeckVisible(true);
+  };
+
+  const handleDeckSaved = (newTitle: string, newTags: string[]) => {
+    setCurrentDeckTitle(newTitle);
+    setCurrentDeckTags(newTags);
+  };
+
+  const handleAddToCourse = () => {
+    setCoursePickerVisible(true);
+  };
+
+  const handleAddToFolder = () => {
+    setFolderPickerVisible(true);
+  };
+
+  const handleDuplicate = async () => {
+    try {
+      const { deck } = await duplicateDeck(deckId);
+      Alert.alert(t("common.success"), t("deckAction.duplicateSuccess"));
+      // Navigate to the new duplicated deck
+      router.push({
+        pathname: "/deck/[id]",
+        params: { id: deck.id, title: deck.title },
+      });
+    } catch {
+      Alert.alert(t("common.error"), t("deckAction.duplicateError"));
+    }
+  };
+
+  const handleShare = async () => {
+    try {
+      const { shareUrl } = await shareDeck(deckId);
+      await Share.share({
+        message: `${deckTitle} - ${shareUrl}`,
+        url: shareUrl,
+      });
+    } catch {
+      Alert.alert(t("common.error"), t("deckAction.shareError"));
+    }
+  };
+
+  const handleDetails = () => {
+    setDetailsVisible(true);
+  };
+
+  const handleDeleteDeck = () => {
+    Alert.alert(
+      t("deckAction.deleteTitle"),
+      t("deckAction.deleteMessage", { title: deckTitle }),
+      [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: t("common.delete"),
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteDeck(deckId);
+              router.back();
+            } catch {
+              Alert.alert(t("common.error"), t("deckAction.deleteError"));
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // --- Card actions ---
 
   const handleAddCard = () => {
     setEditingCard(null);
@@ -498,6 +615,19 @@ export default function DeckDetailScreen() {
           headerBackTitle: "Decks",
           headerTintColor: colors.primary,
           headerStyle: { backgroundColor: colors.background },
+          headerRight: () => (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+              {isOffline && (
+                <Download size={16} color={colors.success} />
+              )}
+              <TouchableOpacity
+                onPress={() => setMenuVisible(true)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <MoreVertical size={22} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+          ),
         }}
       />
       <SafeAreaView
@@ -844,6 +974,58 @@ export default function DeckDetailScreen() {
             setEditorVisible(false);
             setEditingCard(null);
           }}
+        />
+
+        {/* Deck action sheet (three-dot menu) */}
+        <DeckActionSheet
+          visible={menuVisible}
+          deckTitle={deckTitle}
+          onClose={() => setMenuVisible(false)}
+          onDownload={handleDownloadOffline}
+          onEdit={handleEditDeck}
+          onAddToCourse={handleAddToCourse}
+          onAddToFolder={handleAddToFolder}
+          onDuplicate={handleDuplicate}
+          onShare={handleShare}
+          onDetails={handleDetails}
+          onDelete={handleDeleteDeck}
+        />
+
+        {/* Course picker modal */}
+        <CoursePickerModal
+          visible={coursePickerVisible}
+          deckId={deckId}
+          onClose={() => setCoursePickerVisible(false)}
+          onAdded={(course) => {
+            Alert.alert(t("common.success"), t("course.addSuccess", { title: course.title }));
+          }}
+        />
+
+        {/* Folder picker modal */}
+        <FolderPickerModal
+          visible={folderPickerVisible}
+          deckId={deckId}
+          onClose={() => setFolderPickerVisible(false)}
+          onAdded={(folder) => {
+            Alert.alert(t("common.success"), t("folder.addSuccess", { title: folder.title }));
+          }}
+        />
+
+        {/* Deck edit modal */}
+        <DeckEditModal
+          visible={editDeckVisible}
+          deckId={deckId}
+          currentTitle={currentDeckTitle}
+          currentTags={currentDeckTags}
+          onClose={() => setEditDeckVisible(false)}
+          onSaved={handleDeckSaved}
+        />
+
+        {/* Deck details modal */}
+        <DeckDetailsModal
+          visible={detailsVisible}
+          deckId={deckId}
+          onClose={() => setDetailsVisible(false)}
         />
       </SafeAreaView>
     </>

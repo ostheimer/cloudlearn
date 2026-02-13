@@ -22,7 +22,7 @@ import {
   HelpCircle,
 } from "lucide-react-native";
 import { listCardsInDeck, type Card } from "../src/lib/api";
-import { colors, spacing, radius, typography, shadows } from "../src/theme";
+import { useColors, spacing, radius, typography, shadows } from "../src/theme";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -45,6 +45,7 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 export default function MatchScreen() {
+  const colors = useColors();
   const { deckId, deckTitle } = useLocalSearchParams<{
     deckId: string;
     deckTitle: string;

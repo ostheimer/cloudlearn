@@ -646,7 +646,7 @@ Zusätzlich zu E-Mail/Passwort: Sign-In with Apple und Google OAuth über Supaba
 ### CL-D06 - Paywall + RevenueCat
 
 - **Priorität:** P1
-- **Status:** Offen (Scaffold existiert)
+- **Status:** In Arbeit (Mobile-Kernflow + Webhook-Sync umgesetzt)
 - **Schätzung:** 3-4 PT
 
 **Beschreibung**
