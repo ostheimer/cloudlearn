@@ -1,6 +1,6 @@
 # ROADMAP
 
-Letzte Aktualisierung: 2026-02-13 (Supabase-Migration courses/folders eingespielt, cloudlearn Root-Vercel-Projekt endgueltig entfernt)
+Letzte Aktualisierung: 2026-02-13 (Vitest Workspace-Konfiguration fuer Monorepo-Root, Supabase-Migration, Vercel-Bereinigung)
 
 ## Gesamtstatus
 
@@ -138,6 +138,7 @@ Letzte Aktualisierung: 2026-02-13 (Supabase-Migration courses/folders eingespiel
 - [x] Supabase-Migration mit RLS in `apps/api/supabase/migrations`
 - [x] Mobile App-Struktur mit Auth/Tabs, Capture-, OCR-, Review-, Paywall-, Onboarding-, Stats- und i18n-Scaffold
 - [x] Testabdeckung für Contracts, Domain, API-Services und Mobile-Feature-Logik
+- [x] Vitest Workspace-Konfiguration: `npx vitest run` vom Root läuft über alle 6 Workspaces (67+ Tests, Playwright ausgeschlossen)
 - [x] Web App-Scaffold (`apps/web`) für Landing + Learn Client
 - [x] Vercel-Projekte `clearn-web` und `clearn-api` erstellt; Preview-Deploys erfolgreich (`Ready`)
 - [x] `apps/web` und `apps/api` für isolierte Vercel-Builds entkoppelt (lokale Verträge/Domain + standalone `tsconfig`)
@@ -338,3 +339,4 @@ Voraussetzung: Phase 2 + stabile Nutzerbasis.
 - 2026-02-13: **Supabase-Migration eingespielt**: `courses`, `folders`, `course_decks`, `folder_decks` Tabellen + `share_token`/`source_deck_id` auf `decks` in Production-DB angelegt (via `supabase db push`).
 - 2026-02-13: **Vercel-Bereinigung (erneut)**: Versehentlich neu erstelltes `cloudlearn` Root-Vercel-Projekt endgültig gelöscht (verursachte Error-Deploys bei jedem Push). Lokale `.vercel`-Config im Repo-Root entfernt. `clearn-api` + `clearn-web` bleiben die einzigen aktiven Projekte.
 - 2026-02-13: **Alle Tests bestanden**: 28/28 E2E-Playwright-Tests, 29 API-Unit-Tests, 24 Mobile-Unit-Tests — keine Regressionen.
+- 2026-02-13: **Vitest Workspace-Konfiguration**: Root `vitest.config.ts` mit `test.projects` für alle 6 Workspaces. `npx vitest run` vom Root liefert jetzt 67 passed / 14 skipped über alle Packages. Playwright-Specs korrekt ausgeschlossen. `migrations.test.ts` Pfad-Fix (`import.meta.url` statt `process.cwd()`). `apps/web/vitest.config.ts` hinzugefügt.
