@@ -1,9 +1,11 @@
 import { Tabs } from "expo-router";
 import { Home, ScanLine, Brain, Library, User } from "lucide-react-native";
 import { useColors } from "../../src/theme";
+import { useSessionStore } from "../../src/store/sessionStore";
 
 export default function TabsLayout() {
   const c = useColors();
+  const dueCount = useSessionStore((s) => s.dueCount);
 
   return (
     <Tabs
@@ -42,6 +44,7 @@ export default function TabsLayout() {
         options={{
           title: "Lernen",
           tabBarIcon: ({ color, size }) => <Brain size={size} color={color} />,
+          tabBarBadge: dueCount > 0 ? dueCount : undefined,
           tabBarStyle: {
             display: "none",
           },

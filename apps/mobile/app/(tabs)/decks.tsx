@@ -447,9 +447,16 @@ export default function LibraryScreen() {
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
         <View style={{ flexDirection: "row", alignItems: "center", flex: 1, gap: spacing.sm }}>
           <Layers size={18} color={colors.primary} />
-          <Text style={{ fontWeight: typography.semibold, fontSize: typography.base, flex: 1, color: colors.text }}>
-            {deck.title}
-          </Text>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontWeight: typography.semibold, fontSize: typography.base, color: colors.text }}>
+              {deck.title}
+            </Text>
+            {deck.cardCount !== undefined && (
+              <Text style={{ fontSize: typography.xs, color: colors.textTertiary, marginTop: 1 }}>
+                {deck.cardCount} {deck.cardCount === 1 ? t("library.card") : t("library.cards")}
+              </Text>
+            )}
+          </View>
         </View>
         <ChevronRight size={18} color={colors.textTertiary} />
       </View>

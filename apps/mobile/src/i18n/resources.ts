@@ -138,6 +138,8 @@ export const resources = {
       "library.deleteFolderTitle": "Ordner löschen?",
       "library.deleteFolderMessage": "\"{{title}}\" und alle Unterordner werden gelöscht. Decks bleiben erhalten.",
       "library.deleteFolderError": "Ordner konnte nicht gelöscht werden.",
+      "library.card": "Karte",
+      "library.cards": "Karten",
 
       // Course detail
       "courseDetail.rename": "Kurs umbenennen",
@@ -152,6 +154,10 @@ export const resources = {
       "courseDetail.removeDeckMessage": "\"{{title}}\" wird aus dem Kurs entfernt (nicht gelöscht).",
       "courseDetail.remove": "Entfernen",
       "courseDetail.removeDeckError": "Deck konnte nicht entfernt werden.",
+      "courseDetail.learnAll": "Alle lernen",
+      "learn.noDueCards": "Keine fälligen Karten",
+      "learn.noDueCardsMessage": "In diesem Kurs/Ordner gibt es momentan keine fälligen Karten.",
+      "learn.loadError": "Karten konnten nicht geladen werden.",
 
       // Folder detail
       "folderDetail.rename": "Ordner umbenennen",
@@ -335,6 +341,8 @@ export const resources = {
       "library.deleteFolderTitle": "Delete folder?",
       "library.deleteFolderMessage": "\"{{title}}\" and all subfolders will be deleted. Decks will remain.",
       "library.deleteFolderError": "Could not delete folder.",
+      "library.card": "card",
+      "library.cards": "cards",
 
       // Course detail
       "courseDetail.rename": "Rename course",
@@ -349,6 +357,10 @@ export const resources = {
       "courseDetail.removeDeckMessage": "\"{{title}}\" will be removed from this course (not deleted).",
       "courseDetail.remove": "Remove",
       "courseDetail.removeDeckError": "Could not remove deck.",
+      "courseDetail.learnAll": "Learn all",
+      "learn.noDueCards": "No due cards",
+      "learn.noDueCardsMessage": "There are currently no due cards in this course/folder.",
+      "learn.loadError": "Could not load cards.",
 
       // Folder detail
       "folderDetail.rename": "Rename folder",

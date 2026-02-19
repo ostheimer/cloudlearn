@@ -14,6 +14,7 @@ export interface DeckRecord {
   userId: string;
   title: string;
   tags: string[];
+  cardCount?: number;
   deletedAt?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -63,11 +64,13 @@ function getDb() {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapDeckRow(row: any): DeckRecord {
+  const cardCount = Array.isArray(row.cards) ? (row.cards[0]?.count ?? undefined) : undefined;
   return {
     id: row.id,
     userId: row.user_id,
     title: row.title,
     tags: row.tags ?? [],
+    ...(cardCount !== undefined ? { cardCount: Number(cardCount) } : {}),
     deletedAt: row.deleted_at ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -147,7 +150,7 @@ export async function listDecks(userId: string): Promise<DeckRecord[]> {
   const db = getDb();
   const { data, error } = await db
     .from("decks")
-    .select()
+    .select("*, cards(count)")
     .eq("user_id", userId)
     .is("deleted_at", null)
     .order("created_at", { ascending: false });

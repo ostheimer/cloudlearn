@@ -16,6 +16,7 @@ import {
   ChevronRight,
   MoreVertical,
   Folder as FolderIcon,
+  Play,
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import {
@@ -25,12 +26,15 @@ import {
   updateFolderApi,
   deleteFolderApi,
   removeDeckFromFolder,
+  getDueCards,
   type Deck,
   type Folder,
 } from "../../src/lib/api";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
 import { createDetailStackOptions } from "../../src/navigation/detailStackOptions";
 import { buildLibraryFolderRoute } from "../../src/navigation/libraryRoutes";
+import { useReviewSession } from "../../src/features/review/reviewSession";
+import { useSessionStore } from "../../src/store/sessionStore";
 
 export default function FolderDetailScreen() {
   const { id, title } = useLocalSearchParams<{ id: string; title: string }>();
@@ -39,11 +43,15 @@ export default function FolderDetailScreen() {
   const colors = useColors();
   const { t } = useTranslation();
 
+  const userId = useSessionStore((s) => s.userId);
+  const start = useReviewSession((s) => s.start);
+
   const [currentTitle, setCurrentTitle] = useState(title ?? "");
   const [decks, setDecks] = useState<Deck[]>([]);
   const [subfolders, setSubfolders] = useState<Folder[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [startingLearn, setStartingLearn] = useState(false);
 
   const folderId = id ?? "";
 
@@ -147,6 +155,26 @@ export default function FolderDetailScreen() {
     );
   };
 
+  const handleLearnAll = useCallback(async () => {
+    if (!userId || decks.length === 0) return;
+    setStartingLearn(true);
+    try {
+      const { cards } = await getDueCards(userId);
+      const deckIds = new Set(decks.map((d) => d.id));
+      const filtered = cards.filter((c) => deckIds.has(c.deckId));
+      if (filtered.length === 0) {
+        Alert.alert(t("learn.noDueCards"), t("learn.noDueCardsMessage"));
+        return;
+      }
+      start(filtered.map((c) => ({ id: c.id, front: c.front, back: c.back, starred: c.starred })));
+      router.push("/(tabs)/learn");
+    } catch {
+      Alert.alert(t("common.error"), t("learn.loadError"));
+    } finally {
+      setStartingLearn(false);
+    }
+  }, [userId, decks, t, start, router]);
+
   const handleMoreMenu = useCallback(() => {
     Alert.alert(currentTitle, "", [
       { text: t("folderDetail.rename"), onPress: handleRenameFolder },
@@ -214,6 +242,36 @@ export default function FolderDetailScreen() {
               </View>
             </View>
           </View>
+
+          {/* Learn all button */}
+          {decks.length > 0 && (
+            <TouchableOpacity
+              onPress={handleLearnAll}
+              disabled={startingLearn}
+              activeOpacity={0.8}
+              style={{
+                backgroundColor: colors.primary,
+                borderRadius: radius.md,
+                paddingVertical: spacing.md,
+                paddingHorizontal: spacing.lg,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: spacing.sm,
+                marginBottom: spacing.lg,
+                opacity: startingLearn ? 0.7 : 1,
+              }}
+            >
+              {startingLearn ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Play size={16} color="#fff" fill="#fff" />
+              )}
+              <Text style={{ color: "#fff", fontWeight: typography.semibold, fontSize: typography.base }}>
+                {t("courseDetail.learnAll")}
+              </Text>
+            </TouchableOpacity>
+          )}
 
           {/* Content */}
           {loading ? (

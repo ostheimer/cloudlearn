@@ -11,7 +11,6 @@ import {
   Target,
   TrendingUp,
   Award,
-  Clock,
 } from "lucide-react-native";
 import { useSessionStore } from "../../src/store/sessionStore";
 import { getStats, listDecks, type StatsResponse, type Deck } from "../../src/lib/api";
@@ -21,6 +20,7 @@ export default function HomeScreen() {
   const colors = useColors();
   const router = useRouter();
   const userId = useSessionStore((state) => state.userId);
+  const setDueCount = useSessionStore((state) => state.setDueCount);
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [recentDeck, setRecentDeck] = useState<Deck | null>(null);
   const [loading, setLoading] = useState(true);
@@ -33,7 +33,10 @@ export default function HomeScreen() {
     }
 
     Promise.all([
-      getStats().then((res) => setStats(res.stats)),
+      getStats().then((res) => {
+        setStats(res.stats);
+        setDueCount(res.stats.dueCards ?? 0);
+      }),
       listDecks(userId).then((res) => {
         if (res.decks.length > 0) {
           const sorted = [...res.decks].sort(
@@ -380,7 +383,7 @@ export default function HomeScreen() {
             {/* Recently used deck */}
             {recentDeck && (
               <TouchableOpacity
-                onPress={() => router.push(`/deck/${recentDeck.id}`)}
+                onPress={() => router.push("/(tabs)/learn")}
                 activeOpacity={0.8}
                 style={{
                   backgroundColor: colors.surface,
@@ -404,7 +407,7 @@ export default function HomeScreen() {
                     alignItems: "center",
                   }}
                 >
-                  <Clock size={18} color={colors.primary} />
+                  <BookOpen size={18} color={colors.primary} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text

@@ -1,6 +1,6 @@
 # ROADMAP
 
-Letzte Aktualisierung: 2026-02-19 (Soll-Konzept, UI-Fixes: Learn useFocusEffect, Kurs/Ordner Titel-API, 16 Screenshots)
+Letzte Aktualisierung: 2026-02-14 (Tab-Badge für fällige Karten, Deck-Kartenanzahl, "Alle lernen"-Button, "Zuletzt gelernt"-Navigation → Lernsession)
 
 ## Gesamtstatus
 
@@ -359,3 +359,7 @@ Voraussetzung: Phase 2 + stabile Nutzerbasis.
 - 2026-02-16: **Learn-Screen-Bug behoben**: `useEffect(fn, [])` durch `useFocusEffect(useCallback(fn, deps))` ersetzt. Der Learn-Tab lädt jetzt fällige Karten bei jedem Tab-Fokus neu statt nur beim ersten Mount. Screenshot `04-learn-active.png` mit aktiven Karten aufgenommen (Karte 1 von 3: "Hund").
 - 2026-02-19: **Soll-Konzept**: SCREENS.md um Abschnitt "Soll-Konzept (Ziel-UI)" erweitert. 3 Prioritäts-Ebenen mit konkreten UI-Verbesserungen je Screen (Home, Lernen, Bibliothek, Kurs/Ordner-Detail, Scan, Auth, Profil, Deck-Detail). Nicht-Ziele dokumentiert. Nächste empfohlene Umsetzungsschritte: Tab-Badge, Deck-Kartenanzahl, "Alle lernen"-Button.
 - 2026-02-16: **Kurs/Ordner-Detail: Titel-Fix + Stale-Closure-Fix**: Neue GET-Endpunkte `GET /api/v1/courses/[id]` und `GET /api/v1/folders/[id]` im API hinzugefügt. Mobile: `getCourse()` + `getFolder()` API-Client-Funktionen. Screen lädt Titel aus API wenn kein URL-Parameter vorhanden. Handler (`handleRenameCourse`, `handleDeleteCourse`, `handleMoreMenu`) mit `useCallback` stabilisiert, `handleMoreMenu` in `useLayoutEffect`-Dependencies aufgenommen.
+- 2026-02-14: **Tab-Badge für fällige Karten**: `sessionStore` um `dueCount`/`setDueCount` erweitert. `index.tsx` schreibt `dueCount` nach `getStats()`. `_layout.tsx` zeigt `tabBarBadge` auf dem "Lernen"-Tab wenn `dueCount > 0`.
+- 2026-02-14: **Deck-Kartenanzahl in Bibliothek**: `db.ts listDecks` Query um `cards(count)` Sub-Select erweitert. `DeckRecord` + mobiles `Deck`-Interface um `cardCount?: number` ergänzt. `decks.tsx` zeigt "X Karten" unter dem Deck-Titel an. 4 neue i18n-Keys (de+en).
+- 2026-02-14: **"Alle lernen"-Button in Kurs/Ordner-Detail**: Button erscheint wenn `decks.length > 0`. Lädt alle fälligen Karten via `getDueCards()`, filtert clientseitig nach Deck-IDs, startet Review-Session via `useReviewSession.start()` und navigiert zu `/(tabs)/learn`.
+- 2026-02-14: **"Zuletzt gelernt"-Navigation korrigiert**: Kachel auf Home-Screen navigiert jetzt direkt zur Lernsession (`/(tabs)/learn`) statt zum Deck-Bearbeitungsmodus. Icon von `Clock` auf `BookOpen` geändert.

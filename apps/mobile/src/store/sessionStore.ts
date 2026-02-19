@@ -8,6 +8,8 @@ interface SessionState {
   userId: string | null;
   email: string | null;
   session: Session | null;
+  dueCount: number;
+  setDueCount: (count: number) => void;
   // Initialize auth state from Supabase
   initialize: () => Promise<void>;
   // Set session from auth state change
@@ -28,6 +30,8 @@ export const useSessionStore = create<SessionState>((set) => ({
   userId: null,
   email: null,
   session: null,
+  dueCount: 0,
+  setDueCount: (count: number) => set({ dueCount: count }),
 
   initialize: async () => {
     try {

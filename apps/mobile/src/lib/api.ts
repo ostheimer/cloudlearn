@@ -93,6 +93,7 @@ export interface Deck {
   userId: string;
   title: string;
   tags: string[];
+  cardCount?: number;
   createdAt: string;
   updatedAt: string;
 }
