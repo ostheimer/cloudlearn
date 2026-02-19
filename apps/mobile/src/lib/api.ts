@@ -303,6 +303,10 @@ export async function listCourses(): Promise<{ courses: Course[] }> {
   return request<{ courses: Course[] }>("/api/v1/courses");
 }
 
+export async function getCourse(courseId: string): Promise<{ course: Course }> {
+  return request<{ course: Course }>(`/api/v1/courses/${courseId}`);
+}
+
 export async function createCourse(
   title: string,
   description?: string,
@@ -370,6 +374,10 @@ export interface Folder {
 
 export async function listFolders(): Promise<{ folders: Folder[] }> {
   return request<{ folders: Folder[] }>("/api/v1/folders");
+}
+
+export async function getFolder(folderId: string): Promise<{ folder: Folder }> {
+  return request<{ folder: Folder }>(`/api/v1/folders/${folderId}`);
 }
 
 export async function createFolder(

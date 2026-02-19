@@ -838,6 +838,7 @@ Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testfa
 - **Profil**: E-Mail-Anzeige, Abo-Status, Sprache, Abmelden
 - **Paywall + RevenueCat**: Angebotsliste, Kauf, Restore, 402-Weiterleitung aus Scan-Flow, Webhook-Sync auf Backend-Tier
 - **Lernmodus UX**: Fullscreen-Kartenmodus ohne Tab-Bar, zentriertes Layout (Header + Kartenfortschritt), Swipe-Counter (rot/grün), Icons außerhalb der Karte (verhindert versehentliches Flippen), größere Schrift, weicher Snap-Back, sichtbarer Fly-out, Zurück-Pfeil als Icon
+- **Bibliothek-Navigation**: Kurs-/Ordner-Details öffnen innerhalb des Tab-Kontexts (Tab-Bar bleibt sichtbar), während Lernscreens weiterhin ohne Tab-Bar laufen
 - **Theme**: Konsistentes Light/Dark im gesamten UI inkl. Tab-Bar, optionaler Systemmodus (folgt Geräteeinstellung)
 - **Daten-Persistenz**: Alles in Supabase PostgreSQL mit JWT-Auth-Middleware
 - **Auto-Deploy**: Git-Push → Vercel baut `clearn-api` + `clearn-web` automatisch
@@ -1013,7 +1014,8 @@ clearn/
 ├── docs/
 │   ├── adr/                   # Architekturentscheidungen
 │   ├── aso/                   # App Store Optimization Checklisten
-│   └── runbooks/              # DoD, Incident, Security, Delivery
+│   ├── runbooks/              # DoD, Incident, Security, Delivery
+│   └── screens/               # Screen-Map & Wireframes (SCREENS.md, wireframes/)
 ├── scripts/                   # Orchestrator, Build, Restore, Perf
 ├── .github/workflows/ci.yml   # CI: lint + typecheck + test
 ├── BACKLOG.md

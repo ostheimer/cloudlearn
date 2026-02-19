@@ -41,6 +41,7 @@ import {
 } from "../../src/lib/api";
 import { searchDecks } from "../../src/lib/searchDecks";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
+import { buildLibraryCourseRoute, buildLibraryFolderRoute } from "../../src/navigation/libraryRoutes";
 
 type TabKey = "decks" | "courses" | "folders";
 
@@ -389,11 +390,11 @@ export default function LibraryScreen() {
   };
 
   const handleCourseTap = (course: Course) => {
-    router.push(`/course/${course.id}?title=${encodeURIComponent(course.title)}`);
+    router.push(buildLibraryCourseRoute(course.id, course.title));
   };
 
   const handleFolderTap = (folder: Folder) => {
-    router.push(`/folder/${folder.id}?title=${encodeURIComponent(folder.title)}`);
+    router.push(buildLibraryFolderRoute(folder.id, folder.title));
   };
 
   // --- Tab config ---

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -183,11 +183,13 @@ export default function LearnScreen() {
     }
   }, [userId, start]);
 
-  useEffect(() => {
-    if (cards.length === 0 && !completed) {
-      loadDueCards();
-    }
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      if (cards.length === 0 && !completed) {
+        loadDueCards();
+      }
+    }, [cards.length, completed, loadDueCards])
+  );
 
   // ─── Rating handlers ──────────────────────────────────────────────────────
   const handleRate = async (rating: ReviewRating) => {

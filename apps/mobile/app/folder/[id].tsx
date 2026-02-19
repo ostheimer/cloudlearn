@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { useLocalSearchParams, useRouter, Stack } from "expo-router";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import {
   ActivityIndicator,
   Alert,
@@ -19,6 +19,7 @@ import {
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import {
+  getFolder,
   listDecksInFolder,
   listFolders,
   updateFolderApi,
@@ -28,9 +29,12 @@ import {
   type Folder,
 } from "../../src/lib/api";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
+import { createDetailStackOptions } from "../../src/navigation/detailStackOptions";
+import { buildLibraryFolderRoute } from "../../src/navigation/libraryRoutes";
 
 export default function FolderDetailScreen() {
   const { id, title } = useLocalSearchParams<{ id: string; title: string }>();
+  const navigation = useNavigation();
   const router = useRouter();
   const colors = useColors();
   const { t } = useTranslation();
@@ -46,20 +50,24 @@ export default function FolderDetailScreen() {
   const loadContent = useCallback(async () => {
     if (!folderId) return;
     try {
-      const [decksRes, foldersRes] = await Promise.all([
+      const [decksRes, foldersRes, folderData] = await Promise.all([
         listDecksInFolder(folderId),
         listFolders(),
+        currentTitle ? Promise.resolve(null) : getFolder(folderId).catch(() => null),
       ]);
       setDecks(decksRes.decks);
       // Filter subfolders (children of this folder)
       setSubfolders(foldersRes.folders.filter((f) => f.parentId === folderId));
+      if (folderData?.folder?.title) {
+        setCurrentTitle(folderData.folder.title);
+      }
     } catch {
       // Silently fail
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [folderId]);
+  }, [folderId, currentTitle]);
 
   useEffect(() => {
     loadContent();
@@ -70,7 +78,7 @@ export default function FolderDetailScreen() {
     loadContent();
   };
 
-  const handleRenameFolder = () => {
+  const handleRenameFolder = useCallback(() => {
     Alert.prompt(
       t("folderDetail.rename"),
       t("folderDetail.renamePrompt"),
@@ -93,9 +101,9 @@ export default function FolderDetailScreen() {
       currentTitle,
       "default"
     );
-  };
+  }, [folderId, currentTitle, t]);
 
-  const handleDeleteFolder = () => {
+  const handleDeleteFolder = useCallback(() => {
     Alert.alert(
       t("folderDetail.deleteTitle"),
       t("folderDetail.deleteMessage", { title: currentTitle }),
@@ -115,7 +123,7 @@ export default function FolderDetailScreen() {
         },
       ]
     );
-  };
+  }, [folderId, currentTitle, t, router]);
 
   const handleRemoveDeck = (deck: Deck) => {
     Alert.alert(
@@ -139,33 +147,38 @@ export default function FolderDetailScreen() {
     );
   };
 
-  const handleMoreMenu = () => {
+  const handleMoreMenu = useCallback(() => {
     Alert.alert(currentTitle, "", [
       { text: t("folderDetail.rename"), onPress: handleRenameFolder },
       { text: t("common.delete"), style: "destructive", onPress: handleDeleteFolder },
       { text: t("common.cancel"), style: "cancel" },
     ]);
-  };
+  }, [currentTitle, t, handleRenameFolder, handleDeleteFolder]);
 
   const totalItems = subfolders.length + decks.length;
 
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      ...createDetailStackOptions({
+        title: currentTitle,
+        backTitle: t("library.title"),
+        colors,
+      }),
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={handleMoreMenu}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          style={{ width: 34, height: 34, alignItems: "center", justifyContent: "center" }}
+        >
+          <MoreVertical size={20} color={colors.text} />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, currentTitle, t, colors, handleMoreMenu]);
+
   return (
-    <>
-      <Stack.Screen
-        options={{
-          title: currentTitle,
-          headerBackTitle: t("library.title"),
-          headerTintColor: colors.primary,
-          headerStyle: { backgroundColor: colors.background },
-          headerRight: () => (
-            <TouchableOpacity onPress={handleMoreMenu} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <MoreVertical size={22} color={colors.text} />
-            </TouchableOpacity>
-          ),
-        }}
-      />
-      <SafeAreaView edges={["bottom"]} style={{ flex: 1, backgroundColor: colors.background }}>
-        <View style={{ flex: 1, padding: spacing.lg }}>
+    <SafeAreaView edges={["bottom"]} style={{ flex: 1, backgroundColor: colors.background }}>
+      <View style={{ flex: 1, padding: spacing.lg }}>
           {/* Folder header card */}
           <View
             style={{
@@ -230,9 +243,7 @@ export default function FolderDetailScreen() {
                   {subfolders.map((sub) => (
                     <TouchableOpacity
                       key={sub.id}
-                      onPress={() =>
-                        router.push(`/folder/${sub.id}?title=${encodeURIComponent(sub.title)}`)
-                      }
+                      onPress={() => router.push(buildLibraryFolderRoute(sub.id, sub.title))}
                       activeOpacity={0.7}
                       style={{
                         backgroundColor: colors.surface,
@@ -357,8 +368,7 @@ export default function FolderDetailScreen() {
               )}
             </ScrollView>
           )}
-        </View>
-      </SafeAreaView>
-    </>
+      </View>
+    </SafeAreaView>
   );
 }

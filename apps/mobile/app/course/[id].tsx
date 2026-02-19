@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { useLocalSearchParams, useRouter, Stack } from "expo-router";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import {
   ActivityIndicator,
   Alert,
@@ -21,6 +21,7 @@ import {
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import {
+  getCourse,
   listDecksInCourse,
   updateCourseApi,
   deleteCourseApi,
@@ -28,9 +29,11 @@ import {
   type Deck,
 } from "../../src/lib/api";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
+import { createDetailStackOptions } from "../../src/navigation/detailStackOptions";
 
 export default function CourseDetailScreen() {
   const { id, title } = useLocalSearchParams<{ id: string; title: string }>();
+  const navigation = useNavigation();
   const router = useRouter();
   const colors = useColors();
   const { t } = useTranslation();
@@ -45,15 +48,21 @@ export default function CourseDetailScreen() {
   const loadDecks = useCallback(async () => {
     if (!courseId) return;
     try {
-      const { decks: fetched } = await listDecksInCourse(courseId);
+      const [{ decks: fetched }, courseData] = await Promise.all([
+        listDecksInCourse(courseId),
+        currentTitle ? Promise.resolve(null) : getCourse(courseId).catch(() => null),
+      ]);
       setDecks(fetched);
+      if (courseData?.course?.title) {
+        setCurrentTitle(courseData.course.title);
+      }
     } catch {
       // Silently fail
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [courseId]);
+  }, [courseId, currentTitle]);
 
   useEffect(() => {
     loadDecks();
@@ -64,7 +73,7 @@ export default function CourseDetailScreen() {
     loadDecks();
   };
 
-  const handleRenameCourse = () => {
+  const handleRenameCourse = useCallback(() => {
     Alert.prompt(
       t("courseDetail.rename"),
       t("courseDetail.renamePrompt"),
@@ -87,9 +96,9 @@ export default function CourseDetailScreen() {
       currentTitle,
       "default"
     );
-  };
+  }, [courseId, currentTitle, t]);
 
-  const handleDeleteCourse = () => {
+  const handleDeleteCourse = useCallback(() => {
     Alert.alert(
       t("courseDetail.deleteTitle"),
       t("courseDetail.deleteMessage", { title: currentTitle }),
@@ -109,7 +118,7 @@ export default function CourseDetailScreen() {
         },
       ]
     );
-  };
+  }, [courseId, currentTitle, t, router]);
 
   const handleRemoveDeck = (deck: Deck) => {
     Alert.alert(
@@ -133,31 +142,36 @@ export default function CourseDetailScreen() {
     );
   };
 
-  const handleMoreMenu = () => {
+  const handleMoreMenu = useCallback(() => {
     Alert.alert(currentTitle, "", [
       { text: t("courseDetail.rename"), onPress: handleRenameCourse },
       { text: t("common.delete"), style: "destructive", onPress: handleDeleteCourse },
       { text: t("common.cancel"), style: "cancel" },
     ]);
-  };
+  }, [currentTitle, t, handleRenameCourse, handleDeleteCourse]);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      ...createDetailStackOptions({
+        title: currentTitle,
+        backTitle: t("library.title"),
+        colors,
+      }),
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={handleMoreMenu}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          style={{ width: 34, height: 34, alignItems: "center", justifyContent: "center" }}
+        >
+          <MoreVertical size={20} color={colors.text} />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, currentTitle, t, colors, handleMoreMenu]);
 
   return (
-    <>
-      <Stack.Screen
-        options={{
-          title: currentTitle,
-          headerBackTitle: t("library.title"),
-          headerTintColor: colors.primary,
-          headerStyle: { backgroundColor: colors.background },
-          headerRight: () => (
-            <TouchableOpacity onPress={handleMoreMenu} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <MoreVertical size={22} color={colors.text} />
-            </TouchableOpacity>
-          ),
-        }}
-      />
-      <SafeAreaView edges={["bottom"]} style={{ flex: 1, backgroundColor: colors.background }}>
-        <View style={{ flex: 1, padding: spacing.lg }}>
+    <SafeAreaView edges={["bottom"]} style={{ flex: 1, backgroundColor: colors.background }}>
+      <View style={{ flex: 1, padding: spacing.lg }}>
           {/* Course header card */}
           <View
             style={{
@@ -280,8 +294,7 @@ export default function CourseDetailScreen() {
               )}
             </ScrollView>
           )}
-        </View>
-      </SafeAreaView>
-    </>
+      </View>
+    </SafeAreaView>
   );
 }

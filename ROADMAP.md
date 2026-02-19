@@ -1,6 +1,6 @@
 # ROADMAP
 
-Letzte Aktualisierung: 2026-02-14 (Bibliothek-Tab mit Kursen/Ordnern, Kurs-/Ordner-Detail-Screens, Segmented Control)
+Letzte Aktualisierung: 2026-02-16 (UI-Fixes: Learn useFocusEffect, Kurs/Ordner Titel-API, 16 Screenshots)
 
 ## Gesamtstatus
 
@@ -347,3 +347,14 @@ Voraussetzung: Phase 2 + stabile Nutzerbasis.
 - 2026-02-14: **Kurs-Detail-Screen** (`/course/[id]`): Zugeordnete Decks anzeigen, Umbenennen/Löschen via Drei-Punkte-Menü, Deck per Long-Press aus Kurs entfernen.
 - 2026-02-14: **Ordner-Detail-Screen** (`/folder/[id]`): Unterordner + Decks anzeigen mit verschachtelter Navigation, Umbenennen/Löschen, Deck per Long-Press entfernen.
 - 2026-02-14: **API-Client erweitert**: `listDecksInCourse()` + `listDecksInFolder()` hinzugefügt. 69 neue i18n-Keys (de + en).
+- 2026-02-14: **Bibliothek-Detailnavigation über Tab-Stack**: Neue In-Tab-Routen `/(tabs)/library-course/[id]` und `/(tabs)/library-folder/[id]` (in Tab-Bar versteckt via `href: null`) halten die Tab-Bar beim Öffnen von Kursen/Ordnern aus der Bibliothek sichtbar. `buildLibraryCourseRoute()`/`buildLibraryFolderRoute()` + Tests (`src/navigation/libraryRoutes.test.ts`) ergänzt. Header-Options via `navigation.setOptions(...)`; Drei-Punkte-Button im Header zentriert.
+- 2026-02-14: **Screen-Dokumentation & Wireframes**: `docs/screens/SCREENS.md` mit vollständiger Screen-Map (Route, Zweck, Inhalte, Navigation, Zustände) für alle 13 Screens. Wireframes in `docs/screens/wireframes/` für Home, Scan, Lernen, Bibliothek, Kurs-/Ordner-/Deck-Detail, Profil (08 von 13); Auth, Paywall, Quiz, Match, Occlusion als Platzhalter zum Nachziehen.
+- 2026-02-14: **Screen-Dokumentation Ist-Zustand**: `docs/screens/SCREENS.md` komplett überarbeitet — dokumentiert jetzt den exakten Ist-Zustand aller 13 Screens wie auf iPhone 16 Pro gerendert. Jede Komponente mit exakten Farb-Hex-Codes, Spacing-Werten (aus theme.ts), Icon-Namen (Lucide), Font-Größen, borderRadius, Schatten-Werten. Inkl. Design-Token-Referenz (Light/Dark), Tab-Bar-Konfiguration, Zustands-Beschreibungen (Loading, Empty, Error, Completed).
+- 2026-02-14: **Screen-Screenshots**: 13 hochpräzise Mockup-Screenshots (iPhone 16 Pro, 393×852pt) in `docs/screens/screenshots/` abgelegt. Alle basierend auf exaktem Code: Auth, Home, Scan, Lernen, Bibliothek, Profil, Deck-Detail, Paywall, Quiz, Match, Image Occlusion, Kurs-Detail, Ordner-Detail. SCREENS.md mit Screenshot-Referenzen für jeden Screen ergänzt.
+- 2026-02-16: **Xcode 26.2 installiert**: iOS Simulator Runtime (iOS 26.2, 8.39 GB), iPhone 16 Pro Simulator erstellt und gebootet.
+- 2026-02-16: **Expo Go auf Simulator**: App erfolgreich im iOS-Simulator geladen via `npx expo start --ios`.
+- 2026-02-16: **Echte Simulator-Screenshots**: 11 native Screenshots (1179×2556px @3x) aufgenommen — Auth/Login, Home (mit Testdaten), Scan, Lernen (Empty State), Bibliothek (mit Deck), Profil, Paywall, Deck-Detail (mit 3 Karten), Quiz/Test, Match, Image Occlusion. AI-Mockups durch echte Screenshots ersetzt. Testdaten via Supabase API + clearn-API erstellt (Test-User, Deck "Deutsch Vokabeln" mit 3 Karten). SCREENS.md aktualisiert.
+- 2026-02-16: **Simulator-Automatisierung**: cliclick für Touch-Interaktion, xcrun simctl für Screenshots und Deep-Link-Navigation. Python-Skript für Koordinaten-Mapping (Fensterposition → Device-Prozent).
+- 2026-02-16: **Kurs- & Ordner-Screenshots nachgeholt**: Test-Kurs "Deutsch A1" + Test-Ordner "Sprachen" via API erstellt, Deck zugeordnet. 4 neue Screenshots: Bibliothek Kurse-Tab, Bibliothek Ordner-Tab, Kurs-Detail, Ordner-Detail. SCREENS.md mit Screenshot-Referenzen und Varianten-Beschreibungen (Kurse-/Ordner-Tab) ergänzt. Insgesamt 15 Screenshots.
+- 2026-02-16: **Learn-Screen-Bug behoben**: `useEffect(fn, [])` durch `useFocusEffect(useCallback(fn, deps))` ersetzt. Der Learn-Tab lädt jetzt fällige Karten bei jedem Tab-Fokus neu statt nur beim ersten Mount. Screenshot `04-learn-active.png` mit aktiven Karten aufgenommen (Karte 1 von 3: "Hund").
+- 2026-02-16: **Kurs/Ordner-Detail: Titel-Fix + Stale-Closure-Fix**: Neue GET-Endpunkte `GET /api/v1/courses/[id]` und `GET /api/v1/folders/[id]` im API hinzugefügt. Mobile: `getCourse()` + `getFolder()` API-Client-Funktionen. Screen lädt Titel aus API wenn kein URL-Parameter vorhanden. Handler (`handleRenameCourse`, `handleDeleteCourse`, `handleMoreMenu`) mit `useCallback` stabilisiert, `handleMoreMenu` in `useLayoutEffect`-Dependencies aufgenommen.

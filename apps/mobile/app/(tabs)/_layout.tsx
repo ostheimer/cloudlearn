@@ -61,6 +61,18 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, size }) => <User size={size} color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="library-course/[id]"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="library-folder/[id]"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }
