@@ -597,3 +597,72 @@ Bei jeder Code-Änderung an einem Screen:
 3. ROADMAP.md Eintrag ergänzen
 
 Stand: 2026-02-16
+
+---
+
+## Soll-Konzept (Ziel-UI)
+
+Basierend auf dem dokumentierten Ist-Zustand: priorisierte UI-Verbesserungen nach User Impact.  
+Referenz: ROADMAP.md Feature-Prioritäten A–D.
+
+### Priorität 1 — Kritisch (direkt sichtbar, hoher Impact)
+
+#### Home-Screen
+- **Kurs-/Ordner-Kontext auf Lern-CTA**: „X Karten lernen"-Button zeigt aus welchem Deck/Kurs (z.B. „3 Karten aus ‚Deutsch Vokabeln' lernen"). Nutzer weiß was ihn erwartet.
+- **Streak-Banner verbessern**: Bei 0-Streak dezenter leerer Zustand (kein Icon), bei aktivem Streak Flammen-Animation. Aktuell zu viel Platz für 0-Streak.
+- **Datum + nächste Fälligkeit**: Unter dem Tagesziel „Nächste Karte fällig in: 2h" statt nur Zahl.
+
+#### Lernen-Screen
+- **Kartenanzahl im Tab-Icon**: Badge-Zahl auf dem „Lernen"-Tab-Icon zeigt fällige Karten (wie iOS Mail). User sieht sofort wie viele Karten warten, ohne den Tab zu öffnen.
+- **Flip-Button auch ohne Geste**: Zusätzlicher Tap-Bereich für Nutzer die keine Swipe-Geste kennen (onboarding hint nach dem ersten Launch).
+- **Lautsprecher-Button prominenter**: Derzeit sehr klein unten rechts. Auf der Karte selbst als sekundäre Aktion.
+- **Session-Zusammenfassung verbessern**: Nach dem Abschluss: Karten-Performance pro Bewertung (X× Nochmal, X× Schwer, X× Gut, X× Leicht) als horizontale Balken.
+
+#### Bibliothek-Screen
+- **Deck-Items mit Kartenanzahl**: In der Deck-Liste die Anzahl Karten und fällige Karten anzeigen (z.B. „12 Karten · 3 fällig"). Nutzer sieht den Lernstatus ohne die Deck-Detail-Seite öffnen zu müssen.
+- **Letzte Aktivität in der Liste**: Zeitstempel lesbarer machen (z.B. „Heute", „Gestern", „vor 3 Tagen" statt Datum).
+- **Kurs-Icon in Farbe**: Kurs-Items zeigen bereits einen farbigen Kreis — konsistent machen (Icon-Größe 16px statt 14px, mehr Kontrast).
+
+### Priorität 2 — Wichtig (verbessert UX deutlich)
+
+#### Kurs-/Ordner-Detail-Screen
+- **Deck-Vorschau-Cover**: Jedes Deck in der Liste zeigt die ersten 1-2 Karten-Vorderseiten als Preview (Font-Preview in graue Box). Gibt visuellen Kontext.
+- **Header-Titel immer sichtbar**: Titel soll auch bei Navigation via Deep-Link korrekt angezeigt werden (vollständig mit GET-Endpoint gelöst, nach Deployment aktiv).
+- **„Alle lernen"-Button**: CTA im Kurs/Ordner-Detail um alle fälligen Karten des Kurses/Ordners in einer Session zu starten.
+
+#### Scan-Screen
+- **Deck-Auswahl nach Scan verbessern**: Dropdown/Picker für vorhandene Decks eleganter gestalten (aktuell einfaches Alert). Modal mit Suche + „Neues Deck" Option.
+- **Scan-Ergebnis-Preview**: Vor dem Speichern direkt die generierten Karten swipebar anzeigen (Vorschau wie Karteikarten).
+- **Kamera-UI**: Shutter-Button größer (88×88), Hinweis-Text für optimale Foto-Qualität.
+
+#### Auth-Screen
+- **Apple Sign-In / Google Sign-In**: Social-Login-Buttons unter dem E-Mail-Formular (Requires OAuth setup). Aktuell nur E-Mail/Passwort.
+- **„Passwort vergessen" Flow verbessern**: Klarerer Feedback-Text nach dem Versenden des Reset-Links.
+
+### Priorität 3 — Qualitätssteigerung (polishing)
+
+#### Learn-Screen
+- **Bounce-Feedback bei falschem Swipe**: Wenn Nutzer Karte nur leicht anhebt und loslässt, Karte kurz in Richtung der Bewegung andeuten und zurückspringen. Taktiles Feedback.
+- **Dark Mode**: Hintergrund in Dark Mode leicht dunkelblau statt reines Schwarz (Augen schonen).
+- **Swipe-Anleitung beim ersten Mal**: Einmalige Onboarding-Animation zeigt Swipe-Geste.
+
+#### Profil-Screen
+- **Statistik-Zusammenfassung**: Kurze Review-History direkt auf der Profil-Seite (Lernstreak-Kalender als 7-Tage-Übersicht).
+- **Account-Details erweiterbar**: Avatar/Profilbild uploadbar, Anzeigename einstellbar.
+- **Version + Changelog**: Tap auf die Versionsnummer öffnet ein What's New Modal.
+
+#### Deck-Detail-Screen
+- **Karten-Vorschau-Modus**: Swipeable Kartenvorschau (nicht Lernen, nur Blättern) direkt aus der Deck-Detail-Seite.
+- **Bulk-Aktionen**: Mehrere Karten selektieren und gemeinsam löschen/verschieben/exportieren.
+
+### Nicht-Ziele (bewusst ausgeschlossen)
+
+- **Web-App als Feature-Parität**: Web ist Scaffold, fokus bleibt Mobile.
+- **Soziale Features**: Keine Kommentare/Likes auf Karten, kein Activity-Feed.
+- **Gamification-Exzesse**: Keine Level-Ups oder virtuelle Währung — Streak + Tagesziel reicht.
+
+### Nächste Umsetzungsschritte (empfohlen)
+
+1. **Tab-Badge für fällige Karten** (klein, 1-2h): `TabBar`-Konfiguration in `_layout.tsx` mit `tabBarBadge` von Expo Router. Größter UX-Impact.
+2. **Deck-Items mit Kartenanzahl in der Bibliothek** (mittel, 2-4h): `listDecks` API-Response um `cardCount` und `dueCount` erweitern.
+3. **„Alle lernen"-Button in Kurs/Ordner-Detail** (mittel, 2-4h): Alle fälligen Karten des Kurses/Ordners laden und Learn-Screen damit starten.

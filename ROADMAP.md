@@ -1,6 +1,6 @@
 # ROADMAP
 
-Letzte Aktualisierung: 2026-02-16 (UI-Fixes: Learn useFocusEffect, Kurs/Ordner Titel-API, 16 Screenshots)
+Letzte Aktualisierung: 2026-02-19 (Soll-Konzept, UI-Fixes: Learn useFocusEffect, Kurs/Ordner Titel-API, 16 Screenshots)
 
 ## Gesamtstatus
 
@@ -357,4 +357,5 @@ Voraussetzung: Phase 2 + stabile Nutzerbasis.
 - 2026-02-16: **Simulator-Automatisierung**: cliclick für Touch-Interaktion, xcrun simctl für Screenshots und Deep-Link-Navigation. Python-Skript für Koordinaten-Mapping (Fensterposition → Device-Prozent).
 - 2026-02-16: **Kurs- & Ordner-Screenshots nachgeholt**: Test-Kurs "Deutsch A1" + Test-Ordner "Sprachen" via API erstellt, Deck zugeordnet. 4 neue Screenshots: Bibliothek Kurse-Tab, Bibliothek Ordner-Tab, Kurs-Detail, Ordner-Detail. SCREENS.md mit Screenshot-Referenzen und Varianten-Beschreibungen (Kurse-/Ordner-Tab) ergänzt. Insgesamt 15 Screenshots.
 - 2026-02-16: **Learn-Screen-Bug behoben**: `useEffect(fn, [])` durch `useFocusEffect(useCallback(fn, deps))` ersetzt. Der Learn-Tab lädt jetzt fällige Karten bei jedem Tab-Fokus neu statt nur beim ersten Mount. Screenshot `04-learn-active.png` mit aktiven Karten aufgenommen (Karte 1 von 3: "Hund").
+- 2026-02-19: **Soll-Konzept**: SCREENS.md um Abschnitt "Soll-Konzept (Ziel-UI)" erweitert. 3 Prioritäts-Ebenen mit konkreten UI-Verbesserungen je Screen (Home, Lernen, Bibliothek, Kurs/Ordner-Detail, Scan, Auth, Profil, Deck-Detail). Nicht-Ziele dokumentiert. Nächste empfohlene Umsetzungsschritte: Tab-Badge, Deck-Kartenanzahl, "Alle lernen"-Button.
 - 2026-02-16: **Kurs/Ordner-Detail: Titel-Fix + Stale-Closure-Fix**: Neue GET-Endpunkte `GET /api/v1/courses/[id]` und `GET /api/v1/folders/[id]` im API hinzugefügt. Mobile: `getCourse()` + `getFolder()` API-Client-Funktionen. Screen lädt Titel aus API wenn kein URL-Parameter vorhanden. Handler (`handleRenameCourse`, `handleDeleteCourse`, `handleMoreMenu`) mit `useCallback` stabilisiert, `handleMoreMenu` in `useLayoutEffect`-Dependencies aufgenommen.
