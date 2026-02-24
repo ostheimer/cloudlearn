@@ -1,6 +1,6 @@
 # ROADMAP
 
-Letzte Aktualisierung: 2026-02-14 (Tab-Badge für fällige Karten, Deck-Kartenanzahl, "Alle lernen"-Button, "Zuletzt gelernt"-Navigation → Lernsession)
+Letzte Aktualisierung: 2026-02-24 (Render Error behoben, App startet im iOS-Simulator)
 
 ## Gesamtstatus
 
@@ -363,3 +363,5 @@ Voraussetzung: Phase 2 + stabile Nutzerbasis.
 - 2026-02-14: **Deck-Kartenanzahl in Bibliothek**: `db.ts listDecks` Query um `cards(count)` Sub-Select erweitert. `DeckRecord` + mobiles `Deck`-Interface um `cardCount?: number` ergänzt. `decks.tsx` zeigt "X Karten" unter dem Deck-Titel an. 4 neue i18n-Keys (de+en).
 - 2026-02-14: **"Alle lernen"-Button in Kurs/Ordner-Detail**: Button erscheint wenn `decks.length > 0`. Lädt alle fälligen Karten via `getDueCards()`, filtert clientseitig nach Deck-IDs, startet Review-Session via `useReviewSession.start()` und navigiert zu `/(tabs)/learn`.
 - 2026-02-14: **"Zuletzt gelernt"-Navigation korrigiert**: Kachel auf Home-Screen navigiert jetzt direkt zur Lernsession (`/(tabs)/learn`) statt zum Deck-Bearbeitungsmodus. Icon von `Clock` auf `BookOpen` geändert.
+- 2026-02-24: **Render Error behoben**: `ThemeProvider` von `@react-navigation/native` verursachte „Element type is invalid … got: object“. Theme wird nun direkt über die `theme`-Prop an die `Stack`-Komponente übergeben; `ThemeProvider`-Wrapper entfernt.
+- 2026-02-24: **App im iOS-Simulator**: cloudlearn startet lokal mit `CI=false pnpm dev -- --ios --port 8083` im iPhone-Simulator (Metro auf 127.0.0.1:8083). QR-Code/URL für Expo Go auf dem Handy: `exp://<LAN-IP>:8083`.

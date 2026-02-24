@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { ThemeProvider, DarkTheme, DefaultTheme } from "@react-navigation/native";
+import { DarkTheme, DefaultTheme } from "@react-navigation/native";
 import { initializeI18n } from "../src/i18n";
 import { useSessionStore } from "../src/store/sessionStore";
 import { supabase } from "../src/lib/supabase";
@@ -87,12 +87,12 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <ThemeProvider value={navTheme}>
-          <Stack
-            screenOptions={{
-              headerShown: false,
-            }}
-          >
+        <Stack
+          theme={navTheme}
+          screenOptions={{
+            headerShown: false,
+          }}
+        >
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="auth" options={{ headerShown: false }} />
             <Stack.Screen
@@ -141,8 +141,7 @@ export default function RootLayout() {
                 title: "Upgrade",
               }}
             />
-          </Stack>
-        </ThemeProvider>
+        </Stack>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
