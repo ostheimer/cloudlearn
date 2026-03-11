@@ -21,6 +21,23 @@ export function isApiError(error: unknown): error is ApiError {
   return error instanceof ApiError;
 }
 
+// Callback registered by the app root to navigate to the paywall when a 402 is returned.
+// Decouples the API client from expo-router navigation.
+type PaywallTrigger = () => void;
+let _paywallTrigger: PaywallTrigger | null = null;
+
+export function registerPaywallTrigger(trigger: PaywallTrigger): void {
+  _paywallTrigger = trigger;
+}
+
+export function unregisterPaywallTrigger(): void {
+  _paywallTrigger = null;
+}
+
+export function triggerPaywall(): void {
+  _paywallTrigger?.();
+}
+
 async function getAuthHeaders(): Promise<Record<string, string>> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -56,10 +73,15 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     | null;
 
   if (!res.ok) {
+    const code = (body as { code?: string } | null)?.code;
+    // Auto-open paywall when the server signals quota exceeded
+    if (res.status === 402 && code === "PAYWALL_REQUIRED") {
+      _paywallTrigger?.();
+    }
     throw new ApiError(
       (body as { message?: string } | null)?.message ?? `API error ${res.status}`,
       res.status,
-      (body as { code?: string } | null)?.code
+      code
     );
   }
 
@@ -80,12 +102,37 @@ export interface Flashcard {
   tags: string[];
 }
 
+export interface UsageInfo {
+  aiScansRemaining: number | null;
+  aiScansLimit: number | null;
+  urlImportsRemaining?: number | null;
+  urlImportsLimit?: number | null;
+}
+
 export interface ScanResponse {
   requestId: string;
   model: string;
   fallbackUsed: boolean;
   cards: Flashcard[];
   deckTitle?: string;
+  usage?: UsageInfo;
+}
+
+export interface UrlImportResponse extends ScanResponse {
+  sourceUrl: string;
+  imagesUsed: number;
+  usage?: { urlImportsRemaining: number | null; urlImportsLimit: number | null };
+}
+
+export interface AiUsageResponse {
+  tier: "free" | "pro" | "lifetime";
+  aiScansUsed: number;
+  aiScansLimit: number | null;
+  aiScansRemaining: number | null;
+  urlImportsUsed: number;
+  urlImportsLimit: number | null;
+  urlImportsRemaining: number | null;
+  periodStart: string | null;
 }
 
 export interface Deck {
@@ -174,6 +221,25 @@ export async function scanImage(
       userId,
       imageBase64,
       imageMimeType: mimeType,
+      idempotencyKey,
+      sourceLanguage: language,
+    }),
+  });
+}
+
+export async function importFromUrl(
+  userId: string,
+  sourceUrl: string,
+  maxImages = 4,
+  language = "de"
+): Promise<UrlImportResponse> {
+  const idempotencyKey = `import-url-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  return request<UrlImportResponse>("/api/v1/import/url", {
+    method: "POST",
+    body: JSON.stringify({
+      userId,
+      sourceUrl,
+      maxImages,
       idempotencyKey,
       sourceLanguage: language,
     }),
@@ -280,6 +346,11 @@ export async function getSubscriptionStatus(
   _userId?: string
 ): Promise<{ status: SubscriptionStatus }> {
   return request<{ status: SubscriptionStatus }>("/api/v1/subscription/status");
+}
+
+export async function getAiUsage(): Promise<AiUsageResponse> {
+  const res = await request<{ tier: string; aiScansUsed: number; aiScansLimit: number | null; aiScansRemaining: number | null; urlImportsUsed: number; urlImportsLimit: number | null; urlImportsRemaining: number | null; periodStart: string | null }>("/api/v1/usage");
+  return res as AiUsageResponse;
 }
 
 // --- Stats ---
