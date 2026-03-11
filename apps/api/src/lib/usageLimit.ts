@@ -1,42 +1,13 @@
-type Tier = "free" | "pro" | "lifetime";
+// Re-exports DB-backed quota functions for backwards compatibility.
+// The old in-memory implementation is replaced by Supabase-backed
+// consumeAiScanQuota / consumeUrlImportQuota in db.ts.
+export {
+  consumeAiScanQuota,
+  consumeUrlImportQuota,
+  getAiUsage,
+} from "./db";
 
-interface UsageCounter {
-  count: number;
-  periodStartMonth: string;
-}
-
-const scanUsageStore = new Map<string, UsageCounter>();
-
-function currentMonth(now = new Date()): string {
-  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
-}
-
-export function consumeScanQuota(
-  userId: string,
-  tier: Tier,
-  freeLimitPerMonth: number,
-  now = new Date()
-): { allowed: boolean; remaining: number } {
-  if (tier !== "free") {
-    return { allowed: true, remaining: Number.POSITIVE_INFINITY };
-  }
-
-  const month = currentMonth(now);
-  const current = scanUsageStore.get(userId);
-  if (!current || current.periodStartMonth !== month) {
-    scanUsageStore.set(userId, { count: 1, periodStartMonth: month });
-    return { allowed: true, remaining: Math.max(freeLimitPerMonth - 1, 0) };
-  }
-
-  if (current.count >= freeLimitPerMonth) {
-    return { allowed: false, remaining: 0 };
-  }
-
-  const nextCount = current.count + 1;
-  scanUsageStore.set(userId, { ...current, count: nextCount });
-  return { allowed: true, remaining: Math.max(freeLimitPerMonth - nextCount, 0) };
-}
-
+// Kept for test compatibility — no-op in production (DB is source of truth).
 export function resetUsageLimitStore(): void {
-  scanUsageStore.clear();
+  // In-memory store is gone; tests that need a clean state should reset the DB row directly.
 }

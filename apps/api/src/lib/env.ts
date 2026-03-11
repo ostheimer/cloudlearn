@@ -13,7 +13,10 @@ const envSchema = z.object({
   R2_ENDPOINT: z.string().url().optional(),
   R2_SIGNED_URL_TTL_SECONDS: z.coerce.number().int().positive().default(300),
   REVENUECAT_WEBHOOK_SECRET: z.string().optional(),
-  FREE_SCAN_LIMIT_PER_MONTH: z.coerce.number().int().positive().default(10),
+  FREE_SCAN_LIMIT_PER_MONTH: z.coerce.number().int().positive().default(5),
+  FREE_URL_IMPORT_LIMIT_PER_MONTH: z.coerce.number().int().positive().default(2),
+  FREE_DECK_LIMIT: z.coerce.number().int().positive().default(10),
+  FREE_CARD_LIMIT: z.coerce.number().int().positive().default(100),
   RATE_LIMIT_FREE_PER_MINUTE: z.coerce.number().int().positive().default(60),
   RATE_LIMIT_PRO_PER_MINUTE: z.coerce.number().int().positive().default(240)
 });
