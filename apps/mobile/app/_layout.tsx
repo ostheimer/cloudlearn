@@ -1,5 +1,5 @@
 import { Stack, useRouter, useSegments } from "expo-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -12,6 +12,9 @@ import {
   initializeRevenueCatForUser,
   logoutRevenueCatUser,
 } from "../src/features/paywall/revenuecat";
+import { useOnboardingState } from "../src/features/onboarding/onboardingState";
+import { registerPaywallTrigger, unregisterPaywallTrigger } from "../src/lib/api";
+import { resolveRootRedirect } from "../src/navigation/rootRedirect";
 
 initializeI18n("de");
 
@@ -22,6 +25,11 @@ export default function RootLayout() {
     useSessionStore();
   const c = useColors();
   const themeMode = useResolvedThemeMode();
+  const onboardingCompleted = useOnboardingState((state) => state.completed);
+  const loadCompletedFromStorage = useOnboardingState(
+    (state) => state.loadCompletedFromStorage
+  );
+  const [onboardingLoaded, setOnboardingLoaded] = useState(false);
 
   // Initialize auth state on mount
   useEffect(() => {
@@ -39,20 +47,46 @@ export default function RootLayout() {
     };
   }, []);
 
-  // Redirect based on auth state
+  // Load onboarding completed from storage when user is authenticated
   useEffect(() => {
-    if (isLoading) return;
-
-    const inAuthScreen = segments[0] === "auth";
-
-    if (!isAuthenticated && !inAuthScreen) {
-      // Not logged in → show auth screen
-      router.replace("/auth");
-    } else if (isAuthenticated && inAuthScreen) {
-      // Logged in but still on auth screen → go to tabs
-      router.replace("/(tabs)");
+    if (!isAuthenticated) {
+      setOnboardingLoaded(false);
+      return;
     }
-  }, [isAuthenticated, isLoading, segments]);
+    let cancelled = false;
+
+    loadCompletedFromStorage().finally(() => {
+      if (!cancelled) {
+        setOnboardingLoaded(true);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, loadCompletedFromStorage]);
+
+  // Redirect based on auth state and onboarding
+  useEffect(() => {
+    const redirect = resolveRootRedirect({
+      isAuthenticated,
+      isLoading,
+      onboardingLoaded,
+      onboardingCompleted,
+      firstSegment: segments[0],
+    });
+
+    if (redirect) {
+      router.replace(redirect);
+    }
+  }, [
+    isAuthenticated,
+    isLoading,
+    onboardingLoaded,
+    onboardingCompleted,
+    router,
+    segments,
+  ]);
 
   useEffect(() => {
     if (!isAuthenticated || !userId) {
@@ -62,6 +96,16 @@ export default function RootLayout() {
 
     void initializeRevenueCatForUser(userId);
   }, [isAuthenticated, userId]);
+
+  // Register a global paywall trigger so any API 402 response auto-navigates to paywall
+  useEffect(() => {
+    registerPaywallTrigger(() => {
+      router.push("/paywall");
+    });
+    return () => {
+      unregisterPaywallTrigger();
+    };
+  }, [router]);
 
   // React Navigation theme — ensures all navigators (tab bar, headers, etc.)
   // use the same light/dark palette and re-render consistently on theme change.
@@ -73,8 +117,8 @@ export default function RootLayout() {
   const headerStyle = { backgroundColor: c.background };
   const headerTintColor = c.primary;
 
-  // Loading screen while checking auth
-  if (isLoading) {
+  // Loading screen while checking auth or hydrating onboarding state
+  if (isLoading || (isAuthenticated && !onboardingLoaded)) {
     return (
       <SafeAreaProvider>
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: c.background }}>
@@ -95,6 +139,7 @@ export default function RootLayout() {
         >
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="auth" options={{ headerShown: false }} />
+            <Stack.Screen name="onboarding" options={{ headerShown: false }} />
             <Stack.Screen
               name="deck/[id]"
               options={{

@@ -1,6 +1,6 @@
 # ROADMAP
 
-Letzte Aktualisierung: 2026-02-24 (Render Error behoben, App startet im iOS-Simulator)
+Letzte Aktualisierung: 2026-03-11 (Onboarding-Routing Fix + Simulator-Durchlauf)
 
 ## Gesamtstatus
 
@@ -58,6 +58,7 @@ Letzte Aktualisierung: 2026-02-24 (Render Error behoben, App startet im iOS-Simu
 | Feature | Beschreibung |
 |---------|-------------|
 | **Scan → KI → Flashcards** | Kamera, Galerie oder Text → Gemini 3 Flash → Karten |
+| **URL-Import (Web)** | URL einfügen → Seitentext + relevante Bilder extrahieren → KI-Karten |
 | **Deck-Management** | Erstellen, Umbenennen, Löschen, Suchen, KI-generierte Titel |
 | **Card-Management** | Anzeigen, Bearbeiten, Löschen, Manuell hinzufügen (Editor-Modal) |
 | **Karten zu bestehendem Deck** | Scan-Ergebnis in neues ODER vorhandenes Deck speichern |
@@ -73,6 +74,7 @@ Letzte Aktualisierung: 2026-02-24 (Render Error behoben, App startet im iOS-Simu
 | **Daten-Persistenz** | Alles in Supabase PostgreSQL mit JWT-Auth |
 | **Auto-Deploy** | Git-Push → Vercel baut `clearn-api` + `clearn-web` automatisch |
 | **Test-Modus (MC)** | Deck-basierter Quiz mit MC + Wahr/Falsch, Timer, Score, Ergebnis-Übersicht |
+| **Bildquiz + Medienkarten** | Bildbasierte Quizfragen (Label ↔ Bild) + Markdown-Bildanzeige in Learn/Deck/Scan |
 | **Match-Spiel** | Begriffe zuordnen (6 Paare), Timer, Fehler-Zähler, Sterne-Bewertung |
 | **Auto-Play** | Automatischer Karten-Durchlauf (1s/3s/5s/10s), Play/Pause, TTS-Integration |
 | **Image Occlusion** | Bild-Upload, Rechteck-Zeichnung, Bereiche benennen, Karten-Erstellung |
@@ -230,9 +232,9 @@ Letzte Aktualisierung: 2026-02-24 (Render Error behoben, App startet im iOS-Simu
 | D3 | CL-D03 | **Anki-Import** (.apkg → clearn-Decks) | Mittel | Mittel | ❌ Offen |
 | D4 | CL-D04 | **Anki-Export** (clearn-Decks → .apkg) | Mittel | Mittel | ❌ Offen |
 | D5 | CL-D05 | **Apple/Google Sign-In** (OAuth neben E-Mail) | Mittel | Mittel | ❌ Offen |
-| D6 | CL-D06 | **Paywall + RevenueCat** (echte In-App-Käufe) | Groß | Groß | 🟡 In Arbeit |
+| D6 | CL-D06 | **Paywall + RevenueCat** (echte In-App-Käufe) | Groß | Groß | ✅ Done (Feature-Gating DB-backed; Usage-Indicator; Auto-Paywall) — App-Store-Produkte: `CL-MON-01`/`CL-MON-02` offen |
 | D7 | CL-D07 | **Community-Decks** (teilen, bewerten, suchen) | Groß | Groß | ❌ Offen |
-| D8 | CL-D08 | **Onboarding-Flow** (Erster Lernerfolg in < 2 Min) | Mittel | Groß | ❌ Offen |
+| D8 | CL-D08 | **Onboarding-Flow** (Erster Lernerfolg in < 2 Min) | Mittel | Groß | ✅ Done |
 
 ---
 
@@ -242,7 +244,7 @@ Voraussetzung: Priorität A + B abgeschlossen.
 
 - [ ] Statistiken-Dashboard (CL-B02)
 - [ ] Streaks + Push-Notifications (CL-B01, CL-B04)
-- [ ] Onboarding-Flow (CL-D08)
+- [x] Onboarding-Flow (CL-D08)
 - [ ] Incident-Runbook + Restore-Test in Regelbetrieb
 - [ ] Landing Page + App Store Optimierung
 - [ ] TestFlight Beta-Launch DACH
@@ -365,3 +367,10 @@ Voraussetzung: Phase 2 + stabile Nutzerbasis.
 - 2026-02-14: **"Zuletzt gelernt"-Navigation korrigiert**: Kachel auf Home-Screen navigiert jetzt direkt zur Lernsession (`/(tabs)/learn`) statt zum Deck-Bearbeitungsmodus. Icon von `Clock` auf `BookOpen` geändert.
 - 2026-02-24: **Render Error behoben**: `ThemeProvider` von `@react-navigation/native` verursachte „Element type is invalid … got: object“. Theme wird nun direkt über die `theme`-Prop an die `Stack`-Komponente übergeben; `ThemeProvider`-Wrapper entfernt.
 - 2026-02-24: **App im iOS-Simulator**: cloudlearn startet lokal mit `CI=false pnpm dev -- --ios --port 8083` im iPhone-Simulator (Metro auf 127.0.0.1:8083). QR-Code/URL für Expo Go auf dem Handy: `exp://<LAN-IP>:8083`.
+- 2026-03-11: **Onboarding-Routing Fix**: Root-Redirects in `apps/mobile/app/_layout.tsx` über `resolveRootRedirect()` zentralisiert. Fix für zwei echte Simulator-Funde: leerer Root-Screen bei direktem App-Start und veralteter `onboardingCompleted`-Status in derselben Session nach `completeAndPersist()`. Authentifizierte Nutzer werden nun nach geladenem Onboarding-Status korrekt zu `/onboarding` bzw. `/(tabs)` geleitet; bei abgeschlossenem Onboarding wird auch eine geöffnete Onboarding-Route sofort auf Tabs umgeleitet.
+- 2026-03-11: **Simulator-Verifikation D8**: Onboarding manuell im iPhone-16-Pro-Simulator durchgespielt (Schritt 1 → Schritt 2 → Schritt 3 → `Jetzt starten`). Starter-Deck wurde angelegt und die Navigation wechselte in die Lernsession. Zusätzliche Unit-Tests für Root-Redirect-Fälle ergänzt (`src/navigation/rootRedirect.test.ts`).
+- 2026-02-24: **Doku & Regression**: SCREENS.md Ist-Zustand angepasst (Tab-Badge, 1.5 Zuletzt gelernt → learn/BookOpen, Bibliothek Kartenanzahl, Kurs/Ordner „Alle lernen"). Manuelle Regression-Checkliste `docs/testing/regression-mobile.md` angelegt. Unit-Tests für sessionStore dueCount und Filter-Logik; Playwright-Tests für GET learn/due und decks mit cardCount.
+- 2026-02-28: **URL-Import Phase 1**: Neuer API-Endpunkt `POST /api/v1/import/url` mit URL-Extraktion (Text + Bilder), multimodaler LLM-Generierung und Speicherung ins Deck. Mobile Scan-Screen um URL-Eingabe erweitert, Quiz um Bildfragen ergänzt, Kartenansichten (Scan/Deck/Learn) rendern Markdown-Bilder. Neue Unit-Tests für Extractor/Service/Quiz-Media sowie E2E-Spec für URL-Import (auf Live-Umgebung derzeit per Skip, solange Endpoint noch nicht ausgerollt ist).
+- 2026-03-01: **Monetarisierung Phase 1 (CL-D06)**: Feature-Gating vollständig implementiert. DB-Migration (`ai_scans_used`, `ai_url_imports_used`, `usage_period_start` auf `profiles`). DB-backed Quota-Enforcement ersetzt in-memory Store (persistent über Serverless-Restarts). Separate Limits für KI-Scans (5/Monat) und URL-Importe (2/Monat). Neuer Endpoint `GET /api/v1/usage`. `TIER_LIMITS`-Objekt in `packages/contracts` für Free/Pro/Lifetime. Scan-Screen zeigt Usage-Badge (z.B. „2/5 KI"). Automatischer Paywall-Trigger bei 402 via globalem `registerPaywallTrigger()`. Paywall-Screen um Feature-Vergleichsliste und Usage-Progressbars erweitert. Jährliches Angebot mit „Bestes Preis-Leistungs-Verhältnis"-Badge hervorgehoben. Supabase Edge Function `reset-ai-usage` für monatlichen Cron-Reset. RevenueCat Setup-Dokumentation (`docs/monetization/REVENUECAT_SETUP.md`). 59 API-Tests + 12 Contracts-Tests grün.
+- 2026-03-01: **URL-Import Bildfragen-Tuning**: Bildkandidaten werden nach Komponenten-Relevanz priorisiert, `componentHint` wird aus HTML-Metadaten extrahiert und in den multimodalen Prompt gegeben. Prompt-Regeln fokussieren Bildfragen stärker auf UI-Komponenten statt Branding; URL-LLM-Aufruf hat Retry + Quality-Gate-Regeneration (mind. 2 komponentenbezogene Bildfragen, falls Bilder vorhanden). Neue API-Unit-Tests fuer den Quality-Gate-Flow (`llmUrlQualityGate`) sowie erweiterte Tests fuer Extractor/Service sind gruen.
+- 2026-02-25: **Onboarding-Flow (CL-D08)**: Nach erstem Login 3 Schritte (Willkommen → So funktioniert's → Dein erstes Deck). „Jetzt starten“ erstellt ein Starter-Deck mit 3 Beispielkarten (Hund/dog, Katze/cat, Vogel/bird), speichert „onboarding completed“ in AsyncStorage und navigiert zum Learn-Tab. Root-Layout lädt Onboarding-Status und leitet neue Nutzer nach Auth auf `/onboarding` um. i18n de+en.

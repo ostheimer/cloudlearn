@@ -227,6 +227,7 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 - **Kamera-Capture:** Foto aufnehmen oder aus Galerie importieren
 - **OCR:** On-Device-Texterkennung (Apple Vision / Google ML Kit)
 - **KI-Flashcards:** Automatische Generierung von Frage-Antwort-Paaren (basic + cloze)
+- **URL-Import:** Webseiten per URL importieren (Seitentext + relevante Bilder)
 - **Spaced Repetition:** FSRS-Algorithmus für optimale Wiederholungsintervalle
 - **Deck-Verwaltung:** Decks, Tags, Suche (Basis)
 - **Offline-Basis:** Lernen ohne Internet, Upload/Sync via Retry-Queue
@@ -556,6 +557,8 @@ CREATE INDEX scans_created_idx
 ├── /scan
 │   ├── POST /process        # OCR-Text empfangen -> KI-Verarbeitung -> Karten (Idempotency-Key)
 │   └── GET  /history        # Scan-Historie des Nutzers
+├── /import
+│   └── POST /url            # URL importieren -> Web-Text + Bilder -> Karten
 ├── /decks
 │   ├── GET    /             # Alle Decks des Nutzers
 │   ├── POST   /             # Neues Deck erstellen
@@ -793,7 +796,7 @@ console.log(updated.card.stability);  // Stabilität der Erinnerung
 - [x] TestFlight / Internal Testing (Runbook + Preflight-Script)
 
 ### Phase 2: Beta Launch (4-6 Wochen)
-- [x] Onboarding-Flow mit erstem "Aha"-Moment in < 2 Minuten (Scaffold)
+- [x] Onboarding-Flow mit erstem "Aha"-Moment in < 2 Minuten (3 Schritte, Starter-Deck, AsyncStorage)
 - [x] Statistiken-Dashboard (Retention, Reviews, Streak) (Scaffold)
 - [x] Push-Notifications (Lern-Erinnerungen, Opt-In/Quiet-Hours Scaffold)
 - [x] Monitoring/Alerting + Incident-Runbook live (Runbooks + Checks)

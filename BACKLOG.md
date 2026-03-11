@@ -1,6 +1,6 @@
 # BACKLOG
 
-Letzte Aktualisierung: 2026-02-11
+Letzte Aktualisierung: 2026-03-01
 
 ## Ziel
 
@@ -664,11 +664,118 @@ Decks teilen, öffentlich durchsuchen, bewerten, kopieren. Moderation und Abuse-
 ### CL-D08 - Onboarding-Flow
 
 - **Priorität:** P1
-- **Status:** Offen (Scaffold existiert)
+- **Status:** Erledigt (2026-02-25)
 - **Schätzung:** 2 PT
 
 **Beschreibung**
 Erster Start → Beispiel-Scan → erste Review → Erfolgserlebnis in unter 2 Minuten. Keine Registrierung nötig für den ersten Durchlauf.
+
+**Umsetzung:** Nach Login: 3 Onboarding-Screens (Willkommen, So funktioniert's, Dein erstes Deck). „Jetzt starten“ legt Starter-Deck mit 3 Karten an, speichert Onboarding als erledigt (AsyncStorage), leitet zum Learn-Tab. Erster Lernerfolg in unter 2 Min.
+
+---
+
+## Phase 2 Tickets — Monetarisierung (nach 2026-03-01)
+
+### CL-MON-01 — Supabase Migration + Edge Function deployen
+
+- **Priorität:** P0 (blockiert alle Limits in Production)
+- **Status:** Offen
+- **Schätzung:** 0.5 PT
+
+**Beschreibung**
+Die Migration `20260301100000_add_ai_usage_limits.sql` und die Edge Function `reset-ai-usage` wurden im Repo angelegt, aber noch nicht in die Produktions-Datenbank eingespielt.
+
+**Akzeptanzkriterien**
+- [ ] `supabase db push` erfolgreich — Spalten `ai_scans_used`, `ai_url_imports_used`, `usage_period_start` in Production vorhanden
+- [ ] Edge Function `reset-ai-usage` via `supabase functions deploy reset-ai-usage` deployed
+- [ ] Cron-Schedule im Supabase Dashboard gesetzt: `0 0 1 * *` (jeden 1. des Monats, 00:00 UTC)
+- [ ] Manueller Test: Edge Function per `curl` aufrufen → `{ success: true }` zurück
+
+**Deployment-Schritte**
+```bash
+# 1. Migration einzuspielen
+supabase db push --project-ref <SUPABASE_PROJECT_REF>
+
+# 2. Edge Function deployen
+supabase functions deploy reset-ai-usage --project-ref <SUPABASE_PROJECT_REF>
+
+# 3. Cron in Supabase Dashboard konfigurieren:
+#    Supabase Dashboard > Edge Functions > reset-ai-usage > Schedules > 0 0 1 * *
+```
+
+---
+
+### CL-MON-02 — App Store Connect + Google Play: Produkte anlegen
+
+- **Priorität:** P0 (blockiert echte In-App-Käufe)
+- **Status:** Offen
+- **Schätzung:** 1 PT
+- **Abhängigkeit:** Anleitung liegt in `docs/monetization/REVENUECAT_SETUP.md`
+
+**Beschreibung**
+Die Produkt-IDs wurden definiert, aber noch nicht im App Store Connect und Google Play Console angelegt. Ohne diese Schritte zeigt die Paywall „Keine Angebote verfügbar".
+
+**Akzeptanzkriterien**
+- [ ] iOS: 3 Produkte in App Store Connect angelegt (`ai.clearn.pro.monthly`, `ai.clearn.pro.annual`, `ai.clearn.lifetime`)
+- [ ] iOS: 7-Tage-Freitest auf `ai.clearn.pro.monthly` konfiguriert
+- [ ] Android: 3 Produkte in Google Play Console angelegt (gleiche IDs)
+- [ ] RevenueCat Dashboard: Entitlements `pro` + `lifetime` angelegt und Produkte verknüpft
+- [ ] RevenueCat Offering `default` mit 3 Paketen (ANNUAL, MONTHLY, LIFETIME) konfiguriert
+- [ ] Webhook-URL in RevenueCat gesetzt: `https://clearn-api.vercel.app/api/v1/subscription/webhook`
+- [ ] `REVENUECAT_WEBHOOK_SECRET` in Vercel gesetzt
+- [ ] `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY` + `EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY` in EAS Secrets gesetzt
+- [ ] Sandbox-Testkauf auf iOS-Simulator erfolgreich
+
+---
+
+### CL-MON-03 — Deck/Karten-Limit Enforcement in API-Routes
+
+- **Priorität:** P1
+- **Status:** Offen (DB-Funktionen vorhanden, API-Routes prüfen noch nicht)
+- **Schätzung:** 1 PT
+
+**Beschreibung**
+`countUserDecks()` und `countUserCards()` wurden in `db.ts` implementiert, aber `POST /api/v1/decks` und `POST /api/v1/cards` prüfen die Limits (Free: 10 Decks, 100 Karten) noch nicht. Free-User können aktuell unbegrenzt Decks anlegen.
+
+**Akzeptanzkriterien**
+- [ ] `POST /api/v1/decks`: Wenn `tier === "free"` und `deckCount >= FREE_DECK_LIMIT` → `402 PAYWALL_REQUIRED`
+- [ ] `POST /api/v1/cards`: Wenn `tier === "free"` und `cardCount >= FREE_CARD_LIMIT` → `402 PAYWALL_REQUIRED`
+- [ ] Pro/Lifetime-User sind nicht betroffen
+- [ ] Mobile öffnet Paywall automatisch bei 402 (greift über `registerPaywallTrigger`)
+- [ ] Unit-Tests für beide Routes
+
+---
+
+### CL-MON-04 — usageStore AsyncStorage-Persistenz
+
+- **Priorität:** P2
+- **Status:** Offen
+- **Schätzung:** 0.5 PT
+
+**Beschreibung**
+`usageStore.ts` nutzt reines Zustand-In-Memory. Nach einem App-Neustart werden die Verbrauchszähler auf die Default-Werte zurückgesetzt und erst beim nächsten API-Call neu geladen. Das führt kurzzeitig zu falschen Anzeigen (z.B. „5/5" statt „3/5").
+
+**Akzeptanzkriterien**
+- [ ] `usageStore` nutzt `zustand/middleware persist` mit `AsyncStorage` als Storage
+- [ ] Nach App-Neustart werden die letzten bekannten Werte sofort angezeigt
+- [ ] `periodStart` wird mitgespeichert — bei abgelaufenem Monat wird der Store zurückgesetzt
+- [ ] Spätestens nach dem ersten erfolgreichen `getAiUsage()`-Call werden die Werte vom Server überschrieben
+
+---
+
+### CL-MON-05 — paywallState.ts ablösen (technische Schuld)
+
+- **Priorität:** P3 (kosmetisch, kein Funktionsfehler)
+- **Status:** Offen (wurde auf DEPRECATED markiert, aber noch nicht entfernt)
+- **Schätzung:** 0.5 PT
+
+**Beschreibung**
+`src/features/paywall/paywallState.ts` und sein Test wurden auf DEPRECATED markiert. Der Store wird in keinem aktiven Screen mehr genutzt (ersetzt durch `usageStore.ts`). Kann nach CL-MON-04 entfernt werden.
+
+**Akzeptanzkriterien**
+- [ ] Keine aktiven Screen-Importe von `usePaywallState` mehr vorhanden
+- [ ] `paywallState.ts` + `paywallState.test.ts` aus dem Codebase entfernt
+- [ ] `pnpm test` läuft weiterhin grün
 
 ---
 
