@@ -4,7 +4,9 @@ Exakte Beschreibung aller Screens wie sie derzeit im Code implementiert sind.
 Gerät: iPhone 16 Pro (393 × 852 pt, 3× Retina).  
 Screenshots aufgenommen im iOS Simulator (Xcode 26.2, iOS 26.2).
 
-Stand: 2026-02-16
+Stand: 2026-02-16 (Ist-Zustand); 2026-02-24 (Tab-Badge, Zuletzt gelernt → learn, Kartenanzahl, Alle lernen); 2026-02-28 (URL-Import + Bildquiz).
+
+Manuelle Regression (Simulator): Checkliste in [docs/testing/regression-mobile.md](../testing/regression-mobile.md).
 
 Screenshots in `screenshots/` — **echte Simulator-Screenshots** (iPhone 16 Pro, 1179×2556px @3x).
 
@@ -72,7 +74,7 @@ Screenshots in `screenshots/` — **echte Simulator-Screenshots** (iPhone 16 Pro
 |----------|------|------|------------|
 | 1 | Home | `Home` (lucide) | |
 | 2 | Scan | `ScanLine` | |
-| 3 | Lernen | `Brain` | Tab-Bar wird beim Öffnen ausgeblendet (`display: "none"`) |
+| 3 | Lernen | `Brain` | Tab-Bar wird beim Öffnen ausgeblendet (`display: "none"`). Bei `dueCount > 0` wird ein `tabBarBadge` mit der Anzahl fälliger Karten angezeigt (wie iOS Mail). |
 | 4 | Bibliothek | `Library` | |
 | 5 | Profil | `User` | |
 
@@ -125,10 +127,10 @@ Jede Karte: `surface`, borderRadius `lg`, padding `md`, border 1px, shadow sm, a
 
 ### 1.5 Letztes Deck (optional)
 - TouchableOpacity, Hintergrund `surface`, borderRadius `lg`, padding `lg`, border 1px, shadow sm
-- Links: `Clock`-Icon 18px in 40×40 Box (`primaryLight`)
+- Links: `BookOpen`-Icon 18px in 40×40 Box (`primaryLight`)
 - „Zuletzt gelernt" (xs, textTertiary) + Deck-Titel (base, semibold)
 - Rechts: `ChevronRight` 18px textTertiary
-- onPress → `/deck/[id]`
+- onPress → `/(tabs)/learn` (direkt in die Lernsession, nicht in den Deck-Bearbeitungsmodus)
 
 ### 1.6 Action-Buttons
 - **„X Karten lernen"** (nur wenn dueCount > 0): Hintergrund `primary`, borderRadius `lg`, padding `lg`, shadow md. Icon `BookOpen` 20px weiß + Text (lg, bold, weiß) + `ChevronRight`. → `/(tabs)/learn`
@@ -146,20 +148,21 @@ Jede Karte: `surface`, borderRadius `lg`, padding `md`, border 1px, shadow sm, a
 
 > Screenshot: `screenshots/03-scan.png`
 
-Hat 3 Modi: `choose`, `camera`, `text`.
+Hat 4 Modi: `choose`, `camera`, `text`, `url`.
 
 ### 2.1 Modus „choose" (Standard)
 **SafeAreaView + ScrollView**, padding `lg`, gap `lg`.
 
 - Titel: „Lernmaterial erfassen" (xxl, bold)
 
-**Drei große Aktions-Buttons** (jeweils TouchableOpacity, borderRadius `lg`, padding `xl`, shadow md, flexDirection row):
+**Vier große Aktions-Buttons** (jeweils TouchableOpacity, borderRadius `lg`, padding `xl`, shadow md, flexDirection row):
 
 | # | Hintergrund | Icon | Titel | Untertitel |
 |---|-------------|------|-------|------------|
 | 1 | `primary` (#6366f1) | `Camera` 24px in 48×48 halbtransparenter Box | „Foto aufnehmen" (lg, bold, weiß) | „Lehrbuch, Tafel, Notizen fotografieren" |
 | 2 | `success` (#10b981) | `ImageIcon` 24px | „Aus Galerie wählen" | „Vorhandenes Foto oder Screenshot" |
 | 3 | `warning` (#f59e0b) | `PenLine` 24px | „Text eingeben" | „Text tippen oder einfügen" |
+| 4 | `info` (#3b82f6) | `Link2` 24px | „URL importieren" | „Webseite inkl. Bilder als Lernmaterial" |
 
 Jeder Button hat rechts `ChevronRight` 20px halbtransparent.
 
@@ -178,12 +181,18 @@ Jeder Button hat rechts `ChevronRight` 20px halbtransparent.
 - Optional: „Beispieltext laden"-Button (`surfaceSecondary`)
 - Button „Flashcards generieren" (`primary` oder grau wenn disabled), mit `Sparkles`-Icon
 
-### 2.4 Ergebnis-Ansicht (nach Scan)
+### 2.4 Modus „url"
+- Header: „URL importieren" (xxl, bold) + rechts „Zurück" mit X-Icon (primary)
+- Hinweistext: URL-Import verarbeitet Seitentext + relevante Bilder
+- URL-Input (border md, rot bei ungültiger URL)
+- Button „URL analysieren" (`primary` oder disabled), mit `Sparkles`-Icon
+
+### 2.5 Ergebnis-Ansicht (nach Scan/URL)
 - Titel: „Ergebnis" (xxl, bold)
 - Optional: Bildvorschau (120px hoch, borderRadius md)
 - Deck-Titel (xl, bold) wenn vorhanden
 - „X Karten generiert" + „via model" rechts
-- Kartenliste: Jede Karte `surface`, borderRadius md, border 1px. Front bold base, Back textSecondary sm+1. Tags als Badges (xs, `surfaceSecondary`)
+- Kartenliste: Jede Karte `surface`, borderRadius md, border 1px. Optionales Bild (`Image`, contain) über Front/Back-Text. Front bold base, Back textSecondary sm+1. Tags als Badges (xs, `surfaceSecondary`)
 - Button „Speichern & Lernen" (`success`, `Save`-Icon, lg bold weiß)
 - Button „Neuen Scan starten" (`surfaceSecondary`, `RotateCcw`-Icon)
 
@@ -214,6 +223,7 @@ Jeder Button hat rechts `ChevronRight` 20px halbtransparent.
 - Animated.View, `surface`, borderRadius `xl` (20), padding `xxl`, border 1px `border`, shadow lg
 - **Vorderseite**: Text xxl semibold, zentriert, lineHeight 36. Darunter „Tippen zum Umdrehen" (base, textTertiary) wenn nicht aufgedeckt
 - **Rückseite**: Gleich, aber border 1.5px `primary`
+- **Medienkarten**: Wenn Karte Markdown-Bilder enthält (`![alt](url)`), wird auf Vorder- und/oder Rückseite ein Bild (`Image`, contain) oberhalb des Texts dargestellt
 - **Swipe-Overlay links**: „NOCHMAL" (32px, extrabold, weiß, letterSpacing 2) auf rgba(239,68,68,0.85) — fadet ab 20% Threshold ein
 - **Swipe-Overlay rechts**: „GEMERKT" auf rgba(16,185,129,0.85) — gleiche Fade-Logik
 - Tinder-artige Rotation: max 15° bei Vollausschlag
@@ -269,6 +279,7 @@ Alle: flex 1, borderRadius md, paddingVertical 14, Text weiß bold sm.
 **Deck-Item:**
 - TouchableOpacity, `surface`, borderRadius md, padding 14, border 1px, shadow sm
 - Row: `Layers` 18px primary + Titel (semibold, base, flex 1) + `ChevronRight` 18px
+- Unter dem Titel: „X Karten" bzw. „1 Karte" (xs, textTertiary), sofern die API `cardCount` liefert (`listDecks` mit `cards(count)`).
 - Tags als Badges darunter (xs, `surfaceSecondary`, paddingH sm, paddingV 2, borderRadius sm)
 - Datum darunter (xs, textTertiary)
 
@@ -326,10 +337,13 @@ Header via `navigation.setOptions()`: Zurück „Bibliothek", dynamischer Titel,
 - Row: 44×44 Quadrat (borderRadius md, `primary`) mit `BookOpen` 22px weiß
 - Rechts: Kurs-Titel (lg, bold) + „X Decks" (sm, textSecondary)
 
-### 5.3 Sektion „DECKS IN DIESEM KURS"
+### 5.3 Button „Alle lernen"
+- Nur sichtbar wenn `decks.length > 0`. TouchableOpacity unter der Kurs-Card: Hintergrund `primary`, borderRadius md, padding md/lg, Row mit `Play`-Icon 16px weiß + Text „Alle lernen" (base, semibold, weiß). Beim Tap: `getDueCards()` laden, Karten nach Deck-IDs des Kurses filtern, Review-Session mit `start(filteredCards)` starten, Navigation zu `/(tabs)/learn`. Loading: ActivityIndicator im Button.
+
+### 5.4 Sektion „DECKS IN DIESEM KURS"
 - Label: sm, semibold, textSecondary, uppercase, letterSpacing 0.8
 
-### 5.4 Deck-Liste oder Empty State
+### 5.5 Deck-Liste oder Empty State
 - Deck-Items: `surface`, borderRadius md, padding 14, border 1px, shadow sm. `Layers` 18px primary + Titel + `ChevronRight`
 - Empty: 64×64 Kreis `surfaceSecondary` + `Layers` 28px + „Noch keine Decks in diesem Kurs.\nFüge Decks über das Drei-Punkte-Menü im Deck hinzu."
 
@@ -342,6 +356,7 @@ Header via `navigation.setOptions()`: Zurück „Bibliothek", dynamischer Titel,
 Gleiche Struktur wie Kurs-Detail, aber:
 - Icon: 44×44 `warningLight` mit `FolderOpen` 22px `warning`
 - Untertitel: „X Einträge"
+- **Button „Alle lernen"**: Wie in Kurs-Detail (5.3), nur sichtbar wenn der Ordner mindestens ein Deck enthält. Tap lädt fällige Karten, filtert nach Deck-IDs des Ordners, startet Lernsession, Navigation zu `/(tabs)/learn`.
 - Sektionen: „Unterordner" (falls vorhanden) + „Decks"
 - Unterordner-Items: 28×28 `warningLight` Kreis + `FolderIcon` 14px + Titel + Chevron
 - Navigation zu Unterordnern: rekursiv via `buildLibraryFolderRoute()`
@@ -377,6 +392,7 @@ Alle: flex 1, borderRadius md, paddingV md, row, zentriert, gap sm.
 - **Jede Karte** (TouchableOpacity, onPress → Edit, onLongPress → Alert):
   - `surface`, borderRadius md, padding 14, border 1px, shadow sm
   - **Top-Row**: „#1 · Basic" oder „Lückentext" (xs, textTertiary, medium) | rechts: `Star` 16px (warning/fill oder textTertiary) + Schwierigkeit-Label (xs, bold, uppercase, farbig: easy=success, medium=warning, hard=error)
+  - **Optionales Bild**: Bei Markdown-Bild in Front/Back wird ein Bildblock (140px, contain) über den Texten gerendert
   - **Front**: Text (semibold, base, text), numberOfLines 2
   - **Trennlinie**: 1px `borderLight`, marginV sm
   - **Back**: Text (sm+1, textSecondary), numberOfLines 2
@@ -527,6 +543,7 @@ Aktionen: Offline speichern, Bearbeiten, Zu Kurs hinzufügen, Zu Ordner, Duplizi
 ### 11.2 Frage
 - True/False: Card mit Front/Back-Paarung + „Stimmt diese Zuordnung?"
 - Multiple Choice: Frage-Text (xl, bold)
+- Bildquiz: Zusätzlicher Fragetyp mit eingebettetem Bild (`Image`, contain) + Label-Auswahl aus 4 Optionen
 - 4 Antwort-Buttons (oder 2 bei T/F): `surface`, borderRadius md, padding 14-16, border 1px
   - Nach Antwort: grün (korrekt) mit `CheckCircle2` oder rot (falsch) mit `XCircle`
   - „Weiter →" Button erscheint nach Antwort

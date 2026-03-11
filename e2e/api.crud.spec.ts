@@ -53,14 +53,18 @@ test.describe("API CRUD Flow", () => {
     expect(body.card.starred).toBe(true);
   });
 
-  test("get due cards includes the new card", async () => {
-    const { status, body } = await apiRequest<{ cards: Array<{ id: string; starred: boolean }> }>(
-      "/api/v1/learn/due"
-    );
+  test("get due cards includes the new card and returns valid card shape", async () => {
+    const { status, body } = await apiRequest<{
+      cards: Array<{ id: string; deckId: string; front: string; back: string; starred?: boolean }>;
+    }>("/api/v1/learn/due");
     expect(status).toBe(200);
+    expect(Array.isArray(body.cards)).toBe(true);
     const card = body.cards.find((c) => c.id === cardId);
     expect(card).toBeTruthy();
     expect(card!.starred).toBe(true);
+    expect(card!.deckId).toBe(deckId);
+    expect(typeof card!.front).toBe("string");
+    expect(typeof card!.back).toBe("string");
   });
 
   test("review the card", async () => {
@@ -87,6 +91,19 @@ test.describe("API CRUD Flow", () => {
     expect(status).toBe(200);
     expect(body.stats.reviewsTotal).toBeGreaterThanOrEqual(1);
     expect(body.stats.currentStreak).toBeGreaterThanOrEqual(1);
+  });
+
+  test("list decks returns decks with optional cardCount", async () => {
+    const { status, body } = await apiRequest<{
+      decks: Array<{ id: string; title: string; cardCount?: number }>;
+    }>("/api/v1/decks");
+    expect(status).toBe(200);
+    expect(Array.isArray(body.decks)).toBe(true);
+    const ourDeck = body.decks.find((d) => d.id === deckId);
+    expect(ourDeck).toBeTruthy();
+    expect(ourDeck!.title).toBe("E2E Test Deck");
+    expect(typeof ourDeck!.cardCount).toBe("number");
+    expect(ourDeck!.cardCount).toBeGreaterThanOrEqual(1);
   });
 
   test("list cards in deck", async () => {
