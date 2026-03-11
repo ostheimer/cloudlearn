@@ -38,6 +38,29 @@ export const scanProcessResponseSchema = z.object({
 
 export type ScanProcessResponse = z.infer<typeof scanProcessResponseSchema>;
 
+export const urlImportRequestSchema = z.object({
+  userId: z.string().uuid(),
+  sourceUrl: z.string().url(),
+  idempotencyKey: z.string().min(8).max(128),
+  sourceLanguage: z.string().min(2).max(10).default("de"),
+  maxImages: z.number().int().min(0).max(8).default(4),
+  deckId: z.string().uuid().optional(),
+});
+
+export type UrlImportRequest = z.infer<typeof urlImportRequestSchema>;
+
+export const urlImportResponseSchema = z.object({
+  requestId: z.string().min(8),
+  model: z.string().min(2),
+  fallbackUsed: z.boolean().default(false),
+  cards: flashcardListSchema,
+  deckTitle: z.string().min(1).max(100).optional(),
+  sourceUrl: z.string().url(),
+  imagesUsed: z.number().int().nonnegative().default(0),
+});
+
+export type UrlImportResponse = z.infer<typeof urlImportResponseSchema>;
+
 export const reviewRatingSchema = z.enum(["again", "hard", "good", "easy"]);
 export type ReviewRating = z.infer<typeof reviewRatingSchema>;
 
