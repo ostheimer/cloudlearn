@@ -5,7 +5,11 @@ import {
   flashcardListSchema,
   reviewRequestSchema,
   scanProcessRequestSchema,
-  syncRequestSchema
+  syncRequestSchema,
+  urlImportRequestSchema,
+  TIER_LIMITS,
+  getLimitsForTier,
+  isUnlimited,
 } from "./index";
 
 describe("contracts", () => {
@@ -16,6 +20,17 @@ describe("contracts", () => {
       idempotencyKey: "scan-2026-02-09-001"
     });
 
+    expect(parsed.sourceLanguage).toBe("de");
+  });
+
+  it("validates URL import requests with default image limit", () => {
+    const parsed = urlImportRequestSchema.parse({
+      userId: "6e5db9e4-7e48-4e11-8d8c-6ca90c18d42a",
+      sourceUrl: "https://example.com/components",
+      idempotencyKey: "url-import-2026-02-28-001",
+    });
+
+    expect(parsed.maxImages).toBe(4);
     expect(parsed.sourceLanguage).toBe("de");
   });
 
@@ -67,5 +82,42 @@ describe("contracts", () => {
     });
 
     expect(feedback.channel).toBe("in_app");
+  });
+});
+
+describe("featureGates", () => {
+  it("free tier has finite AI scan limit", () => {
+    const limits = getLimitsForTier("free");
+    expect(isUnlimited(limits.aiScansPerMonth)).toBe(false);
+    expect(limits.aiScansPerMonth).toBe(5);
+  });
+
+  it("free tier has finite URL import limit", () => {
+    const limits = getLimitsForTier("free");
+    expect(limits.urlImportsPerMonth).toBe(2);
+  });
+
+  it("free tier blocks premium features", () => {
+    const limits = getLimitsForTier("free");
+    expect(limits.pdfImport).toBe(false);
+    expect(limits.imageOcclusion).toBe(false);
+    expect(limits.offlineDownload).toBe(false);
+  });
+
+  it("pro tier has unlimited AI scans", () => {
+    const limits = getLimitsForTier("pro");
+    expect(isUnlimited(limits.aiScansPerMonth)).toBe(true);
+    expect(isUnlimited(limits.urlImportsPerMonth)).toBe(true);
+  });
+
+  it("pro tier enables all premium features", () => {
+    const limits = getLimitsForTier("pro");
+    expect(limits.pdfImport).toBe(true);
+    expect(limits.imageOcclusion).toBe(true);
+    expect(limits.offlineDownload).toBe(true);
+  });
+
+  it("lifetime tier mirrors pro limits", () => {
+    expect(TIER_LIMITS.lifetime).toEqual(TIER_LIMITS.pro);
   });
 });

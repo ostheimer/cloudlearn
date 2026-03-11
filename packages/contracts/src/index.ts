@@ -1,5 +1,6 @@
 export * from "./common";
 export * from "./beta";
+export * from "./featureGates";
 export * from "./flashcards";
 export * from "./pdf";
 export * from "./review";
