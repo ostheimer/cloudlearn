@@ -1,8 +1,11 @@
+// DEPRECATED: This store was replaced by usageStore.ts (DB-backed, server-synced).
+// Kept only for test compatibility. Do not use in new screens.
 import { create } from "zustand";
 
 export type SubscriptionTier = "free" | "pro" | "lifetime";
 
-const FREE_SCAN_LIMIT = 10;
+// Must match FREE_SCAN_LIMIT_PER_MONTH in apps/api/src/lib/env.ts (default: 5).
+const FREE_SCAN_LIMIT = 5;
 
 interface PaywallState {
   tier: SubscriptionTier;

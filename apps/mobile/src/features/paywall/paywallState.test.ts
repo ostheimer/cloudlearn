@@ -7,7 +7,7 @@ describe("paywall state", () => {
   });
 
   it("blocks free users after limit", () => {
-    for (let i = 0; i < 10; i += 1) {
+    for (let i = 0; i < 5; i += 1) {
       expect(usePaywallState.getState().consumeScan()).toBe(true);
     }
     expect(usePaywallState.getState().consumeScan()).toBe(false);

@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { CheckCircle2, Zap } from "lucide-react-native";
 import {
   getRevenueCatAvailability,
   getRevenueCatOfferings,
@@ -18,8 +19,9 @@ import {
   type RevenueCatOffer,
 } from "../src/features/paywall/revenuecat";
 import { type SubscriptionTier } from "../src/features/paywall/subscriptionMapping";
-import { getSubscriptionStatus } from "../src/lib/api";
+import { getSubscriptionStatus, getAiUsage } from "../src/lib/api";
 import { useSessionStore } from "../src/store/sessionStore";
+import { useUsageStore } from "../src/store/usageStore";
 import { radius, shadows, spacing, typography, useColors } from "../src/theme";
 
 const BACKEND_SYNC_MAX_RETRIES = 6;
@@ -47,6 +49,15 @@ async function waitForBackendSubscriptionSync(
   return "free";
 }
 
+const PRO_FEATURES = [
+  "paywall.feature.scans",
+  "paywall.feature.url",
+  "paywall.feature.pdf",
+  "paywall.feature.occlusion",
+  "paywall.feature.offline",
+  "paywall.feature.decks",
+] as const;
+
 export default function PaywallScreen() {
   const colors = useColors();
   const { t } = useTranslation();
@@ -61,6 +72,9 @@ export default function PaywallScreen() {
     "native_module_unavailable" | "missing_api_key" | null
   >(null);
 
+  const usageStore = useUsageStore();
+  const setUsage = useUsageStore((state) => state.setUsage);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -72,9 +86,13 @@ export default function PaywallScreen() {
 
       setIsLoading(true);
       try {
-        const status = await getSubscriptionStatus(userId);
+        const [status, usageData] = await Promise.all([
+          getSubscriptionStatus(userId),
+          getAiUsage().catch(() => null),
+        ]);
         if (isMounted) {
           setTier(status.status.tier);
+          if (usageData) setUsage(usageData);
         }
 
         const availability = await getRevenueCatAvailability();
@@ -222,44 +240,104 @@ export default function PaywallScreen() {
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: spacing.lg, gap: spacing.md }}
       >
-        <Text
-          style={{
-            fontSize: typography.xxxl,
-            fontWeight: typography.bold,
-            color: colors.text,
-          }}
-        >
-          {t("paywall.title")}
-        </Text>
+        {/* Header */}
+        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+          <Zap size={28} color={colors.primary} />
+          <Text style={{ fontSize: typography.xxxl, fontWeight: typography.bold, color: colors.text }}>
+            {t("paywall.title")}
+          </Text>
+        </View>
         <Text style={{ color: colors.textSecondary, fontSize: typography.base }}>
           {t("paywall.subtitle")}
         </Text>
 
-        <View
-          style={{
+        {/* Usage this month — only show for free tier */}
+        {tier === "free" && usageStore.aiScansLimit !== null && (
+          <View style={{
             backgroundColor: colors.surface,
             borderRadius: radius.lg,
             borderWidth: 1,
             borderColor: colors.border,
             padding: spacing.lg,
             gap: spacing.sm,
-          }}
-        >
+          }}>
+            <Text style={{ color: colors.textSecondary, fontSize: typography.sm, fontWeight: typography.semibold }}>
+              {t("paywall.usageTitle")}
+            </Text>
+            {/* Scan bar */}
+            <View>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
+                <Text style={{ color: colors.text, fontSize: typography.sm }}>{t("paywall.aiScans")}</Text>
+                <Text style={{ color: colors.textSecondary, fontSize: typography.sm }}>
+                  {usageStore.aiScansUsed}/{usageStore.aiScansLimit}
+                </Text>
+              </View>
+              <View style={{ height: 6, backgroundColor: colors.border, borderRadius: 3 }}>
+                <View style={{
+                  height: 6,
+                  width: `${Math.min(((usageStore.aiScansUsed) / (usageStore.aiScansLimit ?? 1)) * 100, 100)}%`,
+                  backgroundColor: (usageStore.aiScansRemaining ?? 1) === 0 ? colors.error : colors.primary,
+                  borderRadius: 3,
+                }} />
+              </View>
+            </View>
+            {/* URL Import bar */}
+            {usageStore.urlImportsLimit !== null && (
+              <View>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
+                  <Text style={{ color: colors.text, fontSize: typography.sm }}>{t("paywall.urlImports")}</Text>
+                  <Text style={{ color: colors.textSecondary, fontSize: typography.sm }}>
+                    {usageStore.urlImportsUsed}/{usageStore.urlImportsLimit}
+                  </Text>
+                </View>
+                <View style={{ height: 6, backgroundColor: colors.border, borderRadius: 3 }}>
+                  <View style={{
+                    height: 6,
+                    width: `${Math.min(((usageStore.urlImportsUsed) / (usageStore.urlImportsLimit ?? 1)) * 100, 100)}%`,
+                    backgroundColor: (usageStore.urlImportsRemaining ?? 1) === 0 ? colors.error : colors.primary,
+                    borderRadius: 3,
+                  }} />
+                </View>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Pro feature list */}
+        <View style={{
+          backgroundColor: colors.surface,
+          borderRadius: radius.lg,
+          borderWidth: 1,
+          borderColor: colors.border,
+          padding: spacing.lg,
+          gap: spacing.sm,
+        }}>
+          <Text style={{ color: colors.text, fontSize: typography.base, fontWeight: typography.bold, marginBottom: spacing.xs }}>
+            {t("paywall.featuresTitle")}
+          </Text>
+          {PRO_FEATURES.map((key) => (
+            <View key={key} style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+              <CheckCircle2 size={18} color={colors.success} />
+              <Text style={{ color: colors.text, fontSize: typography.sm, flex: 1 }}>
+                {t(key)}
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={{
+          backgroundColor: colors.surface,
+          borderRadius: radius.lg,
+          borderWidth: 1,
+          borderColor: colors.border,
+          padding: spacing.lg,
+          gap: spacing.sm,
+        }}>
           <Text style={{ color: colors.textSecondary, fontSize: typography.sm }}>
             {t("paywall.currentTierLabel")}
           </Text>
-          <Text
-            style={{
-              color: colors.text,
-              fontSize: typography.xl,
-              fontWeight: typography.bold,
-            }}
-          >
-            {tier === "free"
-              ? t("paywall.tierFree")
-              : tier === "pro"
-                ? t("paywall.tierPro")
-                : t("paywall.tierLifetime")}
+          <Text style={{ color: colors.text, fontSize: typography.xl, fontWeight: typography.bold }}>
+            {tier === "free" ? t("paywall.tierFree") : tier === "pro" ? t("paywall.tierPro") : t("paywall.tierLifetime")}
           </Text>
         </View>
 
@@ -319,6 +397,7 @@ export default function PaywallScreen() {
             ) : (
               offers.map((offer) => {
                 const isBuying = activePurchaseId === offer.identifier;
+                const isBestValue = offer.packageType === "ANNUAL";
                 return (
                   <TouchableOpacity
                     key={offer.identifier}
@@ -326,41 +405,40 @@ export default function PaywallScreen() {
                     disabled={Boolean(activePurchaseId) || isRestoring}
                     activeOpacity={0.85}
                     style={{
-                      backgroundColor: colors.surface,
+                      backgroundColor: isBestValue ? colors.primaryLight ?? colors.surface : colors.surface,
                       borderRadius: radius.lg,
-                      borderWidth: 1,
-                      borderColor: colors.border,
+                      borderWidth: isBestValue ? 2 : 1,
+                      borderColor: isBestValue ? colors.primary : colors.border,
                       padding: spacing.lg,
                       gap: spacing.xs,
                       ...shadows.sm,
                     }}
                   >
-                    <Text
-                      style={{
-                        color: colors.text,
-                        fontSize: typography.lg,
-                        fontWeight: typography.bold,
-                      }}
-                    >
+                    {isBestValue && (
+                      <View style={{
+                        backgroundColor: colors.primary,
+                        borderRadius: radius.sm,
+                        paddingHorizontal: 8,
+                        paddingVertical: 2,
+                        alignSelf: "flex-start",
+                        marginBottom: spacing.xs,
+                      }}>
+                        <Text style={{ color: colors.textInverse, fontSize: typography.xs, fontWeight: typography.bold }}>
+                          {t("paywall.bestValue")}
+                        </Text>
+                      </View>
+                    )}
+                    <Text style={{ color: colors.text, fontSize: typography.lg, fontWeight: typography.bold }}>
                       {offer.title}
                     </Text>
                     <Text style={{ color: colors.textSecondary, fontSize: typography.sm }}>
                       {offer.description}
                     </Text>
-                    <Text
-                      style={{
-                        color: colors.primary,
-                        fontSize: typography.base,
-                        fontWeight: typography.bold,
-                      }}
-                    >
+                    <Text style={{ color: colors.primary, fontSize: typography.base, fontWeight: typography.bold }}>
                       {offer.priceString}
                     </Text>
                     {isBuying ? (
-                      <ActivityIndicator
-                        color={colors.primary}
-                        style={{ marginTop: spacing.xs }}
-                      />
+                      <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xs }} />
                     ) : null}
                   </TouchableOpacity>
                 );
