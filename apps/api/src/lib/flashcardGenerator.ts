@@ -7,6 +7,15 @@ export interface FlashcardGenerationResult {
   cards: Flashcard[];
 }
 
+export interface UrlImageInput {
+  sourceUrl: string;
+  altText: string;
+  contextText: string;
+  componentHint: string;
+  mimeType: "image/jpeg" | "image/png" | "image/webp";
+  dataBase64: string;
+}
+
 // Prompt template for generating flashcards with a descriptive deck title
 const SYSTEM_PROMPT = `You are an expert flashcard creator for students. Given study material (text or an image of study material), create high-quality flashcards AND a short, descriptive deck title.
 
@@ -25,6 +34,29 @@ Rules:
 - Vary difficulty levels, mix basic and cloze types
 
 Return ONLY valid JSON object (not array!), no markdown, no explanation:
+{"title":"Short Topic Title","cards":[{"front":"...","back":"...","type":"basic","difficulty":"medium","tags":["topic1"]}]}`;
+
+const URL_IMPORT_PROMPT = `You are an expert flashcard creator. You will receive webpage text plus optional inline images with metadata.
+
+Rules:
+- Create 5-25 flashcards depending on content density
+- Generate a concise deck title (2-5 words) in the same language as the source
+- Each card has: front, back, type (basic/cloze), difficulty, tags
+- Use high-value concepts, definitions, and relationships
+- If images are provided, prioritize component-identification questions over branding questions
+- Create at least 2 image-based cards when possible
+- At least 2 image-based cards should ask what UI component/pattern is shown and what it does
+- Avoid "Which design system is this?" questions unless component details are truly unavailable
+- Do not put vendor or design-system names in the question stem of image cards when a component question is possible
+- Prefer stems like: "Welche UI-Komponente ist im Bild dargestellt?" or "Wofür wird dieses Element verwendet?"
+- Use component_hint and nearby_text as primary clues for image-based cards
+- For image-based cards, include exactly one markdown image reference in the front or back:
+  ![short alt text](https://absolute-image-url)
+- Keep markdown image URL exactly as provided in metadata; do not invent URLs
+- Keep front <= 500 chars and back <= 1000 chars
+- Keep answers concise and factual
+
+Return ONLY valid JSON object (not array!), no markdown wrapper:
 {"title":"Short Topic Title","cards":[{"front":"...","back":"...","type":"basic","difficulty":"medium","tags":["topic1"]}]}`;
 
 interface GeminiContent {
@@ -93,11 +125,69 @@ export async function generateFlashcardsFromImage(
 }
 
 /**
+ * Call Gemini API with webpage text and multiple images
+ */
+export async function generateFlashcardsFromWebContent(input: {
+  sourceUrl: string;
+  pageTitle: string;
+  textContent: string;
+  language: string;
+  images: UrlImageInput[];
+  qualityDirective?: string;
+}): Promise<FlashcardGenerationResult> {
+  const env = getEnv();
+  const apiKey = env.GEMINI_API_KEY;
+
+  if (!apiKey) {
+    return heuristicFlashcards(input.textContent, input.language);
+  }
+
+  const pageText = input.textContent.slice(0, 18_000);
+  const imageParts = input.images.flatMap((image, index) => {
+    const metadata = `Image ${index + 1} metadata:
+- absolute_url: ${image.sourceUrl}
+- alt_text: ${image.altText || "(none)"}
+- component_hint: ${image.componentHint || "(none)"}
+- nearby_text: ${image.contextText || "(none)"}`;
+
+    return [
+      { text: metadata },
+      {
+        inline_data: {
+          mime_type: image.mimeType,
+          data: image.dataBase64,
+        },
+      },
+    ] satisfies GeminiContent["parts"];
+  });
+
+  const userContent: GeminiContent = {
+    parts: [
+      {
+        text: `Language: ${input.language}
+Source URL: ${input.sourceUrl}
+Page title: ${input.pageTitle}
+
+Extracted study material:
+${pageText}`,
+      },
+      ...(input.qualityDirective
+        ? [{ text: `Quality directive:\n${input.qualityDirective}` } as const]
+        : []),
+      ...imageParts,
+    ],
+  };
+
+  return callGemini(apiKey, userContent, URL_IMPORT_PROMPT);
+}
+
+/**
  * Core Gemini API call — returns { title, cards }
  */
 async function callGemini(
   apiKey: string,
-  userContent: GeminiContent
+  userContent: GeminiContent,
+  systemPrompt = SYSTEM_PROMPT
 ): Promise<FlashcardGenerationResult> {
   const model = "gemini-3-flash-preview";
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
@@ -107,7 +197,7 @@ async function callGemini(
       {
         role: "user",
         parts: [
-          { text: SYSTEM_PROMPT },
+          { text: systemPrompt },
           ...userContent.parts,
         ],
       },
