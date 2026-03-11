@@ -163,7 +163,9 @@ async function generateUrlCardsWithRetry(
         textContent: input.extractedText,
         language,
         images: input.images,
-        qualityDirective,
+        ...(qualityDirective !== undefined && qualityDirective !== ""
+          ? { qualityDirective }
+          : {}),
       });
     } catch (error) {
       lastError = error;
