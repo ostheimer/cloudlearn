@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import {
   BookOpen,
   ScanLine,
@@ -26,12 +26,11 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
+  const loadHomeData = useCallback(() => {
     if (!userId) {
       setLoading(false);
       return;
     }
-
     Promise.all([
       getStats().then((res) => {
         setStats(res.stats);
@@ -48,7 +47,14 @@ export default function HomeScreen() {
     ])
       .catch((e) => setError(String(e)))
       .finally(() => setLoading(false));
-  }, [userId]);
+  }, [userId, setDueCount]);
+
+  // Load on first focus and when returning to Home (e.g. after learning session) so badge and "Fällig" stay in sync
+  useFocusEffect(
+    useCallback(() => {
+      if (userId) loadHomeData();
+    }, [userId, loadHomeData])
+  );
 
   const dueCount = stats?.dueCards ?? 0;
   const deckCount = stats?.totalDecks ?? 0;

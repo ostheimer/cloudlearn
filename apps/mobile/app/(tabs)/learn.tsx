@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
+  Image,
   Text,
   TouchableOpacity,
   View,
@@ -44,6 +45,7 @@ import {
 } from "../../src/features/review/reviewSession";
 import { useSessionStore } from "../../src/store/sessionStore";
 import { getDueCards, reviewCard, updateCard } from "../../src/lib/api";
+import { summarizeCardMedia } from "../../src/lib/cardMedia";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -275,7 +277,7 @@ export default function LearnScreen() {
 
   useEffect(() => {
     if (!autoPlaying || !current) return;
-    const text = revealed ? displayBack : frontParsed?.display ?? effectiveFront;
+    const text = revealed ? displayBack : frontParsed?.display ?? normalizedFront;
     if (text) Speech.speak(text, { language: "de-DE" });
     return () => { Speech.stop(); };
   }, [autoPlaying, revealed, index]);
@@ -366,8 +368,16 @@ export default function LearnScreen() {
   const rawBack = current?.back ?? "";
   const effectiveFront = showBackFirst ? rawBack : rawFront;
   const effectiveBack = showBackFirst ? rawFront : rawBack;
-  const frontParsed = formatCloze(effectiveFront);
-  const displayBack = frontParsed.clozeAnswer ?? effectiveBack;
+  const mediaSummary = summarizeCardMedia({
+    front: effectiveFront,
+    back: effectiveBack,
+  });
+  const normalizedFront = mediaSummary.plainFront || effectiveFront;
+  const normalizedBack = mediaSummary.plainBack || effectiveBack;
+  const frontParsed = formatCloze(normalizedFront);
+  const displayBack = frontParsed.clozeAnswer ?? normalizedBack;
+  const frontImage = mediaSummary.frontImages[0] ?? mediaSummary.primaryImage;
+  const backImage = mediaSummary.backImages[0] ?? mediaSummary.primaryImage;
   const isStarred = current ? !!starredMap[current.id] : false;
 
   // ─── Rating button helper ─────────────────────────────────────────────────
@@ -605,12 +615,24 @@ export default function LearnScreen() {
                       ]}
                     >
                       {/* Text content fades out on swipe */}
-                      <Animated.View style={[cardTextOpacity, { alignItems: "center" }]}>
+                      <Animated.View style={[cardTextOpacity, { alignItems: "center", gap: spacing.md }]}>
+                        {frontImage ? (
+                          <Image
+                            source={{ uri: frontImage.url }}
+                            style={{
+                              width: Math.min(SCREEN_WIDTH * 0.72, 320),
+                              height: Math.min(SCREEN_HEIGHT * 0.22, 220),
+                              borderRadius: radius.md,
+                              backgroundColor: c.surfaceSecondary,
+                            }}
+                            resizeMode="contain"
+                          />
+                        ) : null}
                         <Text style={{
                           fontSize: typography.xxl, fontWeight: typography.semibold,
                           textAlign: "center", color: c.text, lineHeight: 36,
                         }}>
-                          {frontParsed.display}
+                          {frontParsed.display || frontImage?.alt || "Bildkarte"}
                         </Text>
                         {!revealed && (
                           <Text style={{ marginTop: spacing.xl, color: c.textTertiary, fontSize: typography.base }}>
@@ -633,13 +655,25 @@ export default function LearnScreen() {
                       ]}
                     >
                       {/* Text content fades out on swipe */}
-                      <Animated.View style={[cardTextOpacity, { alignItems: "center" }]}>
+                      <Animated.View style={[cardTextOpacity, { alignItems: "center", gap: spacing.md }]}>
+                        {backImage ? (
+                          <Image
+                            source={{ uri: backImage.url }}
+                            style={{
+                              width: Math.min(SCREEN_WIDTH * 0.72, 320),
+                              height: Math.min(SCREEN_HEIGHT * 0.22, 220),
+                              borderRadius: radius.md,
+                              backgroundColor: c.surfaceSecondary,
+                            }}
+                            resizeMode="contain"
+                          />
+                        ) : null}
                         <Text style={{
                           fontSize: typography.xxl,
                           fontWeight: frontParsed.clozeAnswer ? typography.bold : typography.normal,
                           textAlign: "center", color: c.text, lineHeight: 36,
                         }}>
-                          {displayBack}
+                          {displayBack || backImage?.alt || "—"}
                         </Text>
                       </Animated.View>
                     </Animated.View>
@@ -681,7 +715,7 @@ export default function LearnScreen() {
 
                 <View style={{ flexDirection: "row", gap: spacing.lg, alignItems: "center" }}>
                   <TouchableOpacity
-                    onPress={() => speakText(revealed ? displayBack : effectiveFront)}
+                    onPress={() => speakText(revealed ? displayBack : normalizedFront)}
                     activeOpacity={0.6}
                     hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
                     style={{ width: 44, height: 44, justifyContent: "center", alignItems: "center" }}

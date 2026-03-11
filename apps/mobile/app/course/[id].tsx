@@ -32,6 +32,7 @@ import {
 } from "../../src/lib/api";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
 import { createDetailStackOptions } from "../../src/navigation/detailStackOptions";
+import { filterDueCardsByDeckIds } from "../../src/lib/learnFilters";
 import { useReviewSession } from "../../src/features/review/reviewSession";
 import { useSessionStore } from "../../src/store/sessionStore";
 
@@ -155,8 +156,7 @@ export default function CourseDetailScreen() {
     setStartingLearn(true);
     try {
       const { cards } = await getDueCards(userId);
-      const deckIds = new Set(decks.map((d) => d.id));
-      const filtered = cards.filter((c) => deckIds.has(c.deckId));
+      const filtered = filterDueCardsByDeckIds(cards, decks.map((d) => d.id));
       if (filtered.length === 0) {
         Alert.alert(t("learn.noDueCards"), t("learn.noDueCardsMessage"));
         return;

@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   RefreshControl,
   ScrollView,
   Text,
@@ -39,6 +40,7 @@ import {
   exportDeckForOffline,
   type Card,
 } from "../../src/lib/api";
+import { summarizeCardMedia } from "../../src/lib/cardMedia";
 import { useSessionStore } from "../../src/store/sessionStore";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
 import { useTranslation } from "react-i18next";
@@ -842,6 +844,9 @@ export default function DeckDetailScreen() {
                     color: colors.textSecondary,
                     label: card.difficulty,
                   };
+                  const media = summarizeCardMedia(card);
+                  const frontDisplay = media.plainFront || card.front;
+                  const backDisplay = media.plainBack || card.back;
                   return (
                     <TouchableOpacity
                       key={card.id}
@@ -903,6 +908,20 @@ export default function DeckDetailScreen() {
                         </View>
                       </View>
 
+                      {media.primaryImage ? (
+                        <Image
+                          source={{ uri: media.primaryImage.url }}
+                          style={{
+                            width: "100%",
+                            height: 140,
+                            borderRadius: radius.md,
+                            marginBottom: spacing.sm,
+                            backgroundColor: colors.surfaceSecondary,
+                          }}
+                          resizeMode="contain"
+                        />
+                      ) : null}
+
                       {/* Front (question) */}
                       <Text
                         style={{
@@ -912,7 +931,7 @@ export default function DeckDetailScreen() {
                         }}
                         numberOfLines={2}
                       >
-                        {card.front}
+                        {frontDisplay || media.primaryImage?.alt || "Bildkarte"}
                       </Text>
 
                       {/* Divider */}
@@ -932,7 +951,7 @@ export default function DeckDetailScreen() {
                         }}
                         numberOfLines={2}
                       >
-                        {card.back}
+                        {backDisplay || media.primaryImage?.alt || "—"}
                       </Text>
                     </TouchableOpacity>
                   );

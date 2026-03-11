@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import {
@@ -24,24 +24,30 @@ import {
   RotateCcw,
   Sparkles,
   ChevronRight,
+  Link2,
   X,
+  Zap,
 } from "lucide-react-native";
 import { useSessionStore } from "../../src/store/sessionStore";
 import { useOcrEditorState } from "../../src/features/ocr/ocrEditorState";
 import {
+  importFromUrl,
   isApiError,
   scanText,
   scanImage,
   createDeck,
   createCard,
   listDecks,
+  getAiUsage,
   type Flashcard,
   type Deck,
 } from "../../src/lib/api";
+import { summarizeCardMedia } from "../../src/lib/cardMedia";
 import { useReviewSession } from "../../src/features/review/reviewSession";
+import { useUsageStore } from "../../src/store/usageStore";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
 
-type InputMode = "choose" | "camera" | "text";
+type InputMode = "choose" | "camera" | "text" | "url";
 
 export default function ScanScreen() {
   const router = useRouter();
@@ -52,6 +58,20 @@ export default function ScanScreen() {
   const setEditedText = useOcrEditorState((state) => state.setEditedText);
   const startReview = useReviewSession((state) => state.start);
 
+  const setUsage = useUsageStore((state) => state.setUsage);
+  const decrementScanRemaining = useUsageStore((state) => state.decrementScanRemaining);
+  const decrementUrlImportRemaining = useUsageStore((state) => state.decrementUrlImportRemaining);
+  const aiScansRemaining = useUsageStore((state) => state.aiScansRemaining);
+  const aiScansLimit = useUsageStore((state) => state.aiScansLimit);
+  const urlImportsRemaining = useUsageStore((state) => state.urlImportsRemaining);
+  const urlImportsLimit = useUsageStore((state) => state.urlImportsLimit);
+  const usageTier = useUsageStore((state) => state.tier);
+
+  useEffect(() => {
+    if (!userId) return;
+    void getAiUsage().then((data) => setUsage(data)).catch(() => {/* ignore */});
+  }, [userId, setUsage]);
+
   const [mode, setMode] = useState<InputMode>("choose");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -61,10 +81,20 @@ export default function ScanScreen() {
   const [saved, setSaved] = useState(false);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
+  const [sourceUrl, setSourceUrl] = useState("");
 
   const cameraRef = useRef<CameraView>(null);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const colors = useColors();
+
+  const isHttpUrl = (value: string): boolean => {
+    try {
+      const parsed = new URL(value.trim());
+      return parsed.protocol === "http:" || parsed.protocol === "https:";
+    } catch {
+      return false;
+    }
+  };
 
   // --- Image Handling ---
 
@@ -139,11 +169,17 @@ export default function ScanScreen() {
     setLoading(true);
     setCards([]);
     setSaved(false);
+    setSourceUrl("");
     try {
       const result = await scanImage(userId, base64, mimeType);
       setCards(result.cards);
       setModel(result.model);
       setDeckTitle(result.deckTitle ?? "");
+      if (result.usage) {
+        setUsage({ aiScansRemaining: result.usage.aiScansRemaining, aiScansLimit: result.usage.aiScansLimit });
+      } else {
+        decrementScanRemaining();
+      }
     } catch (error: unknown) {
       if (
         isApiError(error) &&
@@ -167,11 +203,17 @@ export default function ScanScreen() {
     setSaved(false);
     setImageUri(null);
     setImageBase64(null);
+    setSourceUrl("");
     try {
       const result = await scanText(userId, editedText);
       setCards(result.cards);
       setModel(result.model);
       setDeckTitle(result.deckTitle ?? "");
+      if (result.usage) {
+        setUsage({ aiScansRemaining: result.usage.aiScansRemaining, aiScansLimit: result.usage.aiScansLimit });
+      } else {
+        decrementScanRemaining();
+      }
     } catch (error: unknown) {
       if (
         isApiError(error) &&
@@ -183,6 +225,45 @@ export default function ScanScreen() {
       const msg =
         error instanceof Error ? error.message : "Unbekannter Fehler";
       Alert.alert("Fehler", msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGenerateFromUrl = async () => {
+    if (!userId) return;
+    const normalizedUrl = sourceUrl.trim();
+    if (!isHttpUrl(normalizedUrl)) {
+      Alert.alert("Ungültige URL", "Bitte gib eine gültige http(s)-URL ein.");
+      return;
+    }
+
+    setLoading(true);
+    setCards([]);
+    setSaved(false);
+    setImageUri(null);
+    setImageBase64(null);
+
+    try {
+      const result = await importFromUrl(userId, normalizedUrl, 4);
+      setCards(result.cards);
+      setModel(result.model);
+      setDeckTitle(result.deckTitle ?? "");
+      if (result.usage) {
+        setUsage({ urlImportsRemaining: result.usage.urlImportsRemaining, urlImportsLimit: result.usage.urlImportsLimit });
+      } else {
+        decrementUrlImportRemaining();
+      }
+    } catch (error: unknown) {
+      if (
+        isApiError(error) &&
+        (error.code === "PAYWALL_REQUIRED" || error.status === 402)
+      ) {
+        router.push("/paywall");
+        return;
+      }
+      const msg = error instanceof Error ? error.message : "Unbekannter Fehler";
+      Alert.alert("Fehler beim URL-Import", msg);
     } finally {
       setLoading(false);
     }
@@ -279,6 +360,7 @@ export default function ScanScreen() {
     setImageBase64(null);
     setMode("choose");
     setEditedText("");
+    setSourceUrl("");
   };
 
   // --- Camera View ---
@@ -461,6 +543,118 @@ export default function ScanScreen() {
     );
   }
 
+  if (mode === "url") {
+    const validUrl = isHttpUrl(sourceUrl);
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}
+        >
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <Text
+              style={{
+                fontSize: typography.xxl,
+                fontWeight: typography.bold,
+                color: colors.text,
+              }}
+            >
+              URL importieren
+            </Text>
+            <TouchableOpacity
+              onPress={() => setMode("choose")}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: spacing.xs,
+              }}
+            >
+              <X size={16} color={colors.primary} />
+              <Text
+                style={{
+                  color: colors.primary,
+                  fontSize: typography.base,
+                  fontWeight: typography.semibold,
+                }}
+              >
+                Zurück
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <Text
+            style={{
+              color: colors.textSecondary,
+              fontSize: typography.base,
+              lineHeight: 22,
+            }}
+          >
+            Gib eine URL ein. Text und relevante Bilder der Seite werden in Karten
+            und Quizfragen übernommen.
+          </Text>
+
+          <TextInput
+            value={sourceUrl}
+            onChangeText={setSourceUrl}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType={Platform.OS === "ios" ? "url" : "default"}
+            placeholder="https://beispiel.de/artikel"
+            placeholderTextColor={colors.textTertiary}
+            style={{
+              borderWidth: 1,
+              borderColor: validUrl || sourceUrl.length === 0 ? colors.border : colors.error,
+              borderRadius: radius.md,
+              padding: 14,
+              fontSize: typography.base,
+              backgroundColor: colors.surface,
+              color: colors.text,
+            }}
+          />
+
+          <TouchableOpacity
+            onPress={handleGenerateFromUrl}
+            disabled={loading || !validUrl}
+            activeOpacity={0.8}
+            style={{
+              backgroundColor:
+                loading || !validUrl ? colors.textTertiary : colors.primary,
+              borderRadius: radius.md,
+              paddingVertical: 16,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: spacing.sm,
+            }}
+          >
+            {loading ? (
+              <ActivityIndicator color={colors.textInverse} />
+            ) : (
+              <>
+                <Sparkles size={18} color={colors.textInverse} />
+                <Text
+                  style={{
+                    color: colors.textInverse,
+                    fontSize: typography.lg,
+                    fontWeight: typography.bold,
+                  }}
+                >
+                  URL analysieren
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
   // --- Main Choose Mode + Results View ---
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
@@ -468,15 +662,45 @@ export default function ScanScreen() {
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}
       >
-        <Text
-          style={{
-            fontSize: typography.xxl,
-            fontWeight: typography.bold,
-            color: colors.text,
-          }}
-        >
-          {cards.length > 0 ? "Ergebnis" : "Lernmaterial erfassen"}
-        </Text>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+          <Text
+            style={{
+              fontSize: typography.xxl,
+              fontWeight: typography.bold,
+              color: colors.text,
+            }}
+          >
+            {cards.length > 0 ? "Ergebnis" : "Lernmaterial erfassen"}
+          </Text>
+
+          {/* Usage badge — only for free tier */}
+          {usageTier === "free" && aiScansLimit !== null && (
+            <TouchableOpacity
+              onPress={() => router.push("/paywall")}
+              activeOpacity={0.8}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 4,
+                backgroundColor: (aiScansRemaining ?? 0) <= 1 ? colors.errorLight : colors.surfaceSecondary,
+                borderRadius: radius.full,
+                paddingHorizontal: 10,
+                paddingVertical: 4,
+                borderWidth: 1,
+                borderColor: (aiScansRemaining ?? 0) <= 1 ? colors.error : colors.border,
+              }}
+            >
+              <Zap size={13} color={(aiScansRemaining ?? 0) <= 1 ? colors.error : colors.textSecondary} />
+              <Text style={{
+                fontSize: typography.xs,
+                fontWeight: typography.semibold,
+                color: (aiScansRemaining ?? 0) <= 1 ? colors.error : colors.textSecondary,
+              }}>
+                {aiScansRemaining ?? 0}/{aiScansLimit} KI
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
         {/* Loading overlay */}
         {(loading || saving) && (
@@ -504,6 +728,8 @@ export default function ScanScreen() {
                 ? "Karten werden gespeichert..."
                 : imageUri
                   ? "Bild wird analysiert..."
+                  : sourceUrl.trim()
+                    ? "URL wird analysiert..."
                   : "Flashcards werden generiert..."}
             </Text>
             <Text
@@ -680,6 +906,55 @@ export default function ScanScreen() {
               <ChevronRight size={20} color="rgba(255,255,255,0.5)" />
             </TouchableOpacity>
 
+            {/* URL import button */}
+            <TouchableOpacity
+              onPress={() => setMode("url")}
+              activeOpacity={0.8}
+              style={{
+                backgroundColor: colors.info,
+                borderRadius: radius.lg,
+                padding: spacing.xl,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: spacing.lg,
+                ...shadows.md,
+              }}
+            >
+              <View
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: radius.md,
+                  backgroundColor: "rgba(255,255,255,0.2)",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <Link2 size={24} color={colors.textInverse} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    color: colors.textInverse,
+                    fontSize: typography.lg,
+                    fontWeight: typography.bold,
+                  }}
+                >
+                  URL importieren
+                </Text>
+                <Text
+                  style={{
+                    color: "rgba(255,255,255,0.7)",
+                    fontSize: typography.sm,
+                    marginTop: 2,
+                  }}
+                >
+                  Webseite inkl. Bilder als Lernmaterial
+                </Text>
+              </View>
+              <ChevronRight size={20} color="rgba(255,255,255,0.5)" />
+            </TouchableOpacity>
+
             {/* Info text */}
             <View
               style={{
@@ -763,10 +1038,12 @@ export default function ScanScreen() {
             </View>
 
             {cards.map((card, idx) => {
-              const frontDisplay = card.front.replace(
+              const media = summarizeCardMedia(card);
+              const frontDisplay = (media.plainFront || card.front).replace(
                 /\{\{c\d+::(.+?)\}\}/g,
                 "[$1]"
               );
+              const backDisplay = media.plainBack || card.back;
               return (
                 <View
                   key={idx}
@@ -778,6 +1055,19 @@ export default function ScanScreen() {
                     borderColor: colors.border,
                   }}
                 >
+                  {media.primaryImage ? (
+                    <Image
+                      source={{ uri: media.primaryImage.url }}
+                      style={{
+                        width: "100%",
+                        height: 160,
+                        borderRadius: radius.md,
+                        marginBottom: spacing.sm,
+                        backgroundColor: colors.surfaceSecondary,
+                      }}
+                      resizeMode="contain"
+                    />
+                  ) : null}
                   <Text
                     style={{
                       fontWeight: typography.semibold,
@@ -786,7 +1076,7 @@ export default function ScanScreen() {
                       color: colors.text,
                     }}
                   >
-                    {frontDisplay}
+                    {frontDisplay || media.primaryImage?.alt || "Bildkarte"}
                   </Text>
                   <Text
                     style={{
@@ -794,7 +1084,7 @@ export default function ScanScreen() {
                       fontSize: typography.sm + 1,
                     }}
                   >
-                    {card.back}
+                    {backDisplay || media.primaryImage?.alt || "—"}
                   </Text>
                   <View
                     style={{

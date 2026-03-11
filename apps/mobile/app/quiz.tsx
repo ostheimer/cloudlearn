@@ -1,14 +1,15 @@
-import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import {
   ActivityIndicator,
+  Image,
   ScrollView,
   Text,
   TouchableOpacity,
   View,
-  Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 import {
   CheckCircle2,
   XCircle,
@@ -19,103 +20,42 @@ import {
   HelpCircle,
 } from "lucide-react-native";
 import { listCardsInDeck, type Card } from "../src/lib/api";
+import {
+  defaultQuizCopyDe,
+  generateQuestions,
+  type QuizQuestion,
+} from "../src/lib/quizQuestions";
 import { useColors, spacing, radius, typography, shadows } from "../src/theme";
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-
-// Question types
-type QuestionType = "mc" | "trueFalse";
-
-interface Question {
-  type: QuestionType;
-  cardId: string;
-  questionText: string;
-  correctAnswer: string;
-  options: string[]; // for MC: 4 options including correct; for T/F: ["Richtig", "Falsch"]
-  correctIndex: number;
-  // For true/false: the displayed pairing
-  tfPairing?: { front: string; back: string; isCorrect: boolean };
-}
-
-// Shuffle array helper
-function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j]!, a[i]!];
-  }
-  return a;
-}
-
-// Generate quiz questions from cards
-function generateQuestions(cards: Card[], count = 10): Question[] {
-  if (cards.length < 2) return [];
-
-  const questions: Question[] = [];
-  const shuffledCards = shuffle(cards);
-  const limit = Math.min(count, shuffledCards.length);
-
-  for (let i = 0; i < limit; i++) {
-    const card = shuffledCards[i]!;
-    const isTF = Math.random() < 0.3 && cards.length >= 3; // 30% true/false
-
-    if (isTF) {
-      // True/False: Show a front with either correct or wrong back
-      const isCorrect = Math.random() < 0.5;
-      let displayBack = card.back;
-      if (!isCorrect) {
-        // Pick a random wrong back from other cards
-        const others = cards.filter((c) => c.id !== card.id);
-        displayBack = others[Math.floor(Math.random() * others.length)]!.back;
-      }
-      questions.push({
-        type: "trueFalse",
-        cardId: card.id,
-        questionText: `Stimmt diese Zuordnung?`,
-        correctAnswer: isCorrect ? "Richtig" : "Falsch",
-        options: ["Richtig", "Falsch"],
-        correctIndex: isCorrect ? 0 : 1,
-        tfPairing: { front: card.front, back: displayBack, isCorrect },
-      });
-    } else {
-      // Multiple Choice: front is question, correct answer = back
-      const wrongBacks = shuffle(
-        cards.filter((c) => c.id !== card.id).map((c) => c.back)
-      ).slice(0, 3);
-
-      const allOptions = shuffle([card.back, ...wrongBacks]);
-      const correctIdx = allOptions.indexOf(card.back);
-
-      questions.push({
-        type: "mc",
-        cardId: card.id,
-        questionText: card.front,
-        correctAnswer: card.back,
-        options: allOptions,
-        correctIndex: correctIdx,
-      });
-    }
-  }
-
-  return questions;
-}
 
 export default function QuizScreen() {
   const colors = useColors();
+  const { t } = useTranslation();
   const { deckId, deckTitle } = useLocalSearchParams<{
     deckId: string;
     deckTitle: string;
   }>();
   const router = useRouter();
+  const quizCopy = useMemo(
+    () => ({
+      ...defaultQuizCopyDe,
+      trueLabel: t("quiz.trueLabel", { defaultValue: defaultQuizCopyDe.trueLabel }),
+      falseLabel: t("quiz.falseLabel", { defaultValue: defaultQuizCopyDe.falseLabel }),
+      trueFalsePrompt: t("quiz.trueFalsePrompt", {
+        defaultValue: defaultQuizCopyDe.trueFalsePrompt,
+      }),
+      imagePrompt: t("quiz.imagePrompt", { defaultValue: defaultQuizCopyDe.imagePrompt }),
+    }),
+    [t]
+  );
 
   const [cards, setCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
-  const [questions, setQuestions] = useState<Question[]>([]);
+  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [answers, setAnswers] = useState<boolean[]>([]);
   const [finished, setFinished] = useState(false);
-  const [timerEnabled, setTimerEnabled] = useState(false);
+  const [timerEnabled] = useState(false);
   const [timeLeft, setTimeLeft] = useState(15);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -126,7 +66,7 @@ export default function QuizScreen() {
       try {
         const { cards: fetched } = await listCardsInDeck(deckId);
         setCards(fetched);
-        const q = generateQuestions(fetched, 10);
+        const q = generateQuestions(fetched, 10, quizCopy);
         setQuestions(q);
       } catch {
         // Error loading
@@ -134,7 +74,7 @@ export default function QuizScreen() {
         setLoading(false);
       }
     })();
-  }, [deckId]);
+  }, [deckId, quizCopy]);
 
   // Timer
   useEffect(() => {
@@ -179,7 +119,7 @@ export default function QuizScreen() {
   };
 
   const handleRestart = () => {
-    const q = generateQuestions(cards, 10);
+    const q = generateQuestions(cards, 10, quizCopy);
     setQuestions(q);
     setCurrentIdx(0);
     setSelected(null);
@@ -565,6 +505,8 @@ export default function QuizScreen() {
                 backgroundColor:
                   question!.type === "mc"
                     ? colors.primaryLight
+                    : question!.type === "imageMc"
+                    ? colors.infoLight
                     : colors.accentLight,
                 paddingHorizontal: spacing.md,
                 paddingVertical: spacing.xs,
@@ -576,10 +518,18 @@ export default function QuizScreen() {
                   fontSize: typography.xs,
                   fontWeight: typography.bold,
                   color:
-                    question!.type === "mc" ? colors.primary : colors.accent,
+                    question!.type === "mc"
+                      ? colors.primary
+                      : question!.type === "imageMc"
+                      ? colors.info
+                      : colors.accent,
                 }}
               >
-                {question!.type === "mc" ? "MULTIPLE CHOICE" : "WAHR / FALSCH"}
+                {question!.type === "mc"
+                  ? t("quiz.mode.mc", { defaultValue: "MULTIPLE CHOICE" })
+                  : question!.type === "imageMc"
+                  ? t("quiz.mode.image", { defaultValue: "BILD QUIZ" })
+                  : t("quiz.mode.tf", { defaultValue: "WAHR / FALSCH" })}
               </Text>
             </View>
 
@@ -594,6 +544,18 @@ export default function QuizScreen() {
                 >
                   {question!.questionText}
                 </Text>
+                {question!.image ? (
+                  <Image
+                    source={{ uri: question!.image.url }}
+                    style={{
+                      width: "100%",
+                      height: 180,
+                      borderRadius: radius.md,
+                      backgroundColor: colors.surfaceSecondary,
+                    }}
+                    resizeMode="contain"
+                  />
+                ) : null}
                 <View
                   style={{
                     backgroundColor: colors.surfaceSecondary,
@@ -628,16 +590,30 @@ export default function QuizScreen() {
                 </View>
               </View>
             ) : (
-              <Text
-                style={{
-                  fontSize: typography.xl,
-                  fontWeight: typography.semibold,
-                  color: colors.text,
-                  lineHeight: 28,
-                }}
-              >
-                {question!.questionText}
-              </Text>
+              <View style={{ gap: spacing.md }}>
+                {question!.image ? (
+                  <Image
+                    source={{ uri: question!.image.url }}
+                    style={{
+                      width: "100%",
+                      height: 190,
+                      borderRadius: radius.md,
+                      backgroundColor: colors.surfaceSecondary,
+                    }}
+                    resizeMode="contain"
+                  />
+                ) : null}
+                <Text
+                  style={{
+                    fontSize: typography.xl,
+                    fontWeight: typography.semibold,
+                    color: colors.text,
+                    lineHeight: 28,
+                  }}
+                >
+                  {question!.questionText}
+                </Text>
+              </View>
             )}
           </View>
 
