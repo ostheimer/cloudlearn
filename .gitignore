@@ -16,6 +16,10 @@ test-results
 .vercel
 mobile-home.png
 mobile-session-complete.png
+sim-window-desktop.png
+.tmp-sim-*.png
+.tmp/
+apps/mobile/expo-qr.png
 
 # Build artifacts
 apps/api/.next/
