@@ -13,6 +13,7 @@ import {
   Clock,
   Moon,
   Sun,
+  Trophy,
 } from "lucide-react-native";
 import { i18n } from "../../src/i18n";
 import { useSessionStore } from "../../src/store/sessionStore";
@@ -199,6 +200,34 @@ export default function ProfileScreen() {
             </Text>
             <Text style={{ fontSize: typography.sm, color: c.textSecondary, marginTop: 2 }}>
               {t("referral.profileButtonSubtitle")}
+            </Text>
+          </View>
+          <Text style={{ fontSize: typography.sm, color: c.primary, fontWeight: typography.semibold }}>→</Text>
+        </TouchableOpacity>
+
+        {/* Leaderboard */}
+        <TouchableOpacity
+          onPress={() => router.push("/leaderboard")}
+          activeOpacity={0.8}
+          style={{
+            backgroundColor: c.surface, borderRadius: radius.lg, padding: spacing.lg,
+            borderWidth: 1, borderColor: c.border, flexDirection: "row", alignItems: "center",
+            gap: spacing.md, ...shadows.sm,
+          }}
+        >
+          <View style={{
+            width: 40, height: 40, borderRadius: radius.md,
+            backgroundColor: `${c.warning}22`,
+            justifyContent: "center", alignItems: "center",
+          }}>
+            <Trophy size={18} color={c.warning} fill={c.warning} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: typography.base, fontWeight: typography.semibold, color: c.text }}>
+              {t("leaderboard.profileButton")}
+            </Text>
+            <Text style={{ fontSize: typography.sm, color: c.textSecondary, marginTop: 2 }}>
+              {t("leaderboard.profileButtonSubtitle")}
             </Text>
           </View>
           <Text style={{ fontSize: typography.sm, color: c.primary, fontWeight: typography.semibold }}>→</Text>

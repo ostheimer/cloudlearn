@@ -622,3 +622,76 @@ export async function claimReferralCode(code: string): Promise<ReferralClaimResp
 export async function getReferralInfo(): Promise<ReferralInfoResponse> {
   return request<ReferralInfoResponse>("/api/v1/referral/info");
 }
+
+// ─── Leaderboard ──────────────────────────────────────────────────────────────
+
+export interface LeaderboardEntry {
+  rank: number;
+  userId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  lpBalance: number;
+  tier: string;
+  currentStreak: number;
+  isCurrentUser: boolean;
+}
+
+export interface GlobalLeaderboardResponse {
+  entries: LeaderboardEntry[];
+  myRank: number;
+  total: number;
+}
+
+export interface FriendsLeaderboardResponse {
+  entries: LeaderboardEntry[];
+  friendCount: number;
+}
+
+export async function getGlobalLeaderboard(): Promise<GlobalLeaderboardResponse> {
+  return request<GlobalLeaderboardResponse>("/api/v1/leaderboard/global");
+}
+
+export async function getFriendsLeaderboard(): Promise<FriendsLeaderboardResponse> {
+  return request<FriendsLeaderboardResponse>("/api/v1/leaderboard/friends");
+}
+
+// ─── Friends ──────────────────────────────────────────────────────────────────
+
+export interface FriendProfile {
+  userId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  lpBalance: number;
+  currentStreak: number;
+  lastReviewDate: string | null;
+  streakInDanger: boolean;
+}
+
+export async function getFriends(): Promise<{ friends: FriendProfile[] }> {
+  return request<{ friends: FriendProfile[] }>("/api/v1/friends");
+}
+
+export async function addFriend(friendId: string): Promise<{ added: boolean; friendId: string }> {
+  return request<{ added: boolean; friendId: string }>("/api/v1/friends", {
+    method: "POST",
+    body: JSON.stringify({ friendId }),
+  });
+}
+
+export async function removeFriend(friendId: string): Promise<{ removed: boolean }> {
+  return request<{ removed: boolean }>(`/api/v1/friends?friendId=${friendId}`, {
+    method: "DELETE",
+  });
+}
+
+// ─── Push Notifications ───────────────────────────────────────────────────────
+
+export async function registerPushToken(
+  token: string,
+  platform: "ios" | "android" | "web"
+): Promise<{ registered: boolean }> {
+  return request<{ registered: boolean }>("/api/v1/push/register", {
+    method: "POST",
+    body: JSON.stringify({ token, platform }),
+  });
+}

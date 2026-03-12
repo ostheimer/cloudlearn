@@ -13,7 +13,7 @@ import {
   logoutRevenueCatUser,
 } from "../src/features/paywall/revenuecat";
 import { useOnboardingState } from "../src/features/onboarding/onboardingState";
-import { registerPaywallTrigger, unregisterPaywallTrigger } from "../src/lib/api";
+import { registerPaywallTrigger, unregisterPaywallTrigger, registerPushToken } from "../src/lib/api";
 import { resolveRootRedirect } from "../src/navigation/rootRedirect";
 
 initializeI18n("de");
@@ -95,6 +95,23 @@ export default function RootLayout() {
     }
 
     void initializeRevenueCatForUser(userId);
+
+    // Register Expo push token with our backend for streak notifications
+    (async () => {
+      try {
+        const { default: Notifications } = await import("expo-notifications");
+        const { status } = await Notifications.getPermissionsAsync();
+        if (status !== "granted") return;
+        const token = await Notifications.getExpoPushTokenAsync();
+        if (token.data) {
+          const { Platform } = await import("react-native");
+          const platform = Platform.OS === "ios" ? "ios" : Platform.OS === "android" ? "android" : "web";
+          await registerPushToken(token.data, platform as "ios" | "android" | "web");
+        }
+      } catch {
+        // Push token registration is best-effort
+      }
+    })();
   }, [isAuthenticated, userId]);
 
   // Register a global paywall trigger so any API 402 response auto-navigates to paywall

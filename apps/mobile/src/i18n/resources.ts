@@ -321,6 +321,19 @@ export const resources = {
       "referral.codeNotFound": "Dieser Code existiert nicht.",
       "referral.selfReferral": "Du kannst deinen eigenen Code nicht verwenden.",
       "referral.claimError": "Fehler beim Einlösen des Codes. Bitte versuche es später erneut.",
+
+      // Leaderboard
+      "leaderboard.title": "Rangliste",
+      "leaderboard.profileButton": "Rangliste",
+      "leaderboard.profileButtonSubtitle": "Vergleiche dich mit anderen Lernenden",
+      "leaderboard.tabGlobal": "Global",
+      "leaderboard.tabFriends": "Freunde ({{count}})",
+      "leaderboard.yourRank": "Dein Rang: #{{rank}}",
+      "leaderboard.loadError": "Rangliste konnte nicht geladen werden.",
+      "leaderboard.noFriends": "Noch keine Freunde",
+      "leaderboard.noFriendsHint": "Lade Freunde ein, um hier gemeinsam anzutreten.",
+      "leaderboard.noEntries": "Keine Einträge gefunden.",
+      "leaderboard.inviteFriends": "Freunde einladen",
     }
   },
   en: {
@@ -645,6 +658,19 @@ export const resources = {
       "referral.codeNotFound": "This code does not exist.",
       "referral.selfReferral": "You cannot use your own referral code.",
       "referral.claimError": "Error redeeming code. Please try again later.",
+
+      // Leaderboard
+      "leaderboard.title": "Leaderboard",
+      "leaderboard.profileButton": "Leaderboard",
+      "leaderboard.profileButtonSubtitle": "Compare yourself with other learners",
+      "leaderboard.tabGlobal": "Global",
+      "leaderboard.tabFriends": "Friends ({{count}})",
+      "leaderboard.yourRank": "Your rank: #{{rank}}",
+      "leaderboard.loadError": "Could not load leaderboard.",
+      "leaderboard.noFriends": "No friends yet",
+      "leaderboard.noFriendsHint": "Invite friends to compete together here.",
+      "leaderboard.noEntries": "No entries found.",
+      "leaderboard.inviteFriends": "Invite friends",
     }
   }
 } as const;
