@@ -679,29 +679,30 @@ Erster Start → Beispiel-Scan → erste Review → Erfolgserlebnis in unter 2 M
 ### CL-MON-01 — Supabase Migration + Edge Function deployen
 
 - **Priorität:** P0 (blockiert alle Limits in Production)
-- **Status:** Offen
+- **Status:** Teilweise erledigt (Migration + Function deployed; Cron manuell im Dashboard setzen)
 - **Schätzung:** 0.5 PT
 
 **Beschreibung**
-Die Migration `20260301100000_add_ai_usage_limits.sql` und die Edge Function `reset-ai-usage` wurden im Repo angelegt, aber noch nicht in die Produktions-Datenbank eingespielt.
+Die Migration `20260301100000_add_ai_usage_limits.sql` und die Edge Function `reset-ai-usage` wurden im Repo angelegt. Migration und Function sind in Production eingespielt/deployed; der monatliche Cron muss einmalig im Dashboard eingerichtet werden.
 
 **Akzeptanzkriterien**
-- [ ] `supabase db push` erfolgreich — Spalten `ai_scans_used`, `ai_url_imports_used`, `usage_period_start` in Production vorhanden
-- [ ] Edge Function `reset-ai-usage` via `supabase functions deploy reset-ai-usage` deployed
-- [ ] Cron-Schedule im Supabase Dashboard gesetzt: `0 0 1 * *` (jeden 1. des Monats, 00:00 UTC)
-- [ ] Manueller Test: Edge Function per `curl` aufrufen → `{ success: true }` zurück
+- [x] `supabase db push` erfolgreich — Spalten `ai_scans_used`, `ai_url_imports_used`, `usage_period_start` in Production vorhanden (2026-03-12)
+- [x] Edge Function `reset-ai-usage` via `supabase functions deploy reset-ai-usage` deployed (2026-03-12)
+- [ ] Cron-Schedule im Supabase Dashboard gesetzt: `0 0 1 * *` (jeden 1. des Monats, 00:00 UTC) — Anleitung: `docs/runbooks/supabase-usage-cron.md`
+- [ ] Manueller Test: Edge Function per `curl` mit Anon Key aus Dashboard aufrufen → `{ success: true }` zurück
 
-**Deployment-Schritte**
+**Deployment-Schritte (erledigt)**
 ```bash
-# 1. Migration einzuspielen
-supabase db push --project-ref <SUPABASE_PROJECT_REF>
+# 1. Migration eingespielt (von apps/api aus)
+supabase link --project-ref <SUPABASE_PROJECT_REF>
+supabase db push
 
-# 2. Edge Function deployen
+# 2. Edge Function deployed
 supabase functions deploy reset-ai-usage --project-ref <SUPABASE_PROJECT_REF>
-
-# 3. Cron in Supabase Dashboard konfigurieren:
-#    Supabase Dashboard > Edge Functions > reset-ai-usage > Schedules > 0 0 1 * *
 ```
+
+**Noch zu erledigen**
+- Cron: **Dashboard → Integrations → Cron → Create job** → Supabase Edge Function `reset-ai-usage`, Schedule `0 0 1 * *`. Details: `docs/runbooks/supabase-usage-cron.md`
 
 ---
 
