@@ -20,16 +20,76 @@
         {
           "photosPermission": "clearn benötigt Zugriff auf deine Fotos, um Lernmaterial auszuwählen und daraus Flashcards zu erstellen."
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "androidMode": "default",
+          "androidCollapsedTitle": "clearn"
+        }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
+          "iosAppId": "ca-app-pub-3940256099942544~1458002511",
+          "userTrackingUsageDescription": "Wir verwenden deine Gerätedaten, um relevante Werbung anzuzeigen und clearn kostenlos zu halten.",
+          "skAdNetworkItems": [
+            "cstr6suwn9.skadnetwork",
+            "4fzdc2evr5.skadnetwork",
+            "2fnua5tdw4.skadnetwork",
+            "ydx93a7ass.skadnetwork",
+            "5a6flpkh64.skadnetwork",
+            "p78axxw29g.skadnetwork",
+            "v72qych5uu.skadnetwork",
+            "ludvb6z3bs.skadnetwork",
+            "cp8zw746q7.skadnetwork",
+            "3sh42y64l3.skadnetwork",
+            "c6k4g5qg8m.skadnetwork",
+            "s39g8k73mm.skadnetwork",
+            "3qy4746246.skadnetwork",
+            "f38h382jlk.skadnetwork",
+            "hs6bdukanm.skadnetwork",
+            "v4nxqhlyqp.skadnetwork",
+            "wzmmZ9fp2w.skadnetwork",
+            "su67r6k2v3.skadnetwork",
+            "yclnxrl5pm.skadnetwork",
+            "t38b2kh725.skadnetwork"
+          ]
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "15.1"
+          },
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "buildToolsVersion": "35.0.0"
+          }
+        }
       ]
     ],
     "ios": {
+      "bundleIdentifier": "app.clearn",
       "infoPlist": {
         "NSCameraUsageDescription": "clearn benötigt Kamera-Zugriff, um Lernmaterial zu fotografieren und daraus Flashcards zu erstellen.",
-        "NSPhotoLibraryUsageDescription": "clearn benötigt Zugriff auf deine Fotos, um Lernmaterial auszuwählen und daraus Flashcards zu erstellen."
+        "NSPhotoLibraryUsageDescription": "clearn benötigt Zugriff auf deine Fotos, um Lernmaterial auszuwählen und daraus Flashcards zu erstellen.",
+        "NSUserTrackingUsageDescription": "Wir verwenden deine Gerätedaten, um relevante Werbung anzuzeigen und clearn kostenlos zu halten.",
+        "GADApplicationIdentifier": "ca-app-pub-3940256099942544~1458002511"
       }
     },
     "android": {
-      "permissions": ["CAMERA", "READ_EXTERNAL_STORAGE"]
+      "package": "app.clearn",
+      "permissions": ["CAMERA", "READ_EXTERNAL_STORAGE", "RECEIVE_BOOT_COMPLETED", "VIBRATE"],
+      "googleServicesFile": "./google-services.json"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "clearn"
+      }
     }
   }
 }
