@@ -688,8 +688,8 @@ Die Migration `20260301100000_add_ai_usage_limits.sql` und die Edge Function `re
 **Akzeptanzkriterien**
 - [x] `supabase db push` erfolgreich — Spalten `ai_scans_used`, `ai_url_imports_used`, `usage_period_start` in Production vorhanden (2026-03-12)
 - [x] Edge Function `reset-ai-usage` via `supabase functions deploy reset-ai-usage` deployed (2026-03-12)
-- [ ] Cron-Schedule im Supabase Dashboard gesetzt: `0 0 1 * *` (jeden 1. des Monats, 00:00 UTC) — Anleitung: `docs/runbooks/supabase-usage-cron.md`
-- [ ] Manueller Test: Edge Function per `curl` mit Anon Key aus Dashboard aufrufen → `{ success: true }` zurück
+- [x] Cron-Schedule gesetzt: `reset-ai-usage-monthly`, `0 0 1 * *`, active=true — per Supabase Management API (2026-03-12)
+- [x] Vault Secrets `project_url` + `anon_key` angelegt (2026-03-12)
 
 **Deployment-Schritte (erledigt)**
 ```bash
