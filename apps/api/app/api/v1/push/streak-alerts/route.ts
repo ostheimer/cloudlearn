@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     const secret = request.headers.get("x-cron-secret");
     const runtimeEnv = process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "development";
 
-    if (env.CRON_SECRET && secret !== env.CRON_SECRET && runtimeEnv !== "development") {
+    if (env.CRON_SECRET && secret !== env.CRON_SECRET.trim() && runtimeEnv !== "development") {
       return jsonError(requestId, "UNAUTHORIZED", "Invalid cron secret", 401);
     }
 
