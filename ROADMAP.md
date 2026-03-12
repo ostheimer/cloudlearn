@@ -1,6 +1,6 @@
 # ROADMAP
 
-Letzte Aktualisierung: 2026-03-12 (CL-MON-01 vollständig: Cron active=true in Production)
+Letzte Aktualisierung: 2026-03-12 (Monetarisierungskonzept v2: LP-System, Ads, Social)
 
 ## Gesamtstatus
 
