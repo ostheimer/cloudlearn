@@ -141,7 +141,11 @@ export const revenueCatWebhookSchema = z.object({
     app_user_id: z.string(),
     type: z.string(),
     entitlement_ids: z.array(z.string()).optional(),
-    expiration_at_ms: z.number().int().nullable().optional()
+    expiration_at_ms: z.number().int().nullable().optional(),
+    // Fields present for one-time purchases (consumable LP packs)
+    product_id: z.string().optional(),
+    transaction_id: z.string().optional(),
+    store_transaction_id: z.string().optional(),
   })
 });
 

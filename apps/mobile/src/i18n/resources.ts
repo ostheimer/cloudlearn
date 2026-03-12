@@ -289,6 +289,38 @@ export const resources = {
       "paywall.restoreNoneTitle": "Nichts gefunden",
       "paywall.restoreNoneBody": "Es wurde kein aktives Abo gefunden.",
       "paywall.restoreUnknownError": "Käufe konnten nicht wiederhergestellt werden.",
+
+      // LP-Pack Kauf
+      "lp.purchaseSuccess": "LP aufgeladen!",
+      "lp.purchaseSuccessBody": "+{{lp}} LP erhalten! Dein neues Guthaben: {{balance}} LP.",
+      "lp.purchaseSuccessWebhook": "+{{lp}} LP werden in Kürze gutgeschrieben.",
+      "lp.purchaseError": "Kauf fehlgeschlagen",
+      "lp.purchaseErrorGeneric": "Unbekannter Fehler beim Kauf.",
+
+      // Referral
+      "referral.title": "Freunde einladen",
+      "referral.profileButton": "Freunde einladen",
+      "referral.profileButtonSubtitle": "+50 LP pro geworbenen Freund",
+      "referral.bonusTitle": "Gegenseitig belohnen",
+      "referral.bonusDesc": "Du erhältst {{sender}} LP, dein Freund {{receiver}} LP – für jede erfolgreiche Einladung.",
+      "referral.statUsers": "Eingeladene\nFreunde",
+      "referral.statLp": "LP aus\nEinladungen",
+      "referral.yourCode": "Dein Einladungscode",
+      "referral.copy": "Kopieren",
+      "referral.copied": "Kopiert!",
+      "referral.share": "Teilen",
+      "referral.shareMessage": "Lern mit mir auf clearn! Nutze meinen Code {{code}} und erhalte 25 LP gratis. https://clearn.app",
+      "referral.redeemTitle": "Code eines Freundes einlösen",
+      "referral.redeemDesc": "Gib den Code deines Freundes ein und erhalte {{lp}} LP.",
+      "referral.codePlaceholder": "z.B. ABC12345",
+      "referral.redeem": "Einlösen",
+      "referral.invalidCode": "Bitte gib einen gültigen Code ein.",
+      "referral.claimSuccess": "Geschafft!",
+      "referral.claimSuccessBody": "+{{lp}} LP erhalten! Dein neues Guthaben: {{balance}} LP.",
+      "referral.alreadyReferred": "Du hast bereits einen Einladungscode verwendet.",
+      "referral.codeNotFound": "Dieser Code existiert nicht.",
+      "referral.selfReferral": "Du kannst deinen eigenen Code nicht verwenden.",
+      "referral.claimError": "Fehler beim Einlösen des Codes. Bitte versuche es später erneut.",
     }
   },
   en: {
@@ -581,6 +613,38 @@ export const resources = {
       "paywall.restoreNoneTitle": "Nothing found",
       "paywall.restoreNoneBody": "No active subscription was found.",
       "paywall.restoreUnknownError": "Purchases could not be restored.",
+
+      // LP Pack Purchase
+      "lp.purchaseSuccess": "LP topped up!",
+      "lp.purchaseSuccessBody": "+{{lp}} LP added! New balance: {{balance}} LP.",
+      "lp.purchaseSuccessWebhook": "+{{lp}} LP will be credited shortly.",
+      "lp.purchaseError": "Purchase failed",
+      "lp.purchaseErrorGeneric": "Unknown error during purchase.",
+
+      // Referral
+      "referral.title": "Invite friends",
+      "referral.profileButton": "Invite friends",
+      "referral.profileButtonSubtitle": "+50 LP per referred friend",
+      "referral.bonusTitle": "Reward each other",
+      "referral.bonusDesc": "You get {{sender}} LP, your friend gets {{receiver}} LP – for every successful invite.",
+      "referral.statUsers": "Invited\nfriends",
+      "referral.statLp": "LP from\nreferrals",
+      "referral.yourCode": "Your referral code",
+      "referral.copy": "Copy",
+      "referral.copied": "Copied!",
+      "referral.share": "Share",
+      "referral.shareMessage": "Learn with me on clearn! Use my code {{code}} and get 25 LP free. https://clearn.app",
+      "referral.redeemTitle": "Redeem a friend's code",
+      "referral.redeemDesc": "Enter your friend's code and get {{lp}} LP.",
+      "referral.codePlaceholder": "e.g. ABC12345",
+      "referral.redeem": "Redeem",
+      "referral.invalidCode": "Please enter a valid code.",
+      "referral.claimSuccess": "Done!",
+      "referral.claimSuccessBody": "+{{lp}} LP received! New balance: {{balance}} LP.",
+      "referral.alreadyReferred": "You have already used a referral code.",
+      "referral.codeNotFound": "This code does not exist.",
+      "referral.selfReferral": "You cannot use your own referral code.",
+      "referral.claimError": "Error redeeming code. Please try again later.",
     }
   }
 } as const;

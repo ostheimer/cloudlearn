@@ -5,6 +5,26 @@ import { jsonError, jsonOk, normalizeError } from "@/lib/http";
 import { createRequestContext } from "@/lib/observability";
 import { mapRevenueCatEventToSubscription } from "@/services/revenueCatService";
 import { updateSubscriptionStatus } from "@/services/subscriptionService";
+import { LP_PACKS } from "@/lib/featureGates";
+import { grantLpPurchase } from "@/services/lpService";
+import { createSupabaseAdminClient } from "@/lib/supabase";
+
+// LP pack event types from RevenueCat (consumable products trigger these)
+const LP_PACK_EVENT_TYPES = new Set([
+  "NON_RENEWING_PURCHASE",
+  "INITIAL_PURCHASE",
+]);
+
+async function isLpTransactionProcessed(transactionId: string): Promise<boolean> {
+  const db = createSupabaseAdminClient();
+  if (!db) return false;
+  const { data } = await db
+    .from("lp_transactions")
+    .select("id")
+    .eq("reason", `purchase_${transactionId}`)
+    .maybeSingle();
+  return Boolean(data);
+}
 
 // Webhook route — authenticates via x-revenuecat-signature, not JWT
 export async function POST(request: NextRequest) {
@@ -35,9 +55,25 @@ export async function POST(request: NextRequest) {
     }
 
     const parsed = revenueCatWebhookSchema.parse(await request.json());
-    const userId = parsed.event.app_user_id;
-    const mappedStatus = mapRevenueCatEventToSubscription(parsed.event);
+    const { event } = parsed;
+    const userId = event.app_user_id;
 
+    // ── LP-Pack Purchase (consumable one-time product) ─────────────────────────
+    const productId = event.product_id ?? "";
+    const pack = LP_PACKS[productId];
+    const isLpPackEvent = LP_PACK_EVENT_TYPES.has(event.type) && Boolean(pack);
+
+    if (isLpPackEvent && pack) {
+      const transactionId = event.transaction_id ?? event.store_transaction_id ?? "";
+      if (transactionId && !(await isLpTransactionProcessed(transactionId))) {
+        await grantLpPurchase(userId, pack.lp, `purchase_${transactionId}`);
+      }
+      // Return 200 immediately — no subscription state update needed for packs
+      return jsonOk(requestId, { requestId, type: "lp_pack_granted", productId }, 201);
+    }
+
+    // ── Subscription event ─────────────────────────────────────────────────────
+    const mappedStatus = mapRevenueCatEventToSubscription(event);
     const status = await updateSubscriptionStatus({
       userId,
       tier: mappedStatus.tier,

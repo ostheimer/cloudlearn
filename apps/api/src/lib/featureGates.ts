@@ -61,6 +61,14 @@ export const LP_EARN_RULES = {
   firstReview: 5,
 } as const;
 
+// LP pack product IDs as sold via RevenueCat (consumable one-time purchases)
+export const LP_PACKS: Record<string, { lp: number; priceEur: number }> = {
+  "lp_pack_100":  { lp: 100,  priceEur: 0.99 },
+  "lp_pack_300":  { lp: 300,  priceEur: 2.49 },
+  "lp_pack_750":  { lp: 750,  priceEur: 4.99 },
+  "lp_pack_2000": { lp: 2000, priceEur: 9.99 },
+};
+
 export function getLimitsForTier(tier: SubscriptionTier): TierLimits {
   return TIER_LIMITS[tier];
 }

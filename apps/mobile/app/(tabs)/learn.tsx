@@ -44,10 +44,12 @@ import {
   type ReviewRating,
 } from "../../src/features/review/reviewSession";
 import { useSessionStore } from "../../src/store/sessionStore";
-import { getDueCards, reviewCard, updateCard, earnLp } from "../../src/lib/api";
+import { getDueCards, reviewCard, updateCard, earnLp, getStats } from "../../src/lib/api";
 import { useUsageStore } from "../../src/store/usageStore";
 import { summarizeCardMedia } from "../../src/lib/cardMedia";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
+import { useMilestoneToast } from "../../src/features/milestones/useMilestoneToast";
+import { MilestoneToastView } from "../../src/components/MilestoneToast";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 // Threshold: card must travel 30% of screen width to trigger a rating
@@ -263,21 +265,39 @@ export default function LearnScreen() {
 
   const deductLp = useUsageStore((s) => s.deductLp);
   const setUsage = useUsageStore((s) => s.setUsage);
+  const { toast: milestoneToast, checkStreakMilestones, claimOnceMilestone } = useMilestoneToast();
 
   useEffect(() => {
     if (completed && autoPlaying) setAutoPlaying(false);
   }, [completed, autoPlaying]);
 
-  // Grant LP at end of review session (fire-and-forget, silent on error)
+  // Grant LP and check milestone rewards at end of review session
   useEffect(() => {
     if (!completed || cards.length === 0 || !userId) return;
-    earnLp("session", cards.length)
-      .then((result) => {
+
+    const handleSessionComplete = async () => {
+      try {
+        const result = await earnLp("session", cards.length);
         if (result.granted > 0) {
           setUsage({ lpBalance: result.newBalance });
         }
-      })
-      .catch(() => { /* LP earn is best-effort */ });
+      } catch {
+        // LP earn is best-effort
+      }
+
+      // Claim first_review milestone (idempotent – only fires once ever)
+      claimOnceMilestone("first_review").catch(() => {});
+
+      // Check streak milestones (idempotent – each fires once per streak level)
+      try {
+        const statsResult = await getStats();
+        await checkStreakMilestones(statsResult.stats.currentStreak);
+      } catch {
+        // Streak milestones are best-effort
+      }
+    };
+
+    handleSessionComplete();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [completed]);
 
@@ -753,6 +773,7 @@ export default function LearnScreen() {
           )}
         </View>
       </SafeAreaView>
+      <MilestoneToastView toast={milestoneToast} />
     </GestureHandlerRootView>
   );
 }

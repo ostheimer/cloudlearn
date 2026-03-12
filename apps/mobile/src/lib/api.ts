@@ -579,3 +579,46 @@ export async function claimMilestone(
     body: JSON.stringify({ milestone }),
   });
 }
+
+// ─── LP Pack Purchase ──────────────────────────────────────────────────────────
+
+export interface LpPurchaseResponse {
+  lpGranted: number;
+  newBalance: number;
+}
+
+export async function grantLpPackPurchase(
+  packId: string,
+  transactionId: string
+): Promise<LpPurchaseResponse> {
+  return request<LpPurchaseResponse>("/api/v1/lp/purchase", {
+    method: "POST",
+    body: JSON.stringify({ packId, transactionId }),
+  });
+}
+
+// ─── Referral ──────────────────────────────────────────────────────────────────
+
+export interface ReferralClaimResponse {
+  success: boolean;
+  lpGranted: number;
+  newBalance: number;
+  referrerHandle?: string;
+}
+
+export interface ReferralInfoResponse {
+  referralCode: string;
+  referredCount: number;
+  lpEarnedFromReferrals: number;
+}
+
+export async function claimReferralCode(code: string): Promise<ReferralClaimResponse> {
+  return request<ReferralClaimResponse>("/api/v1/referral/claim", {
+    method: "POST",
+    body: JSON.stringify({ code }),
+  });
+}
+
+export async function getReferralInfo(): Promise<ReferralInfoResponse> {
+  return request<ReferralInfoResponse>("/api/v1/referral/info");
+}

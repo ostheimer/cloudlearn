@@ -6,6 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import {
   Mail,
   Crown,
+  Gift,
   Globe,
   LogOut,
   Bell,
@@ -174,6 +175,34 @@ export default function ProfileScreen() {
             </View>
           </View>
         </View>
+
+        {/* Referral */}
+        <TouchableOpacity
+          onPress={() => router.push("/referral")}
+          activeOpacity={0.8}
+          style={{
+            backgroundColor: c.surface, borderRadius: radius.lg, padding: spacing.lg,
+            borderWidth: 1, borderColor: c.border, flexDirection: "row", alignItems: "center",
+            gap: spacing.md, ...shadows.sm,
+          }}
+        >
+          <View style={{
+            width: 40, height: 40, borderRadius: radius.md,
+            backgroundColor: c.successLight ?? c.surfaceSecondary,
+            justifyContent: "center", alignItems: "center",
+          }}>
+            <Gift size={18} color={c.success} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: typography.base, fontWeight: typography.semibold, color: c.text }}>
+              {t("referral.profileButton")}
+            </Text>
+            <Text style={{ fontSize: typography.sm, color: c.textSecondary, marginTop: 2 }}>
+              {t("referral.profileButtonSubtitle")}
+            </Text>
+          </View>
+          <Text style={{ fontSize: typography.sm, color: c.primary, fontWeight: typography.semibold }}>→</Text>
+        </TouchableOpacity>
 
         {/* Appearance */}
         <View style={{

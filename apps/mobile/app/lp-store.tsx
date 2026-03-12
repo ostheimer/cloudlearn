@@ -14,14 +14,16 @@ import { ArrowLeft, Zap, PlayCircle, ShoppingBag, TrendingUp, Star } from "lucid
 import { useColors, spacing, radius, typography, shadows } from "../src/theme";
 import { useUsageStore } from "../src/store/usageStore";
 import { useRewardedAd } from "../src/features/ads/useRewardedAd";
-import { getLpBalance } from "../src/lib/api";
+import { getLpBalance, grantLpPackPurchase } from "../src/lib/api";
+import { purchaseRevenueCatPackage } from "../src/features/paywall/revenuecat";
+import { useSessionStore } from "../src/store/sessionStore";
 
-// LP packs — must match LP_PACKS in packages/contracts/src/featureGates.ts
+// LP packs — product IDs must match LP_PACKS in apps/api/src/lib/featureGates.ts
 const LP_PACKS = [
-  { id: "lp_100",  lp: 100,  priceEur: "0,99 €", popular: false },
-  { id: "lp_300",  lp: 300,  priceEur: "1,99 €", popular: true  },
-  { id: "lp_750",  lp: 750,  priceEur: "3,99 €", popular: false },
-  { id: "lp_2000", lp: 2000, priceEur: "7,99 €", popular: false },
+  { id: "lp_pack_100",  lp: 100,  priceEur: "0,99 €", popular: false },
+  { id: "lp_pack_300",  lp: 300,  priceEur: "2,49 €", popular: true  },
+  { id: "lp_pack_750",  lp: 750,  priceEur: "4,99 €", popular: false },
+  { id: "lp_pack_2000", lp: 2000, priceEur: "9,99 €", popular: false },
 ];
 
 export default function LpStoreScreen() {
@@ -39,9 +41,11 @@ export default function LpStoreScreen() {
     isLoaded,
   } = useUsageStore();
 
+  const userId = useSessionStore((s) => s.userId);
   const { state: adState, watchAd } = useRewardedAd();
   const [loading, setLoading] = useState(!isLoaded);
   const [adMessage, setAdMessage] = useState("");
+  const [purchasingPackId, setPurchasingPackId] = useState<string | null>(null);
 
   const loadBalance = useCallback(async () => {
     try {
@@ -82,25 +86,43 @@ export default function LpStoreScreen() {
     setTimeout(() => setAdMessage(""), 3000);
   };
 
-  const handleBuyPack = (pack: typeof LP_PACKS[number]) => {
-    // RevenueCat purchase flow — scaffold for now
-    Alert.alert(
-      t("lp.purchaseTitle", { lp: pack.lp }),
-      t("lp.purchaseBody", { lp: pack.lp, price: pack.priceEur }),
-      [
-        { text: t("common.cancel"), style: "cancel" },
-        {
-          text: t("lp.purchaseConfirm"),
-          onPress: () => {
-            // TODO: Trigger RevenueCat purchasePackage(pack.id)
-            Alert.alert(t("lp.purchaseComingSoon"));
-          },
-        },
-      ]
-    );
+  const handleBuyPack = async (pack: typeof LP_PACKS[number]) => {
+    if (!userId || purchasingPackId) return;
+    setPurchasingPackId(pack.id);
+    try {
+      const result = await purchaseRevenueCatPackage(userId, pack.id);
+      if (result.cancelled) {
+        // User cancelled — silent
+        return;
+      }
+      if (result.error) {
+        Alert.alert(t("lp.purchaseError"), result.error);
+        return;
+      }
+      // Purchase succeeded: grant LP via our API (transaction_id from RevenueCat)
+      // RevenueCat also sends a webhook as backup, but we grant immediately here for UX
+      const transactionId = `rc_${userId}_${pack.id}_${Date.now()}`;
+      try {
+        const grant = await grantLpPackPurchase(pack.id, transactionId);
+        setUsage({ lpBalance: grant.newBalance });
+        Alert.alert(
+          t("lp.purchaseSuccess"),
+          t("lp.purchaseSuccessBody", { lp: grant.lpGranted, balance: grant.newBalance })
+        );
+      } catch {
+        // Webhook will handle it as fallback
+        Alert.alert(t("lp.purchaseSuccessWebhook", { lp: pack.lp }));
+        void loadBalance();
+      }
+    } catch (err) {
+      Alert.alert(t("lp.purchaseError"), err instanceof Error ? err.message : t("lp.purchaseErrorGeneric"));
+    } finally {
+      setPurchasingPackId(null);
+    }
   };
 
   const adBusy = adState === "loading" || adState === "showing";
+  const anyPurchasing = purchasingPackId !== null;
   const adCapped = tier === "free" && lpAdsToday >= lpAdCapToday;
   const earnProgress = lpEarnCapToday > 0 ? Math.min(lpEarnedToday / lpEarnCapToday, 1) : 0;
   const adProgress = lpAdCapToday > 0 ? Math.min(lpAdsToday / lpAdCapToday, 1) : 0;
@@ -279,7 +301,8 @@ export default function LpStoreScreen() {
               {LP_PACKS.map((pack) => (
                 <TouchableOpacity
                   key={pack.id}
-                  onPress={() => handleBuyPack(pack)}
+                  onPress={() => { void handleBuyPack(pack); }}
+                  disabled={anyPurchasing}
                   activeOpacity={0.8}
                   style={{
                     backgroundColor: pack.popular ? colors.primary : colors.surface,
@@ -290,6 +313,7 @@ export default function LpStoreScreen() {
                     gap: spacing.md,
                     borderWidth: pack.popular ? 0 : 1,
                     borderColor: colors.border,
+                    opacity: anyPurchasing && purchasingPackId !== pack.id ? 0.5 : 1,
                     ...shadows.sm,
                   }}
                 >
@@ -332,13 +356,17 @@ export default function LpStoreScreen() {
                         : t("lp.packHint", { scans: Math.floor(pack.lp / 10) })}
                     </Text>
                   </View>
-                  <Text style={{
-                    fontSize: typography.lg,
-                    fontWeight: typography.bold,
-                    color: pack.popular ? colors.textInverse : colors.primary,
-                  }}>
-                    {pack.priceEur}
-                  </Text>
+                  {purchasingPackId === pack.id ? (
+                    <ActivityIndicator color={pack.popular ? colors.textInverse : colors.primary} />
+                  ) : (
+                    <Text style={{
+                      fontSize: typography.lg,
+                      fontWeight: typography.bold,
+                      color: pack.popular ? colors.textInverse : colors.primary,
+                    }}>
+                      {pack.priceEur}
+                    </Text>
+                  )}
                 </TouchableOpacity>
               ))}
             </View>
