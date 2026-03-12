@@ -2,7 +2,7 @@
 // Kept only for test compatibility. Do not use in new screens.
 import { create } from "zustand";
 
-export type SubscriptionTier = "free" | "pro" | "lifetime";
+export type SubscriptionTier = "free" | "pro";
 
 // Must match FREE_SCAN_LIMIT_PER_MONTH in apps/api/src/lib/env.ts (default: 5).
 const FREE_SCAN_LIMIT = 5;
@@ -21,7 +21,7 @@ export const usePaywallState = create<PaywallState>((set, get) => ({
   scansUsedThisMonth: 0,
   canScan: () => {
     const state = get();
-    if (state.tier === "pro" || state.tier === "lifetime") {
+    if (state.tier === "pro") {
       return true;
     }
     return state.scansUsedThisMonth < FREE_SCAN_LIMIT;

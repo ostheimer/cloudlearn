@@ -102,11 +102,9 @@ export interface Flashcard {
   tags: string[];
 }
 
-export interface UsageInfo {
-  aiScansRemaining: number | null;
-  aiScansLimit: number | null;
-  urlImportsRemaining?: number | null;
-  urlImportsLimit?: number | null;
+export interface LpUsageInfo {
+  lpSpent: number;
+  lpBalance: number;
 }
 
 export interface ScanResponse {
@@ -115,24 +113,37 @@ export interface ScanResponse {
   fallbackUsed: boolean;
   cards: Flashcard[];
   deckTitle?: string;
-  usage?: UsageInfo;
+  usage?: LpUsageInfo;
 }
 
 export interface UrlImportResponse extends ScanResponse {
   sourceUrl: string;
   imagesUsed: number;
-  usage?: { urlImportsRemaining: number | null; urlImportsLimit: number | null };
+  usage?: LpUsageInfo;
 }
 
 export interface AiUsageResponse {
-  tier: "free" | "pro" | "lifetime";
-  aiScansUsed: number;
-  aiScansLimit: number | null;
-  aiScansRemaining: number | null;
-  urlImportsUsed: number;
-  urlImportsLimit: number | null;
-  urlImportsRemaining: number | null;
+  tier: "free" | "pro";
+  lpBalance: number;
+  lpEarnedToday: number;
+  lpAdsToday: number;
+  lpEarnCapToday: number;
+  lpAdCapToday: number;
+  lpCostAiScan: number;
+  lpCostUrlImport: number;
+  lpCostPdfImport: number;
   periodStart: string | null;
+}
+
+export interface LpEarnResponse {
+  granted: number;
+  newBalance: number;
+  capReached: boolean;
+}
+
+export interface LpMilestoneResponse {
+  granted: number;
+  alreadyClaimed: boolean;
 }
 
 export interface Deck {
@@ -542,4 +553,29 @@ export async function exportDeckForOffline(
   deckId: string
 ): Promise<{ deck: Deck; cards: Card[]; exportedAt: string }> {
   return request<{ deck: Deck; cards: Card[]; exportedAt: string }>(`/api/v1/decks/${deckId}/export`);
+}
+
+// ─── LP (Lernpunkte) ──────────────────────────────────────────────────────────
+
+export async function getLpBalance(): Promise<AiUsageResponse> {
+  return request<AiUsageResponse>("/api/v1/usage");
+}
+
+export async function earnLp(
+  type: "session" | "dailyGoal" | "ad",
+  sessionCardCount?: number
+): Promise<LpEarnResponse> {
+  return request<LpEarnResponse>("/api/v1/lp/earn", {
+    method: "POST",
+    body: JSON.stringify({ type, sessionCardCount }),
+  });
+}
+
+export async function claimMilestone(
+  milestone: "first_deck" | "first_review" | "streak_7" | "streak_30" | "streak_100"
+): Promise<LpMilestoneResponse> {
+  return request<LpMilestoneResponse>("/api/v1/lp/milestone", {
+    method: "POST",
+    body: JSON.stringify({ milestone }),
+  });
 }

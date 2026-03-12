@@ -37,10 +37,10 @@ describe("subscriptionService", () => {
     });
   });
 
-  it("keeps active lifetime subscriptions intact on read", async () => {
+  it("keeps active pro subscriptions intact on read", async () => {
     mockedGetSubscriptionTier.mockResolvedValueOnce({
-      tier: "lifetime",
-      expiresAt: null,
+      tier: "pro",
+      expiresAt: "2027-01-01T00:00:00.000Z",
       isActive: true,
     });
 
@@ -50,9 +50,9 @@ describe("subscriptionService", () => {
 
     expect(status).toEqual({
       userId: "6e5db9e4-7e48-4e11-8d8c-6ca90c18d42a",
-      tier: "lifetime",
+      tier: "pro",
       isActive: true,
-      expiresAt: null,
+      expiresAt: "2027-01-01T00:00:00.000Z",
     });
   });
 

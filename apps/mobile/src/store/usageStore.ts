@@ -1,67 +1,53 @@
 import { create } from "zustand";
 
 // Mirrors the API response from GET /api/v1/usage.
-// null = unlimited (paid tier), number = remaining count.
 export interface UsageState {
-  tier: "free" | "pro" | "lifetime";
-  aiScansUsed: number;
-  aiScansLimit: number | null;
-  aiScansRemaining: number | null;
-  urlImportsUsed: number;
-  urlImportsLimit: number | null;
-  urlImportsRemaining: number | null;
+  tier: "free" | "pro";
+  lpBalance: number;
+  lpEarnedToday: number;
+  lpAdsToday: number;
+  lpEarnCapToday: number;
+  lpAdCapToday: number;
+  lpCostAiScan: number;
+  lpCostUrlImport: number;
+  lpCostPdfImport: number;
   periodStart: string | null;
   isLoaded: boolean;
 
-  // Optimistically decrement after a successful scan (before server confirms)
-  decrementScanRemaining: () => void;
-  decrementUrlImportRemaining: () => void;
+  // Optimistically deduct LP after a successful feature use
+  deductLp: (amount: number) => void;
 
-  // Overwrite from server response (called after getAiUsage() or scan response)
-  setUsage: (usage: Partial<Omit<UsageState, "isLoaded" | "decrementScanRemaining" | "decrementUrlImportRemaining" | "setUsage">>) => void;
+  // Overwrite from server response
+  setUsage: (usage: Partial<Omit<UsageState, "isLoaded" | "deductLp" | "setUsage" | "reset">>) => void;
 
   reset: () => void;
 }
 
-const DEFAULT_FREE_SCAN_LIMIT = 5;
-const DEFAULT_FREE_URL_LIMIT = 2;
-
-export const useUsageStore = create<UsageState>((set, get) => ({
+const INITIAL_STATE: Omit<UsageState, "deductLp" | "setUsage" | "reset"> = {
   tier: "free",
-  aiScansUsed: 0,
-  aiScansLimit: DEFAULT_FREE_SCAN_LIMIT,
-  aiScansRemaining: DEFAULT_FREE_SCAN_LIMIT,
-  urlImportsUsed: 0,
-  urlImportsLimit: DEFAULT_FREE_URL_LIMIT,
-  urlImportsRemaining: DEFAULT_FREE_URL_LIMIT,
+  lpBalance: 10,
+  lpEarnedToday: 0,
+  lpAdsToday: 0,
+  lpEarnCapToday: 30,
+  lpAdCapToday: 20,
+  lpCostAiScan: 10,
+  lpCostUrlImport: 15,
+  lpCostPdfImport: 20,
   periodStart: null,
   isLoaded: false,
+};
 
-  decrementScanRemaining: () => {
-    const s = get();
-    if (s.aiScansRemaining !== null && s.aiScansRemaining > 0) {
-      set({ aiScansUsed: s.aiScansUsed + 1, aiScansRemaining: s.aiScansRemaining - 1 });
-    }
-  },
+export const useUsageStore = create<UsageState>((set, get) => ({
+  ...INITIAL_STATE,
 
-  decrementUrlImportRemaining: () => {
+  deductLp: (amount: number) => {
     const s = get();
-    if (s.urlImportsRemaining !== null && s.urlImportsRemaining > 0) {
-      set({ urlImportsUsed: s.urlImportsUsed + 1, urlImportsRemaining: s.urlImportsRemaining - 1 });
+    if (s.lpBalance >= amount) {
+      set({ lpBalance: Math.max(s.lpBalance - amount, 0) });
     }
   },
 
   setUsage: (usage) => set({ ...usage, isLoaded: true }),
 
-  reset: () => set({
-    tier: "free",
-    aiScansUsed: 0,
-    aiScansLimit: DEFAULT_FREE_SCAN_LIMIT,
-    aiScansRemaining: DEFAULT_FREE_SCAN_LIMIT,
-    urlImportsUsed: 0,
-    urlImportsLimit: DEFAULT_FREE_URL_LIMIT,
-    urlImportsRemaining: DEFAULT_FREE_URL_LIMIT,
-    periodStart: null,
-    isLoaded: false,
-  }),
+  reset: () => set({ ...INITIAL_STATE, isLoaded: false }),
 }));

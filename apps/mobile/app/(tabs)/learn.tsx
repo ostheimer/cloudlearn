@@ -44,7 +44,8 @@ import {
   type ReviewRating,
 } from "../../src/features/review/reviewSession";
 import { useSessionStore } from "../../src/store/sessionStore";
-import { getDueCards, reviewCard, updateCard } from "../../src/lib/api";
+import { getDueCards, reviewCard, updateCard, earnLp } from "../../src/lib/api";
+import { useUsageStore } from "../../src/store/usageStore";
 import { summarizeCardMedia } from "../../src/lib/cardMedia";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
 
@@ -260,9 +261,25 @@ export default function LearnScreen() {
   const [autoPlaySpeed, setAutoPlaySpeed] = useState(3);
   const autoPlayRef = { current: null as ReturnType<typeof setTimeout> | null };
 
+  const deductLp = useUsageStore((s) => s.deductLp);
+  const setUsage = useUsageStore((s) => s.setUsage);
+
   useEffect(() => {
     if (completed && autoPlaying) setAutoPlaying(false);
   }, [completed, autoPlaying]);
+
+  // Grant LP at end of review session (fire-and-forget, silent on error)
+  useEffect(() => {
+    if (!completed || cards.length === 0 || !userId) return;
+    earnLp("session", cards.length)
+      .then((result) => {
+        if (result.granted > 0) {
+          setUsage({ lpBalance: result.newBalance });
+        }
+      })
+      .catch(() => { /* LP earn is best-effort */ });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [completed]);
 
   useEffect(() => {
     if (!autoPlaying || completed || cards.length === 0) return;

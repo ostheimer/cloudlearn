@@ -6,33 +6,27 @@ import { getLpProfile } from "@/services/lpService";
 import { getSubscriptionStatus } from "@/services/subscriptionService";
 import { getLimitsForTier } from "@/lib/featureGates";
 
-// GET /api/v1/usage — returns LP balance + daily earn progress for the authenticated user.
+// GET /api/v1/lp/balance — returns LP balance, daily earn progress and caps.
 export async function GET(request: NextRequest) {
   const { requestId } = createRequestContext(request.headers);
   try {
     const auth = await getAuthUser(request);
     if (!auth) return jsonError(requestId, "UNAUTHORIZED", "Authentication required", 401);
 
-    const userId = auth.userId;
     const [profile, subscription] = await Promise.all([
-      getLpProfile(userId),
-      getSubscriptionStatus(userId),
+      getLpProfile(auth.userId),
+      getSubscriptionStatus(auth.userId),
     ]);
 
     const limits = getLimitsForTier(subscription.tier);
 
     return jsonOk(requestId, {
-      requestId,
+      balance: profile.balance,
+      earnedToday: profile.earnedToday,
+      adsToday: profile.adsToday,
+      earnCapToday: limits.lpEarnCapPerDay,
+      adCapToday: limits.lpAdCapPerDay,
       tier: subscription.tier,
-      lpBalance: profile.balance,
-      lpEarnedToday: profile.earnedToday,
-      lpAdsToday: profile.adsToday,
-      lpEarnCapToday: limits.lpEarnCapPerDay,
-      lpAdCapToday: limits.lpAdCapPerDay,
-      lpCostAiScan: limits.lpCostAiScan,
-      lpCostUrlImport: limits.lpCostUrlImport,
-      lpCostPdfImport: limits.lpCostPdfImport,
-      periodStart: profile.lpPeriodStart,
     });
   } catch (error) {
     const normalized = normalizeError(error);

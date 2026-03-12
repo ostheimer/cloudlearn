@@ -1,9 +1,8 @@
 import type { RevenueCatWebhook } from "@/lib/contracts";
 
-type SubscriptionTier = "free" | "pro" | "lifetime";
+type SubscriptionTier = "free" | "pro";
 
 const PRO_ENTITLEMENT_HINT = "pro";
-const LIFETIME_ENTITLEMENT_HINT = "lifetime";
 
 function normalizeEntitlementIds(entitlementIds?: string[]): string[] {
   return (entitlementIds ?? []).map((id) => id.trim().toLowerCase());
@@ -13,9 +12,6 @@ export function resolveTierFromRevenueCatEntitlements(
   entitlementIds?: string[]
 ): SubscriptionTier {
   const normalized = normalizeEntitlementIds(entitlementIds);
-  if (normalized.some((id) => id.includes(LIFETIME_ENTITLEMENT_HINT))) {
-    return "lifetime";
-  }
   if (normalized.some((id) => id.includes(PRO_ENTITLEMENT_HINT))) {
     return "pro";
   }

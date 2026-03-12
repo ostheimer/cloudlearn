@@ -15,6 +15,7 @@ import {
 import { useSessionStore } from "../../src/store/sessionStore";
 import { getStats, listDecks, type StatsResponse, type Deck } from "../../src/lib/api";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
+import { LpBadge } from "../../src/components/LpBadge";
 
 export default function HomeScreen() {
   const colors = useColors();
@@ -72,26 +73,29 @@ export default function HomeScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={{ flex: 1, padding: spacing.xl, gap: spacing.lg }}>
         {/* Header */}
-        <View style={{ paddingTop: spacing.lg }}>
-          <Text
-            style={{
-              fontSize: typography.xxxl,
-              fontWeight: typography.extrabold,
-              color: colors.text,
-              letterSpacing: -0.5,
-            }}
-          >
-            clearn
-          </Text>
-          <Text
-            style={{
-              fontSize: typography.base,
-              color: colors.textSecondary,
-              marginTop: spacing.xs,
-            }}
-          >
-            Foto — Karte — Wissen
-          </Text>
+        <View style={{ paddingTop: spacing.lg, flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <View>
+            <Text
+              style={{
+                fontSize: typography.xxxl,
+                fontWeight: typography.extrabold,
+                color: colors.text,
+                letterSpacing: -0.5,
+              }}
+            >
+              clearn
+            </Text>
+            <Text
+              style={{
+                fontSize: typography.base,
+                color: colors.textSecondary,
+                marginTop: spacing.xs,
+              }}
+            >
+              Foto — Karte — Wissen
+            </Text>
+          </View>
+          <LpBadge />
         </View>
 
         {loading ? (

@@ -5,12 +5,10 @@ import {
 } from "@/services/revenueCatService";
 
 describe("revenueCatService", () => {
-  it("resolves entitlement IDs to lifetime and pro tiers", () => {
+  it("resolves entitlement IDs to pro tier", () => {
     expect(resolveTierFromRevenueCatEntitlements(["pro_monthly"])).toBe("pro");
-    expect(resolveTierFromRevenueCatEntitlements(["vip_lifetime"])).toBe(
-      "lifetime"
-    );
     expect(resolveTierFromRevenueCatEntitlements(["starter"])).toBe("free");
+    expect(resolveTierFromRevenueCatEntitlements([])).toBe("free");
   });
 
   it("maps active pro event with future expiration", () => {
@@ -49,19 +47,19 @@ describe("revenueCatService", () => {
     });
   });
 
-  it("keeps lifetime active without expiration", () => {
+  it("keeps pro active without expiration date (e.g. annual or LP pack grant)", () => {
     const result = mapRevenueCatEventToSubscription(
       {
         app_user_id: "6e5db9e4-7e48-4e11-8d8c-6ca90c18d42a",
         type: "NON_RENEWING_PURCHASE",
-        entitlement_ids: ["lifetime"],
+        entitlement_ids: ["pro"],
         expiration_at_ms: null,
       },
       new Date("2026-02-12T12:00:00.000Z")
     );
 
     expect(result).toEqual({
-      tier: "lifetime",
+      tier: "pro",
       isActive: true,
       expiresAt: null,
     });

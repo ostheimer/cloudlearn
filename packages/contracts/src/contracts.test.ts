@@ -9,7 +9,8 @@ import {
   urlImportRequestSchema,
   TIER_LIMITS,
   getLimitsForTier,
-  isUnlimited,
+  LP_EARN_RULES,
+  lpCostForFeature,
 } from "./index";
 
 describe("contracts", () => {
@@ -86,15 +87,17 @@ describe("contracts", () => {
 });
 
 describe("featureGates", () => {
-  it("free tier has finite AI scan limit", () => {
+  it("free tier has finite deck and card limits", () => {
     const limits = getLimitsForTier("free");
-    expect(isUnlimited(limits.aiScansPerMonth)).toBe(false);
-    expect(limits.aiScansPerMonth).toBe(5);
+    expect(limits.maxDecks).toBe(10);
+    expect(limits.maxCardsPerDeck).toBe(100);
   });
 
-  it("free tier has finite URL import limit", () => {
+  it("free tier has LP costs for AI features", () => {
     const limits = getLimitsForTier("free");
-    expect(limits.urlImportsPerMonth).toBe(2);
+    expect(limits.lpCostAiScan).toBeGreaterThan(0);
+    expect(limits.lpCostUrlImport).toBeGreaterThan(0);
+    expect(limits.lpCostPdfImport).toBeGreaterThan(0);
   });
 
   it("free tier blocks premium features", () => {
@@ -102,12 +105,18 @@ describe("featureGates", () => {
     expect(limits.pdfImport).toBe(false);
     expect(limits.imageOcclusion).toBe(false);
     expect(limits.offlineDownload).toBe(false);
+    expect(limits.adFree).toBe(false);
   });
 
-  it("pro tier has unlimited AI scans", () => {
+  it("pro tier has higher deck and card limits", () => {
     const limits = getLimitsForTier("pro");
-    expect(isUnlimited(limits.aiScansPerMonth)).toBe(true);
-    expect(isUnlimited(limits.urlImportsPerMonth)).toBe(true);
+    expect(limits.maxDecks).toBe(500);
+    expect(limits.maxCardsPerDeck).toBe(2000);
+  });
+
+  it("pro tier includes monthly LP grant", () => {
+    const limits = getLimitsForTier("pro");
+    expect(limits.lpGrantPerMonth).toBeGreaterThan(0);
   });
 
   it("pro tier enables all premium features", () => {
@@ -115,9 +124,28 @@ describe("featureGates", () => {
     expect(limits.pdfImport).toBe(true);
     expect(limits.imageOcclusion).toBe(true);
     expect(limits.offlineDownload).toBe(true);
+    expect(limits.adFree).toBe(true);
   });
 
-  it("lifetime tier mirrors pro limits", () => {
-    expect(TIER_LIMITS.lifetime).toEqual(TIER_LIMITS.pro);
+  it("pro tier has lower LP costs than free", () => {
+    const free = getLimitsForTier("free");
+    const pro = getLimitsForTier("pro");
+    expect(pro.lpCostAiScan).toBeLessThan(free.lpCostAiScan);
+    expect(pro.lpCostUrlImport).toBeLessThan(free.lpCostUrlImport);
+  });
+
+  it("LP earn rules are defined and positive", () => {
+    expect(LP_EARN_RULES.perReviewSession).toBeGreaterThan(0);
+    expect(LP_EARN_RULES.streakDay7).toBeGreaterThan(LP_EARN_RULES.perReviewSession);
+    expect(LP_EARN_RULES.streakDay100).toBeGreaterThan(LP_EARN_RULES.streakDay30);
+  });
+
+  it("lpCostForFeature returns correct cost per tier", () => {
+    expect(lpCostForFeature("free", "aiScan")).toBe(TIER_LIMITS.free.lpCostAiScan);
+    expect(lpCostForFeature("pro", "pdfImport")).toBe(TIER_LIMITS.pro.lpCostPdfImport);
+  });
+
+  it("TIER_LIMITS only contains free and pro (no lifetime)", () => {
+    expect(Object.keys(TIER_LIMITS)).toEqual(["free", "pro"]);
   });
 });

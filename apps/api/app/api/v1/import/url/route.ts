@@ -3,10 +3,10 @@ import { getEnv } from "@/lib/env";
 import { jsonError, jsonOk, normalizeError } from "@/lib/http";
 import { createRequestContext, logError, logInfo } from "@/lib/observability";
 import { checkRateLimit } from "@/lib/rateLimit";
-import { consumeUrlImportQuota } from "@/lib/usageLimit";
 import { getAuthUser } from "@/lib/auth";
 import { processUrlImport } from "@/services/urlImportService";
 import { getSubscriptionStatus } from "@/services/subscriptionService";
+import { spendLp } from "@/services/lpService";
 
 export async function POST(request: NextRequest) {
   const { requestId } = createRequestContext(request.headers);
@@ -27,10 +27,15 @@ export async function POST(request: NextRequest) {
       return jsonError(requestId, "RATE_LIMITED", "Rate limit exceeded", 429);
     }
 
-    // URL imports have a separate (tighter) monthly quota than AI scans
-    const quota = await consumeUrlImportQuota(userId, plan, env.FREE_URL_IMPORT_LIMIT_PER_MONTH);
-    if (!quota.allowed) {
-      return jsonError(requestId, "PAYWALL_REQUIRED", "Free URL import quota exceeded", 402);
+    // Deduct LP for URL import (cost is tier-dependent)
+    const lpResult = await spendLp(userId, plan, "urlImport");
+    if (!lpResult.allowed) {
+      return jsonError(
+        requestId,
+        "INSUFFICIENT_LP",
+        `Not enough LP. Need ${lpResult.cost}, have ${lpResult.newBalance}.`,
+        402
+      );
     }
 
     const result = await processUrlImport(body, requestId, userId);
@@ -41,13 +46,14 @@ export async function POST(request: NextRequest) {
       cards: result.cards.length,
       model: result.model,
       imagesUsed: result.imagesUsed,
-      freeUrlImportsRemaining: Number.isFinite(quota.remaining) ? quota.remaining : null,
+      lpSpent: lpResult.cost,
+      lpBalance: lpResult.newBalance,
     });
     return jsonOk(requestId, {
       ...result,
       usage: {
-        urlImportsRemaining: Number.isFinite(quota.remaining) ? quota.remaining : null,
-        urlImportsLimit: plan === "free" ? env.FREE_URL_IMPORT_LIMIT_PER_MONTH : null,
+        lpSpent: lpResult.cost,
+        lpBalance: lpResult.newBalance,
       },
     });
   } catch (error) {

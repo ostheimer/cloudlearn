@@ -20,18 +20,17 @@ describe("subscription mapping", () => {
     });
   });
 
-  it("prefers lifetime over pro when both are active", () => {
+  it("resolves pro when multiple pro entitlements are present", () => {
     const snapshot = deriveSubscriptionFromEntitlements(
       [
         { identifier: "pro_monthly", expirationDate: "2026-03-01T00:00:00.000Z" },
-        { identifier: "lifetime", expirationDate: null },
+        { identifier: "pro_annual", expirationDate: "2027-02-01T00:00:00.000Z" },
       ],
       NOW
     );
 
-    expect(snapshot.tier).toBe("lifetime");
+    expect(snapshot.tier).toBe("pro");
     expect(snapshot.isActive).toBe(true);
-    expect(snapshot.expiresAt).toBeNull();
   });
 
   it("downgrades to free when entitlement is expired", () => {

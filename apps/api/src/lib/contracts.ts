@@ -114,7 +114,7 @@ export const syncResponseSchema = z.object({
 
 export type SyncResponse = z.infer<typeof syncResponseSchema>;
 
-export const subscriptionTierSchema = z.enum(["free", "pro", "lifetime"]);
+export const subscriptionTierSchema = z.enum(["free", "pro"]);
 export const subscriptionStatusSchema = z.object({
   userId: z.string().uuid(),
   tier: subscriptionTierSchema,
@@ -123,6 +123,18 @@ export const subscriptionStatusSchema = z.object({
 });
 
 export type SubscriptionStatus = z.infer<typeof subscriptionStatusSchema>;
+export type SubscriptionTier = z.infer<typeof subscriptionTierSchema>;
+
+export const lpEarnRequestSchema = z.object({
+  type: z.enum(["session", "dailyGoal", "ad"]),
+  sessionCardCount: z.number().int().optional(),
+});
+export type LpEarnRequest = z.infer<typeof lpEarnRequestSchema>;
+
+export const lpSpendRequestSchema = z.object({
+  feature: z.enum(["aiScan", "urlImport", "pdfImport"]),
+});
+export type LpSpendRequest = z.infer<typeof lpSpendRequestSchema>;
 
 export const revenueCatWebhookSchema = z.object({
   event: z.object({

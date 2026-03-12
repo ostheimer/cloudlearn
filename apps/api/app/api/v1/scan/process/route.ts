@@ -3,10 +3,10 @@ import { getEnv } from "@/lib/env";
 import { jsonError, jsonOk, normalizeError } from "@/lib/http";
 import { createRequestContext, logError, logInfo } from "@/lib/observability";
 import { checkRateLimit } from "@/lib/rateLimit";
-import { consumeAiScanQuota } from "@/lib/usageLimit";
 import { getAuthUser } from "@/lib/auth";
 import { processScan } from "@/services/scanService";
 import { getSubscriptionStatus } from "@/services/subscriptionService";
+import { spendLp } from "@/services/lpService";
 
 export async function POST(request: NextRequest) {
   const { requestId } = createRequestContext(request.headers);
@@ -27,9 +27,15 @@ export async function POST(request: NextRequest) {
       return jsonError(requestId, "RATE_LIMITED", "Rate limit exceeded", 429);
     }
 
-    const quota = await consumeAiScanQuota(userId, plan, env.FREE_SCAN_LIMIT_PER_MONTH);
-    if (!quota.allowed) {
-      return jsonError(requestId, "PAYWALL_REQUIRED", "Free scan quota exceeded", 402);
+    // Deduct LP for AI scan (cost is tier-dependent)
+    const lpResult = await spendLp(userId, plan, "aiScan");
+    if (!lpResult.allowed) {
+      return jsonError(
+        requestId,
+        "INSUFFICIENT_LP",
+        `Not enough LP. Need ${lpResult.cost}, have ${lpResult.newBalance}.`,
+        402
+      );
     }
 
     const result = await processScan(body, requestId, userId);
@@ -39,12 +45,14 @@ export async function POST(request: NextRequest) {
       cards: result.cards.length,
       model: result.model,
       hasImage: Boolean(body.imageBase64),
-      freeScansRemaining: Number.isFinite(quota.remaining) ? quota.remaining : null,
+      lpSpent: lpResult.cost,
+      lpBalance: lpResult.newBalance,
     });
     return jsonOk(requestId, {
       ...result,
       usage: {
-        aiScansRemaining: Number.isFinite(quota.remaining) ? quota.remaining : null,
+        lpSpent: lpResult.cost,
+        lpBalance: lpResult.newBalance,
         aiScansLimit: plan === "free" ? env.FREE_SCAN_LIMIT_PER_MONTH : null,
       },
     });
