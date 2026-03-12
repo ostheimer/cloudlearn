@@ -21,25 +21,20 @@ Die Edge Function `reset-ai-usage` setzt monatlich die Zähler `ai_scans_used` u
 
 ---
 
-## Option B: Cron per CLI (Migration nach Vault-Setup)
+## Option B: Cron per CLI (empfohlen für Reproduzierbarkeit)
 
-Einmalig **Vault-Secrets** anlegen (Dashboard → SQL Editor):
-
-```sql
--- Projekt-URL (ohne trailing slash)
-SELECT vault.create_secret('https://YOUR_PROJECT_REF.supabase.co', 'project_url');
--- Anon Key aus Dashboard → Settings → API
-SELECT vault.create_secret('YOUR_ANON_KEY', 'anon_key');
-```
-
-Anschließend im Projekt von `apps/api` aus:
+**Einmalig** die Postgres-Connection-URL setzen (aus Dashboard → Project Settings → Database → Connection string, URI inkl. Passwort):
 
 ```bash
-supabase link --project-ref YOUR_PROJECT_REF   # falls noch nicht verlinkt
-supabase db push
+cd apps/api
+export SUPABASE_DB_URL='postgresql://postgres.[REF]:[YOUR-PASSWORD]@aws-0-[region].pooler.supabase.com:6543/postgres'
+# Optional: aus .env.local laden (dort SUPABASE_DB_URL eintragen)
+pnpm run supabase:cron-setup
 ```
 
-Die Migration `20260312120000_schedule_reset_ai_usage_cron.sql` legt den Job nur an, wenn beide Vault-Secrets existieren; sonst passiert nichts (kein Fehler).
+Das Skript `scripts/setup-reset-ai-usage-cron.sh` holt den Anon-Key per `supabase projects api-keys`, legt die Vault-Secrets (project_url, anon_key) an und plant den Cron-Job `reset-ai-usage-monthly` (0 0 1 * *). Voraussetzung: **psql** installiert, **pg_cron** und **pg_net** im Projekt aktiv, Supabase per `supabase link` verlinkt.
+
+Alternativ (ohne Skript): Vault-Secrets im Dashboard anlegen, dann `supabase db push` – die Migration `20260312120000_schedule_reset_ai_usage_cron.sql` legt den Job an, wenn beide Secrets existieren.
 
 ---
 
