@@ -1,0 +1,382 @@
+import { useState, useEffect, useCallback } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
+import { ArrowLeft, Zap, PlayCircle, ShoppingBag, TrendingUp, Star } from "lucide-react-native";
+import { useColors, spacing, radius, typography, shadows } from "../src/theme";
+import { useUsageStore } from "../src/store/usageStore";
+import { useRewardedAd } from "../src/features/ads/useRewardedAd";
+import { getLpBalance } from "../src/lib/api";
+
+// LP packs — must match LP_PACKS in packages/contracts/src/featureGates.ts
+const LP_PACKS = [
+  { id: "lp_100",  lp: 100,  priceEur: "0,99 €", popular: false },
+  { id: "lp_300",  lp: 300,  priceEur: "1,99 €", popular: true  },
+  { id: "lp_750",  lp: 750,  priceEur: "3,99 €", popular: false },
+  { id: "lp_2000", lp: 2000, priceEur: "7,99 €", popular: false },
+];
+
+export default function LpStoreScreen() {
+  const { t } = useTranslation();
+  const router = useRouter();
+  const colors = useColors();
+  const {
+    lpBalance,
+    lpEarnedToday,
+    lpAdsToday,
+    lpEarnCapToday,
+    lpAdCapToday,
+    tier,
+    setUsage,
+    isLoaded,
+  } = useUsageStore();
+
+  const { state: adState, watchAd } = useRewardedAd();
+  const [loading, setLoading] = useState(!isLoaded);
+  const [adMessage, setAdMessage] = useState("");
+
+  const loadBalance = useCallback(async () => {
+    try {
+      const res = await getLpBalance();
+      setUsage({
+        tier: res.tier,
+        lpBalance: res.lpBalance,
+        lpEarnedToday: res.lpEarnedToday,
+        lpAdsToday: res.lpAdsToday,
+        lpEarnCapToday: res.lpEarnCapToday,
+        lpAdCapToday: res.lpAdCapToday,
+        lpCostAiScan: res.lpCostAiScan,
+        lpCostUrlImport: res.lpCostUrlImport,
+        lpCostPdfImport: res.lpCostPdfImport,
+        periodStart: res.periodStart,
+      });
+    } catch { /* best-effort */ } finally {
+      setLoading(false);
+    }
+  }, [setUsage]);
+
+  useEffect(() => {
+    void loadBalance();
+  }, [loadBalance]);
+
+  const handleWatchAd = async () => {
+    setAdMessage("");
+    const result = await watchAd();
+    if (!result) {
+      setAdMessage(t("lp.adFailed"));
+      return;
+    }
+    if (result.capReached) {
+      setAdMessage(t("lp.adCapReached"));
+      return;
+    }
+    setAdMessage(t("lp.adRewarded", { count: result.granted }));
+    setTimeout(() => setAdMessage(""), 3000);
+  };
+
+  const handleBuyPack = (pack: typeof LP_PACKS[number]) => {
+    // RevenueCat purchase flow — scaffold for now
+    Alert.alert(
+      t("lp.purchaseTitle", { lp: pack.lp }),
+      t("lp.purchaseBody", { lp: pack.lp, price: pack.priceEur }),
+      [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: t("lp.purchaseConfirm"),
+          onPress: () => {
+            // TODO: Trigger RevenueCat purchasePackage(pack.id)
+            Alert.alert(t("lp.purchaseComingSoon"));
+          },
+        },
+      ]
+    );
+  };
+
+  const adBusy = adState === "loading" || adState === "showing";
+  const adCapped = tier === "free" && lpAdsToday >= lpAdCapToday;
+  const earnProgress = lpEarnCapToday > 0 ? Math.min(lpEarnedToday / lpEarnCapToday, 1) : 0;
+  const adProgress = lpAdCapToday > 0 ? Math.min(lpAdsToday / lpAdCapToday, 1) : 0;
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <ScrollView contentContainerStyle={{ padding: spacing.xl, gap: spacing.lg }}>
+
+        {/* Header */}
+        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.md }}>
+          <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}>
+            <ArrowLeft size={22} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={{ fontSize: typography.xxl, fontWeight: typography.bold, color: colors.text }}>
+            {t("lp.storeTitle")}
+          </Text>
+        </View>
+
+        {loading ? (
+          <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
+        ) : (
+          <>
+            {/* Balance card */}
+            <View
+              style={{
+                backgroundColor: colors.warning,
+                borderRadius: radius.xl,
+                padding: spacing.xl,
+                alignItems: "center",
+                gap: spacing.sm,
+                ...shadows.md,
+              }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+                <Zap size={32} color={colors.textInverse} fill={colors.textInverse} />
+                <Text style={{ fontSize: 48, fontWeight: typography.extrabold, color: colors.textInverse }}>
+                  {lpBalance.toLocaleString("de-DE")}
+                </Text>
+              </View>
+              <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: typography.base }}>
+                {t("lp.availableBalance")}
+              </Text>
+            </View>
+
+            {/* Daily earn progress */}
+            <View
+              style={{
+                backgroundColor: colors.surface,
+                borderRadius: radius.lg,
+                padding: spacing.lg,
+                gap: spacing.md,
+                borderWidth: 1,
+                borderColor: colors.border,
+              }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+                <TrendingUp size={18} color={colors.success} />
+                <Text style={{ fontSize: typography.base, fontWeight: typography.semibold, color: colors.text }}>
+                  {t("lp.dailyEarnTitle")}
+                </Text>
+              </View>
+
+              {/* Earn progress bar */}
+              <View>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+                  <Text style={{ fontSize: typography.sm, color: colors.textSecondary }}>
+                    {t("lp.earnByLearning")}
+                  </Text>
+                  <Text style={{ fontSize: typography.sm, fontWeight: typography.semibold, color: colors.text }}>
+                    {lpEarnedToday} / {lpEarnCapToday} LP
+                  </Text>
+                </View>
+                <View style={{ height: 8, backgroundColor: colors.surfaceSecondary, borderRadius: 4 }}>
+                  <View
+                    style={{
+                      height: 8,
+                      width: `${earnProgress * 100}%`,
+                      backgroundColor: colors.success,
+                      borderRadius: 4,
+                    }}
+                  />
+                </View>
+              </View>
+
+              {/* Ad progress bar (free only) */}
+              {tier === "free" && (
+                <View>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+                    <Text style={{ fontSize: typography.sm, color: colors.textSecondary }}>
+                      {t("lp.earnByAds")}
+                    </Text>
+                    <Text style={{ fontSize: typography.sm, fontWeight: typography.semibold, color: colors.text }}>
+                      {lpAdsToday} / {lpAdCapToday} LP
+                    </Text>
+                  </View>
+                  <View style={{ height: 8, backgroundColor: colors.surfaceSecondary, borderRadius: 4 }}>
+                    <View
+                      style={{
+                        height: 8,
+                        width: `${adProgress * 100}%`,
+                        backgroundColor: colors.warning,
+                        borderRadius: 4,
+                      }}
+                    />
+                  </View>
+                </View>
+              )}
+            </View>
+
+            {/* Rewarded ad (free only) */}
+            {tier === "free" && (
+              <View style={{ gap: spacing.sm }}>
+                <Text style={{ fontSize: typography.sm, color: colors.textSecondary, fontWeight: typography.medium }}>
+                  {t("lp.freeEarnSection")}
+                </Text>
+                <TouchableOpacity
+                  onPress={handleWatchAd}
+                  disabled={adBusy || adCapped}
+                  activeOpacity={0.8}
+                  style={{
+                    backgroundColor: adCapped ? colors.textTertiary : adBusy ? colors.surfaceSecondary : colors.warning,
+                    borderRadius: radius.lg,
+                    padding: spacing.lg,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: spacing.md,
+                    ...shadows.sm,
+                  }}
+                >
+                  {adBusy ? (
+                    <ActivityIndicator color={colors.text} />
+                  ) : (
+                    <PlayCircle size={24} color={adCapped ? colors.textSecondary : colors.textInverse} />
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <Text style={{
+                      color: adCapped ? colors.textSecondary : adBusy ? colors.text : colors.textInverse,
+                      fontSize: typography.base,
+                      fontWeight: typography.bold,
+                    }}>
+                      {adCapped ? t("lp.adCapReachedShort") : adState === "showing" ? t("lp.adWatching") : t("lp.watchAdFull")}
+                    </Text>
+                    <Text style={{
+                      color: adCapped ? colors.textTertiary : adBusy ? colors.textSecondary : "rgba(255,255,255,0.75)",
+                      fontSize: typography.sm,
+                      marginTop: 2,
+                    }}>
+                      {adCapped
+                        ? t("lp.adCapReachedDetail", { cap: lpAdCapToday })
+                        : t("lp.watchAdSubtitle", { count: 5 })}
+                    </Text>
+                  </View>
+                  {!adCapped && !adBusy && (
+                    <View style={{ backgroundColor: "rgba(255,255,255,0.25)", borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: 3 }}>
+                      <Text style={{ color: colors.textInverse, fontSize: typography.xs, fontWeight: typography.bold }}>⚡+5</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+                {adMessage ? (
+                  <Text style={{ textAlign: "center", color: colors.success, fontSize: typography.sm, fontWeight: typography.medium }}>
+                    {adMessage}
+                  </Text>
+                ) : null}
+              </View>
+            )}
+
+            {/* LP Packs */}
+            <View style={{ gap: spacing.sm }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+                <ShoppingBag size={18} color={colors.primary} />
+                <Text style={{ fontSize: typography.base, fontWeight: typography.semibold, color: colors.text }}>
+                  {t("lp.packSection")}
+                </Text>
+              </View>
+
+              {LP_PACKS.map((pack) => (
+                <TouchableOpacity
+                  key={pack.id}
+                  onPress={() => handleBuyPack(pack)}
+                  activeOpacity={0.8}
+                  style={{
+                    backgroundColor: pack.popular ? colors.primary : colors.surface,
+                    borderRadius: radius.lg,
+                    padding: spacing.lg,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: spacing.md,
+                    borderWidth: pack.popular ? 0 : 1,
+                    borderColor: colors.border,
+                    ...shadows.sm,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: radius.md,
+                      backgroundColor: pack.popular ? "rgba(255,255,255,0.2)" : colors.warningLight,
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Zap size={22} color={pack.popular ? colors.textInverse : colors.warning} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+                      <Text style={{
+                        fontSize: typography.lg,
+                        fontWeight: typography.bold,
+                        color: pack.popular ? colors.textInverse : colors.text,
+                      }}>
+                        {pack.lp.toLocaleString("de-DE")} LP
+                      </Text>
+                      {pack.popular && (
+                        <View style={{ backgroundColor: colors.warning, borderRadius: radius.sm, paddingHorizontal: 6, paddingVertical: 2 }}>
+                          <Text style={{ fontSize: typography.xs, color: colors.textInverse, fontWeight: typography.bold }}>
+                            {t("lp.bestValue")}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={{
+                      fontSize: typography.sm,
+                      color: pack.popular ? "rgba(255,255,255,0.75)" : colors.textSecondary,
+                      marginTop: 2,
+                    }}>
+                      {pack.popular
+                        ? t("lp.packPopularHint", { scans: Math.floor(pack.lp / 10) })
+                        : t("lp.packHint", { scans: Math.floor(pack.lp / 10) })}
+                    </Text>
+                  </View>
+                  <Text style={{
+                    fontSize: typography.lg,
+                    fontWeight: typography.bold,
+                    color: pack.popular ? colors.textInverse : colors.primary,
+                  }}>
+                    {pack.priceEur}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Pro upgrade teaser */}
+            {tier === "free" && (
+              <TouchableOpacity
+                onPress={() => router.push("/paywall")}
+                activeOpacity={0.8}
+                style={{
+                  backgroundColor: colors.surfaceSecondary,
+                  borderRadius: radius.lg,
+                  padding: spacing.lg,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: spacing.md,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                }}
+              >
+                <Star size={22} color={colors.warning} fill={colors.warning} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: typography.base, fontWeight: typography.bold, color: colors.text }}>
+                    {t("lp.proTeaser")}
+                  </Text>
+                  <Text style={{ fontSize: typography.sm, color: colors.textSecondary, marginTop: 2 }}>
+                    {t("lp.proTeaserSubtitle")}
+                  </Text>
+                </View>
+                <Text style={{ fontSize: typography.sm, color: colors.primary, fontWeight: typography.semibold }}>
+                  {t("paywall.openCta")} →
+                </Text>
+              </TouchableOpacity>
+            )}
+
+          </>
+        )}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}

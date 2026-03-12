@@ -251,55 +251,27 @@ export default function PaywallScreen() {
           {t("paywall.subtitle")}
         </Text>
 
-        {/* Usage this month — only show for free tier */}
-        {tier === "free" && usageStore.aiScansLimit !== null && (
+        {/* LP Balance — show for free tier */}
+        {tier === "free" && (
           <View style={{
-            backgroundColor: colors.surface,
+            backgroundColor: colors.warningLight,
             borderRadius: radius.lg,
             borderWidth: 1,
-            borderColor: colors.border,
+            borderColor: colors.warning,
             padding: spacing.lg,
-            gap: spacing.sm,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: spacing.md,
           }}>
-            <Text style={{ color: colors.textSecondary, fontSize: typography.sm, fontWeight: typography.semibold }}>
-              {t("paywall.usageTitle")}
-            </Text>
-            {/* Scan bar */}
-            <View>
-              <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
-                <Text style={{ color: colors.text, fontSize: typography.sm }}>{t("paywall.aiScans")}</Text>
-                <Text style={{ color: colors.textSecondary, fontSize: typography.sm }}>
-                  {usageStore.aiScansUsed}/{usageStore.aiScansLimit}
-                </Text>
-              </View>
-              <View style={{ height: 6, backgroundColor: colors.border, borderRadius: 3 }}>
-                <View style={{
-                  height: 6,
-                  width: `${Math.min(((usageStore.aiScansUsed) / (usageStore.aiScansLimit ?? 1)) * 100, 100)}%`,
-                  backgroundColor: (usageStore.aiScansRemaining ?? 1) === 0 ? colors.error : colors.primary,
-                  borderRadius: 3,
-                }} />
-              </View>
+            <Zap size={22} color={colors.warning} fill={colors.warning} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.text, fontSize: typography.base, fontWeight: typography.bold }}>
+                {t("lp.balance", { count: usageStore.lpBalance })}
+              </Text>
+              <Text style={{ color: colors.textSecondary, fontSize: typography.sm, marginTop: 2 }}>
+                {t("paywall.lpHint", { cost: usageStore.lpCostAiScan })}
+              </Text>
             </View>
-            {/* URL Import bar */}
-            {usageStore.urlImportsLimit !== null && (
-              <View>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
-                  <Text style={{ color: colors.text, fontSize: typography.sm }}>{t("paywall.urlImports")}</Text>
-                  <Text style={{ color: colors.textSecondary, fontSize: typography.sm }}>
-                    {usageStore.urlImportsUsed}/{usageStore.urlImportsLimit}
-                  </Text>
-                </View>
-                <View style={{ height: 6, backgroundColor: colors.border, borderRadius: 3 }}>
-                  <View style={{
-                    height: 6,
-                    width: `${Math.min(((usageStore.urlImportsUsed) / (usageStore.urlImportsLimit ?? 1)) * 100, 100)}%`,
-                    backgroundColor: (usageStore.urlImportsRemaining ?? 1) === 0 ? colors.error : colors.primary,
-                    borderRadius: 3,
-                  }} />
-                </View>
-              </View>
-            )}
           </View>
         )}
 

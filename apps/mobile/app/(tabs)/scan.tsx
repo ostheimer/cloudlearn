@@ -38,7 +38,7 @@ import {
   createDeck,
   createCard,
   listDecks,
-  getAiUsage,
+  getLpBalance,
   type Flashcard,
   type Deck,
 } from "../../src/lib/api";
@@ -46,6 +46,7 @@ import { summarizeCardMedia } from "../../src/lib/cardMedia";
 import { useReviewSession } from "../../src/features/review/reviewSession";
 import { useUsageStore } from "../../src/store/usageStore";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
+import { LpInsufficientModal } from "../../src/components/LpInsufficientModal";
 
 type InputMode = "choose" | "camera" | "text" | "url";
 
@@ -59,18 +60,33 @@ export default function ScanScreen() {
   const startReview = useReviewSession((state) => state.start);
 
   const setUsage = useUsageStore((state) => state.setUsage);
-  const decrementScanRemaining = useUsageStore((state) => state.decrementScanRemaining);
-  const decrementUrlImportRemaining = useUsageStore((state) => state.decrementUrlImportRemaining);
-  const aiScansRemaining = useUsageStore((state) => state.aiScansRemaining);
-  const aiScansLimit = useUsageStore((state) => state.aiScansLimit);
-  const urlImportsRemaining = useUsageStore((state) => state.urlImportsRemaining);
-  const urlImportsLimit = useUsageStore((state) => state.urlImportsLimit);
+  const deductLp = useUsageStore((state) => state.deductLp);
+  const lpBalance = useUsageStore((state) => state.lpBalance);
+  const lpCostAiScan = useUsageStore((state) => state.lpCostAiScan);
+  const lpCostUrlImport = useUsageStore((state) => state.lpCostUrlImport);
   const usageTier = useUsageStore((state) => state.tier);
+  const isUsageLoaded = useUsageStore((state) => state.isLoaded);
+
+  // LP-Insufficient-Modal state
+  const [lpModalVisible, setLpModalVisible] = useState(false);
+  const [lpModalFeature, setLpModalFeature] = useState<"aiScan" | "urlImport" | "pdfImport">("aiScan");
+  const [lpModalCost, setLpModalCost] = useState(0);
 
   useEffect(() => {
-    if (!userId) return;
-    void getAiUsage().then((data) => setUsage(data)).catch(() => {/* ignore */});
-  }, [userId, setUsage]);
+    if (!userId || isUsageLoaded) return;
+    void getLpBalance().then((data) => setUsage({
+      tier: data.tier,
+      lpBalance: data.lpBalance,
+      lpEarnedToday: data.lpEarnedToday,
+      lpAdsToday: data.lpAdsToday,
+      lpEarnCapToday: data.lpEarnCapToday,
+      lpAdCapToday: data.lpAdCapToday,
+      lpCostAiScan: data.lpCostAiScan,
+      lpCostUrlImport: data.lpCostUrlImport,
+      lpCostPdfImport: data.lpCostPdfImport,
+      periodStart: data.periodStart,
+    })).catch(() => {/* ignore */});
+  }, [userId, setUsage, isUsageLoaded]);
 
   const [mode, setMode] = useState<InputMode>("choose");
   const [loading, setLoading] = useState(false);
@@ -176,16 +192,16 @@ export default function ScanScreen() {
       setModel(result.model);
       setDeckTitle(result.deckTitle ?? "");
       if (result.usage) {
-        setUsage({ aiScansRemaining: result.usage.aiScansRemaining, aiScansLimit: result.usage.aiScansLimit });
+        deductLp(result.usage.lpSpent);
+        setUsage({ lpBalance: result.usage.lpBalance });
       } else {
-        decrementScanRemaining();
+        deductLp(lpCostAiScan);
       }
     } catch (error: unknown) {
-      if (
-        isApiError(error) &&
-        (error.code === "PAYWALL_REQUIRED" || error.status === 402)
-      ) {
-        router.push("/paywall");
+      if (isApiError(error) && (error.code === "INSUFFICIENT_LP" || error.status === 402)) {
+        setLpModalFeature("aiScan");
+        setLpModalCost(lpCostAiScan);
+        setLpModalVisible(true);
         return;
       }
       const msg =
@@ -210,16 +226,16 @@ export default function ScanScreen() {
       setModel(result.model);
       setDeckTitle(result.deckTitle ?? "");
       if (result.usage) {
-        setUsage({ aiScansRemaining: result.usage.aiScansRemaining, aiScansLimit: result.usage.aiScansLimit });
+        deductLp(result.usage.lpSpent);
+        setUsage({ lpBalance: result.usage.lpBalance });
       } else {
-        decrementScanRemaining();
+        deductLp(lpCostAiScan);
       }
     } catch (error: unknown) {
-      if (
-        isApiError(error) &&
-        (error.code === "PAYWALL_REQUIRED" || error.status === 402)
-      ) {
-        router.push("/paywall");
+      if (isApiError(error) && (error.code === "INSUFFICIENT_LP" || error.status === 402)) {
+        setLpModalFeature("aiScan");
+        setLpModalCost(lpCostAiScan);
+        setLpModalVisible(true);
         return;
       }
       const msg =
@@ -250,16 +266,16 @@ export default function ScanScreen() {
       setModel(result.model);
       setDeckTitle(result.deckTitle ?? "");
       if (result.usage) {
-        setUsage({ urlImportsRemaining: result.usage.urlImportsRemaining, urlImportsLimit: result.usage.urlImportsLimit });
+        deductLp(result.usage.lpSpent);
+        setUsage({ lpBalance: result.usage.lpBalance });
       } else {
-        decrementUrlImportRemaining();
+        deductLp(lpCostUrlImport);
       }
     } catch (error: unknown) {
-      if (
-        isApiError(error) &&
-        (error.code === "PAYWALL_REQUIRED" || error.status === 402)
-      ) {
-        router.push("/paywall");
+      if (isApiError(error) && (error.code === "INSUFFICIENT_LP" || error.status === 402)) {
+        setLpModalFeature("urlImport");
+        setLpModalCost(lpCostUrlImport);
+        setLpModalVisible(true);
         return;
       }
       const msg = error instanceof Error ? error.message : "Unbekannter Fehler";
@@ -526,15 +542,14 @@ export default function ScanScreen() {
             ) : (
               <>
                 <Sparkles size={18} color={colors.textInverse} />
-                <Text
-                  style={{
-                    color: colors.textInverse,
-                    fontSize: typography.lg,
-                    fontWeight: typography.bold,
-                  }}
-                >
-                  Flashcards generieren
+                <Text style={{ color: colors.textInverse, fontSize: typography.lg, fontWeight: typography.bold }}>
+                  {t("scan.generateBtn")}
                 </Text>
+                <View style={{ backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
+                  <Text style={{ color: colors.textInverse, fontSize: typography.xs, fontWeight: typography.bold }}>
+                    ⚡{lpCostAiScan}
+                  </Text>
+                </View>
               </>
             )}
           </TouchableOpacity>
@@ -638,15 +653,14 @@ export default function ScanScreen() {
             ) : (
               <>
                 <Sparkles size={18} color={colors.textInverse} />
-                <Text
-                  style={{
-                    color: colors.textInverse,
-                    fontSize: typography.lg,
-                    fontWeight: typography.bold,
-                  }}
-                >
-                  URL analysieren
+                <Text style={{ color: colors.textInverse, fontSize: typography.lg, fontWeight: typography.bold }}>
+                  {t("scan.analyzeBtn")}
                 </Text>
+                <View style={{ backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
+                  <Text style={{ color: colors.textInverse, fontSize: typography.xs, fontWeight: typography.bold }}>
+                    ⚡{lpCostUrlImport}
+                  </Text>
+                </View>
               </>
             )}
           </TouchableOpacity>
@@ -670,37 +684,71 @@ export default function ScanScreen() {
               color: colors.text,
             }}
           >
-            {cards.length > 0 ? "Ergebnis" : "Lernmaterial erfassen"}
+            {cards.length > 0 ? t("scan.resultTitle") : t("scan.title")}
           </Text>
 
-          {/* Usage badge — only for free tier */}
-          {usageTier === "free" && aiScansLimit !== null && (
-            <TouchableOpacity
-              onPress={() => router.push("/paywall")}
-              activeOpacity={0.8}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 4,
-                backgroundColor: (aiScansRemaining ?? 0) <= 1 ? colors.errorLight : colors.surfaceSecondary,
-                borderRadius: radius.full,
-                paddingHorizontal: 10,
-                paddingVertical: 4,
-                borderWidth: 1,
-                borderColor: (aiScansRemaining ?? 0) <= 1 ? colors.error : colors.border,
-              }}
-            >
-              <Zap size={13} color={(aiScansRemaining ?? 0) <= 1 ? colors.error : colors.textSecondary} />
-              <Text style={{
-                fontSize: typography.xs,
-                fontWeight: typography.semibold,
-                color: (aiScansRemaining ?? 0) <= 1 ? colors.error : colors.textSecondary,
-              }}>
-                {aiScansRemaining ?? 0}/{aiScansLimit} KI
-              </Text>
-            </TouchableOpacity>
-          )}
+          {/* LP balance badge */}
+          <TouchableOpacity
+            onPress={() => router.push("/lp-store")}
+            activeOpacity={0.8}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 4,
+              backgroundColor: lpBalance < lpCostAiScan ? colors.errorLight : colors.warningLight,
+              borderRadius: radius.full ?? 999,
+              paddingHorizontal: 10,
+              paddingVertical: 4,
+              borderWidth: 1,
+              borderColor: lpBalance < lpCostAiScan ? colors.error : colors.warning,
+            }}
+          >
+            <Zap size={13} color={lpBalance < lpCostAiScan ? colors.error : colors.warning} fill={lpBalance < lpCostAiScan ? colors.error : colors.warning} />
+            <Text style={{
+              fontSize: typography.xs,
+              fontWeight: typography.semibold,
+              color: lpBalance < lpCostAiScan ? colors.error : colors.warning,
+            }}>
+              {lpBalance.toLocaleString("de-DE")} LP
+            </Text>
+          </TouchableOpacity>
         </View>
+
+        {/* LP insufficient hint */}
+        {lpBalance < lpCostAiScan && cards.length === 0 && !loading && (
+          <TouchableOpacity
+            onPress={() => { setLpModalFeature("aiScan"); setLpModalCost(lpCostAiScan); setLpModalVisible(true); }}
+            activeOpacity={0.8}
+            style={{
+              backgroundColor: colors.warningLight,
+              borderRadius: radius.md,
+              padding: spacing.md,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: spacing.sm,
+              borderWidth: 1,
+              borderColor: colors.warning,
+            }}
+          >
+            <Zap size={16} color={colors.warning} />
+            <Text style={{ flex: 1, color: colors.text, fontSize: typography.sm }}>
+              {t("lp.insufficientHint", { cost: lpCostAiScan, balance: lpBalance })}
+            </Text>
+            <Text style={{ color: colors.warning, fontSize: typography.xs, fontWeight: typography.semibold }}>
+              {t("lp.earnMore")} →
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {/* LpInsufficientModal */}
+        <LpInsufficientModal
+          visible={lpModalVisible}
+          cost={lpModalCost}
+          balance={lpBalance}
+          feature={lpModalFeature}
+          onClose={() => setLpModalVisible(false)}
+          onAdRewarded={(newBalance) => setUsage({ lpBalance: newBalance })}
+        />
 
         {/* Loading overlay */}
         {(loading || saving) && (
@@ -795,15 +843,16 @@ export default function ScanScreen() {
                 >
                   Foto aufnehmen
                 </Text>
-                <Text
-                  style={{
-                    color: "rgba(255,255,255,0.7)",
-                    fontSize: typography.sm,
-                    marginTop: 2,
-                  }}
-                >
-                  Lehrbuch, Tafel, Notizen fotografieren
-                </Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
+                  <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: typography.sm }}>
+                    {t("scan.cameraHint")}
+                  </Text>
+                  <View style={{ backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 }}>
+                    <Text style={{ color: colors.textInverse, fontSize: typography.xs, fontWeight: typography.bold }}>
+                      ⚡{lpCostAiScan} LP
+                    </Text>
+                  </View>
+                </View>
               </View>
               <ChevronRight size={20} color="rgba(255,255,255,0.5)" />
             </TouchableOpacity>
@@ -844,15 +893,16 @@ export default function ScanScreen() {
                 >
                   Aus Galerie wählen
                 </Text>
-                <Text
-                  style={{
-                    color: "rgba(255,255,255,0.7)",
-                    fontSize: typography.sm,
-                    marginTop: 2,
-                  }}
-                >
-                  Vorhandenes Foto oder Screenshot
-                </Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
+                  <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: typography.sm }}>
+                    {t("scan.galleryHint")}
+                  </Text>
+                  <View style={{ backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 }}>
+                    <Text style={{ color: colors.textInverse, fontSize: typography.xs, fontWeight: typography.bold }}>
+                      ⚡{lpCostAiScan} LP
+                    </Text>
+                  </View>
+                </View>
               </View>
               <ChevronRight size={20} color="rgba(255,255,255,0.5)" />
             </TouchableOpacity>
@@ -893,15 +943,16 @@ export default function ScanScreen() {
                 >
                   Text eingeben
                 </Text>
-                <Text
-                  style={{
-                    color: "rgba(255,255,255,0.7)",
-                    fontSize: typography.sm,
-                    marginTop: 2,
-                  }}
-                >
-                  Text tippen oder einfügen
-                </Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
+                  <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: typography.sm }}>
+                    {t("scan.textHint")}
+                  </Text>
+                  <View style={{ backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 }}>
+                    <Text style={{ color: colors.textInverse, fontSize: typography.xs, fontWeight: typography.bold }}>
+                      ⚡{lpCostAiScan} LP
+                    </Text>
+                  </View>
+                </View>
               </View>
               <ChevronRight size={20} color="rgba(255,255,255,0.5)" />
             </TouchableOpacity>
@@ -942,15 +993,16 @@ export default function ScanScreen() {
                 >
                   URL importieren
                 </Text>
-                <Text
-                  style={{
-                    color: "rgba(255,255,255,0.7)",
-                    fontSize: typography.sm,
-                    marginTop: 2,
-                  }}
-                >
-                  Webseite inkl. Bilder als Lernmaterial
-                </Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
+                  <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: typography.sm }}>
+                    {t("scan.urlHint")}
+                  </Text>
+                  <View style={{ backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 }}>
+                    <Text style={{ color: colors.textInverse, fontSize: typography.xs, fontWeight: typography.bold }}>
+                      ⚡{lpCostUrlImport} LP
+                    </Text>
+                  </View>
+                </View>
               </View>
               <ChevronRight size={20} color="rgba(255,255,255,0.5)" />
             </TouchableOpacity>

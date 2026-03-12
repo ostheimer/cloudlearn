@@ -359,9 +359,9 @@ export async function getSubscriptionStatus(
   return request<{ status: SubscriptionStatus }>("/api/v1/subscription/status");
 }
 
+/** @deprecated Use getLpBalance() instead */
 export async function getAiUsage(): Promise<AiUsageResponse> {
-  const res = await request<{ tier: string; aiScansUsed: number; aiScansLimit: number | null; aiScansRemaining: number | null; urlImportsUsed: number; urlImportsLimit: number | null; urlImportsRemaining: number | null; periodStart: string | null }>("/api/v1/usage");
-  return res as AiUsageResponse;
+  return getLpBalance();
 }
 
 // --- Stats ---
