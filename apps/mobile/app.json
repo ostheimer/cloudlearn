@@ -6,9 +6,18 @@
     "runtimeVersion": {
       "policy": "appVersion"
     },
+    "icon": "./assets/icon.png",
     "orientation": "portrait",
     "scheme": "clearn",
     "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#4F46E5"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
     "assetBundlePatterns": ["**/*"],
     "platforms": ["ios", "android", "web"],
     "plugins": [

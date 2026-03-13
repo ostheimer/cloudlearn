@@ -61,9 +61,7 @@
   "submit": {
     "production": {
       "ios": {
-        "appleId": "office@ostheimer.at",
-        "ascAppId": "",
-        "appleTeamId": ""
+        "appleId": "office@ostheimer.at"
       },
       "android": {
         "serviceAccountKeyPath": "./google-play-service-account.json",
