@@ -28,6 +28,10 @@ apps/web/.next/
 supabase/.temp/
 .env*.local
 
+# Native prebuild directories (regenerated via npx expo prebuild)
+apps/mobile/ios/
+apps/mobile/android/
+
 # EAS / Mobile sensitive files (must not be committed)
 apps/mobile/google-services.json
 apps/mobile/google-play-service-account.json
