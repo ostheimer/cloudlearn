@@ -2,6 +2,7 @@ node_modules
 .DS_Store
 .env
 .env.*
+!.env.example
 .env.local
 .env.*.local
 dist
@@ -26,3 +27,10 @@ apps/api/.next/
 apps/web/.next/
 supabase/.temp/
 .env*.local
+
+# EAS / Mobile sensitive files (must not be committed)
+apps/mobile/google-services.json
+apps/mobile/google-play-service-account.json
+apps/mobile/*.p8
+apps/mobile/*.p12
+apps/mobile/*.mobileprovision
