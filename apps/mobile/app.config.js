@@ -17,18 +17,22 @@ const ADMOB_ANDROID_APP_ID =
     : process.env.EXPO_PUBLIC_ADMOB_APP_ANDROID_ID ?? "ca-app-pub-3940256099942544~3347511713";
 
 /** @type {import('@expo/config').ExpoConfig} */
-module.exports = ({ config }) => ({
-  ...config,
-  name: IS_DEV ? "clearn (Dev)" : IS_PREVIEW ? "clearn (Preview)" : "clearn",
-  slug: "clearn",
-  ios: {
-    ...config.ios,
-    infoPlist: {
-      ...config.ios?.infoPlist,
-      GADApplicationIdentifier: ADMOB_IOS_APP_ID,
+module.exports = ({ config }) => {
+  const result = {
+    ...config,
+    name: IS_DEV ? "clearn (Dev)" : IS_PREVIEW ? "clearn (Preview)" : "clearn",
+    slug: "clearn",
+    ios: {
+      ...config.ios,
+      infoPlist: {
+        ...config.ios?.infoPlist,
+        GADApplicationIdentifier: ADMOB_IOS_APP_ID,
+      },
     },
-  },
-  plugins: [
+    android: {
+      ...config.android,
+    },
+    plugins: [
     ...(config.plugins ?? []).filter(
       (p) =>
         // Remove the static react-native-google-mobile-ads entry — we provide it below
@@ -66,4 +70,12 @@ module.exports = ({ config }) => ({
       },
     ],
   ],
-});
+  };
+
+  // EAS file env var: GOOGLE_SERVICES_JSON points to a temp file during build
+  if (process.env.GOOGLE_SERVICES_JSON) {
+    result.android.googleServicesFile = process.env.GOOGLE_SERVICES_JSON;
+  }
+
+  return result;
+};

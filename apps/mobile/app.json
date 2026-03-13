@@ -77,7 +77,7 @@
         "android.permission.VIBRATE",
         "android.permission.RECORD_AUDIO"
       ],
-      "googleServicesFile": "${GOOGLE_SERVICES_JSON}"
+      "googleServicesFile": "./google-services.json"
     },
     "updates": {
       "url": "https://u.expo.dev/5495e637-0223-4924-a778-8683dafaf264",
