@@ -17,4 +17,17 @@ describe("supabase migrations", () => {
     expect(sql).toContain("enable row level security");
     expect(sql).toContain("create policy \"users_own_decks\"");
   });
+
+  it("enables RLS on LP tables and fixes leaderboard_public as security invoker", () => {
+    const migrationPath = join(
+      apiRoot,
+      "supabase/migrations/20260324120000_security_advisor_rls_leaderboard.sql",
+    );
+    const sql = readFileSync(migrationPath, "utf-8");
+
+    expect(sql).toContain("ALTER TABLE public.lp_transactions ENABLE ROW LEVEL SECURITY");
+    expect(sql).toContain("ALTER TABLE public.rewards_claimed ENABLE ROW LEVEL SECURITY");
+    expect(sql).toContain("CREATE OR REPLACE VIEW public.leaderboard_public");
+    expect(sql).toContain("security_invoker = true");
+  });
 });
