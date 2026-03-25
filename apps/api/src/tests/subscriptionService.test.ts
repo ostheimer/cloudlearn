@@ -56,6 +56,25 @@ describe("subscriptionService", () => {
     });
   });
 
+  it("keeps active lifetime subscriptions intact on read", async () => {
+    mockedGetSubscriptionTier.mockResolvedValueOnce({
+      tier: "lifetime",
+      expiresAt: null,
+      isActive: true,
+    });
+
+    const status = await getSubscriptionStatus(
+      "6e5db9e4-7e48-4e11-8d8c-6ca90c18d42a"
+    );
+
+    expect(status).toEqual({
+      userId: "6e5db9e4-7e48-4e11-8d8c-6ca90c18d42a",
+      tier: "lifetime",
+      isActive: true,
+      expiresAt: null,
+    });
+  });
+
   it("normalizes inactive updates to free before persisting", async () => {
     const updated = await updateSubscriptionStatus({
       userId: "6e5db9e4-7e48-4e11-8d8c-6ca90c18d42a",

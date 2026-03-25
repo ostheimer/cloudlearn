@@ -114,7 +114,7 @@ export const syncResponseSchema = z.object({
 
 export type SyncResponse = z.infer<typeof syncResponseSchema>;
 
-export const subscriptionTierSchema = z.enum(["free", "pro"]);
+export const subscriptionTierSchema = z.enum(["free", "pro", "lifetime"]);
 export const subscriptionStatusSchema = z.object({
   userId: z.string().uuid(),
   tier: subscriptionTierSchema,

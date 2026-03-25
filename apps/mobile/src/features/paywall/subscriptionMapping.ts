@@ -1,4 +1,4 @@
-export type SubscriptionTier = "free" | "pro";
+export type SubscriptionTier = "free" | "pro" | "lifetime";
 
 export interface RevenueCatEntitlementSnapshot {
   identifier: string;
@@ -13,6 +13,9 @@ export interface SubscriptionSnapshot {
 
 const PRO_ENTITLEMENT_HINT = (
   process.env.EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_PRO ?? "pro"
+).toLowerCase();
+const LIFETIME_ENTITLEMENT_HINT = (
+  process.env.EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_LIFETIME ?? "lifetime"
 ).toLowerCase();
 
 function normalizeIdentifier(identifier: string): string {
@@ -34,15 +37,25 @@ function isEntitlementActive(
   return new Date(entitlement.expirationDate).getTime() > nowMs;
 }
 
-function matchesPro(identifier: string): boolean {
-  return identifier.includes(PRO_ENTITLEMENT_HINT);
+function resolvePaidTier(
+  identifier: string
+): Exclude<SubscriptionTier, "free"> | null {
+  const normalizedIdentifier = normalizeIdentifier(identifier);
+  if (normalizedIdentifier.includes(LIFETIME_ENTITLEMENT_HINT)) {
+    return "lifetime";
+  }
+  if (normalizedIdentifier.includes(PRO_ENTITLEMENT_HINT)) {
+    return "pro";
+  }
+  return null;
 }
 
 export function resolveTierFromEntitlementIds(
   entitlementIds: string[]
 ): SubscriptionTier {
-  const normalized = entitlementIds.map(normalizeIdentifier);
-  if (normalized.some(matchesPro)) return "pro";
+  const paidTiers = entitlementIds.map(resolvePaidTier);
+  if (paidTiers.includes("lifetime")) return "lifetime";
+  if (paidTiers.includes("pro")) return "pro";
   return "free";
 }
 
@@ -61,7 +74,7 @@ export function deriveSubscriptionFromEntitlements(
   }
 
   const matchedEntitlement =
-    activeEntitlements.find((e) => matchesPro(normalizeIdentifier(e.identifier))) ?? null;
+    activeEntitlements.find((e) => resolvePaidTier(e.identifier) === tier) ?? null;
 
   const expiresAt =
     matchedEntitlement && isValidDateString(matchedEntitlement.expirationDate)

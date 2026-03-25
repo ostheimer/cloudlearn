@@ -123,7 +123,7 @@ export interface UrlImportResponse extends ScanResponse {
 }
 
 export interface AiUsageResponse {
-  tier: "free" | "pro";
+  tier: "free" | "pro" | "lifetime";
   lpBalance: number;
   lpEarnedToday: number;
   lpAdsToday: number;

@@ -19,4 +19,11 @@ describe("paywall state", () => {
       expect(usePaywallState.getState().consumeScan()).toBe(true);
     }
   });
+
+  it("allows lifetime users without scan cap", () => {
+    usePaywallState.getState().upgrade("lifetime");
+    for (let i = 0; i < 20; i += 1) {
+      expect(usePaywallState.getState().consumeScan()).toBe(true);
+    }
+  });
 });

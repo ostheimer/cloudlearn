@@ -134,6 +134,14 @@ describe("featureGates", () => {
     expect(pro.lpCostUrlImport).toBeLessThan(free.lpCostUrlImport);
   });
 
+  it("lifetime tier matches paid feature access", () => {
+    const limits = getLimitsForTier("lifetime");
+    expect(limits.pdfImport).toBe(true);
+    expect(limits.imageOcclusion).toBe(true);
+    expect(limits.offlineDownload).toBe(true);
+    expect(limits.adFree).toBe(true);
+  });
+
   it("LP earn rules are defined and positive", () => {
     expect(LP_EARN_RULES.perReviewSession).toBeGreaterThan(0);
     expect(LP_EARN_RULES.streakDay7).toBeGreaterThan(LP_EARN_RULES.perReviewSession);
@@ -145,7 +153,7 @@ describe("featureGates", () => {
     expect(lpCostForFeature("pro", "pdfImport")).toBe(TIER_LIMITS.pro.lpCostPdfImport);
   });
 
-  it("TIER_LIMITS only contains free and pro (no lifetime)", () => {
-    expect(Object.keys(TIER_LIMITS)).toEqual(["free", "pro"]);
+  it("TIER_LIMITS contains free, pro and lifetime", () => {
+    expect(Object.keys(TIER_LIMITS)).toEqual(["free", "pro", "lifetime"]);
   });
 });

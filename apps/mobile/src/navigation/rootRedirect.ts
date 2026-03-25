@@ -3,7 +3,7 @@ export interface RootRedirectInput {
   isLoading: boolean;
   onboardingLoaded: boolean;
   onboardingCompleted: boolean;
-  firstSegment?: string;
+  firstSegment?: string | undefined;
 }
 
 export function resolveRootRedirect({
