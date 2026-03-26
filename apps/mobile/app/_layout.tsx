@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { initializeI18n } from "../src/i18n";
 import { useSessionStore } from "../src/store/sessionStore";
+import { useUsageStore } from "../src/store/usageStore";
 import { supabase } from "../src/lib/supabase";
 import { useColors, useResolvedThemeMode, useThemeStore } from "../src/theme";
 import {
@@ -24,6 +25,7 @@ export default function RootLayout() {
   const { isAuthenticated, isLoading, initialize, setSession, userId } =
     useSessionStore();
   const initializeTheme = useThemeStore((state) => state.initialize);
+  const resetUsage = useUsageStore((state) => state.reset);
   const c = useColors();
   const themeMode = useResolvedThemeMode();
   const onboardingCompleted = useOnboardingState((state) => state.completed);
@@ -95,6 +97,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (!isAuthenticated || !userId) {
+      resetUsage();
       void logoutRevenueCatUser();
       return;
     }
@@ -117,7 +120,7 @@ export default function RootLayout() {
         // Push token registration is best-effort
       }
     })();
-  }, [isAuthenticated, userId]);
+  }, [isAuthenticated, resetUsage, userId]);
 
   // Register a global paywall trigger so any API 402 response auto-navigates to paywall
   useEffect(() => {

@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { useUsageStore } from "../store/usageStore";
+import { useSessionStore } from "../store/sessionStore";
 import { getLpBalance } from "../lib/api";
 import { useColors, spacing, radius, typography } from "../theme";
 import { useTranslation } from "react-i18next";
@@ -15,11 +16,12 @@ const LP_ICON = "⚡";
 export function LpBadge({ onPress }: LpBadgeProps) {
   const { t } = useTranslation();
   const colors = useColors();
+  const isAuthenticated = useSessionStore((state) => state.isAuthenticated);
   const { lpBalance, isLoaded, setUsage } = useUsageStore();
 
   // Load LP balance on first mount
   useEffect(() => {
-    if (isLoaded) return;
+    if (!isAuthenticated || isLoaded) return;
     getLpBalance()
       .then((res) => {
         setUsage({
@@ -36,7 +38,7 @@ export function LpBadge({ onPress }: LpBadgeProps) {
         });
       })
       .catch(() => { /* best-effort */ });
-  }, [isLoaded, setUsage]);
+  }, [isAuthenticated, isLoaded, setUsage]);
 
   return (
     <TouchableOpacity
