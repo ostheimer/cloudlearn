@@ -7,7 +7,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native
 import { initializeI18n } from "../src/i18n";
 import { useSessionStore } from "../src/store/sessionStore";
 import { supabase } from "../src/lib/supabase";
-import { useColors, useResolvedThemeMode } from "../src/theme";
+import { useColors, useResolvedThemeMode, useThemeStore } from "../src/theme";
 import {
   initializeRevenueCatForUser,
   logoutRevenueCatUser,
@@ -23,6 +23,7 @@ export default function RootLayout() {
   const segments = useSegments();
   const { isAuthenticated, isLoading, initialize, setSession, userId } =
     useSessionStore();
+  const initializeTheme = useThemeStore((state) => state.initialize);
   const c = useColors();
   const themeMode = useResolvedThemeMode();
   const onboardingCompleted = useOnboardingState((state) => state.completed);
@@ -32,6 +33,10 @@ export default function RootLayout() {
   const [onboardingLoaded, setOnboardingLoaded] = useState(false);
 
   // Initialize auth state on mount
+  useEffect(() => {
+    void initializeTheme();
+  }, [initializeTheme]);
+
   useEffect(() => {
     initialize();
 

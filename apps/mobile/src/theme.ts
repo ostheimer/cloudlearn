@@ -2,7 +2,6 @@
 // Supports light and dark mode
 
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useColorScheme } from "react-native";
 
@@ -96,25 +95,58 @@ export type ThemeMode = "system" | "light" | "dark";
 
 interface ThemeState {
   mode: ThemeMode;
+  hydrated: boolean;
+  initialize: () => Promise<void>;
   toggle: () => void;
   setMode: (mode: Exclude<ThemeMode, "system">) => void;
   setSystem: () => void;
 }
 
-export const useThemeStore = create<ThemeState>()(
-  persist(
-    (set) => ({
-      mode: "system",
-      toggle: () => set((s) => ({ mode: s.mode === "light" ? "dark" : "light" })),
-      setMode: (mode) => set({ mode }),
-      setSystem: () => set({ mode: "system" }),
-    }),
-    {
-      name: "clearn-theme",
-      storage: createJSONStorage(() => AsyncStorage),
+const THEME_STORAGE_KEY = "clearn-theme-mode";
+
+const persistThemeMode = async (mode: ThemeMode) => {
+  try {
+    await AsyncStorage.setItem(THEME_STORAGE_KEY, mode);
+  } catch {
+    // Theme persistence is best-effort.
+  }
+};
+
+export const useThemeStore = create<ThemeState>()((set, get) => ({
+  mode: "system",
+  hydrated: false,
+  initialize: async () => {
+    if (get().hydrated) {
+      return;
     }
-  )
-);
+
+    try {
+      const storedMode = await AsyncStorage.getItem(THEME_STORAGE_KEY);
+      if (storedMode === "system" || storedMode === "light" || storedMode === "dark") {
+        set({ mode: storedMode, hydrated: true });
+        return;
+      }
+    } catch {
+      // Fall through to the default system mode.
+    }
+
+    set({ hydrated: true });
+  },
+  toggle: () =>
+    set((state) => {
+      const mode = state.mode === "light" ? "dark" : "light";
+      void persistThemeMode(mode);
+      return { mode };
+    }),
+  setMode: (mode) => {
+    void persistThemeMode(mode);
+    set({ mode });
+  },
+  setSystem: () => {
+    void persistThemeMode("system");
+    set({ mode: "system" });
+  },
+}));
 
 // ─── Hook to get current colors ──────────────────────────────────────────────
 
