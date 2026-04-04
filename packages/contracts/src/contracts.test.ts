@@ -7,6 +7,7 @@ import {
   scanProcessRequestSchema,
   syncRequestSchema,
   urlImportRequestSchema,
+  pdfImportRequestSchema,
   TIER_LIMITS,
   getLimitsForTier,
   LP_EARN_RULES,
@@ -32,6 +33,17 @@ describe("contracts", () => {
     });
 
     expect(parsed.maxImages).toBe(4);
+    expect(parsed.sourceLanguage).toBe("de");
+  });
+
+  it("validates PDF import requests", () => {
+    const parsed = pdfImportRequestSchema.parse({
+      userId: "6e5db9e4-7e48-4e11-8d8c-6ca90c18d42a",
+      fileName: "Biologie Skript.pdf",
+      fileBase64: "A".repeat(200),
+      idempotencyKey: "pdf-import-2026-03-28-001",
+    });
+
     expect(parsed.sourceLanguage).toBe("de");
   });
 

@@ -2,6 +2,17 @@ import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { withRequestIdHeaders } from "./observability";
 
+export class HttpError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+    public code: string
+  ) {
+    super(message);
+    this.name = "HttpError";
+  }
+}
+
 export function jsonOk<T>(requestId: string, data: T, status = 200): NextResponse<T> {
   return NextResponse.json(data, { status, headers: withRequestIdHeaders(requestId) });
 }
@@ -22,6 +33,20 @@ export function normalizeError(error: unknown): { code: string; message: string;
     return { code: "VALIDATION_ERROR", message: error.message, status: 422 };
   }
   if (error instanceof Error) {
+    const normalizedError = error as Error & { status?: unknown; code?: unknown };
+    const status = typeof normalizedError.status === "number"
+      ? normalizedError.status
+      : undefined;
+    const code = typeof normalizedError.code === "string"
+      ? normalizedError.code
+      : undefined;
+    if (status !== undefined) {
+      return {
+        code: code ?? (status === 401 ? "UNAUTHORIZED" : "REQUEST_ERROR"),
+        message: error.message,
+        status,
+      };
+    }
     if (error.message === "Card not found") {
       return { code: "CARD_NOT_FOUND", message: error.message, status: 404 };
     }

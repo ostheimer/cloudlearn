@@ -44,12 +44,24 @@ import {
   type ReviewRating,
 } from "../../src/features/review/reviewSession";
 import { useSessionStore } from "../../src/store/sessionStore";
-import { getDueCards, reviewCard, updateCard, earnLp, getStats } from "../../src/lib/api";
+import {
+  earnLp,
+  getDueCards,
+  getStats,
+  isApiError,
+  reviewCard,
+  updateCard,
+} from "../../src/lib/api";
 import { useUsageStore } from "../../src/store/usageStore";
 import { summarizeCardMedia } from "../../src/lib/cardMedia";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
 import { useMilestoneToast } from "../../src/features/milestones/useMilestoneToast";
 import { MilestoneToastView } from "../../src/components/MilestoneToast";
+import {
+  createReviewSyncOperation,
+  syncPendingReviewOperations,
+  useOfflineQueueStore,
+} from "../../src/features/sync/offlineQueueStore";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 // Threshold: card must travel 30% of screen width to trigger a rating
@@ -64,6 +76,7 @@ export default function LearnScreen() {
   const userId = useSessionStore((state) => state.userId);
   const { cards, index, revealed, completed, swipedLeft, swipedRight, start, reveal, rateCurrent, canGoBack, goBack } =
     useReviewSession();
+  const enqueueOfflineReview = useOfflineQueueStore((state) => state.enqueue);
   const [loading, setLoading] = useState(false);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [showBackFirst, setShowBackFirst] = useState(false);
@@ -171,6 +184,7 @@ export default function LearnScreen() {
     if (!userId) return;
     setLoading(true);
     try {
+      await syncPendingReviewOperations(userId).catch(() => null);
       const { cards: due } = await getDueCards(userId);
       if (due.length > 0) {
         const starMap: Record<string, boolean> = {};
@@ -201,11 +215,18 @@ export default function LearnScreen() {
     if (!revealed) reveal();
     const result = rateCurrent(rating);
     if (!result || !userId) return;
+    const queuedReview = createReviewSyncOperation({
+      userId,
+      cardId: result.cardId,
+      rating,
+    });
     setReviewLoading(true);
     try {
-      await reviewCard(userId, result.cardId, rating);
-    } catch {
-      // Review tracked locally
+      await reviewCard(userId, result.cardId, rating, queuedReview.payload);
+    } catch (error) {
+      if (!isApiError(error) || error.status >= 500) {
+        enqueueOfflineReview(queuedReview);
+      }
     } finally {
       setReviewLoading(false);
     }

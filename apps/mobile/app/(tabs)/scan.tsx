@@ -15,8 +15,10 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
+import * as DocumentPicker from "expo-document-picker";
 import {
   Camera,
+  FileText,
   ImageIcon,
   PenLine,
   Lightbulb,
@@ -31,6 +33,7 @@ import {
 import { useSessionStore } from "../../src/store/sessionStore";
 import { useOcrEditorState } from "../../src/features/ocr/ocrEditorState";
 import {
+  importPdf,
   importFromUrl,
   isApiError,
   scanText,
@@ -64,6 +67,7 @@ export default function ScanScreen() {
   const lpBalance = useUsageStore((state) => state.lpBalance);
   const lpCostAiScan = useUsageStore((state) => state.lpCostAiScan);
   const lpCostUrlImport = useUsageStore((state) => state.lpCostUrlImport);
+  const lpCostPdfImport = useUsageStore((state) => state.lpCostPdfImport);
   const usageTier = useUsageStore((state) => state.tier);
   const isUsageLoaded = useUsageStore((state) => state.isLoaded);
 
@@ -98,6 +102,8 @@ export default function ScanScreen() {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [sourceUrl, setSourceUrl] = useState("");
+  const [pdfFileName, setPdfFileName] = useState("");
+  const [pdfPageCount, setPdfPageCount] = useState<number | null>(null);
 
   const cameraRef = useRef<CameraView>(null);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
@@ -177,6 +183,61 @@ export default function ScanScreen() {
     return "image/jpeg";
   };
 
+  const readPickedPdfAsBase64 = async (
+    asset: DocumentPicker.DocumentPickerAsset
+  ): Promise<string> => {
+    if (asset.base64) {
+      return asset.base64;
+    }
+
+    return new Promise<string>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.onerror = () => reject(new Error("PDF konnte nicht gelesen werden."));
+      xhr.onload = () => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error("PDF konnte nicht gelesen werden."));
+        reader.onloadend = () => {
+          const result = reader.result;
+          if (typeof result !== "string") {
+            reject(new Error("PDF konnte nicht gelesen werden."));
+            return;
+          }
+          const separatorIndex = result.indexOf(",");
+          resolve(separatorIndex >= 0 ? result.slice(separatorIndex + 1) : result);
+        };
+        reader.readAsDataURL(xhr.response as Blob);
+      };
+      xhr.open("GET", asset.uri, true);
+      xhr.responseType = "blob";
+      xhr.send();
+    });
+  };
+
+  const handlePickPdf = async () => {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: "application/pdf",
+      multiple: false,
+      copyToCacheDirectory: true,
+      base64: Platform.OS === "web",
+    });
+
+    if (result.canceled || !result.assets[0]) {
+      return;
+    }
+
+    const asset = result.assets[0];
+    setPdfFileName(asset.name);
+    setPdfPageCount(null);
+
+    try {
+      const fileBase64 = await readPickedPdfAsBase64(asset);
+      await processPdf(fileBase64, asset.name);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : "PDF konnte nicht gelesen werden.";
+      Alert.alert("Fehler beim PDF-Import", msg);
+    }
+  };
+
   const processImage = async (
     base64: string,
     mimeType: "image/jpeg" | "image/png" | "image/webp"
@@ -186,6 +247,8 @@ export default function ScanScreen() {
     setCards([]);
     setSaved(false);
     setSourceUrl("");
+    setPdfFileName("");
+    setPdfPageCount(null);
     try {
       const result = await scanImage(userId, base64, mimeType);
       setCards(result.cards);
@@ -212,6 +275,44 @@ export default function ScanScreen() {
     }
   };
 
+  const processPdf = async (fileBase64: string, fileName: string) => {
+    if (!userId) return;
+    setLoading(true);
+    setCards([]);
+    setSaved(false);
+    setImageUri(null);
+    setImageBase64(null);
+    setSourceUrl("");
+    setPdfFileName(fileName);
+    setPdfPageCount(null);
+
+    try {
+      const result = await importPdf(userId, fileName, fileBase64);
+      setCards(result.cards);
+      setModel(result.model);
+      setDeckTitle(result.deckTitle ?? "");
+      setPdfFileName(result.fileName);
+      setPdfPageCount(result.pageCount);
+      if (result.usage) {
+        deductLp(result.usage.lpSpent);
+        setUsage({ lpBalance: result.usage.lpBalance });
+      } else {
+        deductLp(lpCostPdfImport);
+      }
+    } catch (error: unknown) {
+      if (isApiError(error) && (error.code === "INSUFFICIENT_LP" || error.status === 402)) {
+        setLpModalFeature("pdfImport");
+        setLpModalCost(lpCostPdfImport);
+        setLpModalVisible(true);
+        return;
+      }
+      const msg = error instanceof Error ? error.message : "Unbekannter Fehler";
+      Alert.alert("Fehler beim PDF-Import", msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleGenerateFromText = async () => {
     if (!editedText.trim() || !userId) return;
     setLoading(true);
@@ -220,6 +321,8 @@ export default function ScanScreen() {
     setImageUri(null);
     setImageBase64(null);
     setSourceUrl("");
+    setPdfFileName("");
+    setPdfPageCount(null);
     try {
       const result = await scanText(userId, editedText);
       setCards(result.cards);
@@ -259,6 +362,8 @@ export default function ScanScreen() {
     setSaved(false);
     setImageUri(null);
     setImageBase64(null);
+    setPdfFileName("");
+    setPdfPageCount(null);
 
     try {
       const result = await importFromUrl(userId, normalizedUrl, 4);
@@ -377,6 +482,8 @@ export default function ScanScreen() {
     setMode("choose");
     setEditedText("");
     setSourceUrl("");
+    setPdfFileName("");
+    setPdfPageCount(null);
   };
 
   // --- Camera View ---
@@ -778,14 +885,18 @@ export default function ScanScreen() {
                   ? "Bild wird analysiert..."
                   : sourceUrl.trim()
                     ? "URL wird analysiert..."
-                  : "Flashcards werden generiert..."}
+                    : pdfFileName
+                      ? "PDF wird analysiert..."
+                    : "Flashcards werden generiert..."}
             </Text>
             <Text
               style={{ fontSize: typography.sm, color: colors.textSecondary }}
             >
               {saving
                 ? `${cards.length} Karten werden in deinem Deck gespeichert`
-                : "Gemini AI verarbeitet dein Material"}
+                : pdfFileName
+                  ? `${pdfFileName} wird verarbeitet`
+                  : "Gemini AI verarbeitet dein Material"}
             </Text>
           </View>
         )}
@@ -1007,6 +1118,56 @@ export default function ScanScreen() {
               <ChevronRight size={20} color="rgba(255,255,255,0.5)" />
             </TouchableOpacity>
 
+            {/* PDF import button */}
+            <TouchableOpacity
+              onPress={handlePickPdf}
+              activeOpacity={0.8}
+              style={{
+                backgroundColor: colors.text,
+                borderRadius: radius.lg,
+                padding: spacing.xl,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: spacing.lg,
+                ...shadows.md,
+              }}
+            >
+              <View
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: radius.md,
+                  backgroundColor: "rgba(255,255,255,0.16)",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <FileText size={24} color={colors.textInverse} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    color: colors.textInverse,
+                    fontSize: typography.lg,
+                    fontWeight: typography.bold,
+                  }}
+                >
+                  PDF importieren
+                </Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
+                  <Text style={{ color: "rgba(255,255,255,0.72)", fontSize: typography.sm }}>
+                    Text-PDF direkt in Lernkarten umwandeln
+                  </Text>
+                  <View style={{ backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 }}>
+                    <Text style={{ color: colors.textInverse, fontSize: typography.xs, fontWeight: typography.bold }}>
+                      ⚡{lpCostPdfImport} LP
+                    </Text>
+                  </View>
+                </View>
+              </View>
+              <ChevronRight size={20} color="rgba(255,255,255,0.5)" />
+            </TouchableOpacity>
+
             {/* Info text */}
             <View
               style={{
@@ -1033,7 +1194,7 @@ export default function ScanScreen() {
                 }}
               >
                 Gemini AI analysiert dein Material und erstellt automatisch
-                Flashcards — aus Fotos, Screenshots oder Text.
+                Flashcards aus Fotos, Screenshots, PDFs oder Text.
               </Text>
             </View>
           </View>
@@ -1053,6 +1214,44 @@ export default function ScanScreen() {
                 resizeMode="cover"
               />
             )}
+
+            {pdfFileName ? (
+              <View
+                style={{
+                  backgroundColor: colors.surfaceSecondary,
+                  borderRadius: radius.md,
+                  padding: spacing.md,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: spacing.md,
+                }}
+              >
+                <View style={{ flex: 1, gap: 4 }}>
+                  <Text
+                    numberOfLines={1}
+                    style={{
+                      color: colors.text,
+                      fontSize: typography.base,
+                      fontWeight: typography.semibold,
+                    }}
+                  >
+                    {pdfFileName}
+                  </Text>
+                  <Text
+                    style={{
+                      color: colors.textSecondary,
+                      fontSize: typography.sm,
+                    }}
+                  >
+                    {pdfPageCount ? `${pdfPageCount} Seiten importiert` : "PDF-Import"}
+                  </Text>
+                </View>
+                <FileText size={18} color={colors.textSecondary} />
+              </View>
+            ) : null}
 
             {deckTitle ? (
               <Text

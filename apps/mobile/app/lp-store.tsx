@@ -48,6 +48,11 @@ export default function LpStoreScreen() {
   const [purchasingPackId, setPurchasingPackId] = useState<string | null>(null);
 
   const loadBalance = useCallback(async () => {
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await getLpBalance();
       setUsage({
@@ -65,7 +70,7 @@ export default function LpStoreScreen() {
     } catch { /* best-effort */ } finally {
       setLoading(false);
     }
-  }, [setUsage]);
+  }, [setUsage, userId]);
 
   useEffect(() => {
     void loadBalance();

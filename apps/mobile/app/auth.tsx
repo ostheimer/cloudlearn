@@ -1,4 +1,10 @@
-import { useState } from "react";
+import {
+  useRef,
+  useState,
+  type CSSProperties,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -17,6 +23,36 @@ import { spacing, radius, typography, useColors } from "../src/theme";
 
 type AuthMode = "login" | "register" | "reset";
 
+const webFormStyle = {
+  display: "flex",
+  flexDirection: "column",
+} satisfies CSSProperties;
+
+function FormContainer({
+  children,
+  onSubmit,
+}: {
+  children: ReactNode;
+  onSubmit: () => void;
+}) {
+  if (Platform.OS !== "web") {
+    return <>{children}</>;
+  }
+
+  return (
+    <form
+      noValidate
+      onSubmit={(event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        onSubmit();
+      }}
+      style={webFormStyle}
+    >
+      {children}
+    </form>
+  );
+}
+
 export default function AuthScreen() {
   const colors = useColors();
   const [mode, setMode] = useState<AuthMode>("login");
@@ -24,6 +60,8 @@ export default function AuthScreen() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const passwordInputRef = useRef<TextInput>(null);
+  const confirmPasswordInputRef = useRef<TextInput>(null);
 
   const signIn = useSessionStore((state) => state.signIn);
   const signUp = useSessionStore((state) => state.signUp);
@@ -105,6 +143,20 @@ export default function AuthScreen() {
     color: colors.text,
   } as const;
 
+  const webSubmitStyle: CSSProperties = {
+    appearance: "none",
+    backgroundColor: loading ? colors.textTertiary : colors.primary,
+    border: "none",
+    borderRadius: radius.md,
+    color: colors.textInverse,
+    cursor: loading ? "default" : "pointer",
+    fontSize: typography.lg,
+    fontWeight: typography.bold,
+    marginTop: mode === "login" ? 0 : spacing.sm,
+    paddingBlock: 16,
+    width: "100%",
+  };
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <KeyboardAvoidingView
@@ -162,181 +214,253 @@ export default function AuthScreen() {
               </Text>
             </View>
 
-            {/* Title */}
-            <Text
-              style={{
-                fontSize: typography.xxl,
-                fontWeight: typography.bold,
-                color: colors.text,
-                marginBottom: spacing.xxl,
-                textAlign: "center",
+            <FormContainer
+              onSubmit={() => {
+                void handleSubmit();
               }}
             >
-              {titles[mode]}
-            </Text>
-
-            {/* Email */}
-            <View style={{ marginBottom: 14 }}>
+              {/* Title */}
               <Text
                 style={{
-                  fontSize: typography.sm,
-                  color: colors.textSecondary,
-                  marginBottom: spacing.sm,
-                  fontWeight: typography.semibold,
+                  fontSize: typography.xxl,
+                  fontWeight: typography.bold,
+                  color: colors.text,
+                  marginBottom: spacing.xxl,
+                  textAlign: "center",
                 }}
               >
-                E-Mail
+                {titles[mode]}
               </Text>
-              <TextInput
-                value={email}
-                onChangeText={setEmail}
-                placeholder="deine@email.de"
-                placeholderTextColor={colors.textTertiary}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                style={inputStyle}
-              />
-            </View>
 
-            {/* Password */}
-            {mode !== "reset" && (
+              {/* Email */}
               <View style={{ marginBottom: 14 }}>
                 <Text
                   style={{
-                    color: colors.textSecondary,
                     fontSize: typography.sm,
+                    color: colors.textSecondary,
                     marginBottom: spacing.sm,
                     fontWeight: typography.semibold,
                   }}
                 >
-                  Passwort
+                  E-Mail
                 </Text>
                 <TextInput
-                  value={password}
-                  onChangeText={setPassword}
-                  placeholder="••••••••"
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="deine@email.de"
                   placeholderTextColor={colors.textTertiary}
-                  secureTextEntry
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete="email"
+                  textContentType="emailAddress"
+                  returnKeyType={mode === "reset" ? "send" : "next"}
+                  onSubmitEditing={() => {
+                    if (mode === "reset") {
+                      void handleSubmit();
+                      return;
+                    }
+                    passwordInputRef.current?.focus();
+                  }}
+                  onKeyPress={(event) => {
+                    if (Platform.OS !== "web" || event.nativeEvent.key !== "Enter") {
+                      return;
+                    }
+                    if (mode === "reset") {
+                      void handleSubmit();
+                      return;
+                    }
+                    passwordInputRef.current?.focus();
+                  }}
                   style={inputStyle}
                 />
               </View>
-            )}
 
-            {/* Confirm Password */}
-            {mode === "register" && (
-              <View style={{ marginBottom: 14 }}>
-                <Text
+              {/* Password */}
+              {mode !== "reset" && (
+                <View style={{ marginBottom: 14 }}>
+                  <Text
+                    style={{
+                      color: colors.textSecondary,
+                      fontSize: typography.sm,
+                      marginBottom: spacing.sm,
+                      fontWeight: typography.semibold,
+                    }}
+                  >
+                    Passwort
+                  </Text>
+                  <TextInput
+                    ref={passwordInputRef}
+                    value={password}
+                    onChangeText={setPassword}
+                    placeholder="••••••••"
+                    placeholderTextColor={colors.textTertiary}
+                    secureTextEntry
+                    autoComplete={
+                      mode === "login" ? "current-password" : "new-password"
+                    }
+                    textContentType={
+                      mode === "login" ? "password" : "newPassword"
+                    }
+                    returnKeyType={mode === "register" ? "next" : "go"}
+                    onSubmitEditing={() => {
+                      if (mode === "register") {
+                        confirmPasswordInputRef.current?.focus();
+                        return;
+                      }
+                      void handleSubmit();
+                    }}
+                    onKeyPress={(event) => {
+                      if (Platform.OS !== "web" || event.nativeEvent.key !== "Enter") {
+                        return;
+                      }
+                      if (mode === "register") {
+                        confirmPasswordInputRef.current?.focus();
+                        return;
+                      }
+                      void handleSubmit();
+                    }}
+                    style={inputStyle}
+                  />
+                </View>
+              )}
+
+              {/* Confirm Password */}
+              {mode === "register" && (
+                <View style={{ marginBottom: 14 }}>
+                  <Text
+                    style={{
+                      color: colors.textSecondary,
+                      fontSize: typography.sm,
+                      marginBottom: spacing.sm,
+                      fontWeight: typography.semibold,
+                    }}
+                  >
+                    Passwort bestätigen
+                  </Text>
+                  <TextInput
+                    ref={confirmPasswordInputRef}
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    placeholder="••••••••"
+                    placeholderTextColor={colors.textTertiary}
+                    secureTextEntry
+                    autoComplete="new-password"
+                    textContentType="newPassword"
+                    returnKeyType="go"
+                    onSubmitEditing={() => {
+                      void handleSubmit();
+                    }}
+                    onKeyPress={(event) => {
+                      if (Platform.OS !== "web" || event.nativeEvent.key !== "Enter") {
+                        return;
+                      }
+                      void handleSubmit();
+                    }}
+                    style={inputStyle}
+                  />
+                </View>
+              )}
+
+              {/* Forgot Password link */}
+              {mode === "login" && (
+                <TouchableOpacity
+                  onPress={() => setMode("reset")}
+                  style={{ alignSelf: "flex-end", marginBottom: spacing.xl }}
+                >
+                  <Text
+                    style={{
+                      color: colors.primary,
+                      fontSize: typography.sm + 1,
+                      fontWeight: typography.medium,
+                    }}
+                  >
+                    Passwort vergessen?
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {/* Submit button */}
+              {Platform.OS === "web" ? (
+                <button type="submit" disabled={loading} style={webSubmitStyle}>
+                  {loading ? "Wird verarbeitet ..." : buttonLabels[mode]}
+                </button>
+              ) : (
+                <TouchableOpacity
+                  onPress={() => {
+                    void handleSubmit();
+                  }}
+                  disabled={loading}
+                  activeOpacity={0.8}
                   style={{
-                    color: colors.textSecondary,
-                    fontSize: typography.sm,
-                    marginBottom: spacing.sm,
-                    fontWeight: typography.semibold,
+                    backgroundColor: loading
+                      ? colors.textTertiary
+                      : colors.primary,
+                    borderRadius: radius.md,
+                    paddingVertical: 16,
+                    alignItems: "center",
+                    marginTop: mode === "login" ? 0 : spacing.sm,
                   }}
                 >
-                  Passwort bestätigen
-                </Text>
-                <TextInput
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  placeholder="••••••••"
-                  placeholderTextColor={colors.textTertiary}
-                  secureTextEntry
-                  style={inputStyle}
-                />
+                  {loading ? (
+                    <ActivityIndicator color={colors.textInverse} />
+                  ) : (
+                    <Text
+                      style={{
+                        color: colors.textInverse,
+                        fontSize: typography.lg,
+                        fontWeight: typography.bold,
+                      }}
+                    >
+                      {buttonLabels[mode]}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              )}
+
+              {/* Mode switch */}
+              <View style={{ marginTop: spacing.xxl, alignItems: "center" }}>
+                {mode === "login" ? (
+                  <TouchableOpacity onPress={() => setMode("register")}>
+                    <Text
+                      style={{
+                        color: colors.textSecondary,
+                        fontSize: typography.base,
+                      }}
+                    >
+                      Noch kein Konto?{" "}
+                      <Text
+                        style={{
+                          color: colors.primary,
+                          fontWeight: typography.semibold,
+                        }}
+                      >
+                        Registrieren
+                      </Text>
+                    </Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity onPress={() => setMode("login")}>
+                    <Text
+                      style={{
+                        color: colors.textSecondary,
+                        fontSize: typography.base,
+                      }}
+                    >
+                      Bereits ein Konto?{" "}
+                      <Text
+                        style={{
+                          color: colors.primary,
+                          fontWeight: typography.semibold,
+                        }}
+                      >
+                        Anmelden
+                      </Text>
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
-            )}
-
-            {/* Forgot Password link */}
-            {mode === "login" && (
-              <TouchableOpacity
-                onPress={() => setMode("reset")}
-                style={{ alignSelf: "flex-end", marginBottom: spacing.xl }}
-              >
-                <Text
-                  style={{
-                    color: colors.primary,
-                    fontSize: typography.sm + 1,
-                    fontWeight: typography.medium,
-                  }}
-                >
-                  Passwort vergessen?
-                </Text>
-              </TouchableOpacity>
-            )}
-
-            {/* Submit button */}
-            <TouchableOpacity
-              onPress={handleSubmit}
-              disabled={loading}
-              activeOpacity={0.8}
-              style={{
-                backgroundColor: loading
-                  ? colors.textTertiary
-                  : colors.primary,
-                borderRadius: radius.md,
-                paddingVertical: 16,
-                alignItems: "center",
-                marginTop: mode === "login" ? 0 : spacing.sm,
-              }}
-            >
-              {loading ? (
-                <ActivityIndicator color={colors.textInverse} />
-              ) : (
-                <Text
-                  style={{
-                    color: colors.textInverse,
-                    fontSize: typography.lg,
-                    fontWeight: typography.bold,
-                  }}
-                >
-                  {buttonLabels[mode]}
-                </Text>
-              )}
-            </TouchableOpacity>
-
-            {/* Mode switch */}
-            <View style={{ marginTop: spacing.xxl, alignItems: "center" }}>
-              {mode === "login" ? (
-                <TouchableOpacity onPress={() => setMode("register")}>
-                  <Text
-                    style={{
-                      color: colors.textSecondary,
-                      fontSize: typography.base,
-                    }}
-                  >
-                    Noch kein Konto?{" "}
-                    <Text
-                      style={{
-                        color: colors.primary,
-                        fontWeight: typography.semibold,
-                      }}
-                    >
-                      Registrieren
-                    </Text>
-                  </Text>
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity onPress={() => setMode("login")}>
-                  <Text
-                    style={{
-                      color: colors.textSecondary,
-                      fontSize: typography.base,
-                    }}
-                  >
-                    Bereits ein Konto?{" "}
-                    <Text
-                      style={{
-                        color: colors.primary,
-                        fontWeight: typography.semibold,
-                      }}
-                    >
-                      Anmelden
-                    </Text>
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
+            </FormContainer>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

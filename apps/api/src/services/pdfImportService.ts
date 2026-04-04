@@ -1,5 +1,16 @@
 import { randomUUID } from "node:crypto";
-import { pdfImportJobSchema, type PdfImportJob } from "@/lib/contracts";
+import {
+  flashcardListSchema,
+  pdfImportJobSchema,
+  pdfImportRequestSchema,
+  type PdfImportJob,
+  type PdfImportResponse,
+} from "@/lib/contracts";
+import { createCard, createDeck, getDeck, recordScan } from "@/lib/db";
+import { getIdempotentResult, storeIdempotentResult } from "@/lib/idempotencyStore";
+import { generateFlashcardsAsync } from "@/lib/llm";
+import { extractPdfText } from "@/lib/pdf";
+import { sanitizeFileName } from "@/lib/sanitize";
 
 const jobs = new Map<string, PdfImportJob>();
 
@@ -54,4 +65,54 @@ export function getPdfJob(jobId: string): PdfImportJob | null {
 
 export function resetPdfJobs(): void {
   jobs.clear();
+}
+
+export async function processPdfImport(
+  input: unknown,
+  requestId: string,
+  userId: string
+): Promise<PdfImportResponse> {
+  const parsed = pdfImportRequestSchema.parse(input);
+  const existing = getIdempotentResult<PdfImportResponse>(parsed.idempotencyKey);
+  if (existing) {
+    return existing;
+  }
+
+  const extracted = await extractPdfText(parsed.fileBase64);
+  const generated = await generateFlashcardsAsync(
+    extracted.extractedText,
+    parsed.sourceLanguage
+  );
+  const cards = flashcardListSchema.parse(generated.cards);
+
+  let deck = parsed.deckId ? await getDeck(parsed.deckId) : null;
+  if (!deck) {
+    deck = await createDeck(userId, generated.title, ["pdf-import"]);
+  }
+
+  for (const card of cards) {
+    await createCard(userId, deck.id, card);
+  }
+
+  await recordScan(
+    userId,
+    generated.model,
+    cards.length,
+    `pdf:${sanitizeFileName(parsed.fileName)}`,
+    extracted.extractedText
+  );
+
+  const response: PdfImportResponse = {
+    requestId,
+    model: generated.model,
+    fallbackUsed: generated.fallbackUsed,
+    cards,
+    deckTitle: generated.title,
+    fileName: parsed.fileName.trim(),
+    pageCount: extracted.pageCount,
+    extractedCharacters: extracted.extractedCharacters,
+  };
+
+  storeIdempotentResult(parsed.idempotencyKey, response);
+  return response;
 }

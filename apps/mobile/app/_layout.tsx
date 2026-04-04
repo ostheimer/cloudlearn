@@ -1,6 +1,6 @@
 import { Stack, useRouter, useSegments } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, AppState, Platform, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
@@ -16,6 +16,10 @@ import {
 import { useOnboardingState } from "../src/features/onboarding/onboardingState";
 import { registerPaywallTrigger, unregisterPaywallTrigger, registerPushToken } from "../src/lib/api";
 import { resolveRootRedirect } from "../src/navigation/rootRedirect";
+import {
+  syncPendingReviewOperations,
+  useOfflineQueueStore,
+} from "../src/features/sync/offlineQueueStore";
 
 initializeI18n("de");
 
@@ -26,6 +30,11 @@ export default function RootLayout() {
     useSessionStore();
   const initializeTheme = useThemeStore((state) => state.initialize);
   const resetUsage = useUsageStore((state) => state.reset);
+  const initializeOfflineQueue = useOfflineQueueStore((state) => state.initialize);
+  const clearOfflineQueue = useOfflineQueueStore((state) => state.clear);
+  const offlineQueueHydrated = useOfflineQueueStore(
+    (state) => state.queue.hydrated
+  );
   const c = useColors();
   const themeMode = useResolvedThemeMode();
   const onboardingCompleted = useOnboardingState((state) => state.completed);
@@ -38,6 +47,10 @@ export default function RootLayout() {
   useEffect(() => {
     void initializeTheme();
   }, [initializeTheme]);
+
+  useEffect(() => {
+    void initializeOfflineQueue();
+  }, [initializeOfflineQueue]);
 
   useEffect(() => {
     initialize();
@@ -96,8 +109,13 @@ export default function RootLayout() {
   ]);
 
   useEffect(() => {
+    if (isLoading) {
+      return;
+    }
+
     if (!isAuthenticated || !userId) {
       resetUsage();
+      clearOfflineQueue();
       void logoutRevenueCatUser();
       return;
     }
@@ -112,7 +130,6 @@ export default function RootLayout() {
         if (status !== "granted") return;
         const token = await Notifications.getExpoPushTokenAsync();
         if (token.data) {
-          const { Platform } = await import("react-native");
           const platform = Platform.OS === "ios" ? "ios" : Platform.OS === "android" ? "android" : "web";
           await registerPushToken(token.data, platform as "ios" | "android" | "web");
         }
@@ -120,7 +137,51 @@ export default function RootLayout() {
         // Push token registration is best-effort
       }
     })();
-  }, [isAuthenticated, resetUsage, userId]);
+  }, [clearOfflineQueue, isAuthenticated, isLoading, resetUsage, userId]);
+
+  useEffect(() => {
+    if (!userId || !offlineQueueHydrated) {
+      return;
+    }
+
+    let active = true;
+    const syncPending = async () => {
+      if (!active) {
+        return;
+      }
+      try {
+        await syncPendingReviewOperations(userId);
+      } catch {
+        // Offline review sync retries on the next tick / foreground event.
+      }
+    };
+
+    void syncPending();
+    const intervalId = setInterval(() => {
+      void syncPending();
+    }, 30_000);
+    const appStateSubscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        void syncPending();
+      }
+    });
+    const handleOnline = () => {
+      void syncPending();
+    };
+
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      window.addEventListener("online", handleOnline);
+    }
+
+    return () => {
+      active = false;
+      clearInterval(intervalId);
+      appStateSubscription.remove();
+      if (Platform.OS === "web" && typeof window !== "undefined") {
+        window.removeEventListener("online", handleOnline);
+      }
+    };
+  }, [offlineQueueHydrated, userId]);
 
   // Register a global paywall trigger so any API 402 response auto-navigates to paywall
   useEffect(() => {

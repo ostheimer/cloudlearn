@@ -11,7 +11,13 @@ export async function POST(request: NextRequest) {
     if (!auth) return jsonError(requestId, "UNAUTHORIZED", "Authentication required", 401);
 
     const body = await request.json();
-    const result = await syncOperations(body, requestId);
+    const result = await syncOperations(
+      {
+        ...body,
+        userId: auth.userId,
+      },
+      requestId
+    );
     return jsonOk(requestId, result, 201);
   } catch (error) {
     const normalized = normalizeError(error);
