@@ -47,6 +47,21 @@ export const TIER_LIMITS: Record<SubscriptionTier, TierLimits> = {
     advancedStats: true,
     adFree: true,
   },
+  lifetime: {
+    maxDecks: 500,
+    maxCardsPerDeck: 2000,
+    lpGrantPerMonth: 300,
+    lpEarnCapPerDay: 100,
+    lpAdCapPerDay: 0,
+    lpCostAiScan: 5,
+    lpCostUrlImport: 8,
+    lpCostPdfImport: 12,
+    pdfImport: true,
+    imageOcclusion: true,
+    offlineDownload: true,
+    advancedStats: true,
+    adFree: true,
+  },
 };
 
 export const LP_EARN_RULES = {

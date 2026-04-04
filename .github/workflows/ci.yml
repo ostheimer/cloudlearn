@@ -35,3 +35,12 @@ jobs:
 
       - name: Test
         run: pnpm test
+
+      - name: Build cloudlearn preview
+        run: pnpm --filter @clearn/mobile build
+
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Smoke test cloudlearn preview
+        run: pnpm test:cloudlearn-smoke

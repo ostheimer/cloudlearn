@@ -2,7 +2,7 @@ import { create } from "zustand";
 
 // Mirrors the API response from GET /api/v1/usage.
 export interface UsageState {
-  tier: "free" | "pro";
+  tier: "free" | "pro" | "lifetime";
   lpBalance: number;
   lpEarnedToday: number;
   lpAdsToday: number;

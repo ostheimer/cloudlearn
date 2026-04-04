@@ -33,6 +33,19 @@ describe("subscription mapping", () => {
     expect(snapshot.isActive).toBe(true);
   });
 
+  it("maps lifetime entitlement to active lifetime tier", () => {
+    const snapshot = deriveSubscriptionFromEntitlements(
+      [{ identifier: "lifetime", expirationDate: null }],
+      NOW
+    );
+
+    expect(snapshot).toEqual({
+      tier: "lifetime",
+      isActive: true,
+      expiresAt: null,
+    });
+  });
+
   it("downgrades to free when entitlement is expired", () => {
     const snapshot = deriveSubscriptionFromEntitlements(
       [{ identifier: "pro", expirationDate: "2026-01-01T00:00:00.000Z" }],

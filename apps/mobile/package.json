@@ -8,18 +8,21 @@
     "build": "expo export",
     "lint": "tsc -p tsconfig.json --noEmit",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
     "@gorhom/bottom-sheet": "^5.2.8",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-navigation/native": "^7.1.28",
     "@supabase/supabase-js": "^2.95.3",
     "expo": "^54.0.20",
     "expo-build-properties": "^55.0.9",
     "expo-camera": "~17.0.10",
     "expo-clipboard": "^55.0.8",
-    "expo-dev-client": "^55.0.16",
+    "expo-document-picker": "~14.0.8",
     "expo-image-picker": "~17.0.10",
     "expo-notifications": "^0.32.16",
     "expo-router": "^6.0.14",

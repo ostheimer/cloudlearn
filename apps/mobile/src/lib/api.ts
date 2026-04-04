@@ -55,9 +55,17 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
   return headers;
 }
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
+async function request<T>(
+  path: string,
+  options?: RequestInit,
+  config?: { requiresAuth?: boolean }
+): Promise<T> {
   const url = `${API_BASE}${path}`;
   const authHeaders = await getAuthHeaders();
+
+  if (config?.requiresAuth && !authHeaders.Authorization) {
+    throw new ApiError("Authentication required", 401, "UNAUTHORIZED_CLIENT");
+  }
 
   const res = await fetch(url, {
     ...options,
@@ -92,6 +100,13 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return body as T;
 }
 
+async function requestAuthenticated<T>(
+  path: string,
+  options?: RequestInit
+): Promise<T> {
+  return request<T>(path, options, { requiresAuth: true });
+}
+
 // --- Types ---
 
 export interface Flashcard {
@@ -122,8 +137,15 @@ export interface UrlImportResponse extends ScanResponse {
   usage?: LpUsageInfo;
 }
 
+export interface PdfImportResponse extends ScanResponse {
+  fileName: string;
+  pageCount: number;
+  extractedCharacters: number;
+  usage?: LpUsageInfo;
+}
+
 export interface AiUsageResponse {
-  tier: "free" | "pro";
+  tier: "free" | "pro" | "lifetime";
   lpBalance: number;
   lpEarnedToday: number;
   lpAdsToday: number;
@@ -179,6 +201,29 @@ export interface ReviewResponse {
   state: string;
 }
 
+export interface ReviewSyncPayload {
+  userId: string;
+  cardId: string;
+  rating: "again" | "hard" | "good" | "easy";
+  reviewedAt: string;
+  reviewDurationMs?: number;
+  idempotencyKey: string;
+}
+
+export interface ReviewSyncOperation {
+  operationId: string;
+  operationType: "review";
+  createdAt: string;
+  payload: ReviewSyncPayload;
+}
+
+export interface SyncResponse {
+  requestId: string;
+  acceptedOperationIds: string[];
+  rejectedOperationIds: string[];
+  serverTimestamp: string;
+}
+
 export interface StatsResponse {
   totalDecks: number;
   dueCards: number;
@@ -208,7 +253,7 @@ export async function scanText(
   language = "de"
 ): Promise<ScanResponse> {
   const idempotencyKey = `scan-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-  return request<ScanResponse>("/api/v1/scan/process", {
+  return requestAuthenticated<ScanResponse>("/api/v1/scan/process", {
     method: "POST",
     body: JSON.stringify({
       userId,
@@ -226,7 +271,7 @@ export async function scanImage(
   language = "de"
 ): Promise<ScanResponse> {
   const idempotencyKey = `scan-img-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-  return request<ScanResponse>("/api/v1/scan/process", {
+  return requestAuthenticated<ScanResponse>("/api/v1/scan/process", {
     method: "POST",
     body: JSON.stringify({
       userId,
@@ -245,7 +290,7 @@ export async function importFromUrl(
   language = "de"
 ): Promise<UrlImportResponse> {
   const idempotencyKey = `import-url-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-  return request<UrlImportResponse>("/api/v1/import/url", {
+  return requestAuthenticated<UrlImportResponse>("/api/v1/import/url", {
     method: "POST",
     body: JSON.stringify({
       userId,
@@ -257,12 +302,31 @@ export async function importFromUrl(
   });
 }
 
+export async function importPdf(
+  userId: string,
+  fileName: string,
+  fileBase64: string,
+  language = "de"
+): Promise<PdfImportResponse> {
+  const idempotencyKey = `import-pdf-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  return requestAuthenticated<PdfImportResponse>("/api/v1/import/pdf", {
+    method: "POST",
+    body: JSON.stringify({
+      userId,
+      fileName,
+      fileBase64,
+      idempotencyKey,
+      sourceLanguage: language,
+    }),
+  });
+}
+
 export async function createDeck(
   userId: string,
   title: string,
   tags: string[] = []
 ): Promise<{ deck: Deck }> {
-  return request<{ deck: Deck }>("/api/v1/decks", {
+  return requestAuthenticated<{ deck: Deck }>("/api/v1/decks", {
     method: "POST",
     body: JSON.stringify({ userId, title, tags }),
   });
@@ -271,7 +335,7 @@ export async function createDeck(
 export async function listDecks(
   userId: string
 ): Promise<{ decks: Deck[] }> {
-  return request<{ decks: Deck[] }>(`/api/v1/decks?userId=${userId}`);
+  return requestAuthenticated<{ decks: Deck[] }>(`/api/v1/decks?userId=${userId}`);
 }
 
 export async function createCard(
@@ -279,7 +343,7 @@ export async function createCard(
   deckId: string,
   card: { front: string; back: string; type: string; difficulty: string; tags: string[] }
 ): Promise<{ card: Card }> {
-  return request<{ card: Card }>("/api/v1/cards", {
+  return requestAuthenticated<{ card: Card }>("/api/v1/cards", {
     method: "POST",
     body: JSON.stringify({ userId, deckId, card }),
   });
@@ -288,23 +352,57 @@ export async function createCard(
 export async function getDueCards(
   userId: string
 ): Promise<{ cards: Card[] }> {
-  return request<{ cards: Card[] }>(`/api/v1/learn/due?userId=${userId}`);
+  return requestAuthenticated<{ cards: Card[] }>(`/api/v1/learn/due?userId=${userId}`);
 }
 
 export async function reviewCard(
   userId: string,
   cardId: string,
-  rating: "again" | "hard" | "good" | "easy"
+  rating: "again" | "hard" | "good" | "easy",
+  options?: {
+    reviewedAt?: string;
+    reviewDurationMs?: number;
+    idempotencyKey?: string;
+  }
 ): Promise<ReviewResponse> {
-  const idempotencyKey = `review-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-  return request<ReviewResponse>(`/api/v1/cards/${cardId}/review`, {
+  const reviewedAt = options?.reviewedAt ?? new Date().toISOString();
+  const idempotencyKey =
+    options?.idempotencyKey ??
+    `review-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  const body: {
+    userId: string;
+    cardId: string;
+    rating: "again" | "hard" | "good" | "easy";
+    reviewedAt: string;
+    idempotencyKey: string;
+    reviewDurationMs?: number;
+  } = {
+    userId,
+    cardId,
+    rating,
+    reviewedAt,
+    idempotencyKey,
+  };
+
+  if (options?.reviewDurationMs !== undefined) {
+    body.reviewDurationMs = options.reviewDurationMs;
+  }
+
+  return requestAuthenticated<ReviewResponse>(`/api/v1/cards/${cardId}/review`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function syncReviewOperations(
+  userId: string,
+  operations: ReviewSyncOperation[]
+): Promise<SyncResponse> {
+  return requestAuthenticated<SyncResponse>("/api/v1/learn/sync", {
     method: "POST",
     body: JSON.stringify({
       userId,
-      cardId,
-      rating,
-      reviewedAt: new Date().toISOString(),
-      idempotencyKey,
+      operations,
     }),
   });
 }
@@ -315,14 +413,14 @@ export async function updateDeck(
   deckId: string,
   updates: { title?: string; tags?: string[] }
 ): Promise<{ deck: Deck }> {
-  return request<{ deck: Deck }>(`/api/v1/decks/${deckId}`, {
+  return requestAuthenticated<{ deck: Deck }>(`/api/v1/decks/${deckId}`, {
     method: "PATCH",
     body: JSON.stringify(updates),
   });
 }
 
 export async function deleteDeck(deckId: string): Promise<{ deleted: boolean }> {
-  return request<{ deleted: boolean }>(`/api/v1/decks/${deckId}`, {
+  return requestAuthenticated<{ deleted: boolean }>(`/api/v1/decks/${deckId}`, {
     method: "DELETE",
   });
 }
@@ -330,7 +428,7 @@ export async function deleteDeck(deckId: string): Promise<{ deleted: boolean }> 
 export async function listCardsInDeck(
   deckId: string
 ): Promise<{ cards: Card[] }> {
-  return request<{ cards: Card[] }>(`/api/v1/decks/${deckId}/cards`);
+  return requestAuthenticated<{ cards: Card[] }>(`/api/v1/decks/${deckId}/cards`);
 }
 
 // --- Card Management ---
@@ -339,14 +437,14 @@ export async function updateCard(
   cardId: string,
   updates: { front?: string; back?: string; type?: string; difficulty?: string; tags?: string[]; starred?: boolean }
 ): Promise<{ card: Card }> {
-  return request<{ card: Card }>(`/api/v1/cards/${cardId}`, {
+  return requestAuthenticated<{ card: Card }>(`/api/v1/cards/${cardId}`, {
     method: "PATCH",
     body: JSON.stringify(updates),
   });
 }
 
 export async function deleteCard(cardId: string): Promise<{ deleted: boolean }> {
-  return request<{ deleted: boolean }>(`/api/v1/cards/${cardId}`, {
+  return requestAuthenticated<{ deleted: boolean }>(`/api/v1/cards/${cardId}`, {
     method: "DELETE",
   });
 }
@@ -356,7 +454,7 @@ export async function deleteCard(cardId: string): Promise<{ deleted: boolean }> 
 export async function getSubscriptionStatus(
   _userId?: string
 ): Promise<{ status: SubscriptionStatus }> {
-  return request<{ status: SubscriptionStatus }>("/api/v1/subscription/status");
+  return requestAuthenticated<{ status: SubscriptionStatus }>("/api/v1/subscription/status");
 }
 
 /** @deprecated Use getLpBalance() instead */
@@ -367,7 +465,7 @@ export async function getAiUsage(): Promise<AiUsageResponse> {
 // --- Stats ---
 
 export async function getStats(): Promise<{ stats: StatsResponse }> {
-  return request<{ stats: StatsResponse }>("/api/v1/stats");
+  return requestAuthenticated<{ stats: StatsResponse }>("/api/v1/stats");
 }
 
 // --- Courses ---
@@ -383,11 +481,11 @@ export interface Course {
 }
 
 export async function listCourses(): Promise<{ courses: Course[] }> {
-  return request<{ courses: Course[] }>("/api/v1/courses");
+  return requestAuthenticated<{ courses: Course[] }>("/api/v1/courses");
 }
 
 export async function getCourse(courseId: string): Promise<{ course: Course }> {
-  return request<{ course: Course }>(`/api/v1/courses/${courseId}`);
+  return requestAuthenticated<{ course: Course }>(`/api/v1/courses/${courseId}`);
 }
 
 export async function createCourse(
@@ -395,7 +493,7 @@ export async function createCourse(
   description?: string,
   color?: string
 ): Promise<{ course: Course }> {
-  return request<{ course: Course }>("/api/v1/courses", {
+  return requestAuthenticated<{ course: Course }>("/api/v1/courses", {
     method: "POST",
     body: JSON.stringify({ title, description, color }),
   });
@@ -405,14 +503,14 @@ export async function updateCourseApi(
   courseId: string,
   updates: { title?: string; description?: string; color?: string }
 ): Promise<{ course: Course }> {
-  return request<{ course: Course }>(`/api/v1/courses/${courseId}`, {
+  return requestAuthenticated<{ course: Course }>(`/api/v1/courses/${courseId}`, {
     method: "PATCH",
     body: JSON.stringify(updates),
   });
 }
 
 export async function deleteCourseApi(courseId: string): Promise<{ deleted: boolean }> {
-  return request<{ deleted: boolean }>(`/api/v1/courses/${courseId}`, {
+  return requestAuthenticated<{ deleted: boolean }>(`/api/v1/courses/${courseId}`, {
     method: "DELETE",
   });
 }
@@ -422,7 +520,7 @@ export async function addDeckToCourse(
   deckId: string,
   position = 0
 ): Promise<{ added: boolean }> {
-  return request<{ added: boolean }>(`/api/v1/courses/${courseId}/decks`, {
+  return requestAuthenticated<{ added: boolean }>(`/api/v1/courses/${courseId}/decks`, {
     method: "POST",
     body: JSON.stringify({ deckId, position }),
   });
@@ -432,7 +530,7 @@ export async function removeDeckFromCourse(
   courseId: string,
   deckId: string
 ): Promise<{ removed: boolean }> {
-  return request<{ removed: boolean }>(`/api/v1/courses/${courseId}/decks?deckId=${deckId}`, {
+  return requestAuthenticated<{ removed: boolean }>(`/api/v1/courses/${courseId}/decks?deckId=${deckId}`, {
     method: "DELETE",
   });
 }
@@ -440,7 +538,7 @@ export async function removeDeckFromCourse(
 export async function listDecksInCourse(
   courseId: string
 ): Promise<{ decks: Deck[] }> {
-  return request<{ decks: Deck[] }>(`/api/v1/courses/${courseId}/decks`);
+  return requestAuthenticated<{ decks: Deck[] }>(`/api/v1/courses/${courseId}/decks`);
 }
 
 // --- Folders ---
@@ -456,11 +554,11 @@ export interface Folder {
 }
 
 export async function listFolders(): Promise<{ folders: Folder[] }> {
-  return request<{ folders: Folder[] }>("/api/v1/folders");
+  return requestAuthenticated<{ folders: Folder[] }>("/api/v1/folders");
 }
 
 export async function getFolder(folderId: string): Promise<{ folder: Folder }> {
-  return request<{ folder: Folder }>(`/api/v1/folders/${folderId}`);
+  return requestAuthenticated<{ folder: Folder }>(`/api/v1/folders/${folderId}`);
 }
 
 export async function createFolder(
@@ -468,7 +566,7 @@ export async function createFolder(
   parentId?: string,
   color?: string
 ): Promise<{ folder: Folder }> {
-  return request<{ folder: Folder }>("/api/v1/folders", {
+  return requestAuthenticated<{ folder: Folder }>("/api/v1/folders", {
     method: "POST",
     body: JSON.stringify({ title, parentId, color }),
   });
@@ -478,14 +576,14 @@ export async function updateFolderApi(
   folderId: string,
   updates: { title?: string; parentId?: string | null; color?: string }
 ): Promise<{ folder: Folder }> {
-  return request<{ folder: Folder }>(`/api/v1/folders/${folderId}`, {
+  return requestAuthenticated<{ folder: Folder }>(`/api/v1/folders/${folderId}`, {
     method: "PATCH",
     body: JSON.stringify(updates),
   });
 }
 
 export async function deleteFolderApi(folderId: string): Promise<{ deleted: boolean }> {
-  return request<{ deleted: boolean }>(`/api/v1/folders/${folderId}`, {
+  return requestAuthenticated<{ deleted: boolean }>(`/api/v1/folders/${folderId}`, {
     method: "DELETE",
   });
 }
@@ -494,7 +592,7 @@ export async function addDeckToFolder(
   folderId: string,
   deckId: string
 ): Promise<{ added: boolean }> {
-  return request<{ added: boolean }>(`/api/v1/folders/${folderId}/decks`, {
+  return requestAuthenticated<{ added: boolean }>(`/api/v1/folders/${folderId}/decks`, {
     method: "POST",
     body: JSON.stringify({ deckId }),
   });
@@ -504,7 +602,7 @@ export async function removeDeckFromFolder(
   folderId: string,
   deckId: string
 ): Promise<{ removed: boolean }> {
-  return request<{ removed: boolean }>(`/api/v1/folders/${folderId}/decks?deckId=${deckId}`, {
+  return requestAuthenticated<{ removed: boolean }>(`/api/v1/folders/${folderId}/decks?deckId=${deckId}`, {
     method: "DELETE",
   });
 }
@@ -512,19 +610,19 @@ export async function removeDeckFromFolder(
 export async function listDecksInFolder(
   folderId: string
 ): Promise<{ decks: Deck[] }> {
-  return request<{ decks: Deck[] }>(`/api/v1/folders/${folderId}/decks`);
+  return requestAuthenticated<{ decks: Deck[] }>(`/api/v1/folders/${folderId}/decks`);
 }
 
 // --- Deck Actions (Duplicate, Share, Export, Details) ---
 
 export async function duplicateDeck(deckId: string): Promise<{ deck: Deck }> {
-  return request<{ deck: Deck }>(`/api/v1/decks/${deckId}/duplicate`, {
+  return requestAuthenticated<{ deck: Deck }>(`/api/v1/decks/${deckId}/duplicate`, {
     method: "POST",
   });
 }
 
 export async function shareDeck(deckId: string): Promise<{ shareToken: string; shareUrl: string }> {
-  return request<{ shareToken: string; shareUrl: string }>(`/api/v1/decks/${deckId}/share`, {
+  return requestAuthenticated<{ shareToken: string; shareUrl: string }>(`/api/v1/decks/${deckId}/share`, {
     method: "POST",
   });
 }
@@ -546,26 +644,26 @@ export interface DeckDetails {
 }
 
 export async function getDeckDetails(deckId: string): Promise<{ details: DeckDetails }> {
-  return request<{ details: DeckDetails }>(`/api/v1/decks/${deckId}/details`);
+  return requestAuthenticated<{ details: DeckDetails }>(`/api/v1/decks/${deckId}/details`);
 }
 
 export async function exportDeckForOffline(
   deckId: string
 ): Promise<{ deck: Deck; cards: Card[]; exportedAt: string }> {
-  return request<{ deck: Deck; cards: Card[]; exportedAt: string }>(`/api/v1/decks/${deckId}/export`);
+  return requestAuthenticated<{ deck: Deck; cards: Card[]; exportedAt: string }>(`/api/v1/decks/${deckId}/export`);
 }
 
 // ─── LP (Lernpunkte) ──────────────────────────────────────────────────────────
 
 export async function getLpBalance(): Promise<AiUsageResponse> {
-  return request<AiUsageResponse>("/api/v1/usage");
+  return requestAuthenticated<AiUsageResponse>("/api/v1/usage");
 }
 
 export async function earnLp(
   type: "session" | "dailyGoal" | "ad",
   sessionCardCount?: number
 ): Promise<LpEarnResponse> {
-  return request<LpEarnResponse>("/api/v1/lp/earn", {
+  return requestAuthenticated<LpEarnResponse>("/api/v1/lp/earn", {
     method: "POST",
     body: JSON.stringify({ type, sessionCardCount }),
   });
@@ -574,7 +672,7 @@ export async function earnLp(
 export async function claimMilestone(
   milestone: "first_deck" | "first_review" | "streak_7" | "streak_30" | "streak_100"
 ): Promise<LpMilestoneResponse> {
-  return request<LpMilestoneResponse>("/api/v1/lp/milestone", {
+  return requestAuthenticated<LpMilestoneResponse>("/api/v1/lp/milestone", {
     method: "POST",
     body: JSON.stringify({ milestone }),
   });
@@ -591,7 +689,7 @@ export async function grantLpPackPurchase(
   packId: string,
   transactionId: string
 ): Promise<LpPurchaseResponse> {
-  return request<LpPurchaseResponse>("/api/v1/lp/purchase", {
+  return requestAuthenticated<LpPurchaseResponse>("/api/v1/lp/purchase", {
     method: "POST",
     body: JSON.stringify({ packId, transactionId }),
   });
@@ -613,14 +711,14 @@ export interface ReferralInfoResponse {
 }
 
 export async function claimReferralCode(code: string): Promise<ReferralClaimResponse> {
-  return request<ReferralClaimResponse>("/api/v1/referral/claim", {
+  return requestAuthenticated<ReferralClaimResponse>("/api/v1/referral/claim", {
     method: "POST",
     body: JSON.stringify({ code }),
   });
 }
 
 export async function getReferralInfo(): Promise<ReferralInfoResponse> {
-  return request<ReferralInfoResponse>("/api/v1/referral/info");
+  return requestAuthenticated<ReferralInfoResponse>("/api/v1/referral/info");
 }
 
 // ─── Leaderboard ──────────────────────────────────────────────────────────────
@@ -648,11 +746,11 @@ export interface FriendsLeaderboardResponse {
 }
 
 export async function getGlobalLeaderboard(): Promise<GlobalLeaderboardResponse> {
-  return request<GlobalLeaderboardResponse>("/api/v1/leaderboard/global");
+  return requestAuthenticated<GlobalLeaderboardResponse>("/api/v1/leaderboard/global");
 }
 
 export async function getFriendsLeaderboard(): Promise<FriendsLeaderboardResponse> {
-  return request<FriendsLeaderboardResponse>("/api/v1/leaderboard/friends");
+  return requestAuthenticated<FriendsLeaderboardResponse>("/api/v1/leaderboard/friends");
 }
 
 // ─── Friends ──────────────────────────────────────────────────────────────────
@@ -668,18 +766,18 @@ export interface FriendProfile {
 }
 
 export async function getFriends(): Promise<{ friends: FriendProfile[] }> {
-  return request<{ friends: FriendProfile[] }>("/api/v1/friends");
+  return requestAuthenticated<{ friends: FriendProfile[] }>("/api/v1/friends");
 }
 
 export async function addFriend(friendId: string): Promise<{ added: boolean; friendId: string }> {
-  return request<{ added: boolean; friendId: string }>("/api/v1/friends", {
+  return requestAuthenticated<{ added: boolean; friendId: string }>("/api/v1/friends", {
     method: "POST",
     body: JSON.stringify({ friendId }),
   });
 }
 
 export async function removeFriend(friendId: string): Promise<{ removed: boolean }> {
-  return request<{ removed: boolean }>(`/api/v1/friends?friendId=${friendId}`, {
+  return requestAuthenticated<{ removed: boolean }>(`/api/v1/friends?friendId=${friendId}`, {
     method: "DELETE",
   });
 }
@@ -690,7 +788,7 @@ export async function registerPushToken(
   token: string,
   platform: "ios" | "android" | "web"
 ): Promise<{ registered: boolean }> {
-  return request<{ registered: boolean }>("/api/v1/push/register", {
+  return requestAuthenticated<{ registered: boolean }>("/api/v1/push/register", {
     method: "POST",
     body: JSON.stringify({ token, platform }),
   });

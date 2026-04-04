@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const subscriptionTierSchema = z.enum(["free", "pro"]);
+export const subscriptionTierSchema = z.enum(["free", "pro", "lifetime"]);
 export type SubscriptionTier = z.infer<typeof subscriptionTierSchema>;
 
 export const subscriptionStatusSchema = z.object({

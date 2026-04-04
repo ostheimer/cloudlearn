@@ -25,6 +25,7 @@ import {
   type LeaderboardEntry,
 } from "../src/lib/api";
 import { useColors, spacing, radius, typography, shadows } from "../src/theme";
+import { useSessionStore } from "../src/store/sessionStore";
 
 type Tab = "global" | "friends";
 
@@ -122,6 +123,7 @@ export default function LeaderboardScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const colors = useColors();
+  const userId = useSessionStore((s) => s.userId);
 
   const [activeTab, setActiveTab] = useState<Tab>("global");
   const [globalEntries, setGlobalEntries] = useState<LeaderboardEntry[]>([]);
@@ -132,6 +134,16 @@ export default function LeaderboardScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
+    if (!userId) {
+      setGlobalEntries([]);
+      setFriendEntries([]);
+      setMyRank(null);
+      setFriendCount(0);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -148,7 +160,7 @@ export default function LeaderboardScreen() {
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  }, [t, userId]);
 
   useEffect(() => { void loadData(); }, [loadData]);
 

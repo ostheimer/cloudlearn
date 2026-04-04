@@ -23,12 +23,14 @@ import {
 import * as Clipboard from "expo-clipboard";
 import { useColors, spacing, radius, typography, shadows } from "../src/theme";
 import { useUsageStore } from "../src/store/usageStore";
+import { useSessionStore } from "../src/store/sessionStore";
 import { getReferralInfo, claimReferralCode } from "../src/lib/api";
 
 export default function ReferralScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const colors = useColors();
+  const userId = useSessionStore((s) => s.userId);
   const setUsage = useUsageStore((s) => s.setUsage);
   const lpBalance = useUsageStore((s) => s.lpBalance);
 
@@ -41,6 +43,14 @@ export default function ReferralScreen() {
   const [copied, setCopied] = useState(false);
 
   const loadInfo = useCallback(async () => {
+    if (!userId) {
+      setReferralCode(null);
+      setReferredCount(0);
+      setLpFromReferrals(0);
+      setLoading(false);
+      return;
+    }
+
     try {
       const info = await getReferralInfo();
       setReferralCode(info.referralCode);
@@ -48,7 +58,7 @@ export default function ReferralScreen() {
       setLpFromReferrals(info.lpEarnedFromReferrals);
     } catch { /* best-effort */ }
     finally { setLoading(false); }
-  }, []);
+  }, [userId]);
 
   useEffect(() => { void loadInfo(); }, [loadInfo]);
 
@@ -67,6 +77,8 @@ export default function ReferralScreen() {
   };
 
   const handleClaimCode = async () => {
+    if (!userId) return;
+
     const code = inputCode.trim().toUpperCase();
     if (!code || code.length < 4) {
       Alert.alert(t("referral.invalidCode"));

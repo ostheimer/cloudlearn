@@ -5,7 +5,7 @@
  */
 
 import { createSupabaseAdminClient } from "./supabase";
-import type { Flashcard } from "./contracts";
+import type { Flashcard, SubscriptionTier } from "./contracts";
 
 // ─── Interfaces (same shape as inMemoryStore) ───────────────────────────────
 
@@ -549,7 +549,7 @@ export async function getReviewStats(userId: string): Promise<{
 
 export async function getSubscriptionTier(
   userId: string
-): Promise<{ tier: string; expiresAt: string | null; isActive: boolean }> {
+): Promise<{ tier: SubscriptionTier; expiresAt: string | null; isActive: boolean }> {
   const db = getDb();
   const { data, error } = await db
     .from("profiles")
@@ -559,8 +559,12 @@ export async function getSubscriptionTier(
   if (error || !data) return { tier: "free", expiresAt: null, isActive: true };
   const expiresAt = data.subscription_expires_at ?? null;
   const isActive = !expiresAt || new Date(expiresAt) > new Date();
+  const tier: SubscriptionTier =
+    data.subscription_tier === "pro" || data.subscription_tier === "lifetime"
+      ? data.subscription_tier
+      : "free";
   return {
-    tier: data.subscription_tier ?? "free",
+    tier,
     expiresAt,
     isActive,
   };
@@ -568,7 +572,7 @@ export async function getSubscriptionTier(
 
 export async function updateSubscriptionTier(
   userId: string,
-  tier: string,
+  tier: SubscriptionTier,
   isActive: boolean,
   expiresAt: string | null
 ): Promise<void> {

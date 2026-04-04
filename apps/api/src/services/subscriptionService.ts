@@ -5,7 +5,7 @@ export async function getSubscriptionStatus(
   userId: string
 ): Promise<SubscriptionStatus> {
   const { tier, expiresAt, isActive } = await getSubscriptionTier(userId);
-  const paidTier = tier === "pro";
+  const paidTier = tier !== "free";
   const effectiveIsActive = paidTier && isActive;
   const effectiveTier = effectiveIsActive ? tier : "free";
 

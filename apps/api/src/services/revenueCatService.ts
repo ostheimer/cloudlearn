@@ -1,20 +1,34 @@
-import type { RevenueCatWebhook } from "@/lib/contracts";
+import type { RevenueCatWebhook, SubscriptionTier } from "@/lib/contracts";
 
-type SubscriptionTier = "free" | "pro";
-
-const PRO_ENTITLEMENT_HINT = "pro";
+const PRO_ENTITLEMENT_HINT = (
+  process.env.EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_PRO ?? "pro"
+).toLowerCase();
+const LIFETIME_ENTITLEMENT_HINT = (
+  process.env.EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_LIFETIME ?? "lifetime"
+).toLowerCase();
 
 function normalizeEntitlementIds(entitlementIds?: string[]): string[] {
   return (entitlementIds ?? []).map((id) => id.trim().toLowerCase());
 }
 
+function resolvePaidTier(
+  identifier: string
+): Exclude<SubscriptionTier, "free"> | null {
+  if (identifier.includes(LIFETIME_ENTITLEMENT_HINT)) {
+    return "lifetime";
+  }
+  if (identifier.includes(PRO_ENTITLEMENT_HINT)) {
+    return "pro";
+  }
+  return null;
+}
+
 export function resolveTierFromRevenueCatEntitlements(
   entitlementIds?: string[]
 ): SubscriptionTier {
-  const normalized = normalizeEntitlementIds(entitlementIds);
-  if (normalized.some((id) => id.includes(PRO_ENTITLEMENT_HINT))) {
-    return "pro";
-  }
+  const paidTiers = normalizeEntitlementIds(entitlementIds).map(resolvePaidTier);
+  if (paidTiers.includes("lifetime")) return "lifetime";
+  if (paidTiers.includes("pro")) return "pro";
   return "free";
 }
 

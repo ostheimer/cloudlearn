@@ -65,10 +65,11 @@ describe("featureGates – LP economy", () => {
   it("getLimitsForTier returns correct object for each tier", () => {
     expect(getLimitsForTier("free")).toBe(TIER_LIMITS.free);
     expect(getLimitsForTier("pro")).toBe(TIER_LIMITS.pro);
+    expect(getLimitsForTier("lifetime")).toBe(TIER_LIMITS.lifetime);
   });
 
-  it("only free and pro tiers exist (no lifetime)", () => {
-    expect(Object.keys(TIER_LIMITS)).toEqual(["free", "pro"]);
+  it("free, pro and lifetime tiers exist", () => {
+    expect(Object.keys(TIER_LIMITS)).toEqual(["free", "pro", "lifetime"]);
   });
 
   it("pro tier has premium features enabled", () => {
@@ -77,6 +78,14 @@ describe("featureGates – LP economy", () => {
     expect(TIER_LIMITS.pro.offlineDownload).toBe(true);
     expect(TIER_LIMITS.pro.advancedStats).toBe(true);
     expect(TIER_LIMITS.pro.adFree).toBe(true);
+  });
+
+  it("lifetime tier has premium features enabled", () => {
+    expect(TIER_LIMITS.lifetime.pdfImport).toBe(true);
+    expect(TIER_LIMITS.lifetime.imageOcclusion).toBe(true);
+    expect(TIER_LIMITS.lifetime.offlineDownload).toBe(true);
+    expect(TIER_LIMITS.lifetime.advancedStats).toBe(true);
+    expect(TIER_LIMITS.lifetime.adFree).toBe(true);
   });
 
   it("free tier has premium features disabled", () => {

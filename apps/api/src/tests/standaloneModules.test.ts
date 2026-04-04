@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { createNewFsrsCard, applyReview } from "@/lib/domain";
-import { scanProcessRequestSchema, flashcardListSchema } from "@/lib/contracts";
+import {
+  flashcardListSchema,
+  pdfImportRequestSchema,
+  scanProcessRequestSchema,
+} from "@/lib/contracts";
 
 describe("standalone modules for Vercel deploy", () => {
   it("validates scan request payload", () => {
@@ -20,6 +24,18 @@ describe("standalone modules for Vercel deploy", () => {
     ]);
 
     expect(parsed).toHaveLength(1);
+  });
+
+  it("validates PDF import payload", () => {
+    const parsed = pdfImportRequestSchema.parse({
+      userId: "7e8cd2f6-0a3d-45fa-a0f8-d71d8fcd3e38",
+      fileName: "Skript.pdf",
+      fileBase64: "A".repeat(200),
+      idempotencyKey: "pdf-key-1234",
+      sourceLanguage: "de",
+    });
+
+    expect(parsed.fileName).toBe("Skript.pdf");
   });
 
   it("applies fsrs review transition without throwing", () => {

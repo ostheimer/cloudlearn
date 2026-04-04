@@ -10,10 +10,22 @@ export async function syncOperations(
   const rejectedOperationIds: string[] = [];
 
   for (const operation of parsed.operations) {
+    if (
+      operation.operationType !== "review" ||
+      !("idempotencyKey" in operation.payload)
+    ) {
+      rejectedOperationIds.push(operation.operationId);
+      continue;
+    }
+
     try {
-      if (operation.operationType === "review") {
-        await storeReview(operation.payload, requestId);
-      }
+      await storeReview(
+        {
+          ...operation.payload,
+          userId: parsed.userId,
+        },
+        requestId
+      );
       acceptedOperationIds.push(operation.operationId);
     } catch {
       rejectedOperationIds.push(operation.operationId);

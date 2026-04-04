@@ -105,3 +105,47 @@ FREE_CARD_LIMIT=100
 | PDF-Import           | ❌           | ✅            |
 | Image Occlusion      | ❌           | ✅            |
 | Offline-Download     | ❌           | ✅            |
+
+---
+
+## 7. Restore- und Sync-Checks
+
+Diese Punkte gelten als verpflichtend, bevor ein Store-Rollout als „produktionsreif“ gilt.
+
+### Kauf-Flow
+
+- Kauf auf iOS erfolgreich
+- Kauf auf Android erfolgreich
+- App erhält Entitlement unmittelbar
+- Backend-Tier wechselt zeitnah auf `pro` oder `lifetime`
+
+### Restore-Flow
+
+- Restore auf iOS hebt bestehendes Entitlement wieder an
+- Restore auf Android hebt bestehendes Entitlement wieder an
+- Client und API zeigen denselben Tier-Wert
+- Paywall schließt nach erfolgreichem Restore sauber
+
+### Webhook-Flow
+
+- `INITIAL_PURCHASE`
+- `RENEWAL`
+- `CANCELLATION`
+- `EXPIRATION`
+- `BILLING_ISSUE_DETECTED`
+
+### Mapping-Checks
+
+- `pro`-Entitlement mappt auf `pro`
+- `lifetime`-Entitlement mappt auf `lifetime`
+- LP-Packs und Subscriptions bleiben getrennt
+
+## 8. Externe Blocker-Liste
+
+Diese Schritte passieren nicht im Repo und müssen im Dashboard erledigt werden:
+
+- Produkte in App Store Connect wirklich anlegen
+- Produkte in Google Play Console wirklich anlegen
+- RevenueCat Entitlements und Offerings wirklich veröffentlichen
+- Webhook-Secret in Vercel setzen
+- Sandbox- und Testkonten bereitstellen

@@ -44,7 +44,7 @@ export default function TabsLayout() {
         options={{
           title: "Lernen",
           tabBarIcon: ({ color, size }) => <Brain size={size} color={color} />,
-          tabBarBadge: dueCount > 0 ? dueCount : undefined,
+          ...(dueCount > 0 ? { tabBarBadge: dueCount } : {}),
           tabBarStyle: {
             display: "none",
           },

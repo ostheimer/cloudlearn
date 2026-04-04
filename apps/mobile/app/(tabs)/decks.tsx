@@ -72,7 +72,12 @@ export default function LibraryScreen() {
   // --- Load data ---
 
   const loadDecks = useCallback(async () => {
-    if (!userId) return;
+    if (!userId) {
+      setDecks([]);
+      setDecksLoading(false);
+      setDecksRefreshing(false);
+      return;
+    }
     try {
       const { decks: fetched } = await listDecks(userId);
       setDecks(fetched);
@@ -85,6 +90,13 @@ export default function LibraryScreen() {
   }, [userId]);
 
   const loadCourses = useCallback(async () => {
+    if (!userId) {
+      setCourses([]);
+      setCoursesLoading(false);
+      setCoursesRefreshing(false);
+      return;
+    }
+
     try {
       const { courses: fetched } = await listCourses();
       setCourses(fetched);
@@ -94,9 +106,16 @@ export default function LibraryScreen() {
       setCoursesLoading(false);
       setCoursesRefreshing(false);
     }
-  }, []);
+  }, [userId]);
 
   const loadFolders = useCallback(async () => {
+    if (!userId) {
+      setFolders([]);
+      setFoldersLoading(false);
+      setFoldersRefreshing(false);
+      return;
+    }
+
     try {
       const { folders: fetched } = await listFolders();
       setFolders(fetched);
@@ -106,7 +125,7 @@ export default function LibraryScreen() {
       setFoldersLoading(false);
       setFoldersRefreshing(false);
     }
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     loadDecks();
@@ -224,7 +243,7 @@ export default function LibraryScreen() {
         {
           text: t("library.create"),
           onPress: async (title: string | undefined) => {
-            if (!title?.trim()) return;
+            if (!title?.trim() || !userId) return;
             try {
               await createCourse(title.trim());
               loadCourses();
@@ -309,7 +328,7 @@ export default function LibraryScreen() {
         {
           text: t("library.create"),
           onPress: async (title: string | undefined) => {
-            if (!title?.trim()) return;
+            if (!title?.trim() || !userId) return;
             try {
               await createFolder(title.trim());
               loadFolders();
