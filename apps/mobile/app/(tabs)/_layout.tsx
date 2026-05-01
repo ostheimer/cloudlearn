@@ -45,9 +45,6 @@ export default function TabsLayout() {
           title: "Lernen",
           tabBarIcon: ({ color, size }) => <Brain size={size} color={color} />,
           ...(dueCount > 0 ? { tabBarBadge: dueCount } : {}),
-          tabBarStyle: {
-            display: "none",
-          },
         }}
       />
       <Tabs.Screen

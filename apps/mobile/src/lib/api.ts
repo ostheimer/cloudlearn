@@ -245,6 +245,13 @@ export interface SubscriptionStatus {
   expiresAt: string | null;
 }
 
+export interface DeleteAccountResponse {
+  requestId: string;
+  deleted: true;
+  message: string;
+  warning?: string;
+}
+
 // --- API Methods ---
 
 export async function scanText(
@@ -455,6 +462,12 @@ export async function getSubscriptionStatus(
   _userId?: string
 ): Promise<{ status: SubscriptionStatus }> {
   return requestAuthenticated<{ status: SubscriptionStatus }>("/api/v1/subscription/status");
+}
+
+export async function deleteAccount(): Promise<DeleteAccountResponse> {
+  return requestAuthenticated<DeleteAccountResponse>("/api/v1/account", {
+    method: "DELETE",
+  });
 }
 
 /** @deprecated Use getLpBalance() instead */

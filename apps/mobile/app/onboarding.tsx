@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
+  ScrollView,
   Text,
   TouchableOpacity,
   View,
@@ -61,7 +62,15 @@ export default function OnboardingScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-      <View style={{ flex: 1, padding: spacing.xl, justifyContent: "space-between" }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          flexGrow: 1,
+          padding: spacing.xl,
+          justifyContent: "space-between",
+        }}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Progress dots */}
         <View style={{ flexDirection: "row", gap: 8, alignSelf: "center", marginTop: spacing.md }}>
           {Array.from({ length: totalSteps }).map((_, i) => (
@@ -226,7 +235,7 @@ export default function OnboardingScreen() {
             </TouchableOpacity>
           )}
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }

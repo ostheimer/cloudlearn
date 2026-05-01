@@ -42,6 +42,7 @@ import {
 import { searchDecks } from "../../src/lib/searchDecks";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
 import { buildLibraryCourseRoute, buildLibraryFolderRoute } from "../../src/navigation/libraryRoutes";
+import { AuthPromptCard } from "../../src/components/AuthPromptCard";
 
 type TabKey = "decks" | "courses" | "folders";
 
@@ -49,6 +50,27 @@ export default function LibraryScreen() {
   const colors = useColors();
   const router = useRouter();
   const userId = useSessionStore((state) => state.userId);
+
+  if (!userId) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <View style={{ flex: 1, justifyContent: "center", padding: spacing.xl }}>
+          <AuthPromptCard
+            title="Decks brauchen ein Konto"
+            body="Decks, Kurse und Ordner werden an dein Konto gebunden, damit wir sie sicher speichern und auf mehreren Geräten synchronisieren können."
+            onPress={() => router.push("/auth")}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return <AuthenticatedLibraryScreen userId={userId} />;
+}
+
+function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
+  const colors = useColors();
+  const router = useRouter();
   const { t } = useTranslation();
 
   const [activeTab, setActiveTab] = useState<TabKey>("decks");

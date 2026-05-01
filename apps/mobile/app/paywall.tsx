@@ -439,16 +439,6 @@ export default function PaywallScreen() {
           </>
         ) : null}
 
-        <TouchableOpacity
-          onPress={() => router.back()}
-          activeOpacity={0.8}
-          style={{
-            paddingVertical: 12,
-            alignItems: "center",
-          }}
-        >
-          <Text style={{ color: colors.textSecondary }}>{t("paywall.backButton")}</Text>
-        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );

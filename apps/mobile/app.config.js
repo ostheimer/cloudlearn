@@ -16,17 +16,32 @@ const ADMOB_ANDROID_APP_ID =
     ? "ca-app-pub-3940256099942544~3347511713" // Google test app ID (Android)
     : process.env.EXPO_PUBLIC_ADMOB_APP_ANDROID_ID ?? "ca-app-pub-3940256099942544~3347511713";
 
+const FACE_ID_PERMISSION =
+  "clearn verwendet Face ID, um deine eingeloggte App lokal zu entsperren.";
+
 /** @type {import('@expo/config').ExpoConfig} */
 module.exports = ({ config }) => {
+  const runtimeVersion = IS_PREVIEW
+    ? { policy: "fingerprint" }
+    : config.runtimeVersion ?? { policy: "appVersion" };
+
   const result = {
     ...config,
     name: IS_DEV ? "clearn (Dev)" : IS_PREVIEW ? "clearn (Preview)" : "clearn",
     slug: "clearn",
+    runtimeVersion,
+    updates: {
+      ...config.updates,
+      // Preview builds should always boot their embedded bundle first, otherwise
+      // a stale OTA update can crash a newer native binary during startup.
+      enabled: IS_PREVIEW ? false : config.updates?.enabled ?? true,
+    },
     ios: {
       ...config.ios,
       infoPlist: {
         ...config.ios?.infoPlist,
         GADApplicationIdentifier: ADMOB_IOS_APP_ID,
+        NSFaceIDUsageDescription: FACE_ID_PERMISSION,
       },
     },
     android: {
@@ -36,15 +51,23 @@ module.exports = ({ config }) => {
     ...(config.plugins ?? []).filter(
       (p) =>
         // Remove the static react-native-google-mobile-ads entry — we provide it below
-        !(Array.isArray(p) && p[0] === "react-native-google-mobile-ads")
+        !(Array.isArray(p) && p[0] === "react-native-google-mobile-ads") &&
+        // Provide the Face ID permission consistently from dynamic config.
+        !(Array.isArray(p) && p[0] === "expo-local-authentication")
     ),
+    [
+      "expo-local-authentication",
+      {
+        faceIDPermission: FACE_ID_PERMISSION,
+      },
+    ],
     [
       "react-native-google-mobile-ads",
       {
         androidAppId: ADMOB_ANDROID_APP_ID,
         iosAppId: ADMOB_IOS_APP_ID,
         userTrackingUsageDescription:
-          "Wir verwenden deine Gerätedaten, um relevante Werbung anzuzeigen und clearn kostenlos zu halten.",
+          "Wir nutzen deine Gerätedaten nur mit deiner Zustimmung für personalisierte Werbung, damit clearn kostenlos bleiben kann.",
         skAdNetworkItems: [
           "cstr6suwn9.skadnetwork",
           "4fzdc2evr5.skadnetwork",

@@ -5,6 +5,9 @@
 clearn.ai nutzt RevenueCat für In-App-Käufe auf iOS und Android.
 Dieses Dokument beschreibt die Einrichtung von Produkten, Entitlements und Offerings.
 
+Kanonische Produkt- und App-Identitäten:
+[docs/runbooks/product-identities.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/product-identities.md)
+
 ---
 
 ## 1. App Store Connect (iOS)
@@ -38,8 +41,13 @@ Dieses Dokument beschreibt die Einrichtung von Produkten, Entitlements und Offer
 
 ### App anlegen
 1. https://app.revenuecat.com → New App
-2. iOS: Bundle ID `ai.clearn.app`, App Store Connect API Key
-3. Android: Package Name `ai.clearn.app`, Google Play Service Account Key
+2. iOS: Bundle ID `app.clearn`, App Store Connect API Key
+3. Android: Package Name `app.clearn`, Google Play Service Account Key
+
+Wichtig:
+- Die App-/Bundle-ID ist `app.clearn`.
+- Die Produkt-IDs bleiben bewusst `ai.clearn.*`.
+- Diese beiden Identifier-Gruppen müssen nicht gleich sein.
 
 ### Entitlements anlegen (unter Configuration > Entitlements)
 

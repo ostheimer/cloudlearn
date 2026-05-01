@@ -1,6 +1,8 @@
 import { Stack, useRouter, useSegments } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, AppState, Platform, View } from "react-native";
+import * as Linking from "expo-linking";
+import * as SplashScreen from "expo-splash-screen";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
@@ -15,23 +17,44 @@ import {
 } from "../src/features/paywall/revenuecat";
 import { useOnboardingState } from "../src/features/onboarding/onboardingState";
 import { registerPaywallTrigger, unregisterPaywallTrigger, registerPushToken } from "../src/lib/api";
+import { getAuthRedirectRouteFromUrl } from "../src/lib/authRedirects";
+import {
+  consumePendingPasswordRecovery,
+  hasHandledPasswordRecoverySession,
+  isPasswordRecoverySession,
+} from "../src/lib/passwordRecovery";
 import { resolveRootRedirect } from "../src/navigation/rootRedirect";
 import {
   syncPendingReviewOperations,
   useOfflineQueueStore,
 } from "../src/features/sync/offlineQueueStore";
+import { useTrackingConsentStore } from "../src/features/ads/trackingConsent";
+import { BiometricLockScreen } from "../src/features/security/BiometricLockScreen";
+import { useBiometricLockStore } from "../src/features/security/biometricLockStore";
 
 initializeI18n("de");
+
+const MINIMUM_SPLASH_DURATION_MS = 900;
+
+void SplashScreen.preventAutoHideAsync().catch(() => {
+  // Native splash may already be managed by the host during hot reloads.
+});
 
 export default function RootLayout() {
   const router = useRouter();
   const segments = useSegments();
-  const { isAuthenticated, isLoading, initialize, setSession, userId } =
+  const { isAuthenticated, isLoading, initialize, session, setSession, signOut, userId } =
     useSessionStore();
   const initializeTheme = useThemeStore((state) => state.initialize);
   const resetUsage = useUsageStore((state) => state.reset);
   const initializeOfflineQueue = useOfflineQueueStore((state) => state.initialize);
   const clearOfflineQueue = useOfflineQueueStore((state) => state.clear);
+  const initializeTrackingConsent = useTrackingConsentStore(
+    (state) => state.initialize
+  );
+  const refreshTrackingPermissionStatus = useTrackingConsentStore(
+    (state) => state.refreshPermissionStatus
+  );
   const offlineQueueHydrated = useOfflineQueueStore(
     (state) => state.queue.hydrated
   );
@@ -42,6 +65,28 @@ export default function RootLayout() {
     (state) => state.loadCompletedFromStorage
   );
   const [onboardingLoaded, setOnboardingLoaded] = useState(false);
+  const [minimumSplashElapsed, setMinimumSplashElapsed] = useState(false);
+  const [isAppActive, setIsAppActive] = useState(
+    AppState.currentState === "active"
+  );
+  const biometricAutoPromptedRef = useRef(false);
+  const initializeBiometricLock = useBiometricLockStore(
+    (state) => state.initialize
+  );
+  const biometricHydrated = useBiometricLockStore((state) => state.hydrated);
+  const biometricEnabled = useBiometricLockStore((state) => state.enabled);
+  const biometricCanUse = useBiometricLockStore((state) => state.canUse);
+  const biometricUnlocked = useBiometricLockStore((state) => state.unlocked);
+  const biometricAuthenticating = useBiometricLockStore(
+    (state) => state.authenticating
+  );
+  const biometricLabel = useBiometricLockStore((state) => state.label);
+  const biometricLastError = useBiometricLockStore((state) => state.lastError);
+  const unlockWithBiometrics = useBiometricLockStore((state) => state.unlock);
+  const lockBiometricLock = useBiometricLockStore((state) => state.lock);
+  const resetBiometricLockAfterSignOut = useBiometricLockStore(
+    (state) => state.resetAfterSignOut
+  );
 
   // Initialize auth state on mount
   useEffect(() => {
@@ -53,19 +98,75 @@ export default function RootLayout() {
   }, [initializeOfflineQueue]);
 
   useEffect(() => {
+    void initializeTrackingConsent();
+  }, [initializeTrackingConsent]);
+
+  useEffect(() => {
+    void initializeBiometricLock();
+  }, [initializeBiometricLock]);
+
+  useEffect(() => {
+    const timerId = setTimeout(() => {
+      setMinimumSplashElapsed(true);
+    }, MINIMUM_SPLASH_DURATION_MS);
+
+    return () => {
+      clearTimeout(timerId);
+    };
+  }, []);
+
+  useEffect(() => {
     initialize();
 
     // Listen for auth state changes (login, logout, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => {
         setSession(session);
+        if (event === "PASSWORD_RECOVERY") {
+          router.replace("/reset-password");
+        }
       }
     );
 
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [initialize, router, setSession]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const handleUrl = async (url: string | null) => {
+      if (!url) {
+        return;
+      }
+
+      const authRoute = getAuthRedirectRouteFromUrl(url);
+      if (authRoute) {
+        router.replace(authRoute);
+        return;
+      }
+
+      if (await consumePendingPasswordRecovery()) {
+        router.replace("/reset-password");
+      }
+    };
+
+    void Linking.getInitialURL().then((url) => {
+      if (mounted) {
+        void handleUrl(url);
+      }
+    });
+
+    const subscription = Linking.addEventListener("url", ({ url }) => {
+      void handleUrl(url);
+    });
+
+    return () => {
+      mounted = false;
+      subscription.remove();
+    };
+  }, [router]);
 
   // Load onboarding completed from storage when user is authenticated
   useEffect(() => {
@@ -120,7 +221,9 @@ export default function RootLayout() {
       return;
     }
 
-    void initializeRevenueCatForUser(userId);
+    void initializeRevenueCatForUser(userId).catch(() => {
+      // RevenueCat darf den App-Start nicht blockieren.
+    });
 
     // Register Expo push token with our backend for streak notifications
     (async () => {
@@ -183,6 +286,79 @@ export default function RootLayout() {
     };
   }, [offlineQueueHydrated, userId]);
 
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) => {
+      const isActive = state === "active";
+      setIsAppActive(isActive);
+      if (!isActive && isAuthenticated && biometricEnabled && biometricCanUse) {
+        lockBiometricLock();
+      }
+
+      if (state === "active") {
+        void refreshTrackingPermissionStatus();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [
+    biometricCanUse,
+    biometricEnabled,
+    isAuthenticated,
+    lockBiometricLock,
+    refreshTrackingPermissionStatus,
+  ]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      resetBiometricLockAfterSignOut();
+    }
+  }, [isAuthenticated, resetBiometricLockAfterSignOut]);
+
+  const appReady =
+    !isLoading &&
+    (!isAuthenticated || onboardingLoaded) &&
+    (!isAuthenticated || biometricHydrated);
+
+  useEffect(() => {
+    if (!minimumSplashElapsed) {
+      return;
+    }
+
+    void SplashScreen.hideAsync().catch(() => {
+      // The native splash may already be hidden when the app resumes.
+    });
+  }, [minimumSplashElapsed]);
+
+  useEffect(() => {
+    if (!appReady || !isAuthenticated || segments[0] === "reset-password") {
+      return;
+    }
+
+    let cancelled = false;
+    void (async () => {
+      if (
+        isPasswordRecoverySession(session) &&
+        !(await hasHandledPasswordRecoverySession(session))
+      ) {
+        if (!cancelled) {
+          router.replace("/reset-password");
+        }
+        return;
+      }
+
+      const hasPendingRecovery = await consumePendingPasswordRecovery();
+      if (!cancelled && hasPendingRecovery) {
+        router.replace("/reset-password");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [appReady, isAuthenticated, router, segments, session]);
+
   // Register a global paywall trigger so any API 402 response auto-navigates to paywall
   useEffect(() => {
     registerPaywallTrigger(() => {
@@ -202,15 +378,68 @@ export default function RootLayout() {
   // Shared header style derived from current theme
   const headerStyle = { backgroundColor: c.background };
   const headerTintColor = c.primary;
+  const firstSegment = segments[0];
+  const isBiometricBypassRoute =
+    firstSegment === "auth" ||
+    firstSegment === "auth-callback" ||
+    firstSegment === "reset-password" ||
+    firstSegment === "onboarding";
+  const shouldShowBiometricLock =
+    appReady &&
+    isAuthenticated &&
+    biometricEnabled &&
+    biometricCanUse &&
+    !biometricUnlocked &&
+    !isBiometricBypassRoute;
 
-  // Loading screen while checking auth or hydrating onboarding state
-  if (isLoading || (isAuthenticated && !onboardingLoaded)) {
+  useEffect(() => {
+    if (!shouldShowBiometricLock) {
+      biometricAutoPromptedRef.current = false;
+      return;
+    }
+
+    if (!isAppActive || biometricAutoPromptedRef.current) {
+      return;
+    }
+
+    biometricAutoPromptedRef.current = true;
+    const timerId = setTimeout(() => {
+      void unlockWithBiometrics();
+    }, 300);
+
+    return () => {
+      clearTimeout(timerId);
+    };
+  }, [isAppActive, shouldShowBiometricLock, unlockWithBiometrics]);
+
+  // Loading screen while checking auth or hydrating onboarding state.
+  if (!appReady) {
     return (
       <SafeAreaProvider>
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: c.background }}>
           <ActivityIndicator size="large" color={c.primary} />
         </View>
       </SafeAreaProvider>
+    );
+  }
+
+  if (shouldShowBiometricLock) {
+    return (
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>
+          <BiometricLockScreen
+            label={biometricLabel}
+            authenticating={biometricAuthenticating}
+            lastError={biometricLastError}
+            onUnlock={() => {
+              void unlockWithBiometrics();
+            }}
+            onSignOut={() => {
+              void signOut();
+            }}
+          />
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
     );
   }
 
@@ -225,6 +454,8 @@ export default function RootLayout() {
           >
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="auth" options={{ headerShown: false }} />
+            <Stack.Screen name="auth-callback" options={{ headerShown: false }} />
+            <Stack.Screen name="reset-password" options={{ headerShown: false }} />
             <Stack.Screen name="onboarding" options={{ headerShown: false }} />
             <Stack.Screen
               name="deck/[id]"
@@ -270,6 +501,12 @@ export default function RootLayout() {
                 headerTintColor,
                 headerStyle,
                 title: "Upgrade",
+              }}
+            />
+            <Stack.Screen
+              name="tracking-preferences"
+              options={{
+                headerShown: false,
               }}
             />
           </Stack>

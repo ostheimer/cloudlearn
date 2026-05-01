@@ -30,4 +30,18 @@ describe("supabase migrations", () => {
     expect(sql).toContain("CREATE OR REPLACE VIEW public.leaderboard_public");
     expect(sql).toContain("security_invoker = true");
   });
+
+  it("adds an account deletion tombstone and referral cleanup function", () => {
+    const migrationPath = join(
+      apiRoot,
+      "supabase/migrations/20260404120000_add_deleted_accounts.sql",
+    );
+    const sql = readFileSync(migrationPath, "utf-8");
+
+    expect(sql).toContain("create table if not exists deleted_accounts");
+    expect(sql).toContain("create or replace function delete_account_data");
+    expect(sql).toContain("set referred_by = null");
+    expect(sql).toContain("delete from profiles");
+    expect(sql).toContain("grant execute on function delete_account_data(uuid, text) to service_role");
+  });
 });

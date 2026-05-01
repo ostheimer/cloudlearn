@@ -36,7 +36,6 @@ import {
   Play,
   Pause,
   Timer,
-  X,
 } from "lucide-react-native";
 import * as Speech from "expo-speech";
 import {
@@ -62,6 +61,7 @@ import {
   syncPendingReviewOperations,
   useOfflineQueueStore,
 } from "../../src/features/sync/offlineQueueStore";
+import { AuthPromptCard } from "../../src/components/AuthPromptCard";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 // Threshold: card must travel 30% of screen width to trigger a rating
@@ -71,9 +71,29 @@ const MAX_ROTATION = 15; // degrees
 
 export default function LearnScreen() {
   const router = useRouter();
-  const { t } = useTranslation();
   const c = useColors();
   const userId = useSessionStore((state) => state.userId);
+
+  if (!userId) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: c.background }}>
+        <View style={{ flex: 1, justifyContent: "center", padding: spacing.xl }}>
+          <AuthPromptCard
+            title="Lernen nach dem Login"
+            body="Sobald du dich anmeldest, laden wir deine fälligen Karten, speichern deinen Fortschritt und synchronisieren deine Lernstände."
+            onPress={() => router.push("/auth")}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return <AuthenticatedLearnScreen userId={userId} />;
+}
+
+function AuthenticatedLearnScreen({ userId }: { userId: string }) {
+  const { t } = useTranslation();
+  const c = useColors();
   const { cards, index, revealed, completed, swipedLeft, swipedRight, start, reveal, rateCurrent, canGoBack, goBack } =
     useReviewSession();
   const enqueueOfflineReview = useOfflineQueueStore((state) => state.enqueue);
@@ -240,10 +260,6 @@ export default function LearnScreen() {
   const handleFlip = () => {
     setFlipped((prev) => !prev);
     if (!revealed) reveal();
-  };
-
-  const handleExitLearning = () => {
-    router.replace("/(tabs)");
   };
 
   const handleGoBack = () => {
@@ -463,30 +479,14 @@ export default function LearnScreen() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaView style={{ flex: 1, backgroundColor: c.background }}>
         <View style={{ flex: 1, padding: spacing.lg, gap: spacing.md }}>
-          {/* Header: 3-column layout with centered title */}
+          {/* Header */}
           <View style={{ flexDirection: "row", alignItems: "center" }}>
-            {/* Left: close button */}
-            <TouchableOpacity
-              onPress={handleExitLearning}
-              activeOpacity={0.7}
-              style={{
-                width: 34,
-                height: 34,
-                borderRadius: radius.full,
-                backgroundColor: c.surfaceSecondary,
-                justifyContent: "center",
-                alignItems: "center",
-              }}
-            >
-              <X size={16} color={c.textSecondary} />
-            </TouchableOpacity>
+            <View style={{ width: 34 }} />
 
-            {/* Center: title */}
             <Text style={{ flex: 1, fontSize: typography.xxl, fontWeight: typography.bold, color: c.text, textAlign: "center" }}>
               {t("reviewHeadline")}
             </Text>
 
-            {/* Right: controls */}
             {cards.length > 0 && !completed ? (
               <View style={{ flexDirection: "row", gap: spacing.sm, alignItems: "center" }}>
                 <TouchableOpacity
@@ -535,7 +535,6 @@ export default function LearnScreen() {
                 </TouchableOpacity>
               </View>
             ) : (
-              // Invisible spacer to keep title centered
               <View style={{ width: 34 }} />
             )}
           </View>

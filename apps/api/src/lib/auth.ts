@@ -23,6 +23,21 @@ export async function getAuthUser(
 
   if (error || !user) return null;
 
+  // Deleted accounts are blocked from being rehydrated into a new profile.
+  // This prevents a stale auth session from recreating the app profile row.
+  const { data: deletedAccount, error: deletedAccountError } = await supabase
+    .from("deleted_accounts")
+    .select("user_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (deletedAccountError) {
+    const deletedAccountErrorWithCode = deletedAccountError as Error & { code?: string };
+    if (deletedAccountErrorWithCode.code !== "42P01") {
+      console.error("[auth] deleted_accounts lookup error:", deletedAccountError.message);
+    }
+  }
+  if (deletedAccount) return null;
+
   // Ensure profile row exists (ignore duplicate-key error 23505)
   const { error: profileError } = await supabase
     .from("profiles")

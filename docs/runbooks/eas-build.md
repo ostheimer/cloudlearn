@@ -101,6 +101,7 @@ Für `eas submit --platform ios`:
 - `appleId`: `office@ostheimer.at` (bereits in `eas.json` konfiguriert)
 - `ascAppId`: App Store Connect App ID (wird bei erster Einreichung erstellt)
 - `appleTeamId`: Aus Apple Developer Account
+- Runbook mit den exakten Restwerten: [docs/runbooks/eas-submit-values.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/eas-submit-values.md)
 
 Für `eas submit --platform android`:
 - Service Account JSON erstellen (Play Console → Setup → API access)
@@ -142,4 +143,7 @@ eas update --channel preview --message "Feature-Test: ..."
 - [ ] Screenshots für App Store (6.7" + 5.5" iPhone, optionale iPad)
 - [ ] App-Beschreibung (DE + EN) für App Store / Play Store vorbereitet
 - [ ] Datenschutzerklärung URL vorhanden (Pflicht für App Store)
+- [ ] ATT-Text in `app.json`, `app.config.js` und `Info.plist` ist deckungsgleich und beschreibt zustimmungsbasierte personalisierte Werbung
+- [ ] App Store Connect Privacy Questionnaire ist anhand der eingebundenen SDK-Privacy-Manifests geprüft
+- [ ] Ein echter iOS-Archive-/Privacy-Report wurde gegen Google Mobile Ads und UMP gegengeprüft
 - [ ] `ascAppId` und `appleTeamId` in `eas.json` `submit` eingetragen

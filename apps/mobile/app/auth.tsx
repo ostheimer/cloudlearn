@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useRef,
   useState,
   type CSSProperties,
@@ -6,6 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import {
+  Image,
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
@@ -14,12 +16,15 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
+import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { BookOpen } from "lucide-react-native";
+import { Apple } from "lucide-react-native";
 import { useSessionStore } from "../src/store/sessionStore";
-import { spacing, radius, typography, useColors } from "../src/theme";
+import { spacing, radius, typography } from "../src/theme";
+import { getAuthProviderAvailability } from "../src/lib/supabase";
 
 type AuthMode = "login" | "register" | "reset";
 
@@ -54,18 +59,83 @@ function FormContainer({
 }
 
 export default function AuthScreen() {
-  const colors = useColors();
+  const router = useRouter();
+  const { height: windowHeight } = useWindowDimensions();
+  const brandBackground = "#4F46E5";
+  const brandSurface = "rgba(15, 23, 42, 0.18)";
+  const brandBorder = "rgba(255, 255, 255, 0.18)";
+  const brandText = "#FFFFFF";
+  const brandTextSecondary = "rgba(255, 255, 255, 0.78)";
+  const brandTextTertiary = "rgba(255, 255, 255, 0.56)";
+  const brandButtonBackground = "#EEF2FF";
+  const brandButtonText = "#312E81";
+  const brandLink = "#E0E7FF";
   const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState<"google" | "apple" | null>(
+    null
+  );
+  const [availableProviders, setAvailableProviders] = useState({
+    google: false,
+    apple: false,
+  });
   const passwordInputRef = useRef<TextInput>(null);
   const confirmPasswordInputRef = useRef<TextInput>(null);
 
   const signIn = useSessionStore((state) => state.signIn);
+  const signInWithOAuth = useSessionStore((state) => state.signInWithOAuth);
   const signUp = useSessionStore((state) => state.signUp);
   const resetPassword = useSessionStore((state) => state.resetPassword);
+
+  useEffect(() => {
+    let active = true;
+
+    void getAuthProviderAvailability().then((providers) => {
+      if (!active) {
+        return;
+      }
+
+      setAvailableProviders({
+        google: providers.google,
+        apple: providers.apple,
+      });
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const handleOAuth = async (provider: "google" | "apple") => {
+    if (!availableProviders[provider]) {
+      const providerLabel = provider === "google" ? "Google" : "Apple";
+      Alert.alert(
+        `${providerLabel}-Login wird noch freigeschaltet`,
+        `${providerLabel} ist in Supabase für dieses Projekt noch nicht aktiviert. E-Mail und Passwort funktionieren bereits.`
+      );
+      return;
+    }
+
+    setOauthLoading(provider);
+    try {
+      const { error, cancelled } = await signInWithOAuth(provider);
+      if (!cancelled && error) {
+        if (error.toLowerCase().includes("unsupported provider")) {
+          Alert.alert(
+            "Anbieter noch nicht aktiv",
+            "Google- oder Apple-Login ist für dieses Projekt noch nicht freigeschaltet. Nutze vorerst E-Mail und Passwort."
+          );
+          return;
+        }
+        Alert.alert("Login fehlgeschlagen", error);
+      }
+    } finally {
+      setOauthLoading(null);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!email.trim()) {
@@ -92,17 +162,21 @@ export default function AuthScreen() {
     try {
       if (mode === "login") {
         const { error } = await signIn(email, password);
-        if (error) Alert.alert("Login fehlgeschlagen", error);
+        if (error) {
+          Alert.alert("Login fehlgeschlagen", error);
+        }
       } else if (mode === "register") {
-        const { error } = await signUp(email, password);
+        const { error, requiresEmailConfirmation } = await signUp(email, password);
         if (error) {
           Alert.alert("Registrierung fehlgeschlagen", error);
-        } else {
+        } else if (requiresEmailConfirmation) {
           Alert.alert(
             "Bestätigung gesendet",
-            "Wir haben dir eine Bestätigungs-E-Mail geschickt. Bitte klicke auf den Link, um dein Konto zu aktivieren.",
+            "Wir haben dir eine Bestätigungs-E-Mail geschickt. Bitte prüfe auch Spam oder Werbung und klicke auf den Link, um dein Konto zu aktivieren.",
             [{ text: "OK", onPress: () => setMode("login") }]
           );
+        } else {
+          router.replace("/(tabs)");
         }
       } else {
         const { error } = await resetPassword(email);
@@ -133,22 +207,37 @@ export default function AuthScreen() {
     reset: "Link senden",
   };
 
+  const isCompactHeight = Platform.OS !== "web" && windowHeight <= 900;
+  const contentPadding = isCompactHeight ? spacing.md : spacing.xxl;
+  const logoSize = isCompactHeight ? 120 : 208;
+  const heroSpacing = isCompactHeight ? spacing.md : 40;
+  const oauthButtonPaddingVertical = isCompactHeight ? 10 : 14;
+  const inputPaddingVertical = isCompactHeight ? 10 : 14;
+  const inputGroupSpacing = isCompactHeight ? spacing.sm : 14;
+  const sectionSpacing = isCompactHeight ? spacing.md : spacing.xl;
+  const submitPaddingVertical = isCompactHeight ? 13 : 16;
+  const footerSpacing = isCompactHeight ? spacing.md : spacing.xxl;
+  const titleFontSize = isCompactHeight ? typography.xl : typography.xxl;
+  const fieldLabelMarginBottom = isCompactHeight ? spacing.xs + 2 : spacing.sm;
+  const secondaryLinkFontSize = isCompactHeight ? typography.sm : typography.base;
+
   const inputStyle = {
-    backgroundColor: colors.surface,
+    backgroundColor: brandSurface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: brandBorder,
     borderRadius: radius.md,
-    padding: 14,
+    paddingHorizontal: 14,
+    paddingVertical: inputPaddingVertical,
     fontSize: typography.base,
-    color: colors.text,
+    color: brandText,
   } as const;
 
   const webSubmitStyle: CSSProperties = {
     appearance: "none",
-    backgroundColor: loading ? colors.textTertiary : colors.primary,
+    backgroundColor: loading ? "rgba(238, 242, 255, 0.5)" : brandButtonBackground,
     border: "none",
     borderRadius: radius.md,
-    color: colors.textInverse,
+    color: brandButtonText,
     cursor: loading ? "default" : "pointer",
     fontSize: typography.lg,
     fontWeight: typography.bold,
@@ -157,8 +246,10 @@ export default function AuthScreen() {
     width: "100%",
   };
 
+  const isBusy = loading || oauthLoading !== null;
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: brandBackground }}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
@@ -166,9 +257,11 @@ export default function AuthScreen() {
         <ScrollView
           contentContainerStyle={{
             flexGrow: 1,
-            justifyContent: "center",
+            justifyContent: isCompactHeight ? "flex-start" : "center",
             alignItems: "center",
-            padding: spacing.xxl,
+            paddingHorizontal: contentPadding,
+            paddingTop: isCompactHeight ? spacing.sm : spacing.xxl,
+            paddingBottom: contentPadding,
           }}
           keyboardShouldPersistTaps="handled"
         >
@@ -178,36 +271,21 @@ export default function AuthScreen() {
               maxWidth: 440,
             }}
           >
-            {/* Logo / Branding */}
-            <View style={{ alignItems: "center", marginBottom: 40 }}>
-              <View
+            <View style={{ alignItems: "center", marginBottom: heroSpacing }}>
+              <Image
+                source={require("../assets/brand-mark.png")}
                 style={{
-                  width: 72,
-                  height: 72,
-                  borderRadius: radius.lg,
-                  backgroundColor: colors.primaryLight,
-                  justifyContent: "center",
-                  alignItems: "center",
-                  marginBottom: spacing.md,
+                  width: logoSize,
+                  height: logoSize,
+                  marginBottom: isCompactHeight ? 0 : spacing.sm,
                 }}
-              >
-                <BookOpen size={36} color={colors.primary} />
-              </View>
+                resizeMode="contain"
+              />
               <Text
                 style={{
-                  fontSize: typography.xxxl,
-                  fontWeight: typography.extrabold,
-                  color: colors.text,
-                  letterSpacing: -0.5,
-                }}
-              >
-                clearn
-              </Text>
-              <Text
-                style={{
-                  fontSize: typography.base,
-                  color: colors.textSecondary,
-                  marginTop: spacing.xs,
+                  fontSize: isCompactHeight ? typography.xs : typography.base,
+                  color: brandTextSecondary,
+                  marginTop: isCompactHeight ? 2 : spacing.xs,
                 }}
               >
                 Foto — Flashcards — Wissen
@@ -219,26 +297,158 @@ export default function AuthScreen() {
                 void handleSubmit();
               }}
             >
-              {/* Title */}
               <Text
                 style={{
-                  fontSize: typography.xxl,
+                  fontSize: titleFontSize,
                   fontWeight: typography.bold,
-                  color: colors.text,
-                  marginBottom: spacing.xxl,
+                  color: brandText,
+                  marginBottom: sectionSpacing,
                   textAlign: "center",
                 }}
               >
                 {titles[mode]}
               </Text>
 
-              {/* Email */}
-              <View style={{ marginBottom: 14 }}>
+              {mode !== "reset" ? (
+                <>
+                  <View style={{ gap: spacing.sm, marginBottom: sectionSpacing }}>
+                    <TouchableOpacity
+                      onPress={() => {
+                        void handleOAuth("google");
+                      }}
+                      disabled={isBusy}
+                      activeOpacity={0.8}
+                      style={{
+                        backgroundColor: brandSurface,
+                        borderRadius: radius.md,
+                        paddingVertical: oauthButtonPaddingVertical,
+                        paddingHorizontal: 16,
+                        borderWidth: 1,
+                        borderColor: brandBorder,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 10,
+                        opacity: isBusy ? 0.72 : 1,
+                      }}
+                    >
+                      {oauthLoading === "google" ? (
+                        <ActivityIndicator color={brandText} />
+                      ) : (
+                        <View
+                          style={{
+                            width: 20,
+                            height: 20,
+                            borderRadius: 10,
+                            backgroundColor: "#fff",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontSize: 12,
+                              fontWeight: "900",
+                              color: "#EA4335",
+                            }}
+                          >
+                            G
+                          </Text>
+                        </View>
+                      )}
+                      <Text
+                        style={{
+                          color: brandText,
+                          fontSize: isCompactHeight ? typography.sm : typography.base,
+                          fontWeight: typography.semibold,
+                        }}
+                      >
+                        {oauthLoading === "google"
+                          ? "Google wird geöffnet ..."
+                          : "Mit Google fortfahren"}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => {
+                        void handleOAuth("apple");
+                      }}
+                      disabled={isBusy}
+                      activeOpacity={0.8}
+                      style={{
+                        backgroundColor: brandSurface,
+                        borderRadius: radius.md,
+                        paddingVertical: oauthButtonPaddingVertical,
+                        paddingHorizontal: 16,
+                        borderWidth: 1,
+                        borderColor: brandBorder,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 10,
+                        opacity: isBusy ? 0.72 : 1,
+                      }}
+                    >
+                      {oauthLoading === "apple" ? (
+                        <ActivityIndicator color={brandText} />
+                      ) : (
+                        <Apple size={18} color={brandText} />
+                      )}
+                      <Text
+                        style={{
+                          color: brandText,
+                          fontSize: isCompactHeight ? typography.sm : typography.base,
+                          fontWeight: typography.semibold,
+                        }}
+                      >
+                        {oauthLoading === "apple"
+                          ? "Apple wird geöffnet ..."
+                          : "Mit Apple fortfahren"}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: spacing.sm,
+                      marginBottom: isCompactHeight ? spacing.md : spacing.lg,
+                    }}
+                  >
+                    <View
+                      style={{
+                        flex: 1,
+                        height: 1,
+                        backgroundColor: brandBorder,
+                      }}
+                    />
+                    <Text
+                      style={{
+                        color: brandTextTertiary,
+                        fontSize: isCompactHeight ? typography.xs : typography.sm,
+                        fontWeight: typography.semibold,
+                      }}
+                    >
+                      oder mit E-Mail
+                    </Text>
+                    <View
+                      style={{
+                        flex: 1,
+                        height: 1,
+                        backgroundColor: brandBorder,
+                      }}
+                    />
+                  </View>
+                </>
+              ) : null}
+
+              <View style={{ marginBottom: inputGroupSpacing }}>
                 <Text
                   style={{
                     fontSize: typography.sm,
-                    color: colors.textSecondary,
-                    marginBottom: spacing.sm,
+                    color: brandTextSecondary,
+                    marginBottom: fieldLabelMarginBottom,
                     fontWeight: typography.semibold,
                   }}
                 >
@@ -248,7 +458,7 @@ export default function AuthScreen() {
                   value={email}
                   onChangeText={setEmail}
                   placeholder="deine@email.de"
-                  placeholderTextColor={colors.textTertiary}
+                  placeholderTextColor={brandTextTertiary}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -276,14 +486,13 @@ export default function AuthScreen() {
                 />
               </View>
 
-              {/* Password */}
-              {mode !== "reset" && (
-                <View style={{ marginBottom: 14 }}>
+              {mode !== "reset" ? (
+                <View style={{ marginBottom: inputGroupSpacing }}>
                   <Text
                     style={{
-                      color: colors.textSecondary,
+                      color: brandTextSecondary,
                       fontSize: typography.sm,
-                      marginBottom: spacing.sm,
+                      marginBottom: fieldLabelMarginBottom,
                       fontWeight: typography.semibold,
                     }}
                   >
@@ -294,14 +503,10 @@ export default function AuthScreen() {
                     value={password}
                     onChangeText={setPassword}
                     placeholder="••••••••"
-                    placeholderTextColor={colors.textTertiary}
+                    placeholderTextColor={brandTextTertiary}
                     secureTextEntry
-                    autoComplete={
-                      mode === "login" ? "current-password" : "new-password"
-                    }
-                    textContentType={
-                      mode === "login" ? "password" : "newPassword"
-                    }
+                    autoComplete={mode === "login" ? "current-password" : "new-password"}
+                    textContentType={mode === "login" ? "password" : "newPassword"}
                     returnKeyType={mode === "register" ? "next" : "go"}
                     onSubmitEditing={() => {
                       if (mode === "register") {
@@ -323,16 +528,15 @@ export default function AuthScreen() {
                     style={inputStyle}
                   />
                 </View>
-              )}
+              ) : null}
 
-              {/* Confirm Password */}
-              {mode === "register" && (
-                <View style={{ marginBottom: 14 }}>
+              {mode === "register" ? (
+                <View style={{ marginBottom: inputGroupSpacing }}>
                   <Text
                     style={{
-                      color: colors.textSecondary,
+                      color: brandTextSecondary,
                       fontSize: typography.sm,
-                      marginBottom: spacing.sm,
+                      marginBottom: fieldLabelMarginBottom,
                       fontWeight: typography.semibold,
                     }}
                   >
@@ -343,7 +547,7 @@ export default function AuthScreen() {
                     value={confirmPassword}
                     onChangeText={setConfirmPassword}
                     placeholder="••••••••"
-                    placeholderTextColor={colors.textTertiary}
+                    placeholderTextColor={brandTextTertiary}
                     secureTextEntry
                     autoComplete="new-password"
                     textContentType="newPassword"
@@ -360,29 +564,31 @@ export default function AuthScreen() {
                     style={inputStyle}
                   />
                 </View>
-              )}
+              ) : null}
 
-              {/* Forgot Password link */}
-              {mode === "login" && (
+              {mode === "login" ? (
                 <TouchableOpacity
                   onPress={() => setMode("reset")}
-                  style={{ alignSelf: "flex-end", marginBottom: spacing.xl }}
+                  disabled={isBusy}
+                  style={{
+                    alignSelf: "flex-end",
+                    marginBottom: sectionSpacing,
+                  }}
                 >
                   <Text
                     style={{
-                      color: colors.primary,
-                      fontSize: typography.sm + 1,
+                      color: brandLink,
+                      fontSize: isCompactHeight ? typography.sm : typography.sm + 1,
                       fontWeight: typography.medium,
                     }}
                   >
                     Passwort vergessen?
                   </Text>
                 </TouchableOpacity>
-              )}
+              ) : null}
 
-              {/* Submit button */}
               {Platform.OS === "web" ? (
-                <button type="submit" disabled={loading} style={webSubmitStyle}>
+                <button type="submit" disabled={isBusy} style={webSubmitStyle}>
                   {loading ? "Wird verarbeitet ..." : buttonLabels[mode]}
                 </button>
               ) : (
@@ -390,25 +596,25 @@ export default function AuthScreen() {
                   onPress={() => {
                     void handleSubmit();
                   }}
-                  disabled={loading}
+                  disabled={isBusy}
                   activeOpacity={0.8}
                   style={{
-                    backgroundColor: loading
-                      ? colors.textTertiary
-                      : colors.primary,
+                    backgroundColor: isBusy
+                      ? "rgba(238, 242, 255, 0.5)"
+                      : brandButtonBackground,
                     borderRadius: radius.md,
-                    paddingVertical: 16,
+                    paddingVertical: submitPaddingVertical,
                     alignItems: "center",
                     marginTop: mode === "login" ? 0 : spacing.sm,
                   }}
                 >
                   {loading ? (
-                    <ActivityIndicator color={colors.textInverse} />
+                    <ActivityIndicator color={brandButtonText} />
                   ) : (
                     <Text
                       style={{
-                        color: colors.textInverse,
-                        fontSize: typography.lg,
+                        color: brandButtonText,
+                        fontSize: isCompactHeight ? typography.base : typography.lg,
                         fontWeight: typography.bold,
                       }}
                     >
@@ -418,20 +624,19 @@ export default function AuthScreen() {
                 </TouchableOpacity>
               )}
 
-              {/* Mode switch */}
-              <View style={{ marginTop: spacing.xxl, alignItems: "center" }}>
+              <View style={{ marginTop: footerSpacing, alignItems: "center" }}>
                 {mode === "login" ? (
-                  <TouchableOpacity onPress={() => setMode("register")}>
+                  <TouchableOpacity onPress={() => setMode("register")} disabled={isBusy}>
                     <Text
                       style={{
-                        color: colors.textSecondary,
-                        fontSize: typography.base,
+                        color: brandTextSecondary,
+                        fontSize: secondaryLinkFontSize,
                       }}
                     >
                       Noch kein Konto?{" "}
                       <Text
                         style={{
-                          color: colors.primary,
+                          color: brandLink,
                           fontWeight: typography.semibold,
                         }}
                       >
@@ -440,17 +645,17 @@ export default function AuthScreen() {
                     </Text>
                   </TouchableOpacity>
                 ) : (
-                  <TouchableOpacity onPress={() => setMode("login")}>
+                  <TouchableOpacity onPress={() => setMode("login")} disabled={isBusy}>
                     <Text
                       style={{
-                        color: colors.textSecondary,
-                        fontSize: typography.base,
+                        color: brandTextSecondary,
+                        fontSize: secondaryLinkFontSize,
                       }}
                     >
                       Bereits ein Konto?{" "}
                       <Text
                         style={{
-                          color: colors.primary,
+                          color: brandLink,
                           fontWeight: typography.semibold,
                         }}
                       >
@@ -460,6 +665,23 @@ export default function AuthScreen() {
                   </TouchableOpacity>
                 )}
               </View>
+
+              {mode === "login" ? (
+                <TouchableOpacity
+                  onPress={() => router.replace("/(tabs)")}
+                  disabled={isBusy}
+                  style={{ marginTop: spacing.lg, alignItems: "center" }}
+                >
+                  <Text
+                    style={{
+                      color: brandTextSecondary,
+                      fontSize: secondaryLinkFontSize,
+                    }}
+                  >
+                    Erst einmal ohne Login starten
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
             </FormContainer>
           </View>
         </ScrollView>

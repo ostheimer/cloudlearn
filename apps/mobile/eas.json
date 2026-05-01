@@ -61,10 +61,13 @@
   "submit": {
     "production": {
       "ios": {
-        "appleId": "office@ostheimer.at"
+        "appleId": "office@ostheimer.at",
+        "sku": "app.clearn"
       },
       "android": {
+        "applicationId": "app.clearn",
         "serviceAccountKeyPath": "./google-play-service-account.json",
+        "releaseStatus": "completed",
         "track": "internal"
       }
     }

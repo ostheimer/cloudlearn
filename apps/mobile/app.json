@@ -3,7 +3,9 @@
     "name": "clearn",
     "slug": "clearn",
     "version": "0.1.0",
-    "runtimeVersion": "0.1.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "icon": "./assets/icon.png",
     "orientation": "portrait",
     "scheme": "clearn",
@@ -51,6 +53,24 @@
             "buildToolsVersion": "36.0.0"
           }
         }
+      ],
+      [
+        "expo-web-browser",
+        {
+          "experimentalLauncherActivity": false
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "clearn verwendet Face ID, um deine eingeloggte App lokal zu entsperren."
+        }
+      ],
+      [
+        "expo-tracking-transparency",
+        {
+          "userTrackingPermission": "Wir nutzen deine Gerätedaten nur mit deiner Zustimmung für personalisierte Werbung, damit clearn kostenlos bleiben kann."
+        }
       ]
     ],
     "ios": {
@@ -60,7 +80,8 @@
       "infoPlist": {
         "NSCameraUsageDescription": "clearn benötigt Kamera-Zugriff, um Lernmaterial zu fotografieren und daraus Flashcards zu erstellen.",
         "NSPhotoLibraryUsageDescription": "clearn benötigt Zugriff auf deine Fotos, um Lernmaterial auszuwählen und daraus Flashcards zu erstellen.",
-        "NSUserTrackingUsageDescription": "Wir verwenden deine Gerätedaten, um relevante Werbung anzuzeigen und clearn kostenlos zu halten.",
+        "NSFaceIDUsageDescription": "clearn verwendet Face ID, um deine eingeloggte App lokal zu entsperren.",
+        "NSUserTrackingUsageDescription": "Wir nutzen deine Gerätedaten nur mit deiner Zustimmung für personalisierte Werbung, damit clearn kostenlos bleiben kann.",
         "GADApplicationIdentifier": "ca-app-pub-3940256099942544~1458002511",
         "ITSAppUsesNonExemptEncryption": false
       }

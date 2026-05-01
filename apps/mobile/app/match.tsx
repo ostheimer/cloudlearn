@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import {
   ActivityIndicator,
+  ScrollView,
   Text,
   TouchableOpacity,
   View,
@@ -238,25 +239,6 @@ export default function MatchScreen() {
           >
             Mindestens 2 Karten nötig für das Match-Spiel.
           </Text>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={{
-              marginTop: spacing.xl,
-              backgroundColor: colors.primary,
-              paddingHorizontal: spacing.xxl,
-              paddingVertical: 14,
-              borderRadius: radius.md,
-            }}
-          >
-            <Text
-              style={{
-                color: colors.textInverse,
-                fontWeight: typography.bold,
-              }}
-            >
-              Zurück
-            </Text>
-          </TouchableOpacity>
         </SafeAreaView>
       </>
     );
@@ -282,118 +264,96 @@ export default function MatchScreen() {
           style={{
             flex: 1,
             backgroundColor: colors.background,
-            justifyContent: "center",
-            alignItems: "center",
-            padding: spacing.xxl,
-            gap: spacing.xl,
           }}
         >
-          <View
-            style={{
-              width: 80,
-              height: 80,
-              borderRadius: 40,
-              backgroundColor: colors.successLight,
+          <ScrollView
+            contentContainerStyle={{
+              flexGrow: 1,
               justifyContent: "center",
               alignItems: "center",
+              padding: spacing.xxl,
+              gap: spacing.xl,
             }}
+            showsVerticalScrollIndicator={false}
           >
-            <Trophy size={40} color={colors.success} />
-          </View>
-
-          <Text
-            style={{
-              fontSize: typography.xxxl,
-              fontWeight: typography.extrabold,
-              color: colors.text,
-            }}
-          >
-            {formatTime(elapsed)}
-          </Text>
-
-          {/* Stars */}
-          <View style={{ flexDirection: "row", gap: spacing.sm }}>
-            {[0, 1, 2].map((i) => (
-              <Zap
-                key={i}
-                size={28}
-                color={i < stars ? colors.warning : colors.surfaceSecondary}
-                fill={i < stars ? colors.warning : "none"}
-              />
-            ))}
-          </View>
-
-          <View style={{ gap: spacing.xs, alignItems: "center" }}>
-            <Text
+            <View
               style={{
-                fontSize: typography.lg,
-                color: colors.textSecondary,
-              }}
-            >
-              {gameCards.length} Paare zugeordnet
-            </Text>
-            <Text
-              style={{
-                fontSize: typography.base,
-                color: errors === 0 ? colors.success : colors.error,
-              }}
-            >
-              {errors === 0
-                ? "Keine Fehler!"
-                : `${errors} Fehler`}
-            </Text>
-          </View>
-
-          <View
-            style={{
-              flexDirection: "row",
-              gap: spacing.md,
-              width: "100%",
-            }}
-          >
-            <TouchableOpacity
-              onPress={() => startGame(cards)}
-              style={{
-                flex: 1,
-                backgroundColor: colors.primary,
-                paddingVertical: 14,
-                borderRadius: radius.md,
-                flexDirection: "row",
-                alignItems: "center",
+                width: 80,
+                height: 80,
+                borderRadius: 40,
+                backgroundColor: colors.successLight,
                 justifyContent: "center",
-                gap: spacing.sm,
-              }}
-            >
-              <RotateCcw size={18} color={colors.textInverse} />
-              <Text
-                style={{
-                  color: colors.textInverse,
-                  fontWeight: typography.bold,
-                }}
-              >
-                Nochmal
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={{
-                flex: 1,
-                backgroundColor: colors.surfaceSecondary,
-                paddingVertical: 14,
-                borderRadius: radius.md,
                 alignItems: "center",
               }}
             >
+              <Trophy size={40} color={colors.success} />
+            </View>
+
+            <Text
+              style={{
+                fontSize: typography.xxxl,
+                fontWeight: typography.extrabold,
+                color: colors.text,
+              }}
+            >
+              {formatTime(elapsed)}
+            </Text>
+
+            <View style={{ flexDirection: "row", gap: spacing.sm }}>
+              {[0, 1, 2].map((i) => (
+                <Zap
+                  key={i}
+                  size={28}
+                  color={i < stars ? colors.warning : colors.surfaceSecondary}
+                  fill={i < stars ? colors.warning : "none"}
+                />
+              ))}
+            </View>
+
+            <View style={{ gap: spacing.xs, alignItems: "center" }}>
               <Text
                 style={{
+                  fontSize: typography.lg,
                   color: colors.textSecondary,
-                  fontWeight: typography.bold,
                 }}
               >
-                Zurück
+                {gameCards.length} Paare zugeordnet
               </Text>
-            </TouchableOpacity>
-          </View>
+              <Text
+                style={{
+                  fontSize: typography.base,
+                  color: errors === 0 ? colors.success : colors.error,
+                }}
+              >
+                {errors === 0 ? "Keine Fehler!" : `${errors} Fehler`}
+              </Text>
+            </View>
+
+            <View style={{ width: "100%" }}>
+              <TouchableOpacity
+                onPress={() => startGame(cards)}
+                style={{
+                  backgroundColor: colors.primary,
+                  paddingVertical: 14,
+                  borderRadius: radius.md,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: spacing.sm,
+                }}
+              >
+                <RotateCcw size={18} color={colors.textInverse} />
+                <Text
+                  style={{
+                    color: colors.textInverse,
+                    fontWeight: typography.bold,
+                  }}
+                >
+                  Nochmal
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
         </SafeAreaView>
       </>
     );

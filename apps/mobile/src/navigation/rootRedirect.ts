@@ -18,11 +18,17 @@ export function resolveRootRedirect({
   }
 
   const inAuthScreen = firstSegment === "auth";
+  const inAuthCallbackScreen = firstSegment === "auth-callback";
   const inOnboardingScreen = firstSegment === "onboarding";
+  const inResetPasswordScreen = firstSegment === "reset-password";
   const hasSegment = Boolean(firstSegment);
 
   if (!isAuthenticated) {
-    return inAuthScreen ? null : "/auth";
+    if (!hasSegment || inOnboardingScreen) {
+      return "/(tabs)";
+    }
+
+    return null;
   }
 
   if (!onboardingLoaded) {
@@ -30,7 +36,9 @@ export function resolveRootRedirect({
   }
 
   if (!onboardingCompleted) {
-    return inOnboardingScreen ? null : "/onboarding";
+    return inOnboardingScreen || inAuthCallbackScreen || inResetPasswordScreen
+      ? null
+      : "/onboarding";
   }
 
   if (inAuthScreen || inOnboardingScreen || !hasSegment) {

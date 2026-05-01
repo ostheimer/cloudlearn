@@ -86,10 +86,14 @@ async function ensureRevenueCatConfigured(
   }
 
   if (!isRevenueCatConfigured) {
-    client.configure({ apiKey: getRevenueCatApiKey(), appUserID: userId });
-    isRevenueCatConfigured = true;
-    activeRevenueCatUserId = userId;
-    return { available: true, reason: null };
+    try {
+      client.configure({ apiKey: getRevenueCatApiKey(), appUserID: userId });
+      isRevenueCatConfigured = true;
+      activeRevenueCatUserId = userId;
+      return { available: true, reason: null };
+    } catch {
+      return { available: false, reason: "native_module_unavailable" };
+    }
   }
 
   if (activeRevenueCatUserId !== userId) {
