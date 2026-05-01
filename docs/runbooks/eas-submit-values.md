@@ -12,6 +12,7 @@ Repo-seitig ist der Submit-Pfad in [apps/mobile/eas.json](/Users/andreasostheime
 
 - iOS:
   - `appleId`: `office@ostheimer.at`
+  - `appleTeamId`: `PES54TD37F`
   - `sku`: `app.clearn`
 - Android:
   - `applicationId`: `app.clearn`
@@ -28,7 +29,7 @@ Repo-seitig ist der Submit-Pfad in [apps/mobile/eas.json](/Users/andreasostheime
   - Ziel: `submit.production.ios.ascAppId` in [apps/mobile/eas.json](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/eas.json)
 - `appleTeamId`
   - Quelle: Apple Developer / App Store Connect Team
-  - Ziel: `submit.production.ios.appleTeamId` in [apps/mobile/eas.json](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/eas.json)
+  - Status: im Repo aus der Xcode-Signing-Konfiguration übernommen
 
 ### Android
 
