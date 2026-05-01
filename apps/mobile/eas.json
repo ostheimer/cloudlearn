@@ -62,6 +62,7 @@
     "production": {
       "ios": {
         "appleId": "office@ostheimer.at",
+        "appleTeamId": "PES54TD37F",
         "sku": "app.clearn"
       },
       "android": {
