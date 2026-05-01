@@ -17,6 +17,14 @@
 - TestFlight-/Beta-Beschreibung erklärt Kernflow in 2-3 Sätzen.
 - Paywall-Text und Store-Beschreibung verwenden dieselben Produktbegriffe.
 
+## Privacy / Ads
+
+- ATT-Flow ist in Review Notes beschrieben: erst kontextueller Pre-Prompt, dann native ATT-Abfrage nur bei Bedarf.
+- Rewarded Ads werden in den Store-Texten als nicht-personalisierte Fallback-Variante beschrieben, wenn kein ATT-Opt-in vorliegt.
+- App Store Connect Privacy Questionnaire wird gegen die tatsächlich eingebundenen SDKs beantwortet, nicht nur gegen den eigenen App-Code.
+- Google Mobile Ads und UMP-Privacy-Manifests sind vor der Einreichung gegen den Privacy Report eines echten iOS-Archives geprüft.
+- Privacy-Details, Tracking-Angaben und Review Notes verweisen auf das Runbook [docs/runbooks/app-store-privacy-ads.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-privacy-ads.md).
+
 ## Conversion Tracking
 
 - Landing CTA Events (`landing_view`, `cta_click`, `waitlist_signup`).

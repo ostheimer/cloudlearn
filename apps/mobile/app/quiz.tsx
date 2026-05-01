@@ -187,20 +187,6 @@ export default function QuizScreen() {
           >
             Mindestens 3 Karten nötig für den Test-Modus.
           </Text>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={{
-              marginTop: spacing.xl,
-              backgroundColor: colors.primary,
-              paddingHorizontal: spacing.xxl,
-              paddingVertical: 14,
-              borderRadius: radius.md,
-            }}
-          >
-            <Text style={{ color: colors.textInverse, fontWeight: typography.bold }}>
-              Zurück
-            </Text>
-          </TouchableOpacity>
         </SafeAreaView>
       </>
     );
@@ -348,11 +334,10 @@ export default function QuizScreen() {
             </View>
 
             {/* Actions */}
-            <View style={{ flexDirection: "row", gap: spacing.md, width: "100%" }}>
+            <View style={{ width: "100%" }}>
               <TouchableOpacity
                 onPress={handleRestart}
                 style={{
-                  flex: 1,
                   backgroundColor: colors.primary,
                   paddingVertical: 14,
                   borderRadius: radius.md,
@@ -370,25 +355,6 @@ export default function QuizScreen() {
                   }}
                 >
                   Nochmal
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => router.back()}
-                style={{
-                  flex: 1,
-                  backgroundColor: colors.surfaceSecondary,
-                  paddingVertical: 14,
-                  borderRadius: radius.md,
-                  alignItems: "center",
-                }}
-              >
-                <Text
-                  style={{
-                    color: colors.textSecondary,
-                    fontWeight: typography.bold,
-                  }}
-                >
-                  Zurück
                 </Text>
               </TouchableOpacity>
             </View>

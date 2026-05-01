@@ -1,10 +1,17 @@
 import { useCallback, useState } from "react";
-import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
 import {
   BookOpen,
   ScanLine,
+  Brain,
   Layers,
   ChevronRight,
   Flame,
@@ -16,6 +23,7 @@ import { useSessionStore } from "../../src/store/sessionStore";
 import { getStats, listDecks, type StatsResponse, type Deck } from "../../src/lib/api";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
 import { LpBadge } from "../../src/components/LpBadge";
+import { AuthPromptCard } from "../../src/components/AuthPromptCard";
 
 export default function HomeScreen() {
   const colors = useColors();
@@ -69,9 +77,135 @@ export default function HomeScreen() {
   const today = new Date().toISOString().split("T")[0];
   const reviewedToday = stats?.lastReviewDate === today;
 
+  if (!userId) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{
+            padding: spacing.xl,
+            paddingBottom: spacing.xxxl + spacing.xl,
+            gap: spacing.xl,
+          }}
+          showsVerticalScrollIndicator={false}
+        >
+          <View
+            style={{
+              paddingTop: spacing.lg,
+              gap: spacing.xs,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: typography.xxxl,
+                fontWeight: typography.extrabold,
+                color: colors.text,
+                letterSpacing: -0.5,
+              }}
+            >
+              clearn
+            </Text>
+            <Text
+              style={{
+                fontSize: typography.base,
+                color: colors.textSecondary,
+              }}
+            >
+              Foto — Flashcards — Wissen
+            </Text>
+          </View>
+
+          <AuthPromptCard
+            title="Ohne Konto starten"
+            body="Du kannst clearn zuerst ansehen. Für Scan, Decks, Lernfortschritt und Synchronisierung brauchst du danach ein Konto."
+            ctaLabel="Anmelden oder registrieren"
+            onPress={() => router.push("/auth")}
+          />
+
+          <View style={{ gap: spacing.md }}>
+            {[
+              {
+                icon: <ScanLine size={20} color={colors.primary} />,
+                title: "Scan",
+                body: "Fotos, PDFs und Texte werden nach dem Login zu Karten.",
+              },
+              {
+                icon: <BookOpen size={20} color={colors.primary} />,
+                title: "Decks",
+                body: "Decks, Kurse und Ordner synchronisieren wir mit deinem Konto.",
+              },
+              {
+                icon: <Brain size={20} color={colors.primary} />,
+                title: "Lernen",
+                body: "Später kannst du deinen Fortschritt über alle Geräte mitnehmen.",
+              },
+            ].map((item) => (
+              <View
+                key={item.title}
+                style={{
+                  backgroundColor: colors.surface,
+                  borderRadius: radius.lg,
+                  padding: spacing.lg,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  flexDirection: "row",
+                  alignItems: "flex-start",
+                  gap: spacing.md,
+                  ...shadows.sm,
+                }}
+              >
+                <View
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: radius.md,
+                    backgroundColor: colors.primaryLight,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  {item.icon}
+                </View>
+                <View style={{ flex: 1, gap: spacing.xs }}>
+                  <Text
+                    style={{
+                      fontSize: typography.lg,
+                      fontWeight: typography.bold,
+                      color: colors.text,
+                    }}
+                  >
+                    {item.title}
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: typography.base,
+                      color: colors.textSecondary,
+                      lineHeight: 22,
+                    }}
+                  >
+                    {item.body}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-      <View style={{ flex: 1, padding: spacing.xl, gap: spacing.lg }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          padding: spacing.xl,
+          paddingBottom: spacing.xxxl + spacing.xl,
+          gap: spacing.lg,
+        }}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Header */}
         <View style={{ paddingTop: spacing.lg, flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
           <View>
@@ -508,7 +642,7 @@ export default function HomeScreen() {
             </View>
           </>
         )}
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }

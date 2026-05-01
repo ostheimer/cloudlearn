@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { resolveRootRedirect } from "./rootRedirect";
 
 describe("resolveRootRedirect", () => {
-  it("sends unauthenticated users to auth", () => {
+  it("lets unauthenticated users stay in the guest tabs", () => {
     expect(
       resolveRootRedirect({
         isAuthenticated: false,
@@ -11,7 +11,17 @@ describe("resolveRootRedirect", () => {
         onboardingCompleted: false,
         firstSegment: "(tabs)",
       })
-    ).toBe("/auth");
+    ).toBeNull();
+
+    expect(
+      resolveRootRedirect({
+        isAuthenticated: false,
+        isLoading: false,
+        onboardingLoaded: false,
+        onboardingCompleted: false,
+        firstSegment: undefined,
+      })
+    ).toBe("/(tabs)");
   });
 
   it("waits while auth or onboarding state is still loading", () => {
@@ -56,6 +66,26 @@ describe("resolveRootRedirect", () => {
         firstSegment: undefined,
       })
     ).toBe("/onboarding");
+
+    expect(
+      resolveRootRedirect({
+        isAuthenticated: true,
+        isLoading: false,
+        onboardingLoaded: true,
+        onboardingCompleted: false,
+        firstSegment: "reset-password",
+      })
+    ).toBeNull();
+
+    expect(
+      resolveRootRedirect({
+        isAuthenticated: true,
+        isLoading: false,
+        onboardingLoaded: true,
+        onboardingCompleted: false,
+        firstSegment: "auth-callback",
+      })
+    ).toBeNull();
   });
 
   it("routes authenticated users with completed onboarding to tabs", () => {
@@ -118,6 +148,16 @@ describe("resolveRootRedirect", () => {
         onboardingLoaded: true,
         onboardingCompleted: true,
         firstSegment: "(tabs)",
+      })
+    ).toBeNull();
+
+    expect(
+      resolveRootRedirect({
+        isAuthenticated: true,
+        isLoading: false,
+        onboardingLoaded: true,
+        onboardingCompleted: true,
+        firstSegment: "auth-callback",
       })
     ).toBeNull();
   });

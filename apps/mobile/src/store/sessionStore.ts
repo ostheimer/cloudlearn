@@ -1,6 +1,13 @@
 import { create } from "zustand";
 import { supabase } from "../lib/supabase";
 import type { Session } from "@supabase/supabase-js";
+import type { OAuthProvider } from "../lib/oauth";
+import { toGermanAuthError } from "../lib/authErrorMessages";
+
+interface SignUpResult {
+  error: string | null;
+  requiresEmailConfirmation?: boolean;
+}
 
 interface SessionState {
   isAuthenticated: boolean;
@@ -15,9 +22,13 @@ interface SessionState {
   // Set session from auth state change
   setSession: (session: Session | null) => void;
   // Email + Password sign up
-  signUp: (email: string, password: string) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string) => Promise<SignUpResult>;
   // Email + Password sign in
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  // OAuth sign in
+  signInWithOAuth: (
+    provider: OAuthProvider
+  ) => Promise<{ error: string | null; cancelled?: boolean }>;
   // Password reset
   resetPassword: (email: string) => Promise<{ error: string | null }>;
   // Sign out
@@ -67,14 +78,39 @@ export const useSessionStore = create<SessionState>((set) => ({
   },
 
   signUp: async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({ email, password });
-    if (error) return { error: error.message };
-    return { error: null };
+    const normalizedEmail = email.trim().toLowerCase();
+    const { getOAuthRedirectUrl } = await import("../lib/oauth");
+    const { data, error } = await supabase.auth.signUp({
+      email: normalizedEmail,
+      password,
+      options: {
+        emailRedirectTo: getOAuthRedirectUrl(),
+      },
+    });
+    if (error) return { error: toGermanAuthError(error.message) };
+    if (data.user && !data.session && data.user.identities?.length === 0) {
+      return { error: toGermanAuthError("user already registered") };
+    }
+    if (data.session?.user) {
+      set({
+        isAuthenticated: true,
+        isLoading: false,
+        userId: data.session.user.id,
+        email: data.session.user.email ?? normalizedEmail,
+        session: data.session,
+      });
+      return { error: null, requiresEmailConfirmation: false };
+    }
+    return { error: null, requiresEmailConfirmation: true };
   },
 
   signIn: async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) return { error: error.message };
+    const normalizedEmail = email.trim().toLowerCase();
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: normalizedEmail,
+      password,
+    });
+    if (error) return { error: toGermanAuthError(error.message) };
     if (data.session?.user) {
       set({
         isAuthenticated: true,
@@ -87,9 +123,26 @@ export const useSessionStore = create<SessionState>((set) => ({
     return { error: null };
   },
 
+  signInWithOAuth: async (provider: OAuthProvider) => {
+    const { startOAuthSignIn } = await import("../lib/oauth");
+    return startOAuthSignIn(provider);
+  },
+
   resetPassword: async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
-    if (error) return { error: error.message };
+    const normalizedEmail = email.trim().toLowerCase();
+    const { getPasswordRecoveryRedirectUrl } = await import("../lib/oauth");
+    const {
+      clearPendingPasswordRecovery,
+      markPendingPasswordRecovery,
+    } = await import("../lib/passwordRecovery");
+    await markPendingPasswordRecovery();
+    const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+      redirectTo: getPasswordRecoveryRedirectUrl(),
+    });
+    if (error) {
+      await clearPendingPasswordRecovery();
+      return { error: toGermanAuthError(error.message) };
+    }
     return { error: null };
   },
 

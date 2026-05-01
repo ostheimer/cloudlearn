@@ -27,7 +27,7 @@ import {
   Sparkles,
   ChevronRight,
   Link2,
-  X,
+  ArrowLeft,
   Zap,
 } from "lucide-react-native";
 import { useSessionStore } from "../../src/store/sessionStore";
@@ -50,6 +50,7 @@ import { useReviewSession } from "../../src/features/review/reviewSession";
 import { useUsageStore } from "../../src/store/usageStore";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
 import { LpInsufficientModal } from "../../src/components/LpInsufficientModal";
+import { AuthPromptCard } from "../../src/components/AuthPromptCard";
 
 type InputMode = "choose" | "camera" | "text" | "url";
 
@@ -108,6 +109,20 @@ export default function ScanScreen() {
   const cameraRef = useRef<CameraView>(null);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const colors = useColors();
+
+  if (!userId) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <View style={{ flex: 1, justifyContent: "center", padding: spacing.xl }}>
+          <AuthPromptCard
+            title="Mit Konto scannen"
+            body="Kamera, Galerie, URLs und PDFs erzeugen nach dem Login echte Flashcards, die wir in deinem Konto speichern."
+            onPress={() => router.push("/auth")}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const isHttpUrl = (value: string): boolean => {
     try {
@@ -521,7 +536,7 @@ export default function ScanScreen() {
                 gap: spacing.sm,
               }}
             >
-              <X size={18} color="#fff" />
+              <ArrowLeft size={18} color="#fff" />
               <Text
                 style={{
                   color: "#fff",
@@ -570,7 +585,7 @@ export default function ScanScreen() {
                 gap: spacing.xs,
               }}
             >
-              <X size={16} color={colors.primary} />
+              <ArrowLeft size={16} color={colors.primary} />
               <Text
                 style={{
                   color: colors.primary,
@@ -697,7 +712,7 @@ export default function ScanScreen() {
                 gap: spacing.xs,
               }}
             >
-              <X size={16} color={colors.primary} />
+              <ArrowLeft size={16} color={colors.primary} />
               <Text
                 style={{
                   color: colors.primary,

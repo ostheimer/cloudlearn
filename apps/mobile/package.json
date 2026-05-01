@@ -6,9 +6,13 @@
   "scripts": {
     "dev": "expo start",
     "build": "expo export",
+    "icon:generate": "node ./scripts/generate-app-icon.mjs",
     "lint": "tsc -p tsconfig.json --noEmit",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
+    "submit:check": "node ./scripts/check-submit-config.mjs",
+    "submit:ios": "eas submit --platform ios --profile production --latest",
+    "submit:android": "eas submit --platform android --profile production --latest",
     "android": "expo run:android",
     "ios": "expo run:ios"
   },
@@ -24,10 +28,15 @@
     "expo-clipboard": "^55.0.8",
     "expo-document-picker": "~14.0.8",
     "expo-image-picker": "~17.0.10",
+    "expo-linking": "~8.0.11",
+    "expo-local-authentication": "~17.0.8",
     "expo-notifications": "^0.32.16",
     "expo-router": "^6.0.14",
     "expo-speech": "^14.0.8",
+    "expo-splash-screen": "~31.0.13",
     "expo-status-bar": "~3.0.9",
+    "expo-tracking-transparency": "~6.0.8",
+    "expo-web-browser": "^15.0.10",
     "i18next": "^25.6.3",
     "lucide-react-native": "^0.563.0",
     "react": "^19.1.0",
@@ -50,6 +59,8 @@
     "@types/node": "^24.10.0",
     "@types/react": "^19.1.17",
     "@types/react-native": "^0.73.0",
+    "babel-preset-expo": "54.0.10",
+    "sharp": "^0.34.5",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
   }
