@@ -23,6 +23,19 @@ function collectConsoleIssues(page: Page) {
   return messages;
 }
 
+async function openAuthFromGuestHome(page: Page) {
+  const authTitle = page.getByText("Willkommen zurück");
+  if (await authTitle.isVisible({ timeout: 1000 }).catch(() => false)) {
+    return;
+  }
+
+  await expect(page.getByText("Ohne Konto starten")).toBeVisible();
+  await expect(page.getByText("Foto — Flashcards — Wissen")).toBeVisible();
+
+  await page.getByText("Anmelden oder registrieren").first().click();
+  await expect(authTitle).toBeVisible();
+}
+
 test.describe("cloudlearn auth preview", () => {
   test("desktop auth screen renders without bootstrap errors", async ({ page }) => {
     const issues = collectConsoleIssues(page);
@@ -30,7 +43,7 @@ test.describe("cloudlearn auth preview", () => {
 
     expect(response?.status()).toBe(200);
     await page.waitForLoadState("networkidle");
-    await expect(page.getByText("Willkommen zurück")).toBeVisible();
+    await openAuthFromGuestHome(page);
     await expect(page.getByText("Foto — Flashcards — Wissen")).toBeVisible();
     await expect(page.getByRole("button", { name: "Anmelden" })).toBeVisible();
 
@@ -49,7 +62,7 @@ test.describe("cloudlearn auth preview", () => {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
 
-    await expect(page.getByText("Willkommen zurück")).toBeVisible();
+    await openAuthFromGuestHome(page);
     const submitRequest = page.waitForRequest(
       (request) =>
         request.method() === "POST" &&
