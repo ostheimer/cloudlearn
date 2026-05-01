@@ -25,12 +25,13 @@ function collectConsoleIssues(page: Page) {
 
 async function openAuthFromGuestHome(page: Page) {
   const authTitle = page.getByText("Willkommen zurück");
+  const tagline = page.getByText("Foto — Flashcards — Wissen").first();
   if (await authTitle.isVisible({ timeout: 1000 }).catch(() => false)) {
     return;
   }
 
   await expect(page.getByText("Ohne Konto starten")).toBeVisible();
-  await expect(page.getByText("Foto — Flashcards — Wissen")).toBeVisible();
+  await expect(tagline).toBeVisible();
 
   await page.getByText("Anmelden oder registrieren").first().click();
   await expect(authTitle).toBeVisible();
@@ -44,7 +45,7 @@ test.describe("cloudlearn auth preview", () => {
     expect(response?.status()).toBe(200);
     await page.waitForLoadState("networkidle");
     await openAuthFromGuestHome(page);
-    await expect(page.getByText("Foto — Flashcards — Wissen")).toBeVisible();
+    await expect(page.getByText("Willkommen zurück")).toBeVisible();
     await expect(page.getByRole("button", { name: "Anmelden" })).toBeVisible();
 
     for (const fragment of forbiddenConsoleFragments) {
