@@ -60,3 +60,27 @@ Die wichtigste Regel ist: Die Store-Antworten werden nicht nur aus unserem App-C
 3. App Store Connect Privacy Questionnaire mit den SDK-Daten abgleichen.
 4. Review Notes und Store-Beschreibung auf die ATT-/Ads-Logik abstimmen.
 5. Non-personalized Rewarded-Ads-Fallback auf einem Gerät testen.
+
+## Repo-Audit 2026-05-02
+
+Geprüfte Dateien:
+
+- [apps/mobile/app.json](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/app.json)
+- [apps/mobile/app.config.js](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/app.config.js)
+- [apps/mobile/ios/clearnPreview/PrivacyInfo.xcprivacy](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/ios/clearnPreview/PrivacyInfo.xcprivacy)
+- [apps/mobile/src/features/ads/trackingConsent.ts](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/src/features/ads/trackingConsent.ts)
+- [apps/mobile/src/features/ads/useRewardedAd.native.ts](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/src/features/ads/useRewardedAd.native.ts)
+
+Ergebnis:
+
+- `NSUserTrackingUsageDescription` ist in `app.json` und im Google-Mobile-Ads-Plugin konfiguriert.
+- Die App fragt ATT nicht beim ersten Start ab. Der native Dialog wird erst nach dem In-App-Pre-Prompt ausgelöst, wenn personalisierte Werbung gewählt wird.
+- Rewarded Ads werden mit `requestNonPersonalizedAdsOnly: true` geladen, solange kein personalisierter Opt-in aktiv ist.
+- Die App-eigene `PrivacyInfo.xcprivacy` deklariert keine eigenen gesammelten Daten und setzt `NSPrivacyTracking` auf `false`.
+- Wegen Google Mobile Ads / UMP müssen die SDK-Daten trotzdem im App Store Connect Privacy Questionnaire angegeben werden.
+
+Offen:
+
+- Produktions-AdMob-IDs müssen in EAS/Build-Umgebung gesetzt werden; sonst fällt `app.config.js` auf Google-Test-IDs zurück.
+- Ein echtes iOS-Archive muss gebaut und der Privacy Report gegen diese Angaben geprüft werden.
+- ATT-Ablehnung, ATT-Opt-in und nicht-personalisierter Rewarded-Ad-Fallback müssen auf einem physischen Gerät getestet werden.

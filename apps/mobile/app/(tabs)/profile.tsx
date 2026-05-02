@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { Alert, Linking, ScrollView, Switch, Text, TouchableOpacity, View } from "react-native";
+import { Alert, Linking, Platform, ScrollView, Switch, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   Mail,
@@ -43,6 +43,9 @@ import { useBiometricLockStore } from "../../src/features/security/biometricLock
 
 const REMINDER_KEY = "clearn_reminder_enabled";
 const REMINDER_HOUR_KEY = "clearn_reminder_hour";
+const IOS_SUBSCRIPTION_MANAGEMENT_URL = "https://apps.apple.com/account/subscriptions";
+const ANDROID_SUBSCRIPTION_MANAGEMENT_URL =
+  "https://play.google.com/store/account/subscriptions?package=app.clearn";
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -100,6 +103,28 @@ export default function ProfileScreen() {
       Alert.alert(
         t("profile.linkOpenErrorTitle"),
         t("profile.linkOpenErrorBody", { label })
+      );
+    }
+  };
+
+  const openSubscriptionManagement = async () => {
+    const url = Platform.select({
+      ios: IOS_SUBSCRIPTION_MANAGEMENT_URL,
+      android: ANDROID_SUBSCRIPTION_MANAGEMENT_URL,
+      default: null,
+    });
+
+    if (!url) {
+      router.push("/paywall");
+      return;
+    }
+
+    try {
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert(
+        t("profile.subscriptionManageErrorTitle"),
+        t("profile.subscriptionManageErrorBody")
       );
     }
   };
@@ -236,6 +261,7 @@ export default function ProfileScreen() {
         ? "Pro"
         : tier;
   const isFreeTier = tier === "free";
+  const isProTier = tier === "pro";
   const isDark = resolvedThemeMode === "dark";
   const isSystemMode = themeMode === "system";
 
@@ -323,6 +349,23 @@ export default function ProfileScreen() {
                 >
                   <Text style={{ color: c.primary, fontSize: typography.sm, fontWeight: typography.semibold }}>
                     {t("paywall.openCta")}
+                  </Text>
+                </TouchableOpacity>
+              ) : isProTier ? (
+                <TouchableOpacity
+                  onPress={openSubscriptionManagement}
+                  activeOpacity={0.8}
+                  style={{
+                    marginTop: spacing.sm,
+                    alignSelf: "flex-start",
+                    backgroundColor: c.primaryLight,
+                    borderRadius: radius.sm,
+                    paddingHorizontal: spacing.md,
+                    paddingVertical: 6,
+                  }}
+                >
+                  <Text style={{ color: c.primary, fontSize: typography.sm, fontWeight: typography.semibold }}>
+                    {t("profile.manageSubscription")}
                   </Text>
                 </TouchableOpacity>
               ) : null}

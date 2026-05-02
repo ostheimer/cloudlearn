@@ -16,6 +16,7 @@
 - Datenschutz- und Support-URL aktuell.
 - TestFlight-/Beta-Beschreibung erklärt Kernflow in 2-3 Sätzen.
 - Paywall-Text und Store-Beschreibung verwenden dieselben Produktbegriffe.
+- Store-Metadata-Entwurf: [docs/aso/store-metadata-draft.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/aso/store-metadata-draft.md)
 
 ## Privacy / Ads
 

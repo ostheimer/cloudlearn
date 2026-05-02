@@ -44,4 +44,24 @@ describe("supabase migrations", () => {
     expect(sql).toContain("delete from profiles");
     expect(sql).toContain("grant execute on function delete_account_data(uuid, text) to service_role");
   });
+
+  it("keeps profile deletion backed by cascading user-data references", () => {
+    const migrationDir = join(apiRoot, "supabase/migrations");
+    const migrationFiles = [
+      "20260209230000_init.sql",
+      "20260212120000_add_courses_folders_sharing.sql",
+      "20260312150000_add_lp_system.sql",
+      "20260312200000_add_social_features.sql",
+    ];
+    const sql = migrationFiles
+      .map((file) => readFileSync(join(migrationDir, file), "utf-8"))
+      .join("\n")
+      .toLowerCase();
+
+    const cascadingProfileReferences =
+      sql.match(/references profiles\(id\) on delete cascade/g) ?? [];
+
+    expect(cascadingProfileReferences.length).toBeGreaterThanOrEqual(10);
+    expect(sql).toContain("friend_id  uuid        not null references profiles(id) on delete cascade");
+  });
 });
