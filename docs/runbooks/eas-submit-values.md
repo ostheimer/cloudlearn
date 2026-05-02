@@ -27,9 +27,6 @@ Repo-seitig ist der Submit-Pfad in [apps/mobile/eas.json](/Users/andreasostheime
 - `ascAppId`
   - Quelle: App Store Connect → App auswählen → App Store → App Information → `Apple ID`
   - Ziel: `submit.production.ios.ascAppId` in [apps/mobile/eas.json](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/eas.json)
-- `appleTeamId`
-  - Quelle: Apple Developer / App Store Connect Team
-  - Status: im Repo aus der Xcode-Signing-Konfiguration übernommen
 
 ### Android
 
@@ -46,7 +43,7 @@ Im Mobile-Verzeichnis:
 pnpm submit:check
 ```
 
-Der Check schlägt absichtlich fehl, solange `ascAppId`, `appleTeamId` oder die Play-Service-Datei fehlen.
+Der Check schlägt absichtlich fehl, solange `ascAppId` oder die Play-Service-Datei fehlen.
 
 ## Submission-Befehle
 

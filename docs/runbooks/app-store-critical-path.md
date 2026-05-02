@@ -16,7 +16,12 @@ Sie ersetzt nicht die Fachdokumente, sondern verdichtet sie zu einer abarbeitbar
 - App Store Privacy / Ads: [docs/runbooks/app-store-privacy-ads.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-privacy-ads.md)
 - Release-Gates: [docs/runbooks/release-gates.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/release-gates.md)
 - ASO / Store Assets: [docs/aso/checklist.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/aso/checklist.md)
+- Store-Metadata-Entwurf: [docs/aso/store-metadata-draft.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/aso/store-metadata-draft.md)
 - Restore / Incident: [docs/runbooks/restore-test.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/restore-test.md)
+- Konto-Löschung E2E: [docs/runbooks/account-deletion-e2e.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/account-deletion-e2e.md)
+- App-Review-Notes: [docs/runbooks/app-store-review-notes.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-review-notes.md)
+- TestFlight-Smoke: [docs/runbooks/testflight-smoke-checklist.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/testflight-smoke-checklist.md)
+- Dashboard-Handoff: [docs/runbooks/dashboard-release-handoff.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/dashboard-release-handoff.md)
 
 ## Beschlossene Produktentscheidungen
 
@@ -88,6 +93,8 @@ Sie ersetzt nicht die Fachdokumente, sondern verdichtet sie zu einer abarbeitbar
   - Offen bleibt:
     - Migration auf der Ziel-Datenbank ausrollen
     - manueller End-to-End-Test gegen eine echte Supabase-Umgebung
+  - Abnahme-Runbook:
+    - [docs/runbooks/account-deletion-e2e.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/account-deletion-e2e.md)
 
 - [ ] RevenueCat / Store-Produkte produktiv fertigstellen und verifizieren.
   - Produkte in App Store Connect wirklich anlegen
@@ -125,6 +132,9 @@ Sie ersetzt nicht die Fachdokumente, sondern verdichtet sie zu einer abarbeitbar
     - das Privacy Report/Privacy Nutrition Label eines echten iOS-Archives gegen die oben eingebundenen SDK-Manifests prüfen
     - Privacy Manifest und App Store Connect Privacy Questionnaire gegen den finalen Tracking-Umfang prüfen
     - reale Geräte-Tests für ATT-Opt-in, ATT-Ablehnung und non-personalized Fallback durchführen
+    - produktive AdMob IDs in der EAS-/Build-Umgebung setzen
+  - Repo-Audit:
+    - [docs/runbooks/app-store-privacy-ads.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-privacy-ads.md)
 
 - [ ] TestFlight-/Reviewer-Readiness herstellen.
   - Benötigt:
@@ -132,6 +142,9 @@ Sie ersetzt nicht die Fachdokumente, sondern verdichtet sie zu einer abarbeitbar
     - TestFlight-Smoke-Test
     - Reviewer-Account / Demo-Zugang
     - Review Notes für Login, IAP und Kernflow
+  - Repo-seitig vorbereitet:
+    - [docs/runbooks/app-store-review-notes.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-review-notes.md)
+    - [docs/runbooks/testflight-smoke-checklist.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/testflight-smoke-checklist.md)
 
 ## P1 — Sollte vor Launch noch geschlossen werden
 
