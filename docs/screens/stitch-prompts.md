@@ -118,26 +118,34 @@ Visual style:
 ## 4. App Store Screenshot System
 
 ```text
-Create a cohesive App Store screenshot design system for "clearn.ai".
+Create a cohesive App Store screenshot design system for "clearn.ai", a German iPhone-first AI flashcard app.
 
 Goal:
-- Communicate the product in 5-6 mobile screenshots
-- Match a premium German education app
+- Communicate the product in 5 mobile screenshots for App Store / TestFlight
+- Match a premium German education app without looking like a generic SaaS template
+- Make each screenshot understandable in under 2 seconds
 
 Screens to design:
-- Auth / Einstieg
-- Scan mit Kamera oder PDF
-- Generierte Karten
-- Lernen mit Spaced Repetition
-- Bibliothek / Decks
-- Pro / Paywall
+- Home dashboard with headline: "Dein Lernstand auf einen Blick"
+- Scan flow with headline: "Aus Fotos werden Karteikarten"
+- Generated cards / deck detail with headline: "KI strukturiert deinen Stoff"
+- Learning session with headline: "Wiederholen, bis es sitzt"
+- Profile / trust screen with headline: "Konto, Datenschutz und Face ID"
 
 Visual direction:
 - Portrait mobile screenshots
-- Clear headline overlay per screen in German
-- Minimal chrome, strong contrast, premium look
+- Use iPhone 6.7-inch App Store framing
+- Clear German headline overlay per screen
+- Minimal chrome, strong contrast, premium editorial look
 - Consistent brand colors and typography
-- No gaming style, no cartoon style
+- Use the real app direction: deep indigo, white surfaces, calm blue-violet accents, warm progress highlights
+- No gaming style, no cartoon style, no fake charts
+
+Copy constraints:
+- Do not claim perfect OCR
+- Do not claim fully offline learning unless the shown flow is available in the build
+- Do not show medical, legal or financial study content
+- Keep all visible copy in German with real umlauts
 ```
 
 ## 5. In-App Legal / Settings Concept
