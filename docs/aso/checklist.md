@@ -28,7 +28,7 @@
 
 ## Conversion Tracking
 
-- Landing CTA Events (`landing_view`, `cta_click`, `waitlist_signup`).
+- Landing CTA Events (`landing_view`, `cta_click`, `testflight_request`).
 - Trial-Start und Paid-Conversion im Analytics-Tool.
 
 ## Beta-Launch

@@ -20,6 +20,7 @@ Sie ersetzt nicht die Fachdokumente, sondern verdichtet sie zu einer abarbeitbar
 - Restore / Incident: [docs/runbooks/restore-test.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/restore-test.md)
 - Konto-Löschung E2E: [docs/runbooks/account-deletion-e2e.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/account-deletion-e2e.md)
 - App-Review-Notes: [docs/runbooks/app-store-review-notes.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-review-notes.md)
+- Reviewer-Demo-Konto: [docs/runbooks/reviewer-demo-account.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/reviewer-demo-account.md)
 - TestFlight-Smoke: [docs/runbooks/testflight-smoke-checklist.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/testflight-smoke-checklist.md)
 - Dashboard-Handoff: [docs/runbooks/dashboard-release-handoff.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/dashboard-release-handoff.md)
 

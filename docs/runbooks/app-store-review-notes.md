@@ -22,6 +22,7 @@ Sie ist absichtlich knapp und kann direkt in App Store Connect / Play Console ü
 - Demo-Konto für Review:
   - E-Mail: `<REVIEW_EMAIL>`
   - Passwort: `<REVIEW_PASSWORD>`
+  - Vorbereitung: [docs/runbooks/reviewer-demo-account.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/reviewer-demo-account.md)
 
 ### Kernflow für Reviewer
 

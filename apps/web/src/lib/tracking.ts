@@ -1,5 +1,5 @@
 export interface ConversionEvent {
-  event: "landing_view" | "cta_click" | "waitlist_signup";
+  event: "landing_view" | "cta_click" | "testflight_request";
   source: string;
 }
 

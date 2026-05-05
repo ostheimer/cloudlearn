@@ -4,7 +4,7 @@ import { SiteFrame } from "../src/components/site-frame";
 import { siteConfig } from "../src/lib/site";
 
 export default function LandingPage() {
-  const ctaPayload = buildConversionPayload({ event: "cta_click", source: "hero" });
+  const ctaPayload = buildConversionPayload({ event: "testflight_request", source: "hero" });
 
   return (
     <SiteFrame>
@@ -32,12 +32,12 @@ export default function LandingPage() {
             fontSize: 13,
           }}
         >
-          Beta · iPhone, Android und Mobile Web
+          TestFlight · iPhone zuerst
         </div>
         <div style={{ display: "grid", gap: 14 }}>
           <h1 style={{ margin: 0, fontSize: 52, lineHeight: 1.02 }}>Lernmaterial rein. Flashcards raus.</h1>
           <p style={{ margin: 0, maxWidth: 720, fontSize: 19, lineHeight: 1.7, color: "#dbe4ff" }}>
-            clearn verwandelt Fotos, PDFs, Texte und URLs in saubere Lernkarten. Danach lernst du mit Review-Sessions, Offline-Queue und synchronisiertem Fortschritt weiter.
+            clearn verwandelt Fotos, PDFs, Texte und URLs in klare Lernkarten. Danach wiederholst du fällige Karten, behältst deinen Fortschritt im Blick und synchronisierst deine Decks mit deinem Konto.
           </p>
         </div>
 
@@ -55,7 +55,7 @@ export default function LandingPage() {
               fontWeight: 800,
             }}
           >
-            Beta anfragen
+            TestFlight-Zugang anfragen
           </a>
           <Link
             href={siteConfig.privacyPath}
@@ -94,7 +94,7 @@ export default function LandingPage() {
           },
           {
             title: "3. Verankern",
-            body: "Review-Sessions, Lernpunkte, Offline-Queue und Sync halten den Lernfluss stabil.",
+            body: "Review-Sessions, Tagesziele, Lernpunkte und Sync halten deinen Fortschritt sichtbar.",
           },
         ].map((item) => (
           <div
@@ -126,9 +126,9 @@ export default function LandingPage() {
           gap: 12,
         }}
       >
-        <h2 style={{ margin: 0, fontSize: 24, color: "#111827" }}>Release-Basis steht</h2>
+        <h2 style={{ margin: 0, fontSize: 24, color: "#111827" }}>Bereit für TestFlight</h2>
         <p style={{ margin: 0, color: "#475569", lineHeight: 1.7 }}>
-          Öffentliche Support-, Datenschutz- und Impressumsseiten sind erreichbar. Das macht clearn für App-Store-Prüfung, Beta-Kommunikation und Support sauberer als die bisherige Dummy-CTA.
+          Öffentliche Support-, Datenschutz- und Impressumsseiten sind erreichbar. Damit hat clearn die wichtigsten Kontakt- und Vertrauensflächen für App-Store-Prüfung, TestFlight und Support.
         </p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
           <Link href={siteConfig.supportPath} style={{ color: "#4338ca", textDecoration: "none", fontWeight: 700 }}>
