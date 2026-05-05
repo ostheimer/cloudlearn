@@ -12,6 +12,7 @@ Repo-seitig ist der Submit-Pfad in [apps/mobile/eas.json](/Users/andreasostheime
 
 - iOS:
   - `appleId`: `office@ostheimer.at`
+  - `ascAppId`: `6766691399`
   - `appleTeamId`: `PES54TD37F`
   - `sku`: `app.clearn`
 - Android:
@@ -21,12 +22,6 @@ Repo-seitig ist der Submit-Pfad in [apps/mobile/eas.json](/Users/andreasostheime
   - `serviceAccountKeyPath`: `./google-play-service-account.json`
 
 ## Noch extern zu besorgen
-
-### iOS
-
-- `ascAppId`
-  - Quelle: App Store Connect → App auswählen → App Store → App Information → `Apple ID`
-  - Ziel: `submit.production.ios.ascAppId` in [apps/mobile/eas.json](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/eas.json)
 
 ### Android
 
@@ -43,7 +38,7 @@ Im Mobile-Verzeichnis:
 pnpm submit:check
 ```
 
-Der Check schlägt absichtlich fehl, solange `ascAppId` oder die Play-Service-Datei fehlen.
+Der Check schlägt absichtlich fehl, solange die Play-Service-Datei fehlt.
 
 ## Submission-Befehle
 

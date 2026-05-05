@@ -105,7 +105,7 @@ Sie ersetzt nicht die Fachdokumente, sondern verdichtet sie zu einer abarbeitbar
   - echte Kauf-/Restore-Tests iOS + Android durchführen
 
 - [ ] EAS Submit-Konfiguration vervollständigen.
-  - In [apps/mobile/eas.json](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/eas.json) fehlt für iOS noch `ascAppId`.
+  - iOS ist repo-seitig mit `appleId`, `ascAppId`, `appleTeamId` und `sku` vorbereitet.
   - Android benötigt den produktiven Service-Account-Key für den Play-Track.
 
 - [ ] App-Privacy-/Ads-/Tracking-Angaben konsistent machen.
