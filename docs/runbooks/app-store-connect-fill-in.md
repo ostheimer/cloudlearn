@@ -126,6 +126,10 @@ ungefilterten UGC-Flows enthalten sind.
 7. Paywall: Pro-/Lifetime-Angebot mit Restore
 8. Onboarding oder Login: `Erst einmal ohne Login starten` und Login-Optionen
 
+Für den ersten Upload ist die fokussierte 5er-Serie in
+[docs/screens/app-store/README.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/screens/app-store/README.md)
+priorisiert. Weitere Screenshots können danach ergänzt werden.
+
 ### Captions
 
 ```text

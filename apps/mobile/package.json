@@ -7,6 +7,7 @@
     "dev": "expo start",
     "build": "expo export",
     "icon:generate": "node ./scripts/generate-app-icon.mjs",
+    "screenshots:store": "node ./scripts/prepare-app-store-screenshots.mjs",
     "lint": "tsc -p tsconfig.json --noEmit",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
