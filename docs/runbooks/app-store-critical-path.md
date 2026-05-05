@@ -17,6 +17,7 @@ Sie ersetzt nicht die Fachdokumente, sondern verdichtet sie zu einer abarbeitbar
 - Release-Gates: [docs/runbooks/release-gates.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/release-gates.md)
 - ASO / Store Assets: [docs/aso/checklist.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/aso/checklist.md)
 - Store-Metadata-Entwurf: [docs/aso/store-metadata-draft.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/aso/store-metadata-draft.md)
+- App-Store-Connect-Ausfüllpaket: [docs/runbooks/app-store-connect-fill-in.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-connect-fill-in.md)
 - Restore / Incident: [docs/runbooks/restore-test.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/restore-test.md)
 - Konto-Löschung E2E: [docs/runbooks/account-deletion-e2e.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/account-deletion-e2e.md)
 - App-Review-Notes: [docs/runbooks/app-store-review-notes.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-review-notes.md)
@@ -167,6 +168,8 @@ Sie ersetzt nicht die Fachdokumente, sondern verdichtet sie zu einer abarbeitbar
   - Beta-/Store-Beschreibung
   - App Preview Video
   - Keyword-Set
+  - Ausfüllpaket für App Store Connect:
+    - [docs/runbooks/app-store-connect-fill-in.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-connect-fill-in.md)
 
 - [ ] Onboarding, Auth und Paywall auf reale Release-Copy prüfen.
   - Deutsch/Englisch konsistent

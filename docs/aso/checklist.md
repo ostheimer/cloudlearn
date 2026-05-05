@@ -17,6 +17,7 @@
 - TestFlight-/Beta-Beschreibung erklärt Kernflow in 2-3 Sätzen.
 - Paywall-Text und Store-Beschreibung verwenden dieselben Produktbegriffe.
 - Store-Metadata-Entwurf: [docs/aso/store-metadata-draft.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/aso/store-metadata-draft.md)
+- App-Store-Connect-Ausfüllpaket: [docs/runbooks/app-store-connect-fill-in.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-connect-fill-in.md)
 
 ## Privacy / Ads
 
