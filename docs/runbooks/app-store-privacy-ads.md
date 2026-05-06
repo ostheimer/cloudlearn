@@ -52,6 +52,7 @@ Die wichtigste Regel ist: Die Store-Antworten werden nicht nur aus unserem App-C
 - Auf den Support- und Datenschutzseiten verweisen:
   - [docs/aso/checklist.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/aso/checklist.md)
   - [docs/runbooks/app-store-critical-path.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-critical-path.md)
+  - [docs/runbooks/app-store-privacy-questionnaire.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-privacy-questionnaire.md)
 
 ## Vor Submission prüfen
 
@@ -60,6 +61,10 @@ Die wichtigste Regel ist: Die Store-Antworten werden nicht nur aus unserem App-C
 3. App Store Connect Privacy Questionnaire mit den SDK-Daten abgleichen.
 4. Review Notes und Store-Beschreibung auf die ATT-/Ads-Logik abstimmen.
 5. Non-personalized Rewarded-Ads-Fallback auf einem Gerät testen.
+
+Ausfüllbarer Entwurf:
+
+- [docs/runbooks/app-store-privacy-questionnaire.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-privacy-questionnaire.md)
 
 ## Repo-Audit 2026-05-02
 

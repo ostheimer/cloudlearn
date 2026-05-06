@@ -26,6 +26,7 @@
 - App Store Connect Privacy Questionnaire wird gegen die tatsächlich eingebundenen SDKs beantwortet, nicht nur gegen den eigenen App-Code.
 - Google Mobile Ads und UMP-Privacy-Manifests sind vor der Einreichung gegen den Privacy Report eines echten iOS-Archives geprüft.
 - Privacy-Details, Tracking-Angaben und Review Notes verweisen auf das Runbook [docs/runbooks/app-store-privacy-ads.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-privacy-ads.md).
+- App-Store-Connect-Fragebogen-Entwurf: [docs/runbooks/app-store-privacy-questionnaire.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-privacy-questionnaire.md)
 
 ## Conversion Tracking
 

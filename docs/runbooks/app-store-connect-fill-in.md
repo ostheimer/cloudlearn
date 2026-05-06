@@ -146,6 +146,9 @@ Vor dem Privacy Questionnaire ein echtes iOS-Archive bauen und den Privacy Repor
 gegen [docs/runbooks/app-store-privacy-ads.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-privacy-ads.md)
 prüfen.
 
+Der ausfüllbare Entwurf liegt in
+[docs/runbooks/app-store-privacy-questionnaire.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-privacy-questionnaire.md).
+
 Wichtig für die Antworten:
 
 - Nicht `kein Tracking` angeben, solange personalisierte Werbung nach ATT-Opt-in
