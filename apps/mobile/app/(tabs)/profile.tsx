@@ -523,13 +523,13 @@ export default function ProfileScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: typography.base, fontWeight: typography.semibold, color: c.text }}>
-                  {biometricLabel} verwenden
+                  Mit {biometricLabel} entsperren
                 </Text>
                 <Text style={{ fontSize: typography.xs, color: c.textTertiary, marginTop: 2 }}>
                   {isGuest
                     ? "Nach dem Login kannst du clearn lokal schützen."
                     : biometricCanUse
-                      ? "Sperrt clearn beim Öffnen und nach App-Wechseln."
+                      ? "Sperrt clearn beim Öffnen und nach App-Wechseln. Deine Session bleibt sicher auf dem Gerät."
                       : biometricHasHardware
                         ? `${biometricLabel} ist noch nicht in iOS eingerichtet.`
                         : `${biometricLabel} ist auf diesem Gerät nicht verfügbar.`}

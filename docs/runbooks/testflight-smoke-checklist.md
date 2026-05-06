@@ -73,6 +73,14 @@ Sie soll vor jeder externen Beta-Freigabe einmal vollständig auf einem physisch
 - [ ] Erfolgreiche Face ID entsperrt die App.
 - [ ] Abbrechen bleibt gesperrt oder führt in einen sicheren Zustand.
 - [ ] Face ID deaktivieren funktioniert.
+- [ ] App vollständig beenden und erneut öffnen.
+- [ ] Bestehende Session bleibt erhalten, wird aber erst nach Face ID sichtbar.
+- [ ] Abmelden entfernt die gespeicherte Session; danach erscheint kein Face-ID-Login ohne Konto.
+
+## 7b. Passkeys
+
+- [ ] In v1 ist kein echter Passkey-Login sichtbar, solange kein nativer WebAuthn-/Provider-Pfad produktiv verifiziert ist.
+- [ ] Review Notes und Store-Text behaupten nicht, dass Passkeys bereits unterstützt werden.
 
 ## 8. Tracking / Rewarded Ads
 

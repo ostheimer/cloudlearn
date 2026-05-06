@@ -13,6 +13,7 @@ Sie ersetzt nicht die Fachdokumente, sondern verdichtet sie zu einer abarbeitbar
 - EAS / Build / Submit: [docs/runbooks/eas-build.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/eas-build.md)
 - RevenueCat / IAP Setup: [docs/monetization/REVENUECAT_SETUP.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/monetization/REVENUECAT_SETUP.md)
 - OAuth Setup: [docs/runbooks/mobile-oauth-setup.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/mobile-oauth-setup.md)
+- Passkeys und Face ID: [docs/runbooks/passkeys-and-biometric-auth.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/passkeys-and-biometric-auth.md)
 - App Store Privacy / Ads: [docs/runbooks/app-store-privacy-ads.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-privacy-ads.md)
 - App Store Privacy Questionnaire: [docs/runbooks/app-store-privacy-questionnaire.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-privacy-questionnaire.md)
 - Release-Gates: [docs/runbooks/release-gates.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/release-gates.md)
@@ -196,6 +197,12 @@ Sie ersetzt nicht die Fachdokumente, sondern verdichtet sie zu einer abarbeitbar
     - Redirect-URLs in Supabase und den Provider-Dashboards hinterlegen
     - reale Happy-Path-/Cancel-/Fehler-Tests auf iOS, Android und Mobile-Web
   - Detaildoku: [docs/runbooks/mobile-oauth-setup.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/mobile-oauth-setup.md)
+
+- [ ] Passkey-Login entscheiden und ggf. implementieren.
+  - Face ID / Touch ID ist als lokale Entsperrung umgesetzt und nutzt keine
+    lokal gespeicherten Passwörter.
+  - Echte Passkeys bleiben ein separater WebAuthn-/Provider-Pfad.
+  - Detaildoku: [docs/runbooks/passkeys-and-biometric-auth.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/passkeys-and-biometric-auth.md)
 
 ## P2 — Kurz nach Launch oder nur falls Scope in v1 enthalten
 
