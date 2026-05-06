@@ -14,6 +14,7 @@ Sie ersetzt nicht die Fachdokumente, sondern verdichtet sie zu einer abarbeitbar
 - RevenueCat / IAP Setup: [docs/monetization/REVENUECAT_SETUP.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/monetization/REVENUECAT_SETUP.md)
 - OAuth Setup: [docs/runbooks/mobile-oauth-setup.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/mobile-oauth-setup.md)
 - App Store Privacy / Ads: [docs/runbooks/app-store-privacy-ads.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-privacy-ads.md)
+- App Store Privacy Questionnaire: [docs/runbooks/app-store-privacy-questionnaire.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-privacy-questionnaire.md)
 - Release-Gates: [docs/runbooks/release-gates.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/release-gates.md)
 - ASO / Store Assets: [docs/aso/checklist.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/aso/checklist.md)
 - Store-Metadata-Entwurf: [docs/aso/store-metadata-draft.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/aso/store-metadata-draft.md)
@@ -137,6 +138,8 @@ Sie ersetzt nicht die Fachdokumente, sondern verdichtet sie zu einer abarbeitbar
     - produktive AdMob IDs in der EAS-/Build-Umgebung setzen
   - Repo-Audit:
     - [docs/runbooks/app-store-privacy-ads.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-privacy-ads.md)
+  - Ausfüllbarer Privacy-Questionnaire-Entwurf:
+    - [docs/runbooks/app-store-privacy-questionnaire.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-privacy-questionnaire.md)
 
 - [ ] TestFlight-/Reviewer-Readiness herstellen.
   - Benötigt:
