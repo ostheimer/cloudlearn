@@ -682,6 +682,21 @@ export default function AuthScreen() {
                   </Text>
                 </TouchableOpacity>
               ) : null}
+
+              {mode === "login" ? (
+                <Text
+                  style={{
+                    color: brandTextTertiary,
+                    fontSize: typography.xs,
+                    lineHeight: 18,
+                    marginTop: spacing.md,
+                    textAlign: "center",
+                  }}
+                >
+                  Nach dem Login kannst du clearn auf diesem Gerät mit Face ID
+                  oder Touch ID entsperren.
+                </Text>
+              ) : null}
             </FormContainer>
           </View>
         </ScrollView>
