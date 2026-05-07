@@ -41,7 +41,7 @@ export const resources = {
 
       // LP Insufficient Modal
       "lp.insufficientTitle": "Nicht genug LP",
-      "lp.insufficientDetail": "Dieser Feature kostet {{cost}} LP. Du hast {{balance}} LP.",
+      "lp.insufficientDetail": "Dieses Feature kostet {{cost}} LP. Du hast {{balance}} LP.",
       "lp.insufficientHint": "Du hast {{balance}} LP. KI-Scan kostet {{cost}} LP. Lade LP auf!",
       "lp.earnMore": "Jetzt aufladen",
       "lp.watchAd": "Werbung ansehen",
@@ -73,7 +73,7 @@ export const resources = {
       "lp.purchaseTitle": "{{lp}} LP kaufen?",
       "lp.purchaseBody": "{{lp}} LP für {{price}}. Sofort verfügbar.",
       "lp.purchaseConfirm": "Kaufen",
-      "lp.purchaseComingSoon": "In-App-Kauf folgt in Kürze.",
+      "lp.purchaseComingSoon": "Kauf derzeit nicht verfügbar.",
 
       // Scan screen
       "scan.title": "Lernmaterial erfassen",
@@ -462,7 +462,7 @@ export const resources = {
       "lp.purchaseTitle": "Buy {{lp}} LP?",
       "lp.purchaseBody": "{{lp}} LP for {{price}}. Available instantly.",
       "lp.purchaseConfirm": "Buy",
-      "lp.purchaseComingSoon": "In-app purchase coming soon.",
+      "lp.purchaseComingSoon": "Purchase currently unavailable.",
 
       // Scan screen
       "scan.title": "Capture study material",
