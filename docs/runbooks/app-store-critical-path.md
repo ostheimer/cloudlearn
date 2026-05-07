@@ -162,9 +162,15 @@ Sie ersetzt nicht die Fachdokumente, sondern verdichtet sie zu einer abarbeitbar
     - konsistente Produktcopy
 
 - [ ] Profil-/Settings-Fläche vervollständigen.
-  - Im Profil fehlen aktuell sichtbare Einstiege für:
-    - ggf. Abo verwalten
+  - Repo-seitig vorhanden:
+    - Face ID / Touch ID lokal entsperren
+    - Tracking-Einstellungen
+    - Hilfe / Datenschutz / Impressum
+    - Store-Abo-Verwaltung für aktive Pro-Abos
   - Relevante Datei: [apps/mobile/app/(tabs)/profile.tsx](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/app/(tabs)/profile.tsx)
+  - Offen bleibt:
+    - im TestFlight-Smoke verifizieren, dass die Store-Abo-Verwaltung auf iOS
+      und Android wirklich öffnet
 
 - [ ] App-Store-Assets finalisieren.
   - Screenshots

@@ -24,6 +24,7 @@ import { i18n } from "../../src/i18n";
 import { useSessionStore } from "../../src/store/sessionStore";
 import { deleteAccount, getSubscriptionStatus } from "../../src/lib/api";
 import { IMPRESSUM_URL, PRIVACY_URL, SUPPORT_URL } from "../../src/lib/publicLinks";
+import { getSubscriptionManagementUrls } from "../../src/lib/subscriptionManagement";
 import {
   useColors,
   useResolvedThemeMode,
@@ -43,9 +44,6 @@ import { useBiometricLockStore } from "../../src/features/security/biometricLock
 
 const REMINDER_KEY = "clearn_reminder_enabled";
 const REMINDER_HOUR_KEY = "clearn_reminder_hour";
-const IOS_SUBSCRIPTION_MANAGEMENT_URL = "https://apps.apple.com/account/subscriptions";
-const ANDROID_SUBSCRIPTION_MANAGEMENT_URL =
-  "https://play.google.com/store/account/subscriptions?package=app.clearn";
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -108,25 +106,26 @@ export default function ProfileScreen() {
   };
 
   const openSubscriptionManagement = async () => {
-    const url = Platform.select({
-      ios: IOS_SUBSCRIPTION_MANAGEMENT_URL,
-      android: ANDROID_SUBSCRIPTION_MANAGEMENT_URL,
-      default: null,
-    });
+    const urls = getSubscriptionManagementUrls(Platform.OS);
 
-    if (!url) {
+    if (urls.length === 0) {
       router.push("/paywall");
       return;
     }
 
-    try {
-      await Linking.openURL(url);
-    } catch {
-      Alert.alert(
-        t("profile.subscriptionManageErrorTitle"),
-        t("profile.subscriptionManageErrorBody")
-      );
+    for (const url of urls) {
+      try {
+        await Linking.openURL(url);
+        return;
+      } catch {
+        // Try the next store URL before showing a hard error.
+      }
     }
+
+    Alert.alert(
+      t("profile.subscriptionManageErrorTitle"),
+      t("profile.subscriptionManageErrorBody")
+    );
   };
 
   const performAccountDeletion = () => {
