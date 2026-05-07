@@ -155,11 +155,13 @@ Sie ersetzt nicht die Fachdokumente, sondern verdichtet sie zu einer abarbeitbar
 ## P1 — Sollte vor Launch noch geschlossen werden
 
 - [ ] Website-Landing auf Launch-Niveau bringen.
-  - Die tote `/waitlist`-CTA ist repo-seitig bereits entfernt.
+  - Repo-seitig vorhanden:
+    - tote `/waitlist`-CTA entfernt
+    - direkter TestFlight-Mail-CTA auf der Landing
+    - Support-, Datenschutz- und Impressumsseiten öffentlich verlinkt
   - Vor Launch mindestens:
-    - funktionierende CTA
-    - Privacy / Support / Kontakt
     - konsistente Produktcopy
+    - finale öffentliche Domain in App Store Connect / Dashboards hinterlegen
 
 - [ ] Profil-/Settings-Fläche vervollständigen.
   - Repo-seitig vorhanden:
