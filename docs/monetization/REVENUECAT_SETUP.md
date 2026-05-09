@@ -23,6 +23,19 @@ Kanonische Produkt- und App-Identitäten:
 **Abonnement-Gruppe:** `clearn Pro`  
 **Freitest:** 7 Tage (empfohlen für Pro Monthly)
 
+### Optionale LP-Pack-Produkte
+
+LP-Packs sind Consumables. Die App zeigt Preise und Kaufbuttons nur, wenn RevenueCat diese Produkte in der aktuellen Offering-Konfiguration liefert. Solange die Produkte nicht vollständig in App Store Connect, Google Play und RevenueCat angelegt sind, bleiben LP-Packs in der App sichtbar, aber nicht kaufbar.
+
+| Produkt-ID / Package Identifier | Typ        | Preis  | Beschreibung      |
+|---------------------------------|------------|--------|-------------------|
+| `lp_pack_100`                   | Consumable | 0,99 € | 100 Lernpunkte    |
+| `lp_pack_300`                   | Consumable | 2,49 € | 300 Lernpunkte    |
+| `lp_pack_750`                   | Consumable | 4,99 € | 750 Lernpunkte    |
+| `lp_pack_2000`                  | Consumable | 9,99 € | 2.000 Lernpunkte  |
+
+Wichtig: Für die erste Review-Version sind LP-Pack-Käufe nur dann aktiv, wenn Produkt-ID und RevenueCat Package Identifier exakt identisch sind. Andernfalls verwendet die App keine lokalen Fallback-Preise und blockt den Kauf sauber.
+
 ---
 
 ## 2. Google Play Console (Android)
@@ -34,6 +47,15 @@ Kanonische Produkt- und App-Identitäten:
 | `ai.clearn.pro.monthly`          | Subscription| 4,99 € |
 | `ai.clearn.pro.annual`           | Subscription| 39,99 €|
 | `ai.clearn.lifetime`             | One-time    | 89,99 €|
+
+Optionale LP-Pack-Produkte:
+
+| Produkt-ID                       | Typ        | Preis  |
+|----------------------------------|------------|--------|
+| `lp_pack_100`                    | Consumable | 0,99 € |
+| `lp_pack_300`                    | Consumable | 2,49 € |
+| `lp_pack_750`                    | Consumable | 4,99 € |
+| `lp_pack_2000`                   | Consumable | 9,99 € |
 
 ---
 
@@ -65,6 +87,15 @@ Wichtig:
 | `$rc_annual`       | Annual   | `ai.clearn.pro.annual`    |
 | `$rc_monthly`      | Monthly  | `ai.clearn.pro.monthly`   |
 | `$rc_lifetime`     | Lifetime | `ai.clearn.lifetime`      |
+
+Optionale LP-Pack-Packages im selben oder einem separaten Offering:
+
+| Package Identifier | Typ    | Produkt        |
+|--------------------|--------|----------------|
+| `lp_pack_100`      | Custom | `lp_pack_100`  |
+| `lp_pack_300`      | Custom | `lp_pack_300`  |
+| `lp_pack_750`      | Custom | `lp_pack_750`  |
+| `lp_pack_2000`     | Custom | `lp_pack_2000` |
 
 ### Webhook konfigurieren
 - URL: `https://clearn-api.vercel.app/api/v1/subscription/webhook`
