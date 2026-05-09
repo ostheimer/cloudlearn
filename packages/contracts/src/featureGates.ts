@@ -92,10 +92,10 @@ export const LP_EARN_RULES = {
 
 // LP packs available as consumable in-app purchases
 export const LP_PACKS = [
-  { id: "lp_100",  lp: 100,  priceEur: 0.99  },
-  { id: "lp_300",  lp: 300,  priceEur: 1.99  },
-  { id: "lp_750",  lp: 750,  priceEur: 3.99  },
-  { id: "lp_2000", lp: 2000, priceEur: 7.99  },
+  { id: "lp_pack_100",  lp: 100,  priceEur: 0.99  },
+  { id: "lp_pack_300",  lp: 300,  priceEur: 2.49  },
+  { id: "lp_pack_750",  lp: 750,  priceEur: 4.99  },
+  { id: "lp_pack_2000", lp: 2000, priceEur: 9.99  },
 ] as const;
 
 export function getLimitsForTier(tier: SubscriptionTier): TierLimits {

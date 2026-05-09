@@ -15,16 +15,18 @@ import { useColors, spacing, radius, typography, shadows } from "../src/theme";
 import { useUsageStore } from "../src/store/usageStore";
 import { useRewardedAd } from "../src/features/ads/useRewardedAd";
 import { getLpBalance, grantLpPackPurchase } from "../src/lib/api";
-import { purchaseRevenueCatPackage } from "../src/features/paywall/revenuecat";
+import {
+  getRevenueCatAvailability,
+  getRevenueCatOfferings,
+  purchaseRevenueCatPackage,
+  type RevenueCatOffer,
+} from "../src/features/paywall/revenuecat";
+import {
+  LP_PACKS,
+  mapLpPackOffersById,
+  type LpPackDefinition,
+} from "../src/features/paywall/lpPackOffers";
 import { useSessionStore } from "../src/store/sessionStore";
-
-// LP packs — product IDs must match LP_PACKS in apps/api/src/lib/featureGates.ts
-const LP_PACKS = [
-  { id: "lp_pack_100",  lp: 100,  priceEur: "0,99 €", popular: false },
-  { id: "lp_pack_300",  lp: 300,  priceEur: "2,49 €", popular: true  },
-  { id: "lp_pack_750",  lp: 750,  priceEur: "4,99 €", popular: false },
-  { id: "lp_pack_2000", lp: 2000, priceEur: "9,99 €", popular: false },
-];
 
 export default function LpStoreScreen() {
   const { t } = useTranslation();
@@ -46,9 +48,13 @@ export default function LpStoreScreen() {
   const [loading, setLoading] = useState(!isLoaded);
   const [adMessage, setAdMessage] = useState("");
   const [purchasingPackId, setPurchasingPackId] = useState<string | null>(null);
+  const [lpPackOffersById, setLpPackOffersById] = useState<
+    Record<string, RevenueCatOffer>
+  >({});
 
   const loadBalance = useCallback(async () => {
     if (!userId) {
+      setLpPackOffersById({});
       setLoading(false);
       return;
     }
@@ -68,6 +74,17 @@ export default function LpStoreScreen() {
         periodStart: res.periodStart,
       });
     } catch { /* best-effort */ } finally {
+      try {
+        const availability = await getRevenueCatAvailability();
+        if (!availability.available) {
+          setLpPackOffersById({});
+        } else {
+          const offerings = await getRevenueCatOfferings(userId);
+          setLpPackOffersById(mapLpPackOffersById(offerings));
+        }
+      } catch {
+        setLpPackOffersById({});
+      }
       setLoading(false);
     }
   }, [setUsage, userId]);
@@ -91,11 +108,20 @@ export default function LpStoreScreen() {
     setTimeout(() => setAdMessage(""), 3000);
   };
 
-  const handleBuyPack = async (pack: typeof LP_PACKS[number]) => {
+  const handleBuyPack = async (pack: LpPackDefinition) => {
     if (!userId || purchasingPackId) return;
+    const storeOffer = lpPackOffersById[pack.id];
+    if (!storeOffer) {
+      Alert.alert(
+        t("lp.purchaseUnavailableTitle"),
+        t("lp.purchaseUnavailableBody")
+      );
+      return;
+    }
+
     setPurchasingPackId(pack.id);
     try {
-      const result = await purchaseRevenueCatPackage(userId, pack.id);
+      const result = await purchaseRevenueCatPackage(userId, storeOffer.identifier);
       if (result.cancelled) {
         // User cancelled — silent
         return;
@@ -303,77 +329,85 @@ export default function LpStoreScreen() {
                 </Text>
               </View>
 
-              {LP_PACKS.map((pack) => (
-                <TouchableOpacity
-                  key={pack.id}
-                  onPress={() => { void handleBuyPack(pack); }}
-                  disabled={anyPurchasing}
-                  activeOpacity={0.8}
-                  style={{
-                    backgroundColor: pack.popular ? colors.primary : colors.surface,
-                    borderRadius: radius.lg,
-                    padding: spacing.lg,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: spacing.md,
-                    borderWidth: pack.popular ? 0 : 1,
-                    borderColor: colors.border,
-                    opacity: anyPurchasing && purchasingPackId !== pack.id ? 0.5 : 1,
-                    ...shadows.sm,
-                  }}
-                >
-                  <View
+              {LP_PACKS.map((pack) => {
+                const storeOffer = lpPackOffersById[pack.id];
+                const isPurchasable = Boolean(storeOffer);
+                const isHighlighted = pack.popular && isPurchasable;
+
+                return (
+                  <TouchableOpacity
+                    key={pack.id}
+                    onPress={() => { void handleBuyPack(pack); }}
+                    disabled={anyPurchasing}
+                    activeOpacity={isPurchasable ? 0.8 : 1}
                     style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: radius.md,
-                      backgroundColor: pack.popular ? "rgba(255,255,255,0.2)" : colors.warningLight,
-                      justifyContent: "center",
+                      backgroundColor: isHighlighted ? colors.primary : colors.surface,
+                      borderRadius: radius.lg,
+                      padding: spacing.lg,
+                      flexDirection: "row",
                       alignItems: "center",
+                      gap: spacing.md,
+                      borderWidth: isHighlighted ? 0 : 1,
+                      borderColor: colors.border,
+                      opacity: !isPurchasable ? 0.68 : anyPurchasing && purchasingPackId !== pack.id ? 0.5 : 1,
+                      ...shadows.sm,
                     }}
                   >
-                    <Zap size={22} color={pack.popular ? colors.textInverse : colors.warning} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+                    <View
+                      style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: radius.md,
+                        backgroundColor: isHighlighted ? "rgba(255,255,255,0.2)" : colors.warningLight,
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Zap size={22} color={isHighlighted ? colors.textInverse : colors.warning} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+                        <Text style={{
+                          fontSize: typography.lg,
+                          fontWeight: typography.bold,
+                          color: isHighlighted ? colors.textInverse : colors.text,
+                        }}>
+                          {pack.lp.toLocaleString("de-DE")} LP
+                        </Text>
+                        {pack.popular && isPurchasable && (
+                          <View style={{ backgroundColor: colors.warning, borderRadius: radius.sm, paddingHorizontal: 6, paddingVertical: 2 }}>
+                            <Text style={{ fontSize: typography.xs, color: colors.textInverse, fontWeight: typography.bold }}>
+                              {t("lp.bestValue")}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={{
+                        fontSize: typography.sm,
+                        color: isHighlighted ? "rgba(255,255,255,0.75)" : colors.textSecondary,
+                        marginTop: 2,
+                      }}>
+                        {isPurchasable
+                          ? pack.popular
+                            ? t("lp.packPopularHint", { scans: Math.floor(pack.lp / 10) })
+                            : t("lp.packHint", { scans: Math.floor(pack.lp / 10) })
+                          : t("lp.packUnavailableHint")}
+                      </Text>
+                    </View>
+                    {purchasingPackId === pack.id ? (
+                      <ActivityIndicator color={isHighlighted ? colors.textInverse : colors.primary} />
+                    ) : (
                       <Text style={{
                         fontSize: typography.lg,
                         fontWeight: typography.bold,
-                        color: pack.popular ? colors.textInverse : colors.text,
+                        color: isHighlighted ? colors.textInverse : colors.primary,
                       }}>
-                        {pack.lp.toLocaleString("de-DE")} LP
+                        {storeOffer?.priceString ?? t("lp.purchaseUnavailableShort")}
                       </Text>
-                      {pack.popular && (
-                        <View style={{ backgroundColor: colors.warning, borderRadius: radius.sm, paddingHorizontal: 6, paddingVertical: 2 }}>
-                          <Text style={{ fontSize: typography.xs, color: colors.textInverse, fontWeight: typography.bold }}>
-                            {t("lp.bestValue")}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                    <Text style={{
-                      fontSize: typography.sm,
-                      color: pack.popular ? "rgba(255,255,255,0.75)" : colors.textSecondary,
-                      marginTop: 2,
-                    }}>
-                      {pack.popular
-                        ? t("lp.packPopularHint", { scans: Math.floor(pack.lp / 10) })
-                        : t("lp.packHint", { scans: Math.floor(pack.lp / 10) })}
-                    </Text>
-                  </View>
-                  {purchasingPackId === pack.id ? (
-                    <ActivityIndicator color={pack.popular ? colors.textInverse : colors.primary} />
-                  ) : (
-                    <Text style={{
-                      fontSize: typography.lg,
-                      fontWeight: typography.bold,
-                      color: pack.popular ? colors.textInverse : colors.primary,
-                    }}>
-                      {pack.priceEur}
-                    </Text>
-                  )}
-                </TouchableOpacity>
-              ))}
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
 
             {/* Pro upgrade teaser */}
