@@ -1,11 +1,9 @@
 import Link from "next/link";
-import { buildConversionPayload } from "../src/lib/tracking";
 import { SiteFrame } from "../src/components/site-frame";
 import { siteConfig } from "../src/lib/site";
+import { landingCtas } from "../src/lib/landing";
 
 export default function LandingPage() {
-  const ctaPayload = buildConversionPayload({ event: "testflight_request", source: "hero" });
-
   return (
     <SiteFrame>
       <section
@@ -43,8 +41,8 @@ export default function LandingPage() {
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
           <a
-            href={`${siteConfig.supportPath}#beta`}
-            data-event={JSON.stringify(ctaPayload)}
+            href={landingCtas.primary.href}
+            data-event={JSON.stringify(landingCtas.primary.event)}
             style={{
               display: "inline-flex",
               textDecoration: "none",
@@ -55,10 +53,10 @@ export default function LandingPage() {
               fontWeight: 800,
             }}
           >
-            TestFlight-Zugang anfragen
+            {landingCtas.primary.label}
           </a>
           <Link
-            href={siteConfig.privacyPath}
+            href={landingCtas.secondary.href}
             style={{
               display: "inline-flex",
               textDecoration: "none",
@@ -68,6 +66,19 @@ export default function LandingPage() {
               padding: "14px 18px",
               fontWeight: 700,
               border: "1px solid rgba(255,255,255,0.16)",
+            }}
+          >
+            {landingCtas.secondary.label}
+          </Link>
+          <Link
+            href={siteConfig.privacyPath}
+            style={{
+              display: "inline-flex",
+              textDecoration: "none",
+              color: "#dbe4ff",
+              borderRadius: 14,
+              padding: "14px 4px",
+              fontWeight: 700,
             }}
           >
             Datenschutz ansehen
