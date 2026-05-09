@@ -18,6 +18,7 @@ import {
   restoreRevenueCatPurchases,
   type RevenueCatOffer,
 } from "../src/features/paywall/revenuecat";
+import { filterSubscriptionOffers } from "../src/features/paywall/subscriptionOffers";
 import { type SubscriptionTier } from "../src/features/paywall/subscriptionMapping";
 import { getSubscriptionStatus, getAiUsage } from "../src/lib/api";
 import { useSessionStore } from "../src/store/sessionStore";
@@ -104,7 +105,9 @@ export default function PaywallScreen() {
           return;
         }
 
-        const revenueCatOffers = await getRevenueCatOfferings(userId);
+        const revenueCatOffers = filterSubscriptionOffers(
+          await getRevenueCatOfferings(userId)
+        );
         if (isMounted) {
           setOffers(revenueCatOffers);
           setAvailabilityReason(null);

@@ -137,11 +137,11 @@ FREE_CARD_LIMIT=100
 
 | Feature              | Free         | Pro/Lifetime  |
 |----------------------|--------------|---------------|
-| KI-Scans             | 5/Monat      | Unbegrenzt    |
-| URL-Import           | 2/Monat      | Unbegrenzt    |
-| Max. Decks           | 10           | Unbegrenzt    |
-| Max. Karten          | 100          | Unbegrenzt    |
-| PDF-Import           | ❌           | ✅            |
+| KI-Scans             | 5/Monat      | 300 LP/Monat inklusive, 5 LP/Scan |
+| URL-Import           | 2/Monat      | 300 LP/Monat inklusive, 8 LP/Import |
+| Max. Decks           | 10           | 500          |
+| Max. Karten          | 100          | 2.000 pro Deck |
+| PDF-Import           | 20 LP/Import | 12 LP/Import |
 | Image Occlusion      | ❌           | ✅            |
 | Offline-Download     | ❌           | ✅            |
 
