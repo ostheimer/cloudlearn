@@ -56,4 +56,10 @@ describe("i18n resources", () => {
 
     expect(paywallCopy).not.toMatch(/\b(unlimited|unbegrenzt|unbegrenzte)\b/i);
   });
+
+  it("does not contain unconfigured public release domains", () => {
+    const allCopy = flattenValues(resources).join("\n");
+
+    expect(allCopy).not.toContain("https://clearn.app");
+  });
 });

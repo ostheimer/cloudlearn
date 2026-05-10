@@ -23,6 +23,7 @@ import {
 import { i18n } from "../../src/i18n";
 import { useSessionStore } from "../../src/store/sessionStore";
 import { deleteAccount, getSubscriptionStatus } from "../../src/lib/api";
+import { APP_PROFILE_LABEL } from "../../src/lib/appInfo";
 import { IMPRESSUM_URL, PRIVACY_URL, SUPPORT_URL } from "../../src/lib/publicLinks";
 import { getSubscriptionManagementUrls } from "../../src/lib/subscriptionManagement";
 import {
@@ -778,7 +779,7 @@ export default function ProfileScreen() {
         ) : null}
 
         <Text style={{ fontSize: typography.xs, color: c.textTertiary, textAlign: "center" }}>
-          clearn.ai v0.3.0
+          {APP_PROFILE_LABEL}
         </Text>
       </ScrollView>
     </SafeAreaView>
