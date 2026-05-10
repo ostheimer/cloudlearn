@@ -41,4 +41,19 @@ describe("i18n resources", () => {
       /\b(Geraet|geraet|oeffnen|Oeffnen|koennen|Koennen|muessen|Muessen|fuer|Fuer|ueber|Ueber|zurueck|Zurueck)\b/
     );
   });
+
+  it("does not promise unlimited Pro usage in paywall copy", () => {
+    const paywallCopy = [
+      resources.de.translation["paywall.unlimited"],
+      resources.de.translation["paywall.feature.scans"],
+      resources.de.translation["paywall.feature.url"],
+      resources.de.translation["paywall.feature.decks"],
+      resources.en.translation["paywall.unlimited"],
+      resources.en.translation["paywall.feature.scans"],
+      resources.en.translation["paywall.feature.url"],
+      resources.en.translation["paywall.feature.decks"],
+    ].join("\n");
+
+    expect(paywallCopy).not.toMatch(/\b(unlimited|unbegrenzt|unbegrenzte)\b/i);
+  });
 });

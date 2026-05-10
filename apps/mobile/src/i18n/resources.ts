@@ -312,14 +312,14 @@ export const resources = {
       "paywall.usageTitle": "Dein Verbrauch diesen Monat",
       "paywall.aiScans": "KI-Scans",
       "paywall.urlImports": "URL-Importe",
-      "paywall.unlimited": "Unbegrenzt",
+      "paywall.unlimited": "Inklusive",
       "paywall.featuresTitle": "Was du mit Pro bekommst",
-      "paywall.feature.scans": "Unbegrenzte KI-Scans (Kamera & Text)",
-      "paywall.feature.url": "Unbegrenzte URL-Importe",
+      "paywall.feature.scans": "Bis zu 500 Decks mit 2.000 Karten je Deck",
+      "paywall.feature.url": "Günstigere LP-Kosten für KI-Funktionen",
       "paywall.feature.pdf": "PDF-Import",
       "paywall.feature.occlusion": "Image Occlusion",
       "paywall.feature.offline": "Offline-Download",
-      "paywall.feature.decks": "Unbegrenzte Decks & Karten",
+      "paywall.feature.decks": "300 LP pro Monat inklusive",
       "paywall.bestValue": "Bestes Preis-Leistungs-Verhältnis",
 
       // Onboarding (D8)
