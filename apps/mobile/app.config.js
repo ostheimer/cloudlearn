@@ -2,19 +2,45 @@
 // via environment variables for different build environments.
 // EAS Build injects EXPO_PUBLIC_* variables from eas.json "env" or Vercel/EAS secrets.
 
-const IS_DEV = process.env.APP_VARIANT === "development";
-const IS_PREVIEW = process.env.APP_VARIANT === "preview";
+const APP_VARIANT =
+  process.env.APP_VARIANT ?? process.env.EXPO_PUBLIC_APP_VARIANT ?? "development";
+const IS_DEV = APP_VARIANT === "development";
+const IS_PREVIEW = APP_VARIANT === "preview";
+const IS_PRODUCTION = APP_VARIANT === "production";
+
+const GOOGLE_ADMOB_TEST_APP_IDS = {
+  ios: "ca-app-pub-3940256099942544~1458002511",
+  android: "ca-app-pub-3940256099942544~3347511713",
+};
+
+function getRequiredProductionEnv(name) {
+  const value = process.env[name]?.trim();
+  if (value) return value;
+
+  if (IS_PRODUCTION) {
+    throw new Error(
+      `${name} is required for production builds. Set it as an EAS secret before submitting clearn.`
+    );
+  }
+
+  return null;
+}
 
 // AdMob: use real IDs in production, Google test IDs in dev/preview
 const ADMOB_IOS_APP_ID =
-  IS_DEV || IS_PREVIEW
-    ? "ca-app-pub-3940256099942544~1458002511" // Google test app ID (iOS)
-    : process.env.EXPO_PUBLIC_ADMOB_APP_IOS_ID ?? "ca-app-pub-3940256099942544~1458002511";
+  IS_PRODUCTION
+    ? getRequiredProductionEnv("EXPO_PUBLIC_ADMOB_APP_IOS_ID")
+    : GOOGLE_ADMOB_TEST_APP_IDS.ios; // Google test app ID (iOS)
 
 const ADMOB_ANDROID_APP_ID =
-  IS_DEV || IS_PREVIEW
-    ? "ca-app-pub-3940256099942544~3347511713" // Google test app ID (Android)
-    : process.env.EXPO_PUBLIC_ADMOB_APP_ANDROID_ID ?? "ca-app-pub-3940256099942544~3347511713";
+  IS_PRODUCTION
+    ? getRequiredProductionEnv("EXPO_PUBLIC_ADMOB_APP_ANDROID_ID")
+    : GOOGLE_ADMOB_TEST_APP_IDS.android; // Google test app ID (Android)
+
+if (IS_PRODUCTION) {
+  getRequiredProductionEnv("EXPO_PUBLIC_ADMOB_REWARDED_IOS_ID");
+  getRequiredProductionEnv("EXPO_PUBLIC_ADMOB_REWARDED_ANDROID_ID");
+}
 
 const FACE_ID_PERMISSION =
   "clearn verwendet Face ID, um deine eingeloggte App lokal zu entsperren.";

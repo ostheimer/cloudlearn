@@ -18,6 +18,22 @@ function printCheck(ok, label, detail) {
   console.log(`${prefix}: ${label}${suffix}`);
 }
 
+function printInvalid(label, detail) {
+  const suffix = detail ? ` — ${detail}` : "";
+  console.log(`INVALID: ${label}${suffix}`);
+}
+
+const GOOGLE_ADMOB_TEST_IDS = new Set([
+  "ca-app-pub-3940256099942544~1458002511",
+  "ca-app-pub-3940256099942544~3347511713",
+  "ca-app-pub-3940256099942544/1712485313",
+  "ca-app-pub-3940256099942544/5224354917",
+]);
+
+function readEnv(name) {
+  return process.env[name]?.trim() ?? "";
+}
+
 const easJson = readJson(easJsonPath);
 const submitProfile = easJson.submit?.production ?? {};
 const ios = submitProfile.ios ?? {};
@@ -72,6 +88,31 @@ if (!android.track) missing.push("submit.production.android.track");
 
 printCheck(Boolean(android.releaseStatus), "Android releaseStatus", android.releaseStatus ?? "");
 if (!android.releaseStatus) missing.push("submit.production.android.releaseStatus");
+
+console.log("");
+console.log("Production build environment");
+console.log("");
+
+for (const name of [
+  "EXPO_PUBLIC_ADMOB_APP_IOS_ID",
+  "EXPO_PUBLIC_ADMOB_APP_ANDROID_ID",
+  "EXPO_PUBLIC_ADMOB_REWARDED_IOS_ID",
+  "EXPO_PUBLIC_ADMOB_REWARDED_ANDROID_ID",
+]) {
+  const value = readEnv(name);
+  const present = Boolean(value);
+  const isTestId = GOOGLE_ADMOB_TEST_IDS.has(value);
+
+  if (!present) {
+    printCheck(false, name, "Set as EAS secret");
+    missing.push(`EAS secret: ${name}`);
+  } else if (isTestId) {
+    printInvalid(name, "Google test ID is not allowed in production");
+    missing.push(`production must not use Google test ID: ${name}`);
+  } else {
+    printCheck(true, name, "set");
+  }
+}
 
 console.log("");
 if (missing.length === 0) {
