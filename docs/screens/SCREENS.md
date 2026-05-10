@@ -461,7 +461,7 @@ Aktionen: Offline speichern, Bearbeiten, Zu Kurs hinzufügen, Zu Ordner, Duplizi
 - `LogOut` 18px error + „Abmelden" (lg, bold, error)
 
 ### 8.8 Version
-- „clearn.ai v0.3.0" (xs, textTertiary, zentriert)
+- „clearn.ai v1.0" (xs, textTertiary, zentriert)
 
 ---
 

@@ -25,6 +25,7 @@ import { useColors, spacing, radius, typography, shadows } from "../src/theme";
 import { useUsageStore } from "../src/store/usageStore";
 import { useSessionStore } from "../src/store/sessionStore";
 import { getReferralInfo, claimReferralCode } from "../src/lib/api";
+import { PUBLIC_WEB_URL } from "../src/lib/publicLinks";
 
 export default function ReferralScreen() {
   const { t } = useTranslation();
@@ -72,7 +73,10 @@ export default function ReferralScreen() {
   const handleShare = async () => {
     if (!referralCode) return;
     await Share.share({
-      message: t("referral.shareMessage", { code: referralCode }),
+      message: t("referral.shareMessage", {
+        code: referralCode,
+        url: PUBLIC_WEB_URL,
+      }),
     });
   };
 
