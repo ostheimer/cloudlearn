@@ -30,14 +30,54 @@ const GOOGLE_ADMOB_TEST_IDS = new Set([
   "ca-app-pub-3940256099942544/5224354917",
 ]);
 
+const REVENUECAT_API_KEYS = [
+  {
+    name: "EXPO_PUBLIC_REVENUECAT_IOS_API_KEY",
+    pattern: /^appl_[A-Za-z0-9_]+$/,
+    detail: "expected RevenueCat iOS public key, e.g. appl_...",
+  },
+  {
+    name: "EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY",
+    pattern: /^goog_[A-Za-z0-9_]+$/,
+    detail: "expected RevenueCat Android public key, e.g. goog_...",
+  },
+];
+
+const REVENUECAT_ENTITLEMENTS = [
+  {
+    name: "EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_PRO",
+    expected: "pro",
+  },
+  {
+    name: "EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_LIFETIME",
+    expected: "lifetime",
+  },
+];
+
+let productionBuildEnv = {};
+
 function readEnv(name) {
-  return process.env[name]?.trim() ?? "";
+  return (
+    process.env[name]?.trim() ??
+    (typeof productionBuildEnv[name] === "string"
+      ? productionBuildEnv[name].trim()
+      : "")
+  );
+}
+
+function looksLikePlaceholder(value) {
+  return (
+    value.includes("xxxxxxxx") ||
+    value.includes("XXXXXXXX") ||
+    value.startsWith("your-")
+  );
 }
 
 const easJson = readJson(easJsonPath);
 const submitProfile = easJson.submit?.production ?? {};
 const ios = submitProfile.ios ?? {};
 const android = submitProfile.android ?? {};
+productionBuildEnv = easJson.build?.production?.env ?? {};
 
 const missing = [];
 
@@ -111,6 +151,32 @@ for (const name of [
     missing.push(`production must not use Google test ID: ${name}`);
   } else {
     printCheck(true, name, "set");
+  }
+}
+
+for (const { name, pattern, detail } of REVENUECAT_API_KEYS) {
+  const value = readEnv(name);
+  if (!value) {
+    printCheck(false, name, "Set as EAS secret");
+    missing.push(`EAS secret: ${name}`);
+  } else if (!pattern.test(value) || looksLikePlaceholder(value)) {
+    printInvalid(name, detail);
+    missing.push(`invalid RevenueCat API key: ${name}`);
+  } else {
+    printCheck(true, name, "set");
+  }
+}
+
+for (const { name, expected } of REVENUECAT_ENTITLEMENTS) {
+  const value = readEnv(name);
+  if (!value) {
+    printCheck(false, name, `Set to ${expected}`);
+    missing.push(`EAS env: ${name}`);
+  } else if (value !== expected) {
+    printInvalid(name, `expected ${expected}`);
+    missing.push(`invalid RevenueCat entitlement: ${name}`);
+  } else {
+    printCheck(true, name, value);
   }
 }
 

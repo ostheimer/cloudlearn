@@ -11,6 +11,8 @@ const ENV_KEYS = [
   "EXPO_PUBLIC_ADMOB_APP_ANDROID_ID",
   "EXPO_PUBLIC_ADMOB_REWARDED_IOS_ID",
   "EXPO_PUBLIC_ADMOB_REWARDED_ANDROID_ID",
+  "EXPO_PUBLIC_REVENUECAT_IOS_API_KEY",
+  "EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY",
 ] as const;
 
 const originalEnv = new Map(
@@ -73,6 +75,23 @@ describe("app.config", () => {
     );
   });
 
+  it("requires production RevenueCat API keys before production builds", () => {
+    resetEnv({
+      APP_VARIANT: "production",
+      EXPO_PUBLIC_ADMOB_APP_IOS_ID: "ca-app-pub-1234567890123456~1111111111",
+      EXPO_PUBLIC_ADMOB_APP_ANDROID_ID:
+        "ca-app-pub-1234567890123456~2222222222",
+      EXPO_PUBLIC_ADMOB_REWARDED_IOS_ID:
+        "ca-app-pub-1234567890123456/3333333333",
+      EXPO_PUBLIC_ADMOB_REWARDED_ANDROID_ID:
+        "ca-app-pub-1234567890123456/4444444444",
+    });
+
+    expect(() => loadAppConfig()).toThrow(
+      "EXPO_PUBLIC_REVENUECAT_IOS_API_KEY is required for production builds"
+    );
+  });
+
   it("uses configured production AdMob app IDs for production builds", () => {
     resetEnv({
       APP_VARIANT: "production",
@@ -83,6 +102,8 @@ describe("app.config", () => {
         "ca-app-pub-1234567890123456/3333333333",
       EXPO_PUBLIC_ADMOB_REWARDED_ANDROID_ID:
         "ca-app-pub-1234567890123456/4444444444",
+      EXPO_PUBLIC_REVENUECAT_IOS_API_KEY: "appl_12345678901234567890",
+      EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY: "goog_12345678901234567890",
     });
 
     const createConfig = loadAppConfig();
