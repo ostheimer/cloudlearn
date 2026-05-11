@@ -86,6 +86,6 @@ Ergebnis:
 
 Offen:
 
-- Produktions-AdMob-IDs müssen in EAS/Build-Umgebung gesetzt werden; sonst fällt `app.config.js` auf Google-Test-IDs zurück.
+- Produktions-AdMob-IDs müssen in EAS/Build-Umgebung gesetzt werden; Production-Builds brechen ohne produktive App-IDs und Rewarded-Ad-Unit-IDs ab und `pnpm submit:check` meldet fehlende oder versehentliche Google-Test-IDs.
 - Ein echtes iOS-Archive muss gebaut und der Privacy Report gegen diese Angaben geprüft werden.
 - ATT-Ablehnung, ATT-Opt-in und nicht-personalisierter Rewarded-Ad-Fallback müssen auf einem physischen Gerät getestet werden.

@@ -11,16 +11,23 @@ import { shouldPromptForAdPersonalization } from "./trackingConsentUtils";
 // LP earned per rewarded ad view
 const LP_PER_AD = 5;
 
-// AdMob unit IDs — use test IDs in development, real IDs from env in production.
-// Test IDs are officially provided by Google and safe for all dev environments.
+const APP_VARIANT = process.env.EXPO_PUBLIC_APP_VARIANT ?? "development";
+const USE_TEST_ADS = __DEV__ || APP_VARIANT !== "production";
+const GOOGLE_ADMOB_TEST_REWARDED_IDS = {
+  ios: "ca-app-pub-3940256099942544/1712485313",
+  android: "ca-app-pub-3940256099942544/5224354917",
+};
+
+// AdMob unit IDs — test IDs are safe for dev/preview, but production must be
+// configured explicitly so a release cannot silently ship with Google test ads.
 const ADMOB_REWARDED_ID = Platform.select({
-  ios:
-    process.env.EXPO_PUBLIC_ADMOB_REWARDED_IOS_ID ??
-    "ca-app-pub-3940256099942544/1712485313",
-  android:
-    process.env.EXPO_PUBLIC_ADMOB_REWARDED_ANDROID_ID ??
-    "ca-app-pub-3940256099942544/5224354917",
-  default: "ca-app-pub-3940256099942544/5224354917",
+  ios: USE_TEST_ADS
+    ? GOOGLE_ADMOB_TEST_REWARDED_IDS.ios
+    : (process.env.EXPO_PUBLIC_ADMOB_REWARDED_IOS_ID?.trim() ?? null),
+  android: USE_TEST_ADS
+    ? GOOGLE_ADMOB_TEST_REWARDED_IDS.android
+    : (process.env.EXPO_PUBLIC_ADMOB_REWARDED_ANDROID_ID?.trim() ?? null),
+  default: USE_TEST_ADS ? GOOGLE_ADMOB_TEST_REWARDED_IDS.android : null,
 });
 
 export type AdState =
@@ -50,15 +57,15 @@ async function loadAndShowRewardedAd(options?: {
   personalizedAds?: boolean;
 }): Promise<boolean> {
   try {
-    const { RewardedAd, RewardedAdEventType, TestIds } =
+    const { RewardedAd, RewardedAdEventType } =
       await import("react-native-google-mobile-ads");
 
-    const adUnitId = __DEV__
-      ? TestIds.REWARDED
-      : (ADMOB_REWARDED_ID ?? TestIds.REWARDED);
+    if (!ADMOB_REWARDED_ID) {
+      return false;
+    }
 
     return await new Promise<boolean>((resolve) => {
-      const ad = RewardedAd.createForAdRequest(adUnitId, {
+      const ad = RewardedAd.createForAdRequest(ADMOB_REWARDED_ID, {
         requestNonPersonalizedAdsOnly: !options?.personalizedAds,
       });
 

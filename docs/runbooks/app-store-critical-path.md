@@ -110,6 +110,7 @@ Sie ersetzt nicht die Fachdokumente, sondern verdichtet sie zu einer abarbeitbar
 - [ ] EAS Submit-Konfiguration vervollständigen.
   - iOS ist repo-seitig mit `appleId`, `ascAppId`, `appleTeamId` und `sku` vorbereitet.
   - Android benötigt den produktiven Service-Account-Key für den Play-Track.
+  - `pnpm submit:check` prüft zusätzlich, dass produktive AdMob App-IDs und Rewarded-Ad-Unit-IDs als EAS-Secrets gesetzt sind und nicht auf Google-Test-IDs zeigen.
 
 - [ ] App-Privacy-/Ads-/Tracking-Angaben konsistent machen.
   - ATT-Text, Privacy Manifest, AdMob-Konfiguration und App-Store-Privacy-Angaben müssen zueinander passen.
@@ -137,6 +138,7 @@ Sie ersetzt nicht die Fachdokumente, sondern verdichtet sie zu einer abarbeitbar
     - Privacy Manifest und App Store Connect Privacy Questionnaire gegen den finalen Tracking-Umfang prüfen
     - reale Geräte-Tests für ATT-Opt-in, ATT-Ablehnung und non-personalized Fallback durchführen
     - produktive AdMob IDs in der EAS-/Build-Umgebung setzen
+    - `app.config.js` bricht Production-Builds ohne produktive AdMob App-IDs und Rewarded-Ad-Unit-IDs ab; Preview und Development nutzen weiterhin Google-Test-IDs
   - Repo-Audit:
     - [docs/runbooks/app-store-privacy-ads.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-privacy-ads.md)
   - Ausfüllbarer Privacy-Questionnaire-Entwurf:

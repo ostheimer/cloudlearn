@@ -96,3 +96,4 @@ pnpm --filter @clearn/mobile typecheck
 - Store-Produkte und RevenueCat-Offerings müssen real verifiziert werden.
 - Supabase OAuth Provider müssen produktiv aktiviert und auf Gerät getestet werden.
 - Produktive AdMob IDs müssen vor einem Release-Build gesetzt werden.
+- Production-Builds brechen ohne produktive AdMob App-IDs und Rewarded-Ad-Unit-IDs ab; `pnpm submit:check` meldet zusätzlich fehlende oder versehentliche Google-Test-IDs.
