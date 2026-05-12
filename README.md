@@ -827,37 +827,60 @@ Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testfa
 
 ---
 
-## Implementierungsstatus (2026-02-13)
+## Implementierungsstatus (2026-03-24, aktuelle PRs bis #17)
 
 ### Voll funktionsfähig (End-to-End mit echten Daten)
 
 - **Scan → KI → Flashcards**: Kamera, Galerie oder Text → Gemini 3 Flash → strukturierte Lernkarten
-- **Deck-Management**: Erstellen, Umbenennen, Löschen, Suchen, KI-generierte Titel
+- **URL-Import**: URL einfügen → Seitentext + relevante Bilder extrahieren → KI-Karten
+- **Deck-Management**: Erstellen, Umbenennen, Löschen, Suchen, KI-generierte Titel, Duplizieren, Teilen, Offline-Download
 - **Card-Management**: Anzeigen, Bearbeiten, Löschen, Manuell hinzufügen (Editor-Modal)
 - **Karten zu bestehendem Deck**: Scan-Ergebnis in neues ODER vorhandenes Deck speichern
-- **FSRS-Review**: Again/Hard/Good/Easy mit persistenter Zustandsverwaltung in Supabase
-- **Home-Dashboard**: Fällige Karten, Deck-Anzahl, CTA zum Lernen/Scannen
+- **FSRS-Review**: Again/Hard/Good/Easy mit persistenter Zustandsverwaltung in Supabase; FSRS-Intervalle wachsen korrekt (Minuten → Tage → Wochen → Monate)
+- **Lernmodus UX**: 4-Stufen-Swipe-Rating (Tinder-artig), Flip-Animation, Fortschrittsbalken, Stern/Favorit, Vorlesen (TTS), Auto-Play, Begriff↔Definition-Toggle
+- **Home-Dashboard**: Fällige Karten, Deck-Anzahl, Streak-Banner, Tagesziel-Fortschrittsbalken, Genauigkeits-KPI
+- **Streaks**: Tagesserien-Tracking (aktuell + längste), Streak-Warnung wenn heute nicht gelernt
+- **Statistiken**: Reviews heute/Woche/gesamt, Genauigkeit, Lernverlauf (30 Tage)
+- **Vorlesen (TTS)**: expo-speech auf Karten-Vorder-/Rückseite (de-DE)
+- **Push-Erinnerungen**: lokale tägliche Notification, konfigurierbare Uhrzeit, An/Aus-Toggle
+- **Test-Modus (MC)**: Deck-basierter Quiz mit MC + Wahr/Falsch, Timer, Score, Ergebnis-Übersicht
+- **Match-Spiel**: Begriffe zuordnen (6 Paare), Timer, Fehler-Zähler, Sterne-Bewertung
+- **Auto-Play**: automatischer Karten-Durchlauf (1s/3s/5s/10s), Play/Pause, TTS-Integration
+- **Image Occlusion**: Bild-Upload, Rechteck-Zeichnung, Bereiche benennen, Karten-Erstellung
+- **Kurse**: CRUD + Decks zu Kursen zuordnen/entfernen (DB + API + Mobile UI)
+- **Ordner**: CRUD + Decks zu Ordnern zuordnen/entfernen, verschachtelte Ordnerstruktur (DB + API + Mobile UI)
+- **Bibliothek-Tab**: Segmented Control (Decks/Kurse/Ordner), In-Tab-Navigation mit sichtbarer Tab-Bar
+- **LP-System**: DB-backed LP-Balance, Verdienen (Milestone-Claiming, Rewarded Ads), Ausgeben, LP-Packs, Referral-System, Leaderboard (global + Freunde)
+- **Paywall + RevenueCat**: Angebotsliste, Kauf, Restore, 402-Weiterleitung, Webhook-Sync, Feature-Gating DB-backed, Usage-Indicator, monatlicher Cron-Reset
 - **Auth**: Login, Registrierung, Passwort-Reset (Supabase Auth + JWT)
-- **Profil**: E-Mail-Anzeige, Abo-Status, Sprache, Abmelden
-- **Paywall + RevenueCat**: Angebotsliste, Kauf, Restore, 402-Weiterleitung aus Scan-Flow, Webhook-Sync auf Backend-Tier
-- **Lernmodus UX**: Fullscreen-Kartenmodus ohne Tab-Bar, zentriertes Layout (Header + Kartenfortschritt), Swipe-Counter (rot/grün), Icons außerhalb der Karte (verhindert versehentliches Flippen), größere Schrift, weicher Snap-Back, sichtbarer Fly-out, Zurück-Pfeil als Icon
-- **Bibliothek-Navigation**: Kurs-/Ordner-Details öffnen innerhalb des Tab-Kontexts (Tab-Bar bleibt sichtbar), während Lernscreens weiterhin ohne Tab-Bar laufen
-- **Theme**: Konsistentes Light/Dark im gesamten UI inkl. Tab-Bar, optionaler Systemmodus (folgt Geräteeinstellung)
+- **Profil**: E-Mail-Anzeige, Abo-Status, Sprache, Abmelden, LP-Balance, Leaderboard-Button
+- **Theme**: Konsistentes Light/Dark/System im gesamten UI inkl. Tab-Bar
 - **Daten-Persistenz**: Alles in Supabase PostgreSQL mit JWT-Auth-Middleware
+- **Onboarding-Flow**: 3-Schritte-Onboarding, Starter-Deck, Routing-Fix für Simulator-Funde
+- **Biometrische Session-Entsperrung**: Biometric + Passcode-Fallback für Konto-Sicherheit (PR #10)
+- **Supabase Security Advisor**: RLS auf `lp_transactions` und `rewards_claimed`; `leaderboard_public`-View mit `security_invoker=true`; 0 Errors
+- **EAS Build**: iOS Preview-Build (`expo run:ios --device`) auf physischem iPhone deployed; Android Preview-APK erfolgreich gebaut
+- **App Store Screenshot-Workflow**: automatisierter Workflow für Screenshots (PR #8)
+- **App Store Privacy Questionnaire**: Datenschutz-Fragebogen-Draft dokumentiert (PR #9)
 - **Auto-Deploy**: Git-Push → Vercel baut `clearn-api` + `clearn-web` automatisch
+- **Production-Härtung**: AdMob-Config nur in Production aktiv (PR #17), Paywall-Offers gefiltert (PR #15), LP-Pack-Kauf abgesichert (PR #14), öffentliche Release-Links (PR #16), Subscription-Management im Profil (PR #11), Landing-CTA direkt zu Beta (PR #13), Release-Copy-Guards (PR #12)
 
 ### Scaffold vorhanden, noch nicht funktionsfähig
 
-- Statistiken (API existiert, kein Mobile-Screen)
 - Offline-Sync (Store existiert, wird nicht aufgerufen)
-- PDF-Import, Anki-Export, Mathpix, Community-Decks, B2B (Mock/In-Memory)
+- PDF-Import (Job-Queue vorhanden, kein echtes Parsing)
+- Anki-Export (Mock-Daten)
+- Mathe-Formeln/Mathpix (Mock)
+- Community-Decks (In-Memory, kein Mobile-Screen)
+- B2B-Dashboard (In-Memory, kein Mobile-Screen)
 
 ### Nächste Schritte (siehe `ROADMAP.md` und `BACKLOG.md`)
 
-- **Priorität A**: Flashcard-UX verbessern (Flip-Animation, Swipe, Fortschrittsbalken, Stern/Favorit)
-- **Priorität B**: Engagement (Streaks, Statistiken, TTS, Push-Notifications)
-- **Priorität C**: Erweiterte Lernmodi (Test, Match-Spiel, Auto-Play, Image Occlusion)
-- **Priorität D**: Daten & Ökosystem (Offline, PDF-Import, Anki, OAuth, Paywall, Community)
+- **Priorität D1**: Offline-Lernen (SQLite-Cache + Sync bei Verbindung)
+- **Priorität D2**: PDF-Import (echtes Parsing → KI → Karten)
+- **Priorität D3/D4**: Anki-Import/Export (.apkg)
+- **Priorität D5**: Apple/Google Sign-In (OAuth)
+- App-Store-Produkte `CL-MON-01`/`CL-MON-02` in RevenueCat finalisieren
 
 ---
 
