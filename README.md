@@ -232,7 +232,7 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 - **Deck-Verwaltung:** Decks, Tags, Suche (Basis)
 - **Offline-Basis:** Lernen ohne Internet, Upload/Sync via Retry-Queue
 - **Auth:** E-Mail/Passwort + Apple/Google Sign-In
-- **Paywall-Basis:** Free/Pro via RevenueCat
+- **Paywall-Basis:** Free/Pro/Lifetime via RevenueCat
 
 ### v1.1
 
@@ -586,7 +586,7 @@ CREATE INDEX scans_created_idx
 - **Idempotenz:** `POST /scan/process` und `POST /cards/:id/review` mit `Idempotency-Key`
 - **Pagination:** Cursor-basierte Pagination für Listenendpunkte
 - **Fehlermodell:** einheitliches JSON-Format mit `code`, `message`, `request_id`
-- **Rate Limits:** pro Nutzer und Tarif (free/pro), inklusive Retry-After Header
+- **Rate Limits:** pro Nutzer und Tarif (free/pro/lifetime), inklusive Retry-After Header
 - **Observability:** korrelierbare `request_id` über API, Worker und DB
 
 ### Kern-Endpoint: POST /api/scan/process
@@ -709,7 +709,7 @@ Antworte ausschließlich als JSON-Array:
 - Scan-Verarbeitung mit gültigem und defektem OCR-Text
 - Review-Event wird bei Retry nicht doppelt geschrieben
 - Karten-Sync nach Offline-Phase ohne Datenverlust
-- Tarifgrenzen (free/pro) inkl. Rate-Limit-Verhalten
+- Tarifgrenzen (free/pro/lifetime) inkl. Rate-Limit-Verhalten
 
 ### Testdaten und Qualität
 
@@ -754,19 +754,33 @@ console.log(updated.card.stability);  // Stabilität der Erinnerung
 
 ## Monetarisierung
 
+### LP-System (Lernpunkte)
+
+Free-Nutzer verdienen LP durch Lernen (bis 30 LP/Tag) und Werbung-Ads (bis 20 LP/Tag). Es gibt keinen automatischen monatlichen LP-Grant für Free. Jede KI-Funktion kostet LP:
+
+| Funktion | Free (LP-Kosten) | Pro / Lifetime (LP-Kosten) |
+|----------|-----------------|---------------------------|
+| KI-Scan | 10 LP | 5 LP |
+| URL-Import | 15 LP | 8 LP |
+| PDF-Import | 20 LP | 12 LP |
+
+Pro- und Lifetime-Nutzer erhalten zusätzlich 300 LP/Monat als Abo-Grant.
+
 ### Pricing-Modell
 
-| | Free | Pro (€7,99/Mo) |
-|--|------|----------------|
-| KI-Scans/Monat | 5 KI-Scans/Monat (via LP-System: 10 LP/Monat, 2 LP pro Scan) | Unbegrenzt |
-| KI-Kartengenerierung | ✅ (begrenzt) | ✅ Unbegrenzt |
-| Lernmodi | Flashcards | Alle Modi |
-| Spaced Repetition | ✅ | ✅ |
-| Offline-Modus | ❌ | ✅ |
-| KI-Zusammenfassungen | ❌ | ✅ |
-| Anki-Export | ❌ | ✅ |
-| Formel-Erkennung | ❌ | ✅ |
-| Statistiken | Basis | Erweitert |
+| | Free | Pro (€7,99/Mo) | Lifetime (€179,99 einmalig) |
+|--|------|----------------|------------------------------|
+| KI-Scans | LP-System: 10 LP/Scan; LP verdienen durch Lernen (bis 30/Tag) & Werbung-Ads (bis 20/Tag) | Unbegrenzt | Unbegrenzt |
+| KI-Kartengenerierung | ✅ (begrenzt) | ✅ Unbegrenzt | ✅ Unbegrenzt |
+| Lernmodi | Flashcards | Alle Modi | Alle Modi |
+| Spaced Repetition | ✅ | ✅ | ✅ |
+| Offline-Modus | ❌ | ✅ | ✅ |
+| KI-Zusammenfassungen | ❌ | ✅ | ✅ |
+| Anki-Export | ❌ | ✅ | ✅ |
+| Formel-Erkennung | ❌ | ✅ | ✅ |
+| Statistiken | Basis | Erweitert | Erweitert |
+| LP-Grant/Monat | — | 300 LP | 300 LP |
+| Werbung | ✅ (Rewarded Ads für LP) | ❌ | ❌ |
 
 ### Jahresabo-Option
 - **€59,99/Jahr** (spart 37% gegenüber Monatsabo)
@@ -839,7 +853,7 @@ Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testfa
 - **Home-Dashboard**: Fällige Karten, Deck-Anzahl, CTA zum Lernen/Scannen
 - **Auth**: Login, Registrierung, Passwort-Reset (Supabase Auth + JWT)
 - **Profil**: E-Mail-Anzeige, Abo-Status, Sprache, Abmelden
-- **Paywall + RevenueCat**: Angebotsliste, Kauf, Restore, 402-Weiterleitung aus Scan-Flow, Webhook-Sync auf Backend-Tier
+- **Paywall + RevenueCat**: Angebotsliste (Free/Pro/Lifetime), Kauf, Restore, 402-Weiterleitung aus Scan-Flow, Webhook-Sync auf Backend-Tier
 - **Lernmodus UX**: Fullscreen-Kartenmodus ohne Tab-Bar, zentriertes Layout (Header + Kartenfortschritt), Swipe-Counter (rot/grün), Icons außerhalb der Karte (verhindert versehentliches Flippen), größere Schrift, weicher Snap-Back, sichtbarer Fly-out, Zurück-Pfeil als Icon
 - **Bibliothek-Navigation**: Kurs-/Ordner-Details öffnen innerhalb des Tab-Kontexts (Tab-Bar bleibt sichtbar), während Lernscreens weiterhin ohne Tab-Bar laufen
 - **Theme**: Konsistentes Light/Dark im gesamten UI inkl. Tab-Bar, optionaler Systemmodus (folgt Geräteeinstellung)
@@ -922,6 +936,7 @@ REVENUECAT_WEBHOOK_SECRET=...
 EXPO_PUBLIC_REVENUECAT_IOS_API_KEY=appl_...
 EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY=goog_...
 EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_PRO=pro
+EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_LIFETIME=lifetime
 
 # Monitoring
 SENTRY_DSN=https://...
