@@ -315,10 +315,10 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 | OCR (Android) | **Google ML Kit** | Kostenlos, offline, on-device |
 | Navigation | **Expo Router** | File-based routing wie Next.js |
 | State | **Zustand** | Leichtgewichtig, TypeScript-native |
-| Local DB | **WatermelonDB** oder **SQLite (expo-sqlite)** | Offline-first, schnelle Queries für Karten |
+| Local DB | **(Offline-Sync: noch nicht implementiert — In-Memory via Zustand)** | Offline-first geplant, Scaffold vorhanden |
 | SRS Engine | **ts-fsrs** | TypeScript-Implementierung von FSRS v5 |
 | i18n | **i18next + react-i18next** | Deutsch als Default, Englisch als erste Übersetzung |
-| UI | **Tamagui** oder **NativeWind** | Cross-Platform UI mit Native Performance |
+| UI | **Custom Theme System (apps/mobile/src/theme.ts)** | Eigenes Design-Token-System für Cross-Platform UI |
 | Testing | **Vitest + Playwright + Detox (optional)** | Unit + API/E2E + Mobile-Flows |
 
 ### Backend & Infrastruktur
@@ -756,17 +756,17 @@ console.log(updated.card.stability);  // Stabilität der Erinnerung
 
 ### Pricing-Modell
 
-| | Free | Pro (€7,99/Mo) | Lifetime (€179,99) |
-|--|------|----------------|---------------------|
-| Foto-Scans/Monat | 10 | Unbegrenzt | Unbegrenzt |
-| KI-Kartengenerierung | ✅ (begrenzt) | ✅ Unbegrenzt | ✅ Unbegrenzt |
-| Lernmodi | Flashcards | Alle Modi | Alle Modi |
-| Spaced Repetition | ✅ | ✅ | ✅ |
-| Offline-Modus | ❌ | ✅ | ✅ |
-| KI-Zusammenfassungen | ❌ | ✅ | ✅ |
-| Anki-Export | ❌ | ✅ | ✅ |
-| Formel-Erkennung | ❌ | ✅ | ✅ |
-| Statistiken | Basis | Erweitert | Erweitert |
+| | Free | Pro (€7,99/Mo) |
+|--|------|----------------|
+| KI-Scans/Monat | 5 KI-Scans/Monat (via LP-System: 10 LP/Monat, 2 LP pro Scan) | Unbegrenzt |
+| KI-Kartengenerierung | ✅ (begrenzt) | ✅ Unbegrenzt |
+| Lernmodi | Flashcards | Alle Modi |
+| Spaced Repetition | ✅ | ✅ |
+| Offline-Modus | ❌ | ✅ |
+| KI-Zusammenfassungen | ❌ | ✅ |
+| Anki-Export | ❌ | ✅ |
+| Formel-Erkennung | ❌ | ✅ |
+| Statistiken | Basis | Erweitert |
 
 ### Jahresabo-Option
 - **€59,99/Jahr** (spart 37% gegenüber Monatsabo)
@@ -922,7 +922,6 @@ REVENUECAT_WEBHOOK_SECRET=...
 EXPO_PUBLIC_REVENUECAT_IOS_API_KEY=appl_...
 EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY=goog_...
 EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_PRO=pro
-EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_LIFETIME=lifetime
 
 # Monitoring
 SENTRY_DSN=https://...
