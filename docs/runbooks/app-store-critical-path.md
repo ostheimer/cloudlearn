@@ -156,6 +156,12 @@ Sie ersetzt nicht die Fachdokumente, sondern verdichtet sie zu einer abarbeitbar
   - Repo-seitig vorbereitet:
     - [docs/runbooks/app-store-review-notes.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-review-notes.md)
     - [docs/runbooks/testflight-smoke-checklist.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/testflight-smoke-checklist.md)
+    - lokaler Evidence-Check `pnpm --filter @clearn/mobile testflight:check`
+    - kombinierter Mobile-Release-Check `pnpm release:mobile:check`
+    - ignoriertes Evidence-Template [apps/mobile/testflight-readiness.example.json](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/testflight-readiness.example.json)
+  - Offen bleibt:
+    - `apps/mobile/testflight-readiness.local.json` nach echtem TestFlight-Smoke ausfüllen
+    - `pnpm --filter @clearn/mobile testflight:check` muss vor Submission grün sein
 
 ## P1 — Sollte vor Launch noch geschlossen werden
 

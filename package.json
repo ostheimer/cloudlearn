@@ -10,6 +10,7 @@
     "test": "pnpm -r --if-present test",
     "test:e2e": "pnpm -r --if-present test:e2e",
     "test:cloudlearn-smoke": "playwright test -c playwright.cloudlearn.config.ts",
+    "release:mobile:check": "pnpm --filter @clearn/mobile release:check",
     "perf:smoke": "tsx --tsconfig apps/api/tsconfig.json scripts/perf-smoke.ts",
     "orchestrator:verify": "./scripts/orchestrator.sh verify",
     "ci": "pnpm lint && pnpm typecheck && pnpm test"

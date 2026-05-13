@@ -147,3 +147,4 @@ eas update --channel preview --message "Feature-Test: ..."
 - [ ] App Store Connect Privacy Questionnaire ist anhand der eingebundenen SDK-Privacy-Manifests geprüft
 - [ ] Ein echter iOS-Archive-/Privacy-Report wurde gegen Google Mobile Ads und UMP gegengeprüft
 - [ ] `ascAppId` und `appleTeamId` in `eas.json` `submit` eingetragen
+- [ ] TestFlight-Smoke wurde auf einem physischen iPhone bestanden und lokal mit `pnpm --filter @clearn/mobile testflight:check` verifiziert

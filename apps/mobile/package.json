@@ -12,6 +12,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "submit:check": "node ./scripts/check-submit-config.mjs",
+    "testflight:check": "node ./scripts/check-testflight-readiness.mjs",
+    "release:check": "node ./scripts/check-release-readiness.mjs",
     "submit:ios": "eas submit --platform ios --profile production --latest",
     "submit:android": "eas submit --platform android --profile production --latest",
     "android": "expo run:android",

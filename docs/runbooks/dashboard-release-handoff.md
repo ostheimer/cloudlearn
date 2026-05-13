@@ -82,6 +82,14 @@ Sobald ein externer Wert eingetragen wurde, muss der zugehörige Repo-Check erne
 
 ## Nach jedem Dashboard-Schritt prüfen
 
+Vollständiger Mobile-Release-Check:
+
+```bash
+pnpm release:mobile:check
+```
+
+Einzelchecks bei Bedarf:
+
 ```bash
 cd apps/mobile
 pnpm submit:check
@@ -91,11 +99,13 @@ pnpm submit:check
 pnpm test:cloudlearn-smoke
 pnpm --filter @clearn/api test
 pnpm --filter @clearn/mobile typecheck
+pnpm --filter @clearn/mobile testflight:check
 ```
 
 ## Aktuell bekannte externe Blocker
 
 - `apps/mobile/google-play-service-account.json` fehlt lokal noch.
+- `apps/mobile/testflight-readiness.local.json` fehlt bis zum ersten echten TestFlight-Smoke.
 - Store-Produkte und RevenueCat-Offerings müssen real verifiziert werden.
 - Production-Builds brechen ohne RevenueCat iOS-/Android-Key ab; `pnpm submit:check` meldet fehlende oder falsch formatierte Keys.
 - Supabase OAuth Provider müssen produktiv aktiviert und auf Gerät getestet werden.

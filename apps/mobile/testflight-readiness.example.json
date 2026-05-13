@@ -1,0 +1,26 @@
+{
+  "appVersion": "1.0",
+  "buildNumber": "1.0 (1)",
+  "deviceModel": "iPhone 15 Pro",
+  "osVersion": "iOS 26.4",
+  "smokeTestDate": "2026-05-13",
+  "testAccountEmail": "reviewer+20260513@ostheimer.at",
+  "reviewerDemoEmail": "reviewer+20260513@ostheimer.at",
+  "reviewPasswordStoredInPasswordManager": true,
+  "reviewNotesReady": true,
+  "smokeResult": "passed",
+  "knownLimitations": [],
+  "checks": {
+    "freshInstall": true,
+    "guestMode": true,
+    "emailLogin": true,
+    "passwordReset": true,
+    "oauth": true,
+    "coreFlow": true,
+    "biometricUnlock": true,
+    "passkeysNotAdvertised": true,
+    "trackingAds": true,
+    "paywallPurchases": true,
+    "accountDeletion": true
+  }
+}
