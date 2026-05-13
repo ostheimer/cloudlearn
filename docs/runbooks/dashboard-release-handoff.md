@@ -64,6 +64,9 @@ Sobald ein externer Wert eingetragen wurde, muss der zugehörige Repo-Check erne
 - [ ] RevenueCat Mobile API Keys setzen:
   - `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY`
   - `EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY`
+- [ ] RevenueCat Entitlement IDs in EAS prüfen:
+  - `EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_PRO=pro`
+  - `EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_LIFETIME=lifetime`
 
 ## Supabase
 
@@ -94,6 +97,7 @@ pnpm --filter @clearn/mobile typecheck
 
 - `apps/mobile/google-play-service-account.json` fehlt lokal noch.
 - Store-Produkte und RevenueCat-Offerings müssen real verifiziert werden.
+- Production-Builds brechen ohne RevenueCat iOS-/Android-Key ab; `pnpm submit:check` meldet fehlende oder falsch formatierte Keys.
 - Supabase OAuth Provider müssen produktiv aktiviert und auf Gerät getestet werden.
 - Produktive AdMob IDs müssen vor einem Release-Build gesetzt werden.
 - Production-Builds brechen ohne produktive AdMob App-IDs und Rewarded-Ad-Unit-IDs ab; `pnpm submit:check` meldet zusätzlich fehlende oder versehentliche Google-Test-IDs.

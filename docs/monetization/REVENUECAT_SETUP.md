@@ -114,6 +114,9 @@ EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_PRO=pro
 EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_LIFETIME=lifetime
 ```
 
+Production-Builds brechen ohne iOS- und Android-API-Key ab. Vor EAS Submit muss
+`pnpm submit:check` ohne RevenueCat-Key- oder Entitlement-Fehler laufen.
+
 ### Backend (Vercel Environment Variables)
 ```
 REVENUECAT_WEBHOOK_SECRET=whsec_xxxxxxxxxxxx

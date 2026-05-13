@@ -40,6 +40,8 @@ const ADMOB_ANDROID_APP_ID =
 if (IS_PRODUCTION) {
   getRequiredProductionEnv("EXPO_PUBLIC_ADMOB_REWARDED_IOS_ID");
   getRequiredProductionEnv("EXPO_PUBLIC_ADMOB_REWARDED_ANDROID_ID");
+  getRequiredProductionEnv("EXPO_PUBLIC_REVENUECAT_IOS_API_KEY");
+  getRequiredProductionEnv("EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY");
 }
 
 const FACE_ID_PERMISSION =

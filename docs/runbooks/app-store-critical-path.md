@@ -104,6 +104,8 @@ Sie ersetzt nicht die Fachdokumente, sondern verdichtet sie zu einer abarbeitbar
   - Produkte in App Store Connect wirklich anlegen
   - Produkte in Google Play Console wirklich anlegen
   - RevenueCat Entitlements / Offerings veröffentlichen
+  - RevenueCat Mobile API Keys als EAS-Secrets setzen
+  - Entitlement IDs in EAS auf `pro` und `lifetime` fixieren
   - Webhook-Secret in Vercel setzen
   - echte Kauf-/Restore-Tests iOS + Android durchführen
 
@@ -111,6 +113,7 @@ Sie ersetzt nicht die Fachdokumente, sondern verdichtet sie zu einer abarbeitbar
   - iOS ist repo-seitig mit `appleId`, `ascAppId`, `appleTeamId` und `sku` vorbereitet.
   - Android benötigt den produktiven Service-Account-Key für den Play-Track.
   - `pnpm submit:check` prüft zusätzlich, dass produktive AdMob App-IDs und Rewarded-Ad-Unit-IDs als EAS-Secrets gesetzt sind und nicht auf Google-Test-IDs zeigen.
+  - `pnpm submit:check` prüft RevenueCat Mobile API Keys und kanonische Entitlement IDs; `app.config.js` bricht Production-Builds ohne RevenueCat iOS-/Android-Key ab.
 
 - [ ] App-Privacy-/Ads-/Tracking-Angaben konsistent machen.
   - ATT-Text, Privacy Manifest, AdMob-Konfiguration und App-Store-Privacy-Angaben müssen zueinander passen.

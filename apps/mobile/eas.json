@@ -18,7 +18,9 @@
       },
       "env": {
         "APP_VARIANT": "development",
-        "EXPO_PUBLIC_APP_VARIANT": "development"
+        "EXPO_PUBLIC_APP_VARIANT": "development",
+        "EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_PRO": "pro",
+        "EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_LIFETIME": "lifetime"
       }
     },
     "simulator": {
@@ -30,7 +32,9 @@
       },
       "env": {
         "APP_VARIANT": "development",
-        "EXPO_PUBLIC_APP_VARIANT": "development"
+        "EXPO_PUBLIC_APP_VARIANT": "development",
+        "EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_PRO": "pro",
+        "EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_LIFETIME": "lifetime"
       }
     },
     "preview": {
@@ -44,7 +48,9 @@
       },
       "env": {
         "APP_VARIANT": "preview",
-        "EXPO_PUBLIC_APP_VARIANT": "preview"
+        "EXPO_PUBLIC_APP_VARIANT": "preview",
+        "EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_PRO": "pro",
+        "EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_LIFETIME": "lifetime"
       }
     },
     "production": {
@@ -58,7 +64,9 @@
       },
       "env": {
         "APP_VARIANT": "production",
-        "EXPO_PUBLIC_APP_VARIANT": "production"
+        "EXPO_PUBLIC_APP_VARIANT": "production",
+        "EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_PRO": "pro",
+        "EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_LIFETIME": "lifetime"
       }
     }
   },
