@@ -105,6 +105,7 @@ Einzelchecks bei Bedarf:
 cd apps/mobile
 pnpm submit:check
 pnpm dashboard:check
+pnpm store:check
 ```
 
 ```bash

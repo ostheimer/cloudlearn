@@ -26,6 +26,10 @@ const checks = [
     args: [path.join("scripts", "check-dashboard-readiness.mjs")],
   },
   {
+    label: "Store metadata",
+    args: [path.join("scripts", "check-store-metadata.mjs")],
+  },
+  {
     label: "TestFlight readiness",
     args: [path.join("scripts", "check-testflight-readiness.mjs")],
   },

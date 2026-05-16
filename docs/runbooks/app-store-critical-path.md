@@ -205,6 +205,12 @@ Sie ersetzt nicht die Fachdokumente, sondern verdichtet sie zu einer abarbeitbar
   - Keyword-Set
   - Ausfüllpaket für App Store Connect:
     - [docs/runbooks/app-store-connect-fill-in.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-connect-fill-in.md)
+  - Repo-seitig vorbereitet:
+    - Store-Metadata-Gate `pnpm --filter @clearn/mobile store:check`
+    - Das Gate prüft App-Store-Limits, kanonische URLs/IDs, Produkt-IDs, Review-Notes und Screenshot-Captions.
+  - Offen bleibt:
+    - echte finale Screenshots aus TestFlight-/Release-nahem Build erzeugen
+    - App Preview Video nur ergänzen, wenn es vor Submission real fertig ist
 
 - [ ] Onboarding, Auth und Paywall auf reale Release-Copy prüfen.
   - Deutsch/Englisch konsistent

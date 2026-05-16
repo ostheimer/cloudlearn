@@ -18,6 +18,11 @@
 - Paywall-Text und Store-Beschreibung verwenden dieselben Produktbegriffe.
 - Store-Metadata-Entwurf: [docs/aso/store-metadata-draft.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/aso/store-metadata-draft.md)
 - App-Store-Connect-Ausfüllpaket: [docs/runbooks/app-store-connect-fill-in.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-connect-fill-in.md)
+- Store-Metadata-Gate läuft grün:
+
+```bash
+pnpm --filter @clearn/mobile store:check
+```
 
 ## Privacy / Ads
 
