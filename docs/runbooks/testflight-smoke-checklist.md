@@ -118,3 +118,29 @@ Notizen:
 ```text
 <NOTES>
 ```
+
+## Maschinenprüfbarer Nachweis
+
+Vor externer Beta-Freigabe zusätzlich eine lokale Evidence-Datei anlegen:
+
+```bash
+cp apps/mobile/testflight-readiness.example.json apps/mobile/testflight-readiness.local.json
+```
+
+Dann die echten Werte eintragen:
+
+- Buildnummer und App-Version aus TestFlight / EAS
+- physisches Gerät und iOS-Version
+- Testkonto und Reviewer-Demo-Konto
+- `reviewPasswordStoredInPasswordManager: true`, wenn das Passwort außerhalb des Repos im Passwortmanager liegt
+- `reviewNotesReady: true`, wenn die Review Notes final übertragbar sind
+- alle geprüften Smoke-Kategorien unter `checks` auf `true`
+
+Die Datei `apps/mobile/testflight-readiness.local.json` ist absichtlich in `.gitignore`.
+Sie darf keine Passwörter enthalten und dient nur als lokaler Release-Nachweis.
+
+Vor Submission ausführen:
+
+```bash
+pnpm --filter @clearn/mobile testflight:check
+```
