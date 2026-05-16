@@ -13,6 +13,7 @@
     "test": "vitest run",
     "submit:check": "node ./scripts/check-submit-config.mjs",
     "dashboard:check": "node ./scripts/check-dashboard-readiness.mjs",
+    "store:check": "node ./scripts/check-store-metadata.mjs",
     "testflight:check": "node ./scripts/check-testflight-readiness.mjs",
     "release:check": "node ./scripts/check-release-readiness.mjs",
     "submit:ios": "eas submit --platform ios --profile production --latest",
