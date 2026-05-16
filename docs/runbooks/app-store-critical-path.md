@@ -163,6 +163,18 @@ Sie ersetzt nicht die Fachdokumente, sondern verdichtet sie zu einer abarbeitbar
     - `apps/mobile/testflight-readiness.local.json` nach echtem TestFlight-Smoke ausfüllen
     - `pnpm --filter @clearn/mobile testflight:check` muss vor Submission grün sein
 
+- [ ] Dashboard-Readiness nachweisen.
+  - Benötigt:
+    - App Store Connect, Google Play, RevenueCat, Vercel, EAS und Supabase wirklich fertig konfiguriert
+    - kanonische IDs, Produkt-IDs, URLs und Redirects deckungsgleich mit dem Repo
+  - Repo-seitig vorbereitet:
+    - lokaler Evidence-Check `pnpm --filter @clearn/mobile dashboard:check`
+    - kombinierter Mobile-Release-Check `pnpm release:mobile:check`
+    - ignoriertes Evidence-Template [apps/mobile/dashboard-readiness.example.json](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/dashboard-readiness.example.json)
+  - Offen bleibt:
+    - `apps/mobile/dashboard-readiness.local.json` nach echten Dashboard-Schritten ausfüllen
+    - `pnpm --filter @clearn/mobile dashboard:check` muss vor Submission grün sein
+
 ## P1 — Sollte vor Launch noch geschlossen werden
 
 - [ ] Website-Landing auf Launch-Niveau bringen.

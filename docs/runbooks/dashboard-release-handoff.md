@@ -88,11 +88,23 @@ Vollständiger Mobile-Release-Check:
 pnpm release:mobile:check
 ```
 
+Der vollständige Check erwartet lokale Nachweisdateien, die nicht ins Repo gehören:
+
+```bash
+cp apps/mobile/dashboard-readiness.example.json apps/mobile/dashboard-readiness.local.json
+cp apps/mobile/testflight-readiness.example.json apps/mobile/testflight-readiness.local.json
+```
+
+`apps/mobile/dashboard-readiness.local.json` enthält nur boolesche Dashboard-Nachweise
+und kanonische IDs/URLs, aber keine Secrets. Nach jedem erledigten Dashboard-Schritt
+die Datei aktualisieren und erneut `pnpm release:mobile:check` ausführen.
+
 Einzelchecks bei Bedarf:
 
 ```bash
 cd apps/mobile
 pnpm submit:check
+pnpm dashboard:check
 ```
 
 ```bash
@@ -105,6 +117,7 @@ pnpm --filter @clearn/mobile testflight:check
 ## Aktuell bekannte externe Blocker
 
 - `apps/mobile/google-play-service-account.json` fehlt lokal noch.
+- `apps/mobile/dashboard-readiness.local.json` fehlt bis die externen Dashboard-Schritte wirklich nachgewiesen sind.
 - `apps/mobile/testflight-readiness.local.json` fehlt bis zum ersten echten TestFlight-Smoke.
 - Store-Produkte und RevenueCat-Offerings müssen real verifiziert werden.
 - Production-Builds brechen ohne RevenueCat iOS-/Android-Key ab; `pnpm submit:check` meldet fehlende oder falsch formatierte Keys.

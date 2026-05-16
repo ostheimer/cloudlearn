@@ -38,4 +38,5 @@ apps/mobile/google-play-service-account.json
 apps/mobile/*.p8
 apps/mobile/*.p12
 apps/mobile/*.mobileprovision
+apps/mobile/dashboard-readiness.local.json
 apps/mobile/testflight-readiness.local.json

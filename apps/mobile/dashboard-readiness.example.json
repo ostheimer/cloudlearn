@@ -1,0 +1,74 @@
+{
+  "recordedBy": "Andreas Ostheimer",
+  "recordedAt": "2026-05-16",
+  "appStoreConnect": {
+    "appExists": true,
+    "appleAppId": "6766691399",
+    "bundleId": "app.clearn",
+    "privacyUrl": "https://clearn-web.vercel.app/privacy",
+    "privacyUrlSet": true,
+    "supportUrl": "https://clearn-web.vercel.app/support",
+    "supportUrlSet": true,
+    "reviewNotesTransferred": true,
+    "productIds": [
+      "ai.clearn.pro.monthly",
+      "ai.clearn.pro.annual",
+      "ai.clearn.lifetime"
+    ],
+    "inAppPurchasesCreated": true,
+    "sandboxTesterCreated": true
+  },
+  "googlePlay": {
+    "appExists": true,
+    "packageName": "app.clearn",
+    "internalTestingEnabled": true,
+    "serviceAccountCreated": true,
+    "productIds": [
+      "ai.clearn.pro.monthly",
+      "ai.clearn.pro.annual",
+      "ai.clearn.lifetime"
+    ],
+    "productsCreated": true,
+    "testersAdded": true
+  },
+  "revenueCat": {
+    "iosAppConfigured": true,
+    "androidAppConfigured": true,
+    "productsImported": true,
+    "entitlementIds": [
+      "pro",
+      "lifetime"
+    ],
+    "proEntitlementConfigured": true,
+    "lifetimeEntitlementConfigured": true,
+    "offeringId": "default",
+    "defaultOfferingPublished": true,
+    "webhookSecretCreated": true
+  },
+  "vercel": {
+    "revenueCatWebhookSecretSet": true,
+    "supabaseEnvChecked": true,
+    "publicPagesLive": true,
+    "productionDeploysGreen": true
+  },
+  "eas": {
+    "admobSecretsSet": true,
+    "revenueCatSecretsSet": true,
+    "entitlementEnvSet": true
+  },
+  "supabase": {
+    "siteUrl": "https://clearn-web.vercel.app",
+    "siteUrlSet": true,
+    "redirectUrls": [
+      "clearn://auth",
+      "https://clearn-web.vercel.app/auth/confirm"
+    ],
+    "redirectUrlsSet": true,
+    "emailTemplatesChecked": true,
+    "googleProviderEnabled": true,
+    "appleProviderEnabled": true,
+    "accountLinkingTested": true,
+    "deletionMigrationApplied": true
+  },
+  "notes": []
+}
