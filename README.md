@@ -827,7 +827,7 @@ Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testfa
 
 ---
 
-## Implementierungsstatus (2026-02-13)
+## Implementierungsstatus (2026-05-13)
 
 ### Voll funktionsfähig (End-to-End mit echten Daten)
 
@@ -851,6 +851,14 @@ Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testfa
 - Statistiken (API existiert, kein Mobile-Screen)
 - Offline-Sync (Store existiert, wird nicht aufgerufen)
 - PDF-Import, Anki-Export, Mathpix, Community-Decks, B2B (Mock/In-Memory)
+
+### Produktionshärtung (Mai 2026)
+
+- AdMob-Konfiguration: Produktions-AdMob-Config ist hinter einer Guard-Prüfung gesichert, sodass Test-Ad-Units in Dev/Preview-Builds nicht in Production landen.
+- RevenueCat-Konfiguration: Produktions-RevenueCat-Config ist ebenfalls durch eine Guard-Prüfung gesichert.
+- LP-Pack-Käufe: Lernpaket-Käufe (LP-Packs) sind mit einer Guard-Prüfung abgesichert.
+- Paywall-Angebote: Subscription-Angebote werden gefiltert, bevor sie dem Nutzer angezeigt werden (ungültige/nicht konfigurierte Offerings werden ausgeschlossen).
+- App-Store-Links: Öffentliche Release-Links (iOS App Store, Google Play) wurden ausgerichtet und verifiziert.
 
 ### Nächste Schritte (siehe `ROADMAP.md` und `BACKLOG.md`)
 
