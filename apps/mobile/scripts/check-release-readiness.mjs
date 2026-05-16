@@ -22,6 +22,10 @@ const checks = [
     args: [path.join("scripts", "check-submit-config.mjs")],
   },
   {
+    label: "Dashboard readiness",
+    args: [path.join("scripts", "check-dashboard-readiness.mjs")],
+  },
+  {
     label: "TestFlight readiness",
     args: [path.join("scripts", "check-testflight-readiness.mjs")],
   },
