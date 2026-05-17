@@ -26,7 +26,7 @@
 - [Entwicklungs-Roadmap](#entwicklungs-roadmap)
 - [Backlog (Detailplanung)](#backlog-detailplanung)
 - [Warum clearn.ai? — Alleinstellungsmerkmale (USPs)](#warum-clearnai--alleinstellungsmerkmale-usps)
-- [Implementierungsstatus (2026-02-11)](#implementierungsstatus-2026-02-11)
+- [Implementierungsstatus (2026-05-17)](#implementierungsstatus-2026-05-17)
 - [Risiken & Gegenmassnahmen](#risiken--gegenmassnahmen)
 - [Setup & Entwicklung](#setup--entwicklung)
 - [Projektstruktur](#projektstruktur)
@@ -233,6 +233,11 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 - **Offline-Basis:** Lernen ohne Internet, Upload/Sync via Retry-Queue
 - **Auth:** E-Mail/Passwort + Apple/Google Sign-In
 - **Paywall-Basis:** Free/Pro via RevenueCat
+- **Leaderboard:** Globale und Freunde-Bestenliste (LP-Punkte + Streaks)
+- **Freundschaftssystem:** Freunde hinzufügen/entfernen, Freunde-Leaderboard
+- **Referral-System:** Einladungscodes teilen und einlösen (LP-Belohnungen)
+- **Biometrisches Session-Unlock:** Face ID / Touch ID zum Entsperren der App
+- **Tracking-Einstellungen:** Granulare Opt-in/Opt-out-Kontrolle für Analytics
 
 ### v1.1
 
@@ -281,8 +286,7 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 │                                                     │
 │  ┌───────────┐  ┌───────────┐  ┌────────────────┐  │
 │  │   Auth    │  │    KI     │  │   Rate Limit   │  │
-│  │ (Clerk /  │  │ Processing│  │   & Billing    │  │
-│  │  Supabase)│  │ (LLM API) │  │                │  │
+│  │ (Supabase)│  │ Processing│  │   & Billing    │  │
 │  └───────────┘  └───────────┘  └────────────────┘  │
 │                                                     │
 └──────────┬──────────────┬───────────────┬───────────┘
@@ -315,10 +319,10 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 | OCR (Android) | **Google ML Kit** | Kostenlos, offline, on-device |
 | Navigation | **Expo Router** | File-based routing wie Next.js |
 | State | **Zustand** | Leichtgewichtig, TypeScript-native |
-| Local DB | **WatermelonDB** oder **SQLite (expo-sqlite)** | Offline-first, schnelle Queries für Karten |
+| Local DB | **AsyncStorage (für lokales Caching; vollständiges Offline-SQLite noch ausstehend)** | Offline-first Caching für Decks und Review-Queue |
 | SRS Engine | **ts-fsrs** | TypeScript-Implementierung von FSRS v5 |
 | i18n | **i18next + react-i18next** | Deutsch als Default, Englisch als erste Übersetzung |
-| UI | **Tamagui** oder **NativeWind** | Cross-Platform UI mit Native Performance |
+| UI | **React Native StyleSheet + eigenes Theme-System** | Cross-Platform UI mit konsistenten Design-Tokens (`apps/mobile/src/theme.ts`) |
 | Testing | **Vitest + Playwright + Detox (optional)** | Unit + API/E2E + Mobile-Flows |
 
 ### Backend & Infrastruktur
@@ -328,7 +332,7 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 | Datenbank | **Supabase (PostgreSQL)** | Auth + DB + Realtime + Storage in einem |
 | Bild-Speicher | **Cloudflare R2** oder **Supabase Storage** | R2: S3-kompatibel, kein Egress; Supabase: einfacher |
 | Auth | **Supabase Auth** | Social Login, Magic Links, RLS integration |
-| KI-API | **Google Gemini 2.5 Flash** (Standard) | Bestes Preis-Leistungs-Verhältnis für Vision+Text |
+| KI-API | **Gemini Flash** (Standard; aktuelle Modellversion siehe ROADMAP.md bzw. .env.example) | Bestes Preis-Leistungs-Verhältnis für Vision+Text |
 | KI-API (Fallback) | **OpenAI GPT-4o Mini** | Alternative bei Gemini-Ausfällen |
 | Formel-OCR | **Mathpix API** (v2.0) | Spezialist für STEM; $0,002/Bild |
 | Push | **Expo Push Notifications** | Kostenlos, integriert |
@@ -343,7 +347,7 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 ### Einmalige Kosten
 
 | Posten | Kosten | Anmerkung |
-|--------|--------|-----------|
+|--------|--------|----------|
 | Apple Developer Account | **€99/Jahr** | Pflicht für iOS App Store |
 | Google Play Developer | **€25 einmalig** | Pflicht für Play Store |
 | Domain clearn.ai | **~€30–50/Jahr** | .ai Domain |
@@ -353,7 +357,7 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 ### Monatliche Fixkosten (MVP-Phase, 0–1.000 Nutzer)
 
 | Service | Free Tier | Geschätzte Kosten | Anmerkung |
-|---------|-----------|-------------------|-----------|
+|---------|-----------|-------------------|----------|
 | **Vercel** (Backend) | 100 GB BW, Serverless | **€0** (Pro: €20) | Hobby reicht für MVP |
 | **Supabase** (DB + Auth) | 500 MB DB, 50K MAU | **€0** (Pro: €25) | Free reicht für Start |
 | **Cloudflare R2** (Bilder) | 10 GB Storage, 10M Reads | **€0–5** | Kein Egress! |
@@ -417,7 +421,7 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 ### Kostenvergleich: S3 vs. Cloudflare R2 vs. Supabase Storage
 
 | | AWS S3 | Cloudflare R2 | Supabase Storage |
-|--|--------|---------------|-----------------|
+|--|--------|---------------|------------------|
 | Storage/GB | $0,023 | $0,015 | $0,021 |
 | Egress/GB | **$0,09** | **€0 (!)** | $0,09 |
 | PUT/1000 | $0,005 | $0,0045 | Inkludiert |
@@ -575,6 +579,16 @@ CREATE INDEX scans_created_idx
 │   └── POST   /sync         # FSRS-Daten synchronisieren (Device <-> Server)
 ├── /stats
 │   └── GET    /             # Lernstatistiken
+├── /leaderboard
+│   ├── GET    /global       # Top-50 globale Bestenliste (LP)
+│   └── GET    /friends      # Freunde-Bestenliste + eigener Eintrag
+├── /friends
+│   ├── GET    /             # Freundesliste
+│   ├── POST   /             # Freundschaft hinzufügen
+│   └── DELETE /:id          # Freundschaft entfernen
+├── /referral
+│   ├── GET    /info         # Eigener Referral-Code + Statistiken
+│   └── POST   /claim        # Referral-Code einlösen
 └── /subscription
     ├── GET    /status       # Abo-Status prüfen
     └── POST   /webhook      # RevenueCat Webhook
@@ -698,7 +712,7 @@ Antworte ausschließlich als JSON-Array:
 ### Testpyramide (MVP)
 
 | Ebene | Fokus | Tooling |
-|------|-------|---------|
+|------|-------|--------|
 | Unit Tests | FSRS-Wrapper, Mapper, Validatoren, Sync-Regeln | Vitest |
 | API-Integration | Endpunkte, Auth, RLS, Idempotenz, Fehlercodes | Vitest + Supertest |
 | E2E (Web/API) | Kritische Flows rund um Scan -> Karten -> Review | Playwright |
@@ -827,16 +841,24 @@ Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testfa
 
 ---
 
-## Implementierungsstatus (2026-02-13)
+## Implementierungsstatus (2026-05-17)
 
 ### Voll funktionsfähig (End-to-End mit echten Daten)
 
-- **Scan → KI → Flashcards**: Kamera, Galerie oder Text → Gemini 3 Flash → strukturierte Lernkarten
+- **Scan → KI → Flashcards**: Kamera, Galerie oder Text → Gemini Flash → strukturierte Lernkarten
+- **URL-Import**: Webseiten per URL importieren → Seitentext + relevante Bilder → KI-Flashcards (`/api/v1/import/url`)
 - **Deck-Management**: Erstellen, Umbenennen, Löschen, Suchen, KI-generierte Titel
 - **Card-Management**: Anzeigen, Bearbeiten, Löschen, Manuell hinzufügen (Editor-Modal)
 - **Karten zu bestehendem Deck**: Scan-Ergebnis in neues ODER vorhandenes Deck speichern
 - **FSRS-Review**: Again/Hard/Good/Easy mit persistenter Zustandsverwaltung in Supabase
 - **Home-Dashboard**: Fällige Karten, Deck-Anzahl, CTA zum Lernen/Scannen
+- **Statistiken**: Reviews heute/Woche/gesamt, Genauigkeit, Lernverlauf (30 Tage) — im Home-Screen integriert
+- **Streaks**: Tagesserien-Tracking (current + longest), Streak-Banner auf Home
+- **Leaderboard**: Globale Top-50-Bestenliste + Freunde-Leaderboard (LP + Streak) (`/api/v1/leaderboard`)
+- **Freundschaftssystem**: Freunde hinzufügen/entfernen, bidirektionale Verbindungen (`friend_connections`-Tabelle)
+- **Referral-System**: Einladungscode teilen und einlösen (+LP-Belohnungen) (`/api/v1/referral`, `referral.tsx`)
+- **Biometrisches Session-Unlock**: Face ID / Touch ID via `BiometricLockScreen.tsx` und `biometricLockStore.ts`
+- **Tracking-Einstellungen**: Granulares Opt-in/Opt-out in `tracking-preferences.tsx`
 - **Auth**: Login, Registrierung, Passwort-Reset (Supabase Auth + JWT)
 - **Profil**: E-Mail-Anzeige, Abo-Status, Sprache, Abmelden
 - **Paywall + RevenueCat**: Angebotsliste, Kauf, Restore, 402-Weiterleitung aus Scan-Flow, Webhook-Sync auf Backend-Tier
@@ -846,18 +868,19 @@ Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testfa
 - **Daten-Persistenz**: Alles in Supabase PostgreSQL mit JWT-Auth-Middleware
 - **Auto-Deploy**: Git-Push → Vercel baut `clearn-api` + `clearn-web` automatisch
 
-### Scaffold vorhanden, noch nicht funktionsfähig
+### Scaffold vorhanden, noch nicht vollständig funktionsfähig
 
-- Statistiken (API existiert, kein Mobile-Screen)
-- Offline-Sync (Store existiert, wird nicht aufgerufen)
-- PDF-Import, Anki-Export, Mathpix, Community-Decks, B2B (Mock/In-Memory)
+- Offline-Sync (Store existiert, wird nicht aufgerufen; vollständiges SQLite-Backend noch ausstehend — derzeit AsyncStorage)
+- PDF-Import (Job-Queue-Scaffold existiert, kein echtes Parsing)
+- Anki-Export (Mock-Scaffold)
+- Mathpix, Community-Decks, B2B (Mock/In-Memory, kein Mobile-Screen)
 
 ### Nächste Schritte (siehe `ROADMAP.md` und `BACKLOG.md`)
 
 - **Priorität A**: Flashcard-UX verbessern (Flip-Animation, Swipe, Fortschrittsbalken, Stern/Favorit)
 - **Priorität B**: Engagement (Streaks, Statistiken, TTS, Push-Notifications)
 - **Priorität C**: Erweiterte Lernmodi (Test, Match-Spiel, Auto-Play, Image Occlusion)
-- **Priorität D**: Daten & Ökosystem (Offline, PDF-Import, Anki, OAuth, Paywall, Community)
+- **Priorität D**: Daten & Ökosystem (Offline-SQLite, PDF-Import, Anki, OAuth, Paywall, Community)
 
 ---
 

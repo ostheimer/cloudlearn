@@ -282,7 +282,7 @@ Ein Ticket ist erst "Done", wenn:
 ### CL-A01 - Karte umdrehen (Tap + Flip-Animation)
 
 - **Priorität:** P0
-- **Status:** Offen
+- **Status:** ✅ Done
 - **Schätzung:** 1-2 PT
 - **Abhängigkeiten:** keine
 - **Referenz:** Quizlet Flashcard-Modus
@@ -304,7 +304,7 @@ Im Learn-Screen wird die Karte als große Fläche dargestellt. Tippen auf die Ka
 ### CL-A02 - Swipe links/rechts (weiß ich / weiß ich nicht)
 
 - **Priorität:** P0
-- **Status:** Offen
+- **Status:** ✅ Done
 - **Schätzung:** 2-3 PT
 - **Abhängigkeiten:** CL-A01
 
@@ -326,7 +326,7 @@ Neben den Buttons können Karten per Swipe-Geste bewertet werden. Swipe nach rec
 ### CL-A03 - Fortschrittsbalken in Lernsession
 
 - **Priorität:** P0
-- **Status:** Offen
+- **Status:** ✅ Done
 - **Schätzung:** 0,5 PT
 - **Abhängigkeiten:** keine
 
@@ -347,7 +347,7 @@ Oben im Learn-Screen zeigt ein Fortschrittsbalken an, wie viele Karten in der ak
 ### CL-A04 - Begriff ↔ Definition umschalten
 
 - **Priorität:** P1
-- **Status:** Offen
+- **Status:** ✅ Done
 - **Schätzung:** 1 PT
 - **Abhängigkeiten:** CL-A01
 
@@ -535,7 +535,7 @@ Prüfungssimulation: Aus den Karten eines Decks werden automatisch MC-Fragen und
 - **Abhängigkeiten:** keine
 
 **Beschreibung**
-Spielerisches Zuordnen: Begriffe und Definitionen werden gemischt angezeigt. Nutzer tippt Paare an. Timer + Highscore.
+Spiellerisches Zuordnen: Begriffe und Definitionen werden gemischt angezeigt. Nutzer tippt Paare an. Timer + Highscore.
 
 **Akzeptanzkriterien**
 - [ ] 6-8 Karten pro Runde (Begriff + Definition getrennt)
@@ -670,7 +670,7 @@ Decks teilen, öffentlich durchsuchen, bewerten, kopieren. Moderation und Abuse-
 **Beschreibung**
 Erster Start → Beispiel-Scan → erste Review → Erfolgserlebnis in unter 2 Minuten. Keine Registrierung nötig für den ersten Durchlauf.
 
-**Umsetzung:** Nach Login: 3 Onboarding-Screens (Willkommen, So funktioniert's, Dein erstes Deck). „Jetzt starten“ legt Starter-Deck mit 3 Karten an, speichert Onboarding als erledigt (AsyncStorage), leitet zum Learn-Tab. Erster Lernerfolg in unter 2 Min.
+**Umsetzung:** Nach Login: 3 Onboarding-Screens (Willkommen, So funktioniert's, Dein erstes Deck). „Jetzt starten" legt Starter-Deck mit 3 Karten an, speichert Onboarding als erledigt (AsyncStorage), leitet zum Learn-Tab. Erster Lernerfolg in unter 2 Min.
 
 ---
 
