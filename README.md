@@ -584,8 +584,8 @@ CREATE INDEX scans_created_idx
 │   └── GET    /friends      # Freunde-Bestenliste + eigener Eintrag
 ├── /friends
 │   ├── GET    /             # Freundesliste
-│   ├── POST   /             # Freundschaft hinzufügen
-│   └── DELETE /:id          # Freundschaft entfernen
+│   ├── POST   /             # Freundschaft hinzufügen (Body: { friendId })
+│   └── DELETE /?friendId=   # Freundschaft entfernen (Query-Parameter)
 ├── /referral
 │   ├── GET    /info         # Eigener Referral-Code + Statistiken
 │   └── POST   /claim        # Referral-Code einlösen
