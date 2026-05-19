@@ -1036,7 +1036,7 @@ clearn/
 
 ## Lizenz
 
-Proprietaär — © 2026 clearn.ai
+Proprietär — © 2026 clearn.ai
 
 ---
 
