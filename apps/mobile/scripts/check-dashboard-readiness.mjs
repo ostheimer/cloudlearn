@@ -112,10 +112,19 @@ function looksLikePlaceholder(value) {
 }
 
 function isIsoDate(value) {
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+  const match =
+    typeof value === "string" ? value.match(/^(\d{4})-(\d{2})-(\d{2})$/) : null;
+  if (!match) {
     return false;
   }
-  return !Number.isNaN(new Date(`${value}T00:00:00.000Z`).getTime());
+
+  const [, year, month, day] = match.map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  return (
+    parsed.getUTCFullYear() === year &&
+    parsed.getUTCMonth() === month - 1 &&
+    parsed.getUTCDate() === day
+  );
 }
 
 function requireString(evidence, field, label, missing) {
@@ -196,7 +205,7 @@ const evidence = readJson(evidencePath);
 requireString(evidence, "recordedBy", "Recorded by", missing);
 
 if (!isIsoDate(evidence.recordedAt)) {
-  printInvalid("Recorded date", "expected YYYY-MM-DD");
+  printInvalid("Recorded date", "expected valid YYYY-MM-DD");
   missing.push("recordedAt");
 } else {
   printCheck(true, "Recorded date", evidence.recordedAt);
