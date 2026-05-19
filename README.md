@@ -64,12 +64,12 @@
 | **Bild-Input für KI** | Auch handschriftliche Notizen, Tafelbilder, Lehrbuchseiten werden erkannt | Quizlet: nur Text-AI; Anki: keine KI |
 | **FSRS v5 Algorithmus** | Wissenschaftlich optimaler Spaced-Repetition-Algorithmus | Quizlet: einfaches SRS; Brainscape: eigener Algorithmus |
 | **KI-generierte Titel** | Deck-Titel passend zum Inhalt (nicht "Deck 1") | Kein Wettbewerber |
-| **Kostenlos starten, kein Abo nötig** | Kernfunktionen kostenlos, KI-Scans mit Fair-Use-Limit | Quizlet: Abo für KI; Anki iOS: 25 $ einmalig |
+| **Kostenlos starten, kein Abo nötig** | Kernfunktionen kostenlos, KI-Scans mit Fair-Use-Limit | Quizlet: Abo für KI; Anki iOS: 25 $ einmalig |
 
 ### Wettbewerber im Überblick
 
 - **Quizlet** — Größte Community, polierte UI, 8 Lernmodi, aber: einfaches SRS, KI nur bezahlt, Werbung
-- **Anki** — Bester Algorithmus, maximale Flexibilität, aber: veraltete UI, steile Lernkurve, iOS-App kostet 25 $
+- **Anki** — Bester Algorithmus, maximale Flexibilität, aber: veraltete UI, steile Lernkurve, iOS-App kostet 25 $
 - **Brainscape** — Gute Analytics, Confidence-basiert, aber: wenig Free-Content, eingeschränkt offline
 
 **clearn.ai positioniert sich als:** Anki-Qualität (FSRS) + Quizlet-UX + KI-First (Kamera → Karten).
@@ -87,7 +87,7 @@ Die API macht alles, was sicher, verbindlich oder zentral sein muss.
 - KI- und Zahlungs-Keys müssten in die App (unsicher)
 - Limits/Paywall könnten clientseitig umgangen werden
 - Sync-Konflikte und Duplikate wären schwer robust zu lösen
-- Webhooks (z. B. RevenueCat) könnten nicht sauber verarbeitet werden
+- Webhooks (z. B. RevenueCat) könnten nicht sauber verarbeitet werden
 
 ### Mit API ist die Aufgabenteilung klar
 
@@ -848,8 +848,8 @@ Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testf�
 - **Daten-Persistenz**: Alles in Supabase PostgreSQL mit JWT-Auth-Middleware
 - **Auto-Deploy**: Git-Push → Vercel baut `clearn-api` + `clearn-web` automatisch
 - **URL-Import**: Webseiten per URL importieren (`POST /api/v1/import/url`) mit Text-Extraktion und KI-Flashcard-Generierung
-- **RevenueCat Production Guard**: Produktions-RevenueCat-Konfiguration wird nur bei Store-Build geladen; verhindert SDK-Initialisierungsfehler in Expo Go und Dev-Builds
-- **AdMob Production Guard**: Produktions-AdMob-Konfiguration analog zu RevenueCat abgesichert; keine Initialisierung in Nicht-Store-Umgebungen
+- **RevenueCat Production Guard**: Produktions-API-Keys werden nur in Store-Builds aktiviert; in Expo Go (fehlendes Native Module) oder Dev-Builds ohne gesetzte Keys verhindert die Guard SDK-Initialisierungsfehler
+- **AdMob Production Guard**: Außerhalb von Store-Builds werden Test-Ad-Unit-IDs anstelle der Produktions-IDs verwendet; der SDK initialisiert sich weiterhin (mit Test-Modus)
 - **Bereitschaftsprüfungen (Readiness Gates)**: Automatisierte Skripte prüfen TestFlight-Build-, Dashboard- und App-Store-Bereitschaft vor Releases
 
 ### Scaffold vorhanden, noch nicht vollständig funktionsfähig
@@ -942,7 +942,7 @@ RATE_LIMIT_PRO_PER_MINUTE=240
 Wichtige Produktionshinweise:
 
 - `REVENUECAT_WEBHOOK_SECRET` muss in Vercel (Production) gesetzt sein, sonst liefert der Webhook `503 WEBHOOK_NOT_CONFIGURED` (fail-closed).
-- Die API vertraut in Production keinen clientseitigen Tier-Headern (z. B. `x-subscription-tier`); die Tier-Entscheidung erfolgt serverseitig.
+- Die API vertraut in Production keinen clientseitigen Tier-Headern (z. B. `x-subscription-tier`); die Tier-Entscheidung erfolgt serverseitig.
 - RevenueCat-Käufe in Mobile benötigen einen Dev/Store-Build (nicht Expo Go), da `react-native-purchases` ein Native-Modul ist.
 - Falls beim Start `PluginError: Unable to resolve a valid config plugin for react-native-purchases` erscheint, den Plugin-Eintrag in `apps/mobile/app.json` entfernen (für die aktuell genutzte Paketversion nicht erforderlich).
 
