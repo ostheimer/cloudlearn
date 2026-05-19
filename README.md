@@ -26,7 +26,7 @@
 - [Entwicklungs-Roadmap](#entwicklungs-roadmap)
 - [Backlog (Detailplanung)](#backlog-detailplanung)
 - [Warum clearn.ai? — Alleinstellungsmerkmale (USPs)](#warum-clearnai--alleinstellungsmerkmale-usps)
-- [Implementierungsstatus (2026-02-11)](#implementierungsstatus-2026-02-11)
+- [Implementierungsstatus](#implementierungsstatus)
 - [Risiken & Gegenmassnahmen](#risiken--gegenmassnahmen)
 - [Setup & Entwicklung](#setup--entwicklung)
 - [Projektstruktur](#projektstruktur)
@@ -64,12 +64,12 @@
 | **Bild-Input für KI** | Auch handschriftliche Notizen, Tafelbilder, Lehrbuchseiten werden erkannt | Quizlet: nur Text-AI; Anki: keine KI |
 | **FSRS v5 Algorithmus** | Wissenschaftlich optimaler Spaced-Repetition-Algorithmus | Quizlet: einfaches SRS; Brainscape: eigener Algorithmus |
 | **KI-generierte Titel** | Deck-Titel passend zum Inhalt (nicht "Deck 1") | Kein Wettbewerber |
-| **Kostenlos starten, kein Abo nötig** | Kernfunktionen kostenlos, KI-Scans mit Fair-Use-Limit | Quizlet: Abo für KI; Anki iOS: 25 $ einmalig |
+| **Kostenlos starten, kein Abo nötig** | Kernfunktionen kostenlos, KI-Scans mit Fair-Use-Limit | Quizlet: Abo für KI; Anki iOS: 25 $ einmalig |
 
 ### Wettbewerber im Überblick
 
 - **Quizlet** — Größte Community, polierte UI, 8 Lernmodi, aber: einfaches SRS, KI nur bezahlt, Werbung
-- **Anki** — Bester Algorithmus, maximale Flexibilität, aber: veraltete UI, steile Lernkurve, iOS-App kostet 25 $
+- **Anki** — Bester Algorithmus, maximale Flexibilität, aber: veraltete UI, steile Lernkurve, iOS-App kostet 25 $
 - **Brainscape** — Gute Analytics, Confidence-basiert, aber: wenig Free-Content, eingeschränkt offline
 
 **clearn.ai positioniert sich als:** Anki-Qualität (FSRS) + Quizlet-UX + KI-First (Kamera → Karten).
@@ -87,7 +87,7 @@ Die API macht alles, was sicher, verbindlich oder zentral sein muss.
 - KI- und Zahlungs-Keys müssten in die App (unsicher)
 - Limits/Paywall könnten clientseitig umgangen werden
 - Sync-Konflikte und Duplikate wären schwer robust zu lösen
-- Webhooks (z. B. RevenueCat) könnten nicht sauber verarbeitet werden
+- Webhooks (z. B. RevenueCat) könnten nicht sauber verarbeitet werden
 
 ### Mit API ist die Aufgabenteilung klar
 
@@ -272,7 +272,7 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 │  │  Capture  │→ │   OCR     │  │  (ts-fsrs)     │  │
 │  └───────────┘  └─────┬─────┘  └────────────────┘  │
 │                       │                              │
-└───────────────────────┼──────────────────────────────┘
+└───────────────────────│───────────────────────────┘
                         │ Extracted Text
                         ▼
 ┌─────────────────────────────────────────────────────┐
@@ -285,7 +285,7 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 │  │  Supabase)│  │ (LLM API) │  │                │  │
 │  └───────────┘  └───────────┘  └────────────────┘  │
 │                                                     │
-└──────────┬──────────────┬───────────────┬───────────┘
+└──────────┬──────────────┬───────────┬───────────┘
            │              │               │
            ▼              ▼               ▼
     ┌────────────┐ ┌────────────┐  ┌────────────┐
@@ -343,7 +343,7 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 ### Einmalige Kosten
 
 | Posten | Kosten | Anmerkung |
-|--------|--------|-----------|
+|--------|--------|----------|
 | Apple Developer Account | **€99/Jahr** | Pflicht für iOS App Store |
 | Google Play Developer | **€25 einmalig** | Pflicht für Play Store |
 | Domain clearn.ai | **~€30–50/Jahr** | .ai Domain |
@@ -417,7 +417,7 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 ### Kostenvergleich: S3 vs. Cloudflare R2 vs. Supabase Storage
 
 | | AWS S3 | Cloudflare R2 | Supabase Storage |
-|--|--------|---------------|-----------------|
+|--|--------|---------------|------------------|
 | Storage/GB | $0,023 | $0,015 | $0,021 |
 | Egress/GB | **$0,09** | **€0 (!)** | $0,09 |
 | PUT/1000 | $0,005 | $0,0045 | Inkludiert |
@@ -698,7 +698,7 @@ Antworte ausschließlich als JSON-Array:
 ### Testpyramide (MVP)
 
 | Ebene | Fokus | Tooling |
-|------|-------|---------|
+|------|-------|--------|
 | Unit Tests | FSRS-Wrapper, Mapper, Validatoren, Sync-Regeln | Vitest |
 | API-Integration | Endpunkte, Auth, RLS, Idempotenz, Fehlercodes | Vitest + Supertest |
 | E2E (Web/API) | Kritische Flows rund um Scan -> Karten -> Review | Playwright |
@@ -821,13 +821,15 @@ console.log(updated.card.stability);  // Stabilität der Erinnerung
 
 ## Backlog (Detailplanung)
 
-Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testfaellen liegt in:
+Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testfällen liegt in:
 
 - `BACKLOG.md`
 
 ---
 
-## Implementierungsstatus (2026-02-13)
+## Implementierungsstatus (Basis 2026-02-13, ergänzt 2026-05)
+
+> Den vollständigen, laufend aktualisierten Changelog mit allen umgesetzten Features findet sich in `ROADMAP.md`.
 
 ### Voll funktionsfähig (End-to-End mit echten Daten)
 
@@ -845,10 +847,14 @@ Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testfa
 - **Theme**: Konsistentes Light/Dark im gesamten UI inkl. Tab-Bar, optionaler Systemmodus (folgt Geräteeinstellung)
 - **Daten-Persistenz**: Alles in Supabase PostgreSQL mit JWT-Auth-Middleware
 - **Auto-Deploy**: Git-Push → Vercel baut `clearn-api` + `clearn-web` automatisch
+- **URL-Import**: Webseiten per URL importieren (`POST /api/v1/import/url`) mit Text-Extraktion und KI-Flashcard-Generierung
+- **RevenueCat Production Guard**: Produktions-RevenueCat-Konfiguration wird nur bei Store-Build geladen; verhindert SDK-Initialisierungsfehler in Expo Go und Dev-Builds
+- **AdMob Production Guard**: Produktions-AdMob-Konfiguration analog zu RevenueCat abgesichert; keine Initialisierung in Nicht-Store-Umgebungen
+- **Bereitschaftsprüfungen (Readiness Gates)**: Automatisierte Skripte prüfen TestFlight-Build-, Dashboard- und App-Store-Bereitschaft vor Releases
 
-### Scaffold vorhanden, noch nicht funktionsfähig
+### Scaffold vorhanden, noch nicht vollständig funktionsfähig
 
-- Statistiken (API existiert, kein Mobile-Screen)
+- Statistiken (API existiert, Mobile-Screen-Status laut ROADMAP-Changelog prüfen)
 - Offline-Sync (Store existiert, wird nicht aufgerufen)
 - PDF-Import, Anki-Export, Mathpix, Community-Decks, B2B (Mock/In-Memory)
 
@@ -864,7 +870,7 @@ Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testfa
 ## Risiken & Gegenmassnahmen
 
 | Risiko | Auswirkung | Gegenmaßnahme |
-|-------|------------|---------------|
+|-------|------------|----------------|
 | Schwankende KI-Qualität | Niedrige Lernwirksamkeit | Schema-Validation, Prompt-Versionierung, Edit-UI |
 | Provider-Ausfälle (LLM/OCR-Edge-Cases) | Feature-Ausfall | Fallback-Modell, Retry-Strategie, Alerting |
 | Scope Creep im MVP | Verzögerter Launch | Strikte Must/Should/Later-Gates |
@@ -936,7 +942,7 @@ RATE_LIMIT_PRO_PER_MINUTE=240
 Wichtige Produktionshinweise:
 
 - `REVENUECAT_WEBHOOK_SECRET` muss in Vercel (Production) gesetzt sein, sonst liefert der Webhook `503 WEBHOOK_NOT_CONFIGURED` (fail-closed).
-- Die API vertraut in Production keinen clientseitigen Tier-Headern (z. B. `x-subscription-tier`); die Tier-Entscheidung erfolgt serverseitig.
+- Die API vertraut in Production keinen clientseitigen Tier-Headern (z. B. `x-subscription-tier`); die Tier-Entscheidung erfolgt serverseitig.
 - RevenueCat-Käufe in Mobile benötigen einen Dev/Store-Build (nicht Expo Go), da `react-native-purchases` ein Native-Modul ist.
 - Falls beim Start `PluginError: Unable to resolve a valid config plugin for react-native-purchases` erscheint, den Plugin-Eintrag in `apps/mobile/app.json` entfernen (für die aktuell genutzte Paketversion nicht erforderlich).
 
@@ -1030,7 +1036,7 @@ clearn/
 
 ## Lizenz
 
-Proprietär — © 2026 clearn.ai
+Proprietaär — © 2026 clearn.ai
 
 ---
 
