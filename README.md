@@ -231,7 +231,7 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 - **Spaced Repetition:** FSRS-Algorithmus für optimale Wiederholungsintervalle
 - **Deck-Verwaltung:** Decks, Tags, Suche (Basis)
 - **Offline-Basis:** Lernen ohne Internet, Upload/Sync via Retry-Queue
-- **Auth:** E-Mail/Passwort + Apple/Google Sign-In
+- **Auth:** E-Mail/Passwort (Apple/Google OAuth als CL-D05 geplant)
 - **Paywall-Basis:** Free/Pro via RevenueCat
 
 ### v1.1
@@ -281,8 +281,8 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 │                                                     │
 │  ┌───────────┐  ┌───────────┐  ┌────────────────┐  │
 │  │   Auth    │  │    KI     │  │   Rate Limit   │  │
-│  │ (Clerk /  │  │ Processing│  │   & Billing    │  │
-│  │  Supabase)│  │ (LLM API) │  │                │  │
+│  │ (Supabase │  │ Processing│  │   & Billing    │  │
+│  │   Auth)   │  │ (LLM API) │  │                │  │
 │  └───────────┘  └───────────┘  └────────────────┘  │
 │                                                     │
 └──────────┬──────────────┬───────────┬───────────┘
@@ -315,10 +315,10 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 | OCR (Android) | **Google ML Kit** | Kostenlos, offline, on-device |
 | Navigation | **Expo Router** | File-based routing wie Next.js |
 | State | **Zustand** | Leichtgewichtig, TypeScript-native |
-| Local DB | **WatermelonDB** oder **SQLite (expo-sqlite)** | Offline-first, schnelle Queries für Karten |
+| Local DB | **AsyncStorage** (nur Cache; SQLite-Offline-Persistenz als offene CL-D01) | Lokaler Cache für Offline-Basis |
 | SRS Engine | **ts-fsrs** | TypeScript-Implementierung von FSRS v5 |
 | i18n | **i18next + react-i18next** | Deutsch als Default, Englisch als erste Übersetzung |
-| UI | **Tamagui** oder **NativeWind** | Cross-Platform UI mit Native Performance |
+| UI | **Custom theme system** (`apps/mobile/src/theme.ts` mit `StyleSheet.create()`) | Native Performance ohne externe UI-Bibliothek |
 | Testing | **Vitest + Playwright + Detox (optional)** | Unit + API/E2E + Mobile-Flows |
 
 ### Backend & Infrastruktur
@@ -328,7 +328,7 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 | Datenbank | **Supabase (PostgreSQL)** | Auth + DB + Realtime + Storage in einem |
 | Bild-Speicher | **Cloudflare R2** oder **Supabase Storage** | R2: S3-kompatibel, kein Egress; Supabase: einfacher |
 | Auth | **Supabase Auth** | Social Login, Magic Links, RLS integration |
-| KI-API | **Google Gemini 2.5 Flash** (Standard) | Bestes Preis-Leistungs-Verhältnis für Vision+Text |
+| KI-API | **Google Gemini 3 Flash** (Standard) | Bestes Preis-Leistungs-Verhältnis für Vision+Text |
 | KI-API (Fallback) | **OpenAI GPT-4o Mini** | Alternative bei Gemini-Ausfällen |
 | Formel-OCR | **Mathpix API** (v2.0) | Spezialist für STEM; $0,002/Bild |
 | Push | **Expo Push Notifications** | Kostenlos, integriert |
@@ -353,7 +353,7 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 ### Monatliche Fixkosten (MVP-Phase, 0–1.000 Nutzer)
 
 | Service | Free Tier | Geschätzte Kosten | Anmerkung |
-|---------|-----------|-------------------|-----------|
+|---------|-----------|-------------------|----------|
 | **Vercel** (Backend) | 100 GB BW, Serverless | **€0** (Pro: €20) | Hobby reicht für MVP |
 | **Supabase** (DB + Auth) | 500 MB DB, 50K MAU | **€0** (Pro: €25) | Free reicht für Start |
 | **Cloudflare R2** (Bilder) | 10 GB Storage, 10M Reads | **€0–5** | Kein Egress! |
@@ -753,6 +753,8 @@ console.log(updated.card.stability);  // Stabilität der Erinnerung
 ---
 
 ## Monetarisierung
+
+> **Hinweis (2026-03):** Das Monetarisierungsmodell wurde auf ein LP-System (Lernpunkte) umgestellt. Die untenstehende Tabelle ist veraltet. Aktuelles Modell: siehe `packages/contracts/src/featureGates.ts`.
 
 ### Pricing-Modell
 
