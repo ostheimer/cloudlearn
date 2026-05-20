@@ -231,7 +231,7 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 - **Spaced Repetition:** FSRS-Algorithmus für optimale Wiederholungsintervalle
 - **Deck-Verwaltung:** Decks, Tags, Suche (Basis)
 - **Offline-Basis:** Lernen ohne Internet, Upload/Sync via Retry-Queue
-- **Auth:** E-Mail/Passwort (Apple/Google OAuth als CL-D05 geplant)
+- **Auth:** E-Mail/Passwort + Apple/Google Sign-In
 - **Paywall-Basis:** Free/Pro via RevenueCat
 
 ### v1.1
