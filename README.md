@@ -754,25 +754,47 @@ console.log(updated.card.stability);  // Stabilität der Erinnerung
 
 ## Monetarisierung
 
-> **Hinweis (2026-03):** Das Monetarisierungsmodell wurde auf ein LP-System (Lernpunkte) umgestellt. Die untenstehende Tabelle ist veraltet. Aktuelles Modell: siehe `packages/contracts/src/featureGates.ts`.
+clearn.ai verwendet ein **LP-System (Lernpunkte)** als universelle In-App-Währung. Die kanonische Quelle ist `packages/contracts/src/featureGates.ts`.
 
-### Pricing-Modell
+### Tier-Übersicht
 
-| | Free | Pro (€7,99/Mo) | Lifetime (€179,99) |
-|--|------|----------------|---------------------|
-| Foto-Scans/Monat | 10 | Unbegrenzt | Unbegrenzt |
-| KI-Kartengenerierung | ✅ (begrenzt) | ✅ Unbegrenzt | ✅ Unbegrenzt |
-| Lernmodi | Flashcards | Alle Modi | Alle Modi |
-| Spaced Repetition | ✅ | ✅ | ✅ |
-| Offline-Modus | ❌ | ✅ | ✅ |
-| KI-Zusammenfassungen | ❌ | ✅ | ✅ |
-| Anki-Export | ❌ | ✅ | ✅ |
-| Formel-Erkennung | ❌ | ✅ | ✅ |
-| Statistiken | Basis | Erweitert | Erweitert |
+| | Free | Pro | Lifetime |
+|--|------|-----|----------|
+| Max. Decks | 10 | 500 | 500 |
+| Max. Karten/Deck | 100 | 2.000 | 2.000 |
+| LP-Grant/Monat | 0 | 300 LP | 300 LP |
+| LP-Verdienst-Cap/Tag | 30 LP | 100 LP | 100 LP |
+| LP-Cost KI-Scan | 10 LP | 5 LP | 5 LP |
+| LP-Cost URL-Import | 15 LP | 8 LP | 8 LP |
+| LP-Cost PDF-Import | 20 LP | 12 LP | 12 LP |
+| PDF-Import | ❌ | ✅ | ✅ |
+| Image Occlusion | ❌ | ✅ | ✅ |
+| Offline-Download | ❌ | ✅ | ✅ |
+| Erweiterte Statistiken | ❌ | ✅ | ✅ |
+| Werbefrei | ❌ | ✅ | ✅ |
 
-### Jahresabo-Option
-- **€59,99/Jahr** (spart 37% gegenüber Monatsabo)
-- Empfohlene Default-Option im Paywall-Screen
+### LP verdienen (kostenlos)
+
+| Aktion | LP |
+|--------|----|
+| Abgeschlossene Review-Session (min. 5 Karten) | +5 |
+| Tagesziel erreicht | +10 Bonus |
+| Streak-Meilenstein 7 Tage | +25 |
+| Streak-Meilenstein 30 Tage | +100 |
+| Streak-Meilenstein 100 Tage | +300 |
+| Referral: Einladender (eingeladener User erreicht Tag 7) | +50 |
+| Referral: Eingeladener (Signup-Bonus) | +25 |
+| Erstes Deck | +10 |
+| Erste Review | +5 |
+
+### LP-Packs (käuflich, konsumierbar)
+
+| Pack | LP | Preis |
+|------|----|-------|
+| Starter | 100 LP | €0,99 |
+| Basis | 300 LP | €2,49 |
+| Profi | 750 LP | €4,99 |
+| Power | 2.000 LP | €9,99 |
 
 ---
 
@@ -855,19 +877,30 @@ Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testf�
 - **RevenueCat Production Guard**: Produktions-API-Keys werden nur in Store-Builds aktiviert; in Expo Go (fehlendes Native Module) oder Dev-Builds ohne gesetzte Keys verhindert die Guard SDK-Initialisierungsfehler
 - **AdMob Production Guard**: Außerhalb von Store-Builds werden Test-Ad-Unit-IDs anstelle der Produktions-IDs verwendet; der SDK initialisiert sich weiterhin (mit Test-Modus)
 - **Bereitschaftsprüfungen (Readiness Gates)**: Automatisierte Skripte prüfen TestFlight-Build-, Dashboard- und App-Store-Bereitschaft vor Releases
+- **Statistiken**: Reviews heute/Woche/gesamt, Genauigkeit, Lernverlauf 30 Tage — API und Mobile-Screen vollständig
+- **Streaks + TTS + Push-Notifications**: Tagesserien-Tracking, Vorlesen (expo-speech), konfigurierbare tägliche Erinnerungen
+- **Erweiterte Lernmodi**: Flip-Animation, Swipe (4 FSRS-Stufen, Tinder-Stil), Test-Modus (MC/Wahr-Falsch), Match-Spiel (Timer, Sterne), Auto-Play, Image Occlusion
+- **Bibliothek**: Kurse, Ordner, Deck duplizieren, Deck teilen (Deep-Link), Offline-Download (AsyncStorage), Deck-Details, Kartenanzahl
+- **LP-System**: Lernpunkte als universelle Währung — Balance, Verdienen (Reviews, Streaks, Referrals), Ausgeben (KI-Features), LP-Packs (RevenueCat), Leaderboard, Freundesliste, Rewarded Ads (AdMob)
+- **Onboarding-Flow**: 3-Schritte-Onboarding, Starter-Deck, Routing-Fix für Authenticated-/New-User-Pfade
 
 ### Scaffold vorhanden, noch nicht vollständig funktionsfähig
 
-- Statistiken (API existiert, Mobile-Screen-Status laut ROADMAP-Changelog prüfen)
-- Offline-Sync (Store existiert, wird nicht aufgerufen)
-- PDF-Import, Anki-Export, Mathpix, Community-Decks, B2B (Mock/In-Memory)
+- Offline-Sync (Store existiert, Sync-Aufruf ist nicht aktiv)
+- PDF-Import (Job-Queue vorhanden, kein echtes Parsing)
+- Anki-Export (Mock-Daten)
+- Mathpix (Mock)
+- Community-Decks (In-Memory, kein Mobile-Screen)
+- B2B-Dashboard (In-Memory, kein Mobile-Screen)
 
 ### Nächste Schritte (siehe `ROADMAP.md` und `BACKLOG.md`)
 
-- **Priorität A**: Flashcard-UX verbessern (Flip-Animation, Swipe, Fortschrittsbalken, Stern/Favorit)
-- **Priorität B**: Engagement (Streaks, Statistiken, TTS, Push-Notifications)
-- **Priorität C**: Erweiterte Lernmodi (Test, Match-Spiel, Auto-Play, Image Occlusion)
-- **Priorität D**: Daten & Ökosystem (Offline, PDF-Import, Anki, OAuth, Paywall, Community)
+- **Priorität D1**: Offline-Sync vollständig aktivieren (SQLite-Cache + Sync bei Verbindung)
+- **Priorität D2**: PDF-Import mit echtem Parsing
+- **Priorität D3/D4**: Anki-Import/-Export
+- **Priorität D5**: Apple/Google Sign-In (OAuth)
+- **Priorität D7**: Community-Decks (teilen, bewerten, suchen)
+- **CL-MON-01/02**: App-Store-Produkte für LP-Packs finalisieren
 
 ---
 
