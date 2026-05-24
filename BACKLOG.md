@@ -1,6 +1,6 @@
 # BACKLOG
 
-Letzte Aktualisierung: 2026-03-01
+Letzte Aktualisierung: 2026-05-24
 
 ## Ziel
 
@@ -282,7 +282,7 @@ Ein Ticket ist erst "Done", wenn:
 ### CL-A01 - Karte umdrehen (Tap + Flip-Animation)
 
 - **Priorität:** P0
-- **Status:** Offen
+- **Status:** ✅ Done (per ROADMAP 2026-03; im README als „weicher Snap-Back" und Lernmodus-UX bestätigt)
 - **Schätzung:** 1-2 PT
 - **Abhängigkeiten:** keine
 - **Referenz:** Quizlet Flashcard-Modus
@@ -304,7 +304,7 @@ Im Learn-Screen wird die Karte als große Fläche dargestellt. Tippen auf die Ka
 ### CL-A02 - Swipe links/rechts (weiß ich / weiß ich nicht)
 
 - **Priorität:** P0
-- **Status:** Offen
+- **Status:** ✅ Done (per ROADMAP 2026-03; im README als „Swipe-Counter (rot/grün)" bestätigt)
 - **Schätzung:** 2-3 PT
 - **Abhängigkeiten:** CL-A01
 
@@ -326,7 +326,7 @@ Neben den Buttons können Karten per Swipe-Geste bewertet werden. Swipe nach rec
 ### CL-A03 - Fortschrittsbalken in Lernsession
 
 - **Priorität:** P0
-- **Status:** Offen
+- **Status:** ✅ Done (per ROADMAP 2026-03; im README als „Kartenfortschritt" im Header bestätigt)
 - **Schätzung:** 0,5 PT
 - **Abhängigkeiten:** keine
 
@@ -347,7 +347,7 @@ Oben im Learn-Screen zeigt ein Fortschrittsbalken an, wie viele Karten in der ak
 ### CL-A04 - Begriff ↔ Definition umschalten
 
 - **Priorität:** P1
-- **Status:** Offen
+- **Status:** ✅ Done (per ROADMAP 2026-03)
 - **Schätzung:** 1 PT
 - **Abhängigkeiten:** CL-A01
 
@@ -670,7 +670,7 @@ Decks teilen, öffentlich durchsuchen, bewerten, kopieren. Moderation und Abuse-
 **Beschreibung**
 Erster Start → Beispiel-Scan → erste Review → Erfolgserlebnis in unter 2 Minuten. Keine Registrierung nötig für den ersten Durchlauf.
 
-**Umsetzung:** Nach Login: 3 Onboarding-Screens (Willkommen, So funktioniert's, Dein erstes Deck). „Jetzt starten“ legt Starter-Deck mit 3 Karten an, speichert Onboarding als erledigt (AsyncStorage), leitet zum Learn-Tab. Erster Lernerfolg in unter 2 Min.
+**Umsetzung:** Nach Login: 3 Onboarding-Screens (Willkommen, So funktioniert's, Dein erstes Deck). „Jetzt starten" legt Starter-Deck mit 3 Karten an, speichert Onboarding als erledigt (AsyncStorage), leitet zum Learn-Tab. Erster Lernerfolg in unter 2 Min.
 
 ---
 
@@ -780,14 +780,39 @@ Die Produkt-IDs wurden definiert, aber noch nicht im App Store Connect und Googl
 
 ---
 
+### CL-MON-06 — LP-Kosten-Divergenz: featureGates.ts vs. MONETIZATION_CONCEPT.md
+
+- **Priorität:** P1
+- **Status:** Offen
+- **Schätzung:** 0.5 PT
+
+**Beschreibung**
+Die tatsächlich im Code implementierten LP-Kosten in `src/features/paywall/featureGates.ts` weichen von den in `docs/monetization/MONETIZATION_CONCEPT.md` dokumentierten Sollwerten ab. Das Monetarisierungsmodell wurde auf das LP-System umgestellt, aber die Dokumentation wurde nicht vollständig nachgeführt. Entweder müssen die Code-Werte oder die Dokumentation angepasst werden — je nach Produktentscheidung.
+
+**Vorgehen**
+1. `featureGates.ts` öffnen und aktuelle LP-Kosten je Feature auslesen
+2. Mit den Werten in `MONETIZATION_CONCEPT.md` vergleichen
+3. Abweichungen tabellarisch dokumentieren
+4. Produktentscheidung treffen: welche Werte sind verbindlich?
+5. Eine der beiden Quellen anpassen, sodass Code und Dokumentation übereinstimmen
+
+**Akzeptanzkriterien**
+- [ ] Abgleich durchgeführt: Code-Werte vs. Doku-Werte tabellarisch dokumentiert
+- [ ] Produktentscheidung getroffen und festgehalten (als Kommentar im Ticket oder ADR)
+- [ ] Entweder `featureGates.ts` oder `MONETIZATION_CONCEPT.md` angepasst — beide konsistent
+- [ ] Kein weiteres Dokument (README, BACKLOG) widerspricht den festgelegten Werten
+- [ ] Kein Test bricht durch die Anpassung
+
+---
+
 ## Empfohlene Umsetzungsreihenfolge
 
-### Sprint Prio-A (1-2 Wochen)
-- **CL-A01** Karte umdrehen (Flip)
-- **CL-A02** Swipe links/rechts
-- **CL-A03** Fortschrittsbalken
-- **CL-A04** Begriff ↔ Definition
-- **CL-A05** Stern/Favorit
+### Sprint Prio-A (abgeschlossen)
+- ✅ **CL-A01** Karte umdrehen (Flip)
+- ✅ **CL-A02** Swipe links/rechts
+- ✅ **CL-A03** Fortschrittsbalken
+- ✅ **CL-A04** Begriff ↔ Definition
+- ✅ **CL-A05** Stern/Favorit
 
 ### Sprint Prio-B (2-3 Wochen)
 - **CL-B01** Streaks
