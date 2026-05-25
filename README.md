@@ -858,16 +858,13 @@ Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testf�
 
 ### Scaffold vorhanden, noch nicht vollständig funktionsfähig
 
-- Statistiken (API existiert, Mobile-Screen-Status laut ROADMAP-Changelog prüfen)
 - Offline-Sync (Store existiert, wird nicht aufgerufen)
 - PDF-Import, Anki-Export, Mathpix, Community-Decks, B2B (Mock/In-Memory)
 
 ### Nächste Schritte (siehe `ROADMAP.md` und `BACKLOG.md`)
 
-- **Priorität A**: Flashcard-UX verbessern (Flip-Animation, Swipe, Fortschrittsbalken, Stern/Favorit)
-- **Priorität B**: Engagement (Streaks, Statistiken, TTS, Push-Notifications)
-- **Priorität C**: Erweiterte Lernmodi (Test, Match-Spiel, Auto-Play, Image Occlusion)
-- **Priorität D**: Daten & Ökosystem (Offline, PDF-Import, Anki, OAuth, Paywall, Community)
+- **Prioritäten A, B und C sind umgesetzt** — Flashcard-UX (Flip, Swipe, Fortschrittsbalken, Stern/Favorit), Engagement (Streaks, Statistiken, TTS, Push-Erinnerungen), Lernmodi (Test-Modus, Match-Spiel, Auto-Play, Image Occlusion). Den vollständigen Changelog mit allen umgesetzten Features siehe `ROADMAP.md`.
+- **Priorität D — Offen**: Offline-Lernen mit SQLite-Persistenz (CL-D01), PDF-Import (CL-D02), Anki-Import/Export (CL-D03, CL-D04), Apple/Google Sign-In (CL-D05), Community-Decks (CL-D07). In-App-Käufe für LP-Packs (CL-MON-02) stehen in App-Store-Provisionierung aus.
 
 ---
 
