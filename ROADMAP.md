@@ -1,6 +1,6 @@
 # ROADMAP
 
-Letzte Aktualisierung: 2026-03-24 (Supabase Security Advisor: RLS LP-Tabellen + leaderboard_public security_invoker)
+Letzte Aktualisierung: 2026-05-26 (Dokumentations-Sync: LP-System, Leaderboard, Freunde, Referral, Ads in Ist-Stand; Wettbewerbsanalyse und Phase-2-Checkboxen aktualisiert)
 
 ## Gesamtstatus
 
@@ -9,6 +9,7 @@ Letzte Aktualisierung: 2026-03-24 (Supabase Security Advisor: RLS LP-Tabellen + 
 - Plattformfokus: **Mobile first (iOS/Android)**
 - Sprache: **Deutsch default**, erste Uebersetzung **Englisch**
 - Detailliertes Umsetzungs-Backlog: **`BACKLOG.md`**
+- Monetarisierung: **LP-System (Lernpunkte)** statt monatlichem Abo — Details in `docs/monetization/MONETIZATION_CONCEPT.md`
 
 ---
 
@@ -28,14 +29,14 @@ Letzte Aktualisierung: 2026-03-24 (Supabase Security Advisor: RLS LP-Tabellen + 
 | Swipe links/rechts (4-Stufen-Rating) | ✅ | ❌ | ✅ | **✅** |
 | Vorlesen (TTS) | ✅ | Add-on | ❌ | **✅** |
 | Stern/Favorit markieren | ✅ | Flag | ❌ | **✅** |
-| Auto-Play (Slideshow) | ✅ | ❌ | ❌ | ❌ |
+| Auto-Play (Slideshow) | ✅ | ❌ | ❌ | **✅** |
 | Begriff ↔ Definition umschalten | ✅ | ✅ | ❌ | **✅** |
 | Fortschrittsbalken in Session | ✅ | ✅ | ✅ | **✅** |
 | Streaks (Tagesserien) | ✅ | ❌ | ✅ | **✅** |
-| Test-Modus (MC, Wahr/Falsch) | ✅ | ❌ | ❌ | ❌ |
-| Match-Spiel (Timer) | ✅ | ❌ | ❌ | ❌ |
+| Test-Modus (MC, Wahr/Falsch) | ✅ | ❌ | ❌ | **✅** |
+| Match-Spiel (Timer) | ✅ | ❌ | ❌ | **✅** |
 | Statistiken/Analytics | ✅ | ✅ | ✅ | **✅** (Home) |
-| Image Occlusion | ✅ (Scaffold) | Add-on | ❌ | ❌ |
+| Image Occlusion | ✅ (Scaffold) | Add-on | ❌ | **✅** |
 | Offline-Lernen | ✅ | ✅ | Teilweise | **✅** (Download) |
 | Deck-Aktionsmenü | ✅ | ✅ | ✅ | **✅** |
 | Ordner/Kurse | ✅ | ❌ | ❌ | **✅** |
@@ -44,6 +45,9 @@ Letzte Aktualisierung: 2026-03-24 (Supabase Security Advisor: RLS LP-Tabellen + 
 | KI-Kartenerstellung | Bezahlt | ❌ | ❌ | **✅ USP** |
 | Kamera → Karten | ❌ | ❌ | ❌ | **✅ USP** |
 | FSRS-Algorithmus | ❌ (einfach) | ✅ | Eigener | **✅** |
+| Leaderboard + Freunde-Rangliste | ✅ | ❌ | ❌ | **✅** |
+| Referral-System | ❌ | ❌ | ❌ | **✅** |
+| LP / Gamification-System | Teils | ❌ | Teils | **✅** |
 | Community-Decks | ✅ (riesig) | ✅ | ✅ | Scaffold |
 | Push-Erinnerungen | ✅ | ❌ | ✅ | **✅** |
 | PDF-Import | ❌ | Add-on | ❌ | Scaffold |
@@ -51,7 +55,7 @@ Letzte Aktualisierung: 2026-03-24 (Supabase Security Advisor: RLS LP-Tabellen + 
 
 ---
 
-## Funktionaler Ist-Stand (2026-02-11)
+## Funktionaler Ist-Stand (2026-02-11, laufend aktualisiert bis 2026-05-26)
 
 ### Voll funktionsfähig (End-to-End mit echten Daten)
 
@@ -90,11 +94,17 @@ Letzte Aktualisierung: 2026-03-24 (Supabase Security Advisor: RLS LP-Tabellen + 
 | **Bibliothek-Tab** | Segmented Control (Decks/Kurse/Ordner), erstellt/umbenennt/löscht alle drei Typen |
 | **Kurs-Detail-Screen** | Zeigt zugeordnete Decks, Umbenennen/Löschen, Deck entfernen per Long-Press |
 | **Ordner-Detail-Screen** | Zeigt Unterordner + Decks, Umbenennen/Löschen, verschachtelte Navigation |
+| **LP-System (Lernpunkte)** | LP verdienen (Reviews, Meilensteine, Werbung), ausgeben für KI-Scans, LP-Store mit Packs |
+| **Leaderboard** | Global Top-50 nach LP-Gesamt + Freunde-Rangliste mit Podest-Visualisierung (Platz 1/2/3) |
+| **Freunde-System** | Freundschaft bidirektional (Anfrage senden, annehmen, ablehnen, entfernen) |
+| **Referral-System** | Referral-Code teilen und einlösen (+25 LP Claimer, +50 LP Sender) |
+| **Rewarded Ads (AdMob)** | Werbung ansehen → +5 LP; echte react-native-google-mobile-ads-Integration (Prod/Test-IDs via Env) |
+| **Streak-Alert Push** | Cron-basierte Push-Notifications an Freunde bei drohendem Streak-Verlust |
 
 ### Scaffold vorhanden, NICHT funktionsfähig
 
 | Feature | Problem |
-|---------|---------|
+|---------|--------|
 | Offline-Sync | Store existiert, wird nie aufgerufen |
 | PDF-Import | Nur Job-Queue, kein echtes Parsing |
 | Anki-Export | Mock-Daten |
@@ -242,8 +252,8 @@ Letzte Aktualisierung: 2026-03-24 (Supabase Security Advisor: RLS LP-Tabellen + 
 
 Voraussetzung: Priorität A + B abgeschlossen.
 
-- [ ] Statistiken-Dashboard (CL-B02)
-- [ ] Streaks + Push-Notifications (CL-B01, CL-B04)
+- [x] Statistiken-Dashboard (CL-B02)
+- [x] Streaks + Push-Notifications (CL-B01, CL-B04)
 - [x] Onboarding-Flow (CL-D08)
 - [ ] Incident-Runbook + Restore-Test in Regelbetrieb
 - [ ] Landing Page + App Store Optimierung
@@ -369,20 +379,21 @@ Voraussetzung: Phase 2 + stabile Nutzerbasis.
 - 2026-02-24: **App im iOS-Simulator**: cloudlearn startet lokal mit `CI=false pnpm dev -- --ios --port 8083` im iPhone-Simulator (Metro auf 127.0.0.1:8083). QR-Code/URL für Expo Go auf dem Handy: `exp://<LAN-IP>:8083`.
 - 2026-03-11: **Onboarding-Routing Fix**: Root-Redirects in `apps/mobile/app/_layout.tsx` über `resolveRootRedirect()` zentralisiert. Fix für zwei echte Simulator-Funde: leerer Root-Screen bei direktem App-Start und veralteter `onboardingCompleted`-Status in derselben Session nach `completeAndPersist()`. Authentifizierte Nutzer werden nun nach geladenem Onboarding-Status korrekt zu `/onboarding` bzw. `/(tabs)` geleitet; bei abgeschlossenem Onboarding wird auch eine geöffnete Onboarding-Route sofort auf Tabs umgeleitet.
 - 2026-03-11: **Simulator-Verifikation D8**: Onboarding manuell im iPhone-16-Pro-Simulator durchgespielt (Schritt 1 → Schritt 2 → Schritt 3 → `Jetzt starten`). Starter-Deck wurde angelegt und die Navigation wechselte in die Lernsession. Zusätzliche Unit-Tests für Root-Redirect-Fälle ergänzt (`src/navigation/rootRedirect.test.ts`).
-- 2026-02-24: **Doku & Regression**: SCREENS.md Ist-Zustand angepasst (Tab-Badge, 1.5 Zuletzt gelernt → learn/BookOpen, Bibliothek Kartenanzahl, Kurs/Ordner „Alle lernen"). Manuelle Regression-Checkliste `docs/testing/regression-mobile.md` angelegt. Unit-Tests für sessionStore dueCount und Filter-Logik; Playwright-Tests für GET learn/due und decks mit cardCount.
+- 2026-02-24: **Doku & Regression**: SCREENS.md Ist-Zustand angepasst (Tab-Badge, 1.5 Zuletzt gelernt → learn/BookOpen, Bibliothek Kartenanzahl, Kurs/Ordner „Alle lernen“). Manuelle Regression-Checkliste `docs/testing/regression-mobile.md` angelegt. Unit-Tests für sessionStore dueCount und Filter-Logik; Playwright-Tests für GET learn/due und decks mit cardCount.
 - 2026-02-28: **URL-Import Phase 1**: Neuer API-Endpunkt `POST /api/v1/import/url` mit URL-Extraktion (Text + Bilder), multimodaler LLM-Generierung und Speicherung ins Deck. Mobile Scan-Screen um URL-Eingabe erweitert, Quiz um Bildfragen ergänzt, Kartenansichten (Scan/Deck/Learn) rendern Markdown-Bilder. Neue Unit-Tests für Extractor/Service/Quiz-Media sowie E2E-Spec für URL-Import (auf Live-Umgebung derzeit per Skip, solange Endpoint noch nicht ausgerollt ist).
-- 2026-03-01: **Monetarisierung Phase 1 (CL-D06)**: Feature-Gating vollständig implementiert. DB-Migration (`ai_scans_used`, `ai_url_imports_used`, `usage_period_start` auf `profiles`). DB-backed Quota-Enforcement ersetzt in-memory Store (persistent über Serverless-Restarts). Separate Limits für KI-Scans (5/Monat) und URL-Importe (2/Monat). Neuer Endpoint `GET /api/v1/usage`. `TIER_LIMITS`-Objekt in `packages/contracts` für Free/Pro/Lifetime. Scan-Screen zeigt Usage-Badge (z.B. „2/5 KI"). Automatischer Paywall-Trigger bei 402 via globalem `registerPaywallTrigger()`. Paywall-Screen um Feature-Vergleichsliste und Usage-Progressbars erweitert. Jährliches Angebot mit „Bestes Preis-Leistungs-Verhältnis"-Badge hervorgehoben. Supabase Edge Function `reset-ai-usage` für monatlichen Cron-Reset. RevenueCat Setup-Dokumentation (`docs/monetization/REVENUECAT_SETUP.md`). 59 API-Tests + 12 Contracts-Tests grün.
+- 2026-03-01: **Monetarisierung Phase 1 (CL-D06)**: Feature-Gating vollständig implementiert. DB-Migration (`ai_scans_used`, `ai_url_imports_used`, `usage_period_start` auf `profiles`). DB-backed Quota-Enforcement ersetzt in-memory Store (persistent über Serverless-Restarts). Separate Limits für KI-Scans (5/Monat) und URL-Importe (2/Monat). Neuer Endpoint `GET /api/v1/usage`. `TIER_LIMITS`-Objekt in `packages/contracts` für Free/Pro/Lifetime. Scan-Screen zeigt Usage-Badge (z.B. „2/5 KI“). Automatischer Paywall-Trigger bei 402 via globalem `registerPaywallTrigger()`. Paywall-Screen um Feature-Vergleichsliste und Usage-Progressbars erweitert. Jährliches Angebot mit „Bestes Preis-Leistungs-Verhältnis“-Badge hervorgehoben. Supabase Edge Function `reset-ai-usage` für monatlichen Cron-Reset. RevenueCat Setup-Dokumentation (`docs/monetization/REVENUECAT_SETUP.md`). 59 API-Tests + 12 Contracts-Tests grün.
 - 2026-03-01: **URL-Import Bildfragen-Tuning**: Bildkandidaten werden nach Komponenten-Relevanz priorisiert, `componentHint` wird aus HTML-Metadaten extrahiert und in den multimodalen Prompt gegeben. Prompt-Regeln fokussieren Bildfragen stärker auf UI-Komponenten statt Branding; URL-LLM-Aufruf hat Retry + Quality-Gate-Regeneration (mind. 2 komponentenbezogene Bildfragen, falls Bilder vorhanden). Neue API-Unit-Tests fuer den Quality-Gate-Flow (`llmUrlQualityGate`) sowie erweiterte Tests fuer Extractor/Service sind gruen.
 - 2026-02-25: **Onboarding-Flow (CL-D08)**: Nach erstem Login 3 Schritte (Willkommen → So funktioniert's → Dein erstes Deck). „Jetzt starten“ erstellt ein Starter-Deck mit 3 Beispielkarten (Hund/dog, Katze/cat, Vogel/bird), speichert „onboarding completed“ in AsyncStorage und navigiert zum Learn-Tab. Root-Layout lädt Onboarding-Status und leitet neue Nutzer nach Auth auf `/onboarding` um. i18n de+en.
 - 2026-03-11: **Gitignore & thematische Commits**: `.gitignore` um Temp-Screenshots (`.tmp-sim-*.png`, `sim-window-desktop.png`), `.tmp/` und `apps/mobile/expo-qr.png` erweitert. Übrige Änderungen in 11 thematische Commits gruppiert (Contracts, API Usage Limits, URL-Import, Scan-Quota, Mobile Usage/Paywall/Tabs/Libs, Docs/E2E). API-Build-Fix: `qualityDirective` bei `exactOptionalPropertyTypes` nur bei Vorhandensein übergeben (`llm.ts`). Vercel-Deployment nach Fix erfolgreich (Ready).
 - 2026-02-12: **LP-System Phase 2**: Scan-Screen zeigt LP-Balance-Badge (⚡N LP) + LP-Kosten auf jedem Action-Button (⚡10 LP). `LpInsufficientModal` öffnet sich bei fehlendem LP-Guthaben mit Optionen: Werbung ansehen (+5 LP), LP-Pack kaufen, Upgrade. `useRewardedAd`-Hook (Scaffold für AdMob, server-seitig fertig). `LpStoreScreen` (`/lp-store`) mit Balance, Tages-Earn-Progressbars, Rewarded-Ad-Button, LP-Pack-Grid (100/300/750/2000 LP) und Pro-Teaser. Paywall-Screen LP-Balance statt monatliche Quota. 69 API-Tests grün.
 - 2026-02-12: **LP-System Phase 1 abgeschlossen**: DB-Migration (`lp_balance`, `lp_earned_today`, `lp_ads_today`, `lp_period_start`, `referral_code` auf `profiles`; neue Tabellen `lp_transactions`, `rewards_claimed`). API: `GET /api/v1/usage` auf LP umgestellt; neue Routen `/api/v1/lp/balance`, `/api/v1/lp/earn`, `/api/v1/lp/spend`, `/api/v1/lp/milestone`. `featureGates.ts` überarbeitet: Lifetime-Tier entfernt, echte Limits, LP-Kosten pro Tier, LP-Verdienregeln, LP-Packs. `revenueCatService.ts` ohne Lifetime. Mobile: `LpBadge`-Komponente im Home-Header, LP verdienen nach Review-Session, `usageStore.ts` auf LP-Format migriert. 69 API-Tests grün.
-- 2026-03-13: **clearn auf iPhone installiert**: `expo-dev-client` verursacht `reloadAppAsync`-Kompilierungsfehler in `expo-dev-menu` — entfernt. Preview-Build ohne Dev-Client kompiliert sauber (93 Pods, ~11 Min Erstbuild). App via `npx expo run:ios --device` auf „Andreas iPhone" (iOS 26.3.1) deployed. Signing: „Apple Development: Andreas Ostheimer (Z3ADG9J8X9)". Metro Bundler auf localhost:8081.
+- 2026-03-13: **clearn auf iPhone installiert**: `expo-dev-client` verursacht `reloadAppAsync`-Kompilierungsfehler in `expo-dev-menu` — entfernt. Preview-Build ohne Dev-Client kompiliert sauber (93 Pods, ~11 Min Erstbuild). App via `npx expo run:ios --device` auf „Andreas iPhone“ (iOS 26.3.1) deployed. Signing: „Apple Development: Andreas Ostheimer (Z3ADG9J8X9)“. Metro Bundler auf localhost:8081.
 - 2026-03-13: **iOS Prebuild für Xcode**: `npx expo prebuild --platform ios --clean` generiert nativen `ios/`-Ordner mit `clearn.xcworkspace`. 104 CocoaPods (inkl. Google-Mobile-Ads-SDK, RevenueCat, Expo Dev Client). `newArchEnabled: true` für React Native New Architecture. Metro-Bundler (`npx expo start --dev-client`) läuft auf Port 8081. Xcode-Workflow: Workspace öffnen → Signing Team auswählen → iPhone anschließen → Build & Run (⌘R).
 - 2026-03-13: **Erster EAS Android Build erfolgreich**: Preview-APK generiert (`4DQg4tduDMZ5F38dfX2mt9.apk`). App-Icons (icon.png, adaptive-icon.png, favicon.png, splash.png) generiert. EAS Secrets konfiguriert (API URL, Supabase, AdMob Test-IDs, google-services.json). `compileSdkVersion` auf 36 erhöht (benötigt von `androidx.core:core:1.17.0`). Development-Build scheitert an `expo-dev-menu` Kotlin-Inkompatibilität mit SDK 36 – Preview/Production-Profile funktionieren.
 - 2026-03-12: **EAS Build Setup**: `eas.json` mit 4 Profilen (development/simulator/preview/production). `app.config.js` für dynamische AdMob-App-IDs (Test-IDs in Dev/Preview, echte IDs via `EXPO_PUBLIC_ADMOB_APP_*` in Production). `buildNumber: 1` + `versionCode: 1` + `runtimeVersion`-Policy. `updates.url` auf EAS Project ID (`5495e637`) gesetzt. `.env.example` für API + Mobile. `.gitignore` um `google-services.json`, `google-play-service-account.json`, `.p8/.p12/.mobileprovision` ergänzt. EAS-Build-Runbook `docs/runbooks/eas-build.md` mit 6-Schritt-Checklist (AdMob, Firebase, Credentials, Build, Submit, OTA).
-- 2026-03-12: **Phase 5 – Deployment-Infrastruktur**: Supabase-Migration `20260312200000_add_social_features.sql` in Production eingespielt (`friend_connections`, `push_tokens`, `leaderboard_public`-View, Streak-Spalten). `app.json` um `react-native-google-mobile-ads`-Plugin (AdMob Test-App-IDs iOS+Android, SKAdNetwork-Liste), `expo-notifications`-Plugin, `expo-build-properties` (iOS 15.1, Android compileSdk 35), `bundleIdentifier: app.clearn` und `package: app.clearn` erweitert. `CRON_SECRET` in Vercel (Production/Preview/Development) gesetzt. `POST /api/v1/push/streak-alerts` live getestet → `{\"sent\":0}` (korrekt, keine aktiven Nutzer mit Token noch).
+- 2026-03-12: **Phase 5 – Deployment-Infrastruktur**: Supabase-Migration `20260312200000_add_social_features.sql` in Production eingespielt (`friend_connections`, `push_tokens`, `leaderboard_public`-View, Streak-Spalten). `app.json` um `react-native-google-mobile-ads`-Plugin (AdMob Test-App-IDs iOS+Android, SKAdNetwork-Liste), `expo-notifications`-Plugin, `expo-build-properties` (iOS 15.1, Android compileSdk 35), `bundleIdentifier: app.clearn` und `package: app.clearn` erweitert. `CRON_SECRET` in Vercel (Production/Preview/Development) gesetzt. `POST /api/v1/push/streak-alerts` live getestet → `{"sent":0}` (korrekt, keine aktiven Nutzer mit Token noch).
 - 2026-03-12: **LP-System Phase 4 – Virales Wachstum**: DB-Migration `friend_connections` (bidirektional, RLS), `push_tokens`-Tabelle (Expo Push), `leaderboard_public`-View. API: `GET /leaderboard/global` (Top-50 nach LP), `GET /leaderboard/friends` (Freunde + eigener Eintrag), `GET|POST|DELETE /friends` (Freundschaft bidirektional), `POST /push/register` (Token-Upsert), `POST /push/streak-alerts` (Cron-Endpoint). `notificationService.ts` mit Expo-Push-HTTP-API, `sendStreakAlertNotifications()` (Freunde bei Streak-Gefahr), `sendSelfStreakReminder()`. Mobile: Leaderboard-Screen (`/leaderboard`) mit Global/Freunde-Tabs, Podest-Visualisierung (Platz 1/2/3), Rang-Badges, LP+Streak pro Zeile. Leaderboard-Button im Profil. Push-Token automatisch registriert nach Login. AdMob: `useRewardedAd.ts` ersetzt `simulateAdView()` durch echten `react-native-google-mobile-ads`-Flow (TestIds im Dev, env-basierte IDs in Prod), Fallback auf Simulation in Expo Go. CRON_SECRET in `env.ts`. 13 neue Unit-Tests. 15+ i18n-Keys (de+en). API-Build clean.
 - 2026-03-12: **LP-System Phase 3 abgeschlossen**: Streak-Milestone Auto-Claim nach Review-Session (streak_7/30/100 + first_review via `claimMilestone()`, `useMilestoneToast`-Hook, `MilestoneToastView`). RevenueCat LP-Pack Webhook: `NON_RENEWING_PURCHASE` mit `product_id = lp_pack_*` → `grantLpPurchase()` (idempotent). `POST /api/v1/lp/purchase` für direkten Kauf (Client-Grant, Webhook-Backup). `LP_PACKS` in `featureGates.ts` (`lp_pack_100/300/750/2000`). Echter Purchase-Flow im LP-Store: RevenueCat → API → Balance. Referral-System: `POST /api/v1/referral/claim` (+25 LP Claimer, +50 LP Sender), `GET /api/v1/referral/info`. `/referral`-Screen (Code teilen, Clipboard, Einlösen). Referral-Button im Profil. `expo-clipboard`. 19 neue Unit-Tests. 40+ i18n-Keys (de+en). API-Build clean.
 - 2026-03-12: **CL-MON-01 vollständig**: Vault Secrets + Cron-Job `reset-ai-usage-monthly` (`0 0 1 * *`, active=true) per Supabase Management API in Production gesetzt. Migration `20260301100000_add_ai_usage_limits.sql` per `supabase db push` in Production eingespielt (Spalten `ai_scans_used`, `ai_url_imports_used`, `usage_period_start` auf `profiles`). Edge Function `reset-ai-usage` per `supabase functions deploy reset-ai-usage` deployed. Runbook `docs/runbooks/supabase-usage-cron.md` für monatlichen Cron (Dashboard oder pg_cron+pg_net) und manuellen curl-Test angelegt. BACKLOG CL-MON-01 auf „Teilweise erledigt“ gesetzt; Cron einmalig im Dashboard (Integrations → Cron, `0 0 1 * *`) setzen.
 - 2026-03-24: **Supabase Security Advisor**: Migration `20260324120000_security_advisor_rls_leaderboard.sql` — `ENABLE ROW LEVEL SECURITY` auf `lp_transactions` und `rewards_claimed` (keine Policies: nur Service-Role-API, kein PostgREST für Clients); View `leaderboard_public` mit `security_invoker = true` statt implizitem Security Definer. Runbook `docs/runbooks/supabase-security-advisor.md`. Erweiterung `migrations.test.ts`. Security Advisor: **0 Errors** bestätigt.
+- 2026-05-26: **Dokumentations-Sync**: Ist-Stand um LP-System (Lernpunkte), Leaderboard, Freunde-System, Referral-System, Rewarded Ads (AdMob) und Streak-Alert-Push ergänzt — alle seit 2026-03-12 vollständig implementiert. Wettbewerbsanalyse: Auto-Play, Test-Modus, Match-Spiel, Image Occlusion auf ✅ korrigiert; Leaderboard, Referral-System und LP/Gamification als neue Zeilen hinzugefügt. Phase-2-Checkboxen für Statistiken (CL-B02) und Streaks/Push (CL-B01, CL-B04) auf [x] korrigiert. LP-System als aktives Monetarisierungsmodell in Gesamtstatus dokumentiert.
