@@ -150,7 +150,7 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 | Erfassung | Kamera + Galerie-Import | Whiteboard-Modus, PDF-Import |
 | Verständnis | On-Device OCR + manuelle Korrektur | Handschrift-Finetuning |
 | KI-Output | Flashcards (basic + cloze) | MCQ, Matching, Longform-Zusammenfassung |
-| Lernen | FSRS Reviews, tägliche Session | Gamification, Leaderboards |
+| Lernen | FSRS Reviews, tägliche Session, Leaderboard, LP/Gamification-System | Erweiterte Gamification (XP, Badges) |
 | Daten | Supabase Auth, Decks, Karten, Review-Logs | Community-Decks, B2B-Klassen |
 | Offline | Lokaler Cache + Retry-Queue | Vollständige Offline-Erstellung mit späterem Merge |
 | Monetarisierung | Basis Paywall + RevenueCat | Experimentelle Paywall-Varianten |
@@ -241,6 +241,11 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 - **Handschrift-Korrektur-UI:** Inline-Editor für OCR-Fehler
 - **Statistiken:** Lernfortschritt, Streaks, Retention-Rate
 - **Push-Notifications:** Lern-Erinnerungen
+- **Leaderboard:** Globale Rangliste + Freunde-Rangliste
+- **LP-System (Lernpunkte):** Earn/Spend-Mechanismus, LP-Packs, Meilensteine
+- **Freunde-System:** Freundschaftsanfragen, Freundesliste
+- **Referral-System:** Einladungslinks mit Bonus-LP
+- **Rewarded Ads:** AdMob-Integration für LP-Earn
 
 ### v2.0
 
@@ -256,7 +261,7 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 - **B2B/Schul-Dashboard:** Admin-Panel, Klassen, Fortschrittstracking
 - **Audio-Karten:** TTS für Sprachlernen
 - **Multi-Device-Sync:** Echtzeit-Synchronisation
-- **Gamification:** XP, Badges, Leaderboards
+- **Gamification:** XP, Badges *(Leaderboard und LP-System bereits implementiert — siehe v1.1)*
 
 ---
 
@@ -573,6 +578,15 @@ CREATE INDEX scans_created_idx
 ├── /learn
 │   ├── GET    /due          # Fällige Karten abrufen
 │   └── POST   /sync         # FSRS-Daten synchronisieren (Device <-> Server)
+├── /leaderboard
+│   ├── GET    /global       # Globale Rangliste
+│   └── GET    /friends      # Freunde-Rangliste
+├── /friends
+│   ├── GET    /             # Freundesliste
+│   ├── POST   /request      # Freundschaftsanfrage senden
+│   └── POST   /accept       # Freundschaftsanfrage annehmen
+├── /referral
+│   └── GET    /link         # Persönlichen Referral-Link abrufen
 ├── /stats
 │   └── GET    /             # Lernstatistiken
 └── /subscription
@@ -831,7 +845,7 @@ Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testf�
 
 <a id="implementierungsstatus"></a>
 
-## Implementierungsstatus (Basis 2026-02-13, ergänzt 2026-05)
+## Implementierungsstatus (Basis 2026-02-13, ergänzt 2026-05-26)
 
 > Den vollständigen, laufend aktualisierten Changelog mit allen umgesetzten Features findet sich in `ROADMAP.md`.
 
@@ -855,19 +869,24 @@ Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testf�
 - **RevenueCat Production Guard**: Produktions-API-Keys werden nur in Store-Builds aktiviert; in Expo Go (fehlendes Native Module) oder Dev-Builds ohne gesetzte Keys verhindert die Guard SDK-Initialisierungsfehler
 - **AdMob Production Guard**: Außerhalb von Store-Builds werden Test-Ad-Unit-IDs anstelle der Produktions-IDs verwendet; der SDK initialisiert sich weiterhin (mit Test-Modus)
 - **Bereitschaftsprüfungen (Readiness Gates)**: Automatisierte Skripte prüfen TestFlight-Build-, Dashboard- und App-Store-Bereitschaft vor Releases
+- **LP-System (Lernpunkte)**: Guthaben, Earn-Regeln (Reviews, Streaks, Referrals, Meilensteine), LP-Packs; `packages/contracts/src/featureGates.ts` als Single Source of Truth
+- **Leaderboard**: Globale Rangliste + Freunde-Rangliste; Echtzeit-Synchronisation via Supabase
+- **Freunde-System**: Freundschaftsanfragen, Freundesliste, Freundesaktivität im Leaderboard
+- **Referral-System**: Einladungslinks mit Bonus-LP; Tracking via Supabase
+- **Rewarded Ads (AdMob)**: Rewarded Video Ads für LP-Earn; Production Guard (Test-IDs in Dev/Preview, Prod-IDs nur in Store-Builds)
+- **Streak-Alert Push**: Tägliche Lern-Erinnerungen mit Streak-Kontext; Opt-In + Quiet-Hours Respekt
 
 ### Scaffold vorhanden, noch nicht vollständig funktionsfähig
 
-- Statistiken (API existiert, Mobile-Screen-Status laut ROADMAP-Changelog prüfen)
 - Offline-Sync (Store existiert, wird nicht aufgerufen)
 - PDF-Import, Anki-Export, Mathpix, Community-Decks, B2B (Mock/In-Memory)
 
 ### Nächste Schritte (siehe `ROADMAP.md` und `BACKLOG.md`)
 
-- **Priorität A**: Flashcard-UX verbessern (Flip-Animation, Swipe, Fortschrittsbalken, Stern/Favorit)
-- **Priorität B**: Engagement (Streaks, Statistiken, TTS, Push-Notifications)
-- **Priorität C**: Erweiterte Lernmodi (Test, Match-Spiel, Auto-Play, Image Occlusion)
-- **Priorität D**: Daten & Ökosystem (Offline, PDF-Import, Anki, OAuth, Paywall, Community)
+- **Priorität A** ✅: Flashcard-UX (Flip-Animation, Swipe, Fortschrittsbalken, Stern/Favorit) — abgeschlossen
+- **Priorität B** ✅: Engagement (Streaks, Statistiken, TTS, Push-Notifications) — abgeschlossen
+- **Priorität C** ✅: Erweiterte Lernmodi (Test, Match-Spiel, Auto-Play, Image Occlusion) — abgeschlossen
+- **Priorität D (offen)**: Daten & Ökosystem (Offline-Sync, PDF-Import, Anki-Export, OAuth, Community-Decks, App-Store-Produkte finalisieren)
 
 ---
 
@@ -1040,7 +1059,7 @@ clearn/
 
 ## Lizenz
 
-Proprietär — © 2026 clearn.ai
+Propietär — © 2026 clearn.ai
 
 ---
 
