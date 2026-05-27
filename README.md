@@ -756,7 +756,7 @@ console.log(updated.card.stability);  // Stabilität der Erinnerung
 
 > **Hinweis (2026-03):** Das Monetarisierungsmodell wurde auf ein LP-System (Lernpunkte) umgestellt. Die untenstehende Tabelle ist veraltet. Aktuelles Modell: siehe `packages/contracts/src/featureGates.ts`.
 
-### Pricing-Modell
+### Pricing-Modell (veraltet — Legacy)
 
 | | Free | Pro (€7,99/Mo) | Lifetime (€179,99) |
 |--|------|----------------|---------------------|
@@ -855,10 +855,10 @@ Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testf�
 - **RevenueCat Production Guard**: Produktions-API-Keys werden nur in Store-Builds aktiviert; in Expo Go (fehlendes Native Module) oder Dev-Builds ohne gesetzte Keys verhindert die Guard SDK-Initialisierungsfehler
 - **AdMob Production Guard**: Außerhalb von Store-Builds werden Test-Ad-Unit-IDs anstelle der Produktions-IDs verwendet; der SDK initialisiert sich weiterhin (mit Test-Modus)
 - **Bereitschaftsprüfungen (Readiness Gates)**: Automatisierte Skripte prüfen TestFlight-Build-, Dashboard- und App-Store-Bereitschaft vor Releases
+- **Statistiken (Home-Screen integriert)**: Reviews heute/Woche/gesamt, Genauigkeit, Streak-Kalender (30 Tage), Deck-Fortschritt
 
 ### Scaffold vorhanden, noch nicht vollständig funktionsfähig
 
-- Statistiken (API existiert, Mobile-Screen-Status laut ROADMAP-Changelog prüfen)
 - Offline-Sync (Store existiert, wird nicht aufgerufen)
 - PDF-Import, Anki-Export, Mathpix, Community-Decks, B2B (Mock/In-Memory)
 
