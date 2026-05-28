@@ -575,9 +575,31 @@ CREATE INDEX scans_created_idx
 │   └── POST   /sync         # FSRS-Daten synchronisieren (Device <-> Server)
 ├── /stats
 │   └── GET    /             # Lernstatistiken
-└── /subscription
-    ├── GET    /status       # Abo-Status prüfen
-    └── POST   /webhook      # RevenueCat Webhook
+├── /subscription
+│   ├── GET    /status       # Abo-Status prüfen
+│   └── POST   /webhook      # RevenueCat Webhook
+├── /lp
+│   ├── GET    /balance       # LP-Kontostand
+│   ├── POST   /earn          # LP gutschreiben
+│   ├── POST   /spend         # LP abbuchen
+│   └── GET    /milestone     # Meilenstein-Status
+├── /friends
+│   └── ...                  # Freundschaftsanfragen, Liste
+├── /leaderboard
+│   └── GET    /             # Global Top-50 + Freunde
+├── /referral
+│   └── ...                  # Referral-Code, Einlösen
+├── /courses
+│   └── ...                  # Kurs-Management
+├── /folders
+│   └── ...                  # Ordner-Hierarchie
+├── /push
+│   ├── POST   /register     # Push-Token registrieren
+│   └── POST   /streak-alerts # Streak-Erinnerungen
+├── /account
+│   └── DELETE /             # Account löschen
+└── /export
+    └── POST   /             # Deck-Export (Anki-Format Scaffold)
 ```
 
 ### API-Designprinzipien
@@ -754,25 +776,20 @@ console.log(updated.card.stability);  // Stabilität der Erinnerung
 
 ## Monetarisierung
 
-> **Hinweis (2026-03):** Das Monetarisierungsmodell wurde auf ein LP-System (Lernpunkte) umgestellt. Die untenstehende Tabelle ist veraltet. Aktuelles Modell: siehe `packages/contracts/src/featureGates.ts`.
+Das aktuelle Monetarisierungsmodell basiert auf **Lernpunkten (LP)** statt klassischer Subscription-Tiers. Die vollständige, verbindliche Konfiguration liegt in `packages/contracts/src/featureGates.ts`.
 
-### Pricing-Modell
+### Überblick LP-System
 
-| | Free | Pro (€7,99/Mo) | Lifetime (€179,99) |
-|--|------|----------------|---------------------|
-| Foto-Scans/Monat | 10 | Unbegrenzt | Unbegrenzt |
-| KI-Kartengenerierung | ✅ (begrenzt) | ✅ Unbegrenzt | ✅ Unbegrenzt |
-| Lernmodi | Flashcards | Alle Modi | Alle Modi |
-| Spaced Repetition | ✅ | ✅ | ✅ |
-| Offline-Modus | ❌ | ✅ | ✅ |
-| KI-Zusammenfassungen | ❌ | ✅ | ✅ |
-| Anki-Export | ❌ | ✅ | ✅ |
-| Formel-Erkennung | ❌ | ✅ | ✅ |
-| Statistiken | Basis | Erweitert | Erweitert |
+- **Free-Tier**: Begrenzte Decks/Karten, LP-Kauf über In-App-Pakete oder Rewarded Ads
+- **LP-Earned**: Automatisch vergeben für tägliche Reviews, Streaks, Referrals
+- **LP-Spent**: Für KI-Scans, erweiterte Features, Feature-Unlocks
+- **In-App-Käufe**: LP-Pakete über RevenueCat (iOS/Android) — Konfiguration siehe `docs/monetization/REVENUECAT_SETUP.md`
 
-### Jahresabo-Option
-- **€59,99/Jahr** (spart 37% gegenüber Monatsabo)
-- Empfohlene Default-Option im Paywall-Screen
+### Tier-Limits (Kurzübersicht)
+
+Die genauen Werte (`maxDecks`, `maxCards`, `lpCostAiScan` usw.) sind in `packages/contracts/src/featureGates.ts` als Single Source of Truth definiert.
+
+> **Hinweis für App-Store-Rollout:** Die Store-Produkte in App Store Connect und Google Play müssen noch angelegt werden (CL-MON-02). Bis dahin sind In-App-Käufe technisch implementiert aber nicht im Store verfügbar.
 
 ---
 
@@ -864,10 +881,10 @@ Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testf�
 
 ### Nächste Schritte (siehe `ROADMAP.md` und `BACKLOG.md`)
 
-- **Priorität A**: Flashcard-UX verbessern (Flip-Animation, Swipe, Fortschrittsbalken, Stern/Favorit)
-- **Priorität B**: Engagement (Streaks, Statistiken, TTS, Push-Notifications)
-- **Priorität C**: Erweiterte Lernmodi (Test, Match-Spiel, Auto-Play, Image Occlusion)
-- **Priorität D**: Daten & Ökosystem (Offline, PDF-Import, Anki, OAuth, Paywall, Community)
+- **Priorität D (offen)**: SQLite Offline-Sync (CL-D01), echtes PDF-Parsing (CL-D02), Anki-Import (CL-D03), Apple/Google OAuth (CL-D05)
+- **Priorität MON (offen)**: App-Store-Produkte anlegen (CL-MON-02), Deck/Karten-Limit in API-Routes enforzen (CL-MON-03)
+
+> **Prioritäten A/B/C sind implementiert.** Den vollständigen Ist-Stand mit allen Features (LP-System, soziale Features, Leaderboard, Referral) führt `ROADMAP.md`.
 
 ---
 
