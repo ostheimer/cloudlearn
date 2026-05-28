@@ -860,7 +860,7 @@ Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testf�
 - **Karten zu bestehendem Deck**: Scan-Ergebnis in neues ODER vorhandenes Deck speichern
 - **FSRS-Review**: Again/Hard/Good/Easy mit persistenter Zustandsverwaltung in Supabase
 - **Home-Dashboard**: Fällige Karten, Deck-Anzahl, CTA zum Lernen/Scannen
-- **Auth**: Login, Registrierung, Passwort-Reset (Supabase Auth + JWT)
+- **Auth**: Login, Registrierung, Passwort-Reset, Apple/Google Sign-In (Supabase Auth + JWT)
 - **Profil**: E-Mail-Anzeige, Abo-Status, Sprache, Abmelden
 - **Paywall + RevenueCat**: Angebotsliste, Kauf, Restore, 402-Weiterleitung aus Scan-Flow, Webhook-Sync auf Backend-Tier
 - **Lernmodus UX**: Fullscreen-Kartenmodus ohne Tab-Bar, zentriertes Layout (Header + Kartenfortschritt), Swipe-Counter (rot/grün), Icons außerhalb der Karte (verhindert versehentliches Flippen), größere Schrift, weicher Snap-Back, sichtbarer Fly-out, Zurück-Pfeil als Icon
@@ -881,7 +881,7 @@ Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testf�
 
 ### Nächste Schritte (siehe `ROADMAP.md` und `BACKLOG.md`)
 
-- **Priorität D (offen)**: SQLite Offline-Sync (CL-D01), echtes PDF-Parsing (CL-D02), Anki-Import (CL-D03), Apple/Google OAuth (CL-D05)
+- **Priorität D (offen)**: SQLite Offline-Sync (CL-D01), echtes PDF-Parsing (CL-D02), Anki-Import (CL-D03)
 - **Priorität MON (offen)**: App-Store-Produkte anlegen (CL-MON-02), Deck/Karten-Limit in API-Routes enforzen (CL-MON-03)
 
 > **Prioritäten A/B/C sind implementiert.** Den vollständigen Ist-Stand mit allen Features (LP-System, soziale Features, Leaderboard, Referral) führt `ROADMAP.md`.
