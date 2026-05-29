@@ -670,7 +670,7 @@ Decks teilen, öffentlich durchsuchen, bewerten, kopieren. Moderation und Abuse-
 **Beschreibung**
 Erster Start → Beispiel-Scan → erste Review → Erfolgserlebnis in unter 2 Minuten. Keine Registrierung nötig für den ersten Durchlauf.
 
-**Umsetzung:** Nach Login: 3 Onboarding-Screens (Willkommen, So funktioniert's, Dein erstes Deck). „Jetzt starten“ legt Starter-Deck mit 3 Karten an, speichert Onboarding als erledigt (AsyncStorage), leitet zum Learn-Tab. Erster Lernerfolg in unter 2 Min.
+**Umsetzung:** Nach Login: 3 Onboarding-Screens (Willkommen, So funktioniert's, Dein erstes Deck). „Jetzt starten" legt Starter-Deck mit 3 Karten an, speichert Onboarding als erledigt (AsyncStorage), leitet zum Learn-Tab. Erster Lernerfolg in unter 2 Min.
 
 ---
 
@@ -798,3 +798,27 @@ Die Produkt-IDs wurden definiert, aber noch nicht im App Store Connect und Googl
 
 ### Sprint Prio-C/D (fortlaufend)
 - Nach Bedarf und Nutzer-Feedback priorisieren
+
+---
+
+## Phase 1.x — Post-MVP Features
+
+### CL-LP-01: LP-System (Lernpunkte)
+**Status:** Implementiert (2026-03)
+**Beschreibung:** Vollständige LP-Economy-Implementierung: LP-Balance, tägliches Verdienen durch Reviews (5 LP/Session), LP-Kosten pro KI-Feature (statt monatlichem Limit), LP-Store-Screen.
+**Referenz:** `packages/contracts/src/featureGates.ts`, `apps/mobile/app/lp-store.tsx`
+
+### CL-SOC-01: Social-Features (Leaderboard + Referral)
+**Status:** Implementiert (2026-03)
+**Beschreibung:** Freundschaftssystem, globales Leaderboard + Freunde-Leaderboard, Referral-System mit eigenem Screen.
+**Referenz:** `apps/api/app/api/v1/friends/`, `apps/api/app/api/v1/leaderboard/`, `apps/mobile/app/leaderboard.tsx`, `apps/mobile/app/referral.tsx`
+
+### CL-ADS-01: AdMob Rewarded Ads
+**Status:** Implementiert (2026-03)
+**Beschreibung:** AdMob-Integration für Rewarded Ads als LP-Verdienmechanismus.
+**Referenz:** `react-native-google-mobile-ads` in app.json, `useRewardedAd.ts`
+
+### CL-PRIV-01: Tracking-Präferenzen (DSGVO/ATT)
+**Status:** Implementiert
+**Beschreibung:** Screen für DSGVO-Tracking-Einstellungen und ATT Consent (Apple App Tracking Transparency).
+**Referenz:** `apps/mobile/app/tracking-preferences.tsx`
