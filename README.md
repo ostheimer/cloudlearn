@@ -754,21 +754,18 @@ console.log(updated.card.stability);  // Stabilität der Erinnerung
 
 ## Monetarisierung
 
-> **Hinweis (2026-03):** Das Monetarisierungsmodell wurde auf ein LP-System (Lernpunkte) umgestellt. Die untenstehende Tabelle ist veraltet. Aktuelles Modell: siehe `packages/contracts/src/featureGates.ts`.
-
 ### Pricing-Modell
 
-| | Free | Pro (€7,99/Mo) | Lifetime (€179,99) |
-|--|------|----------------|---------------------|
-| Foto-Scans/Monat | 10 | Unbegrenzt | Unbegrenzt |
-| KI-Kartengenerierung | ✅ (begrenzt) | ✅ Unbegrenzt | ✅ Unbegrenzt |
-| Lernmodi | Flashcards | Alle Modi | Alle Modi |
-| Spaced Repetition | ✅ | ✅ | ✅ |
-| Offline-Modus | ❌ | ✅ | ✅ |
-| KI-Zusammenfassungen | ❌ | ✅ | ✅ |
-| Anki-Export | ❌ | ✅ | ✅ |
-| Formel-Erkennung | ❌ | ✅ | ✅ |
-| Statistiken | Basis | Erweitert | Erweitert |
+Das Monetarisierungsmodell basiert auf einem **LP-System (Lernpunkte)**. KI-Features kosten LP (z.B. 10 LP pro Scan), die durch tägliches Lernen verdient oder als Packs gekauft werden können. Details und aktuelle Werte: `packages/contracts/src/featureGates.ts`.
+
+### Pro-Features (Abo)
+
+- Unbegrenzte Lernmodi
+- Erweiterte Statistiken
+- Offline-Modus
+- KI-Zusammenfassungen
+- Anki-Export
+- Formel-Erkennung
 
 ### Jahresabo-Option
 - **€59,99/Jahr** (spart 37% gegenüber Monatsabo)
@@ -855,6 +852,9 @@ Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testf�
 - **RevenueCat Production Guard**: Produktions-API-Keys werden nur in Store-Builds aktiviert; in Expo Go (fehlendes Native Module) oder Dev-Builds ohne gesetzte Keys verhindert die Guard SDK-Initialisierungsfehler
 - **AdMob Production Guard**: Außerhalb von Store-Builds werden Test-Ad-Unit-IDs anstelle der Produktions-IDs verwendet; der SDK initialisiert sich weiterhin (mit Test-Modus)
 - **Bereitschaftsprüfungen (Readiness Gates)**: Automatisierte Skripte prüfen TestFlight-Build-, Dashboard- und App-Store-Bereitschaft vor Releases
+- **LP-Store Screen** (`/lp-store`): LP-Balance, Tages-Earn-Progressbars, Rewarded-Ad-Button, LP-Pack-Grid
+- **Leaderboard** (Global + Freunde): Globales Top-50-Leaderboard und Freunde-Leaderboard mit Podest-Visualisierung
+- **Referral-System**: Referral-Code teilen, einlösen, LP-Belohnungen für Sender und Empfänger
 
 ### Scaffold vorhanden, noch nicht vollständig funktionsfähig
 
