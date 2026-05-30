@@ -754,25 +754,34 @@ console.log(updated.card.stability);  // Stabilität der Erinnerung
 
 ## Monetarisierung
 
-> **Hinweis (2026-03):** Das Monetarisierungsmodell wurde auf ein LP-System (Lernpunkte) umgestellt. Die untenstehende Tabelle ist veraltet. Aktuelles Modell: siehe `packages/contracts/src/featureGates.ts`.
+Aktuelles Modell: LP-System (Lernpunkte). Die verbindlichen Tier-Grenzen, Feature-Kosten und LP-Packs sind in `packages/contracts/src/featureGates.ts` definiert; RevenueCat/App-Store-Produkte liefern die konkreten Abo- und Kaufpreise.
 
-### Pricing-Modell
+### LP- und Pricing-Modell
 
-| | Free | Pro (€7,99/Mo) | Lifetime (€179,99) |
-|--|------|----------------|---------------------|
-| Foto-Scans/Monat | 10 | Unbegrenzt | Unbegrenzt |
-| KI-Kartengenerierung | ✅ (begrenzt) | ✅ Unbegrenzt | ✅ Unbegrenzt |
-| Lernmodi | Flashcards | Alle Modi | Alle Modi |
-| Spaced Repetition | ✅ | ✅ | ✅ |
-| Offline-Modus | ❌ | ✅ | ✅ |
-| KI-Zusammenfassungen | ❌ | ✅ | ✅ |
-| Anki-Export | ❌ | ✅ | ✅ |
-| Formel-Erkennung | ❌ | ✅ | ✅ |
-| Statistiken | Basis | Erweitert | Erweitert |
+| | Free | Pro | Lifetime |
+|--|------|-----|----------|
+| Monatlicher LP-Grant | 0 LP | 300 LP | 300 LP |
+| Lern-LP pro Tag | Bis 30 LP | Bis 100 LP | Bis 100 LP |
+| Rewarded-Ad-LP pro Tag | Bis 20 LP | 0 LP (werbefrei) | 0 LP (werbefrei) |
+| KI-Scan | 10 LP | 5 LP | 5 LP |
+| URL-Import | 15 LP | 8 LP | 8 LP |
+| PDF-Import-Kosten | 20 LP | 12 LP | 12 LP |
+| Deck-Limit | 10 Decks | 500 Decks | 500 Decks |
+| Karten pro Deck | 100 | 2.000 | 2.000 |
+| PDF-Import freigeschaltet | ❌ | ✅ | ✅ |
+| Image Occlusion | ❌ | ✅ | ✅ |
+| Offline-Download | ❌ | ✅ | ✅ |
+| Erweiterte Statistiken | ❌ | ✅ | ✅ |
+| Werbung | Möglich | Werbefrei | Werbefrei |
 
-### Jahresabo-Option
-- **€59,99/Jahr** (spart 37% gegenüber Monatsabo)
-- Empfohlene Default-Option im Paywall-Screen
+### LP-Packs
+
+| Pack | LP | Preis |
+|------|----|-------|
+| `lp_pack_100` | 100 LP | €0,99 |
+| `lp_pack_300` | 300 LP | €2,49 |
+| `lp_pack_750` | 750 LP | €4,99 |
+| `lp_pack_2000` | 2.000 LP | €9,99 |
 
 ---
 
@@ -864,10 +873,8 @@ Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testf�
 
 ### Nächste Schritte (siehe `ROADMAP.md` und `BACKLOG.md`)
 
-- **Priorität A**: Flashcard-UX verbessern (Flip-Animation, Swipe, Fortschrittsbalken, Stern/Favorit)
-- **Priorität B**: Engagement (Streaks, Statistiken, TTS, Push-Notifications)
-- **Priorität C**: Erweiterte Lernmodi (Test, Match-Spiel, Auto-Play, Image Occlusion)
-- **Priorität D**: Daten & Ökosystem (Offline, PDF-Import, Anki, OAuth, Paywall, Community)
+- **Priorität D**: Daten & Ökosystem (Offline-Sync, echtes PDF-Parsing, Anki-Import/-Export, Apple/Google Sign-In, Community-Decks)
+- **Monetarisierung offen**: App-Store-Produkte und finale Store-Offerings live stellen (`CL-MON-01`/`CL-MON-02`)
 
 ---
 
