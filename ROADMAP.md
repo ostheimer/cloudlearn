@@ -238,12 +238,12 @@ Letzte Aktualisierung: 2026-03-24 (Supabase Security Advisor: RLS LP-Tabellen + 
 
 ---
 
-## Phase 2 - Beta Launch (TODO — Scaffold vorhanden, nicht funktionsfähig)
+## Phase 2 - Beta Launch (in Arbeit — Kernfunktionen live, Restpunkte ausstehend)
 
 Voraussetzung: Priorität A + B abgeschlossen.
 
-- [ ] Statistiken-Dashboard (CL-B02)
-- [ ] Streaks + Push-Notifications (CL-B01, CL-B04)
+- [x] Statistiken-Dashboard (CL-B02)
+- [x] Streaks (CL-B01) — Push-Notifications (CL-B04) ausstehend
 - [x] Onboarding-Flow (CL-D08)
 - [ ] Incident-Runbook + Restore-Test in Regelbetrieb
 - [ ] Landing Page + App Store Optimierung
