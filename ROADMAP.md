@@ -243,7 +243,8 @@ Letzte Aktualisierung: 2026-03-24 (Supabase Security Advisor: RLS LP-Tabellen + 
 Voraussetzung: Priorität A + B abgeschlossen.
 
 - [x] Statistiken-Dashboard (CL-B02)
-- [x] Streaks (CL-B01) — Push-Notifications (CL-B04) ausstehend
+- [x] Streaks (CL-B01)
+- [x] Push-Erinnerungen (CL-B04)
 - [x] Onboarding-Flow (CL-D08)
 - [ ] Incident-Runbook + Restore-Test in Regelbetrieb
 - [ ] Landing Page + App Store Optimierung
