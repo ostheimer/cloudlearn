@@ -535,7 +535,7 @@ Prüfungssimulation: Aus den Karten eines Decks werden automatisch MC-Fragen und
 - **Abhängigkeiten:** keine
 
 **Beschreibung**
-Spielerisches Zuordnen: Begriffe und Definitionen werden gemischt angezeigt. Nutzer tippt Paare an. Timer + Highscore.
+Spieleri sches Zuordnen: Begriffe und Definitionen werden gemischt angezeigt. Nutzer tippt Paare an. Timer + Highscore.
 
 **Akzeptanzkriterien**
 - [ ] 6-8 Karten pro Runde (Begriff + Definition getrennt)
@@ -637,7 +637,7 @@ clearn-Decks als .apkg exportieren (Anki-kompatibel). Kein Vendor-Lock-in.
 ### CL-D05 - Apple/Google Sign-In (OAuth)
 
 - **Priorität:** P2
-- **Status:** Offen
+- **Status:** ✅ Done (implementiert; vollständiger OAuth-Flow in `apps/mobile/src/lib/oauth.ts`)
 - **Schätzung:** 2-3 PT
 
 **Beschreibung**
@@ -714,7 +714,7 @@ supabase functions deploy reset-ai-usage --project-ref <SUPABASE_PROJECT_REF>
 - **Abhängigkeit:** Anleitung liegt in `docs/monetization/REVENUECAT_SETUP.md`
 
 **Beschreibung**
-Die Produkt-IDs wurden definiert, aber noch nicht im App Store Connect und Google Play Console angelegt. Ohne diese Schritte zeigt die Paywall „Keine Angebote verfügbar".
+Die Produkt-IDs wurden definiert, aber noch nicht im App Store Connect und Google Play Console angelegt. Ohne diese Schritte zeigt die Paywall „Keine Angebote verfügbar“.
 
 **Akzeptanzkriterien**
 - [ ] iOS: 3 Produkte in App Store Connect angelegt (`ai.clearn.pro.monthly`, `ai.clearn.pro.annual`, `ai.clearn.lifetime`)
@@ -754,7 +754,7 @@ Die Produkt-IDs wurden definiert, aber noch nicht im App Store Connect und Googl
 - **Schätzung:** 0.5 PT
 
 **Beschreibung**
-`usageStore.ts` nutzt reines Zustand-In-Memory. Nach einem App-Neustart werden die Verbrauchszähler auf die Default-Werte zurückgesetzt und erst beim nächsten API-Call neu geladen. Das führt kurzzeitig zu falschen Anzeigen (z.B. „5/5" statt „3/5").
+`usageStore.ts` nutzt reines Zustand-In-Memory. Nach einem App-Neustart werden die Verbrauchszähler auf die Default-Werte zurückgesetzt und erst beim nächsten API-Call neu geladen. Das führt kurzzeitig zu falschen Anzeigen (z.B. „5/5“ statt „3/5“).
 
 **Akzeptanzkriterien**
 - [ ] `usageStore` nutzt `zustand/middleware persist` mit `AsyncStorage` als Storage
