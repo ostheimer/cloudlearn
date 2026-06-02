@@ -637,7 +637,7 @@ clearn-Decks als .apkg exportieren (Anki-kompatibel). Kein Vendor-Lock-in.
 ### CL-D05 - Apple/Google Sign-In (OAuth)
 
 - **Priorität:** P2
-- **Status:** ✅ Done (implementiert; vollständiger OAuth-Flow in `apps/mobile/src/lib/oauth.ts`)
+- **Status:** In Arbeit (Flow in `apps/mobile/src/lib/oauth.ts` implementiert; Supabase-Provider-Aktivierung, Redirect-URL-Setup und reale Tests noch ausstehend — siehe `docs/runbooks/app-store-critical-path.md`)
 - **Schätzung:** 2-3 PT
 
 **Beschreibung**
