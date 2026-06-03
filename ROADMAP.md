@@ -388,7 +388,7 @@ Voraussetzung: Phase 2 + stabile Nutzerbasis.
 - 2026-03-24: **Supabase Security Advisor**: Migration `20260324120000_security_advisor_rls_leaderboard.sql` — `ENABLE ROW LEVEL SECURITY` auf `lp_transactions` und `rewards_claimed` (keine Policies: nur Service-Role-API, kein PostgREST für Clients); View `leaderboard_public` mit `security_invoker = true` statt implizitem Security Definer. Runbook `docs/runbooks/supabase-security-advisor.md`. Erweiterung `migrations.test.ts`. Security Advisor: **0 Errors** bestätigt.
 - 2026-05-13: **RevenueCat Production Guard** umgesetzt: SDK initialisiert sich nur, wenn natives Modul vorhanden; verhindert Initialisierungsfehler in Expo Go.
 - 2026-05-13: **AdMob Production Guard** umgesetzt: außerhalb von Store-Builds werden Test-Ad-Unit-IDs verwendet; SDK initialisiert weiterhin im Test-Modus.
-- 2026-05-16: **TestFlight-Readiness Gate** (`scripts/check-testflight-readiness.mjs`) hinzugefügt.
-- 2026-05-16: **Dashboard-Readiness Gate** (`scripts/check-dashboard-readiness.mjs`) hinzugefügt.
-- 2026-05-16: **Store-Metadata Gate** (`scripts/check-store-metadata.mjs`) hinzugefügt.
+- 2026-05-16: **TestFlight-Readiness Gate** (`apps/mobile/scripts/check-testflight-readiness.mjs`, via `pnpm --filter @clearn/mobile testflight:check`) hinzugefügt.
+- 2026-05-16: **Dashboard-Readiness Gate** (`apps/mobile/scripts/check-dashboard-readiness.mjs`, via `pnpm --filter @clearn/mobile dashboard:check`) hinzugefügt.
+- 2026-05-16: **Store-Metadata Gate** (`apps/mobile/scripts/check-store-metadata.mjs`, via `pnpm --filter @clearn/mobile store:check`) hinzugefügt.
 - 2026-05-20: Tech Stack aktualisiert (Gemini 3 Flash), OAuth als implementiert bestätigt, LP-System-Hinweis ergänzt.
