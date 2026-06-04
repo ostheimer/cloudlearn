@@ -577,10 +577,10 @@ CREATE INDEX scans_created_idx
 │   └── GET    /             # Lernstatistiken
 ├── /lp
 │   ├── GET    /balance      # LP-Guthaben des Nutzers
-│   ├── POST   /earn         # LP verdienen (Review-Completion, Streak-Milestone)
-│   ├── POST   /spend        # LP einlösen (Scan jenseits Gratis-Limit)
-│   ├── POST   /milestone    # Milestone-Bonus einlösen
-│   └── POST   /purchase     # LP-Pack kaufen (RevenueCat)
+│   ├── POST   /earn         # LP verdienen (session, dailyGoal, ad — kein streak)
+│   ├── POST   /spend        # LP einlösen (aiScan, urlImport, pdfImport)
+│   ├── POST   /milestone    # Streak-Milestone-Bonus einlösen (z. B. streak_7)
+│   └── POST   /purchase     # LP-Pack kaufen (⚠ kein serverseitiges RevenueCat-Verify — bevorzugt Webhook nutzen)
 ├── /leaderboard
 │   ├── GET    /global       # Globales Leaderboard
 │   └── GET    /friends      # Freunde-Leaderboard
@@ -773,18 +773,18 @@ console.log(updated.card.stability);  // Stabilität der Erinnerung
 
 ## Monetarisierung
 
-> **Hinweis (2026-03):** Das Monetarisierungsmodell wurde auf ein LP-System (Lernpunkte) umgestellt. Die untenstehende Tabelle ist veraltet. Aktuelles Modell: siehe `packages/contracts/src/featureGates.ts`.
+> **Hinweis (2026-03):** Das Monetarisierungsmodell wurde auf ein LP-System (Lernpunkte) umgestellt. Die untenstehende Tabelle ist veraltet. Aktuelles Modell: siehe `apps/api/src/lib/featureGates.ts` (Enforcement) und `packages/contracts/src/featureGates.ts` (Typen).
 
 ### LP-System (Lernpunkte) — aktuelles Modell
 
 Das Monetarisierungsmodell basiert auf Lernpunkten (LP):
 
-- **LP-Guthaben** (`lp_balance`) je Nutzer; vollständiger Transaktionsverlauf in `lp_transactions`
-- **LP verdienen**: Tägliche Reviews, Streak-Milestones, Rewarded Ads (AdMob), Referral-Einlösung
-- **LP einlösen**: KI-Scans jenseits des Gratis-Kontingents, Premium-Features und kosmetische Belohnungen (`rewards_claimed`)
+- **LP-Guthaben** (`lp_balance`) je Nutzer; Transaktionsverlauf in `lp_transactions`
+- **LP verdienen**: Tägliche Reviews (`session`), tägliches Ziel (`dailyGoal`), Rewarded Ads (`ad`) via `/lp/earn`; Streak-Milestones (z. B. `streak_7`) via `/lp/milestone`
+- **LP einlösen**: KI-Scans (`aiScan`), URL-Import (`urlImport`), PDF-Import (`pdfImport`) via `/lp/spend`; Premium-Features und kosmetische Belohnungen sind noch nicht implementiert
 - **Leaderboard**: Global- und Freunde-Leaderboard über `GET /api/v1/leaderboard/global` und `/friends`
-- **Referral**: Eigener Code abrufbar über `GET /api/v1/referral/info`; Einlösung über `POST /api/v1/referral/claim`
-- **Feature Gates und Tier-Limits**: Vollständig konfiguriert in `packages/contracts/src/featureGates.ts` (TIER_LIMITS)
+- **Referral**: Eigener Code abrufbar über `GET /api/v1/referral/info` (gibt `null` zurück für nach der initialen Migration erstellte Nutzer — Code-Generierung bei Registrierung noch ausstehend); Einlösung über `POST /api/v1/referral/claim`
+- **Feature Gates und Tier-Limits**: Durchgesetzt in `apps/api/src/lib/featureGates.ts`; Typdefinitionen in `packages/contracts/src/featureGates.ts` (TIER_LIMITS)
 
 ### Veraltete Preistabelle (vor 2026-03)
 
