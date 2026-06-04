@@ -1,6 +1,6 @@
 # ROADMAP
 
-Letzte Aktualisierung: 2026-05-18 (Dokumentations-Sync: Statistiken + Streaks/Push-Notifications in Phase 2 als erledigt markiert)
+Letzte Aktualisierung: 2026-06-04 (Mai-2026-Changelog und LP-/API-Dokumentation nachgezogen)
 
 ## Gesamtstatus
 
@@ -387,3 +387,8 @@ Voraussetzung: Phase 2 + stabile Nutzerbasis.
 - 2026-03-12: **CL-MON-01 vollständig**: Vault Secrets + Cron-Job `reset-ai-usage-monthly` (`0 0 1 * *`, active=true) per Supabase Management API in Production gesetzt. Migration `20260301100000_add_ai_usage_limits.sql` per `supabase db push` in Production eingespielt (Spalten `ai_scans_used`, `ai_url_imports_used`, `usage_period_start` auf `profiles`). Edge Function `reset-ai-usage` per `supabase functions deploy reset-ai-usage` deployed. Runbook `docs/runbooks/supabase-usage-cron.md` für monatlichen Cron (Dashboard oder pg_cron+pg_net) und manuellen curl-Test angelegt. BACKLOG CL-MON-01 auf „Teilweise erledigt“ gesetzt; Cron einmalig im Dashboard (Integrations → Cron, `0 0 1 * *`) setzen.
 - 2026-03-24: **Supabase Security Advisor**: Migration `20260324120000_security_advisor_rls_leaderboard.sql` — `ENABLE ROW LEVEL SECURITY` auf `lp_transactions` und `rewards_claimed` (keine Policies: nur Service-Role-API, kein PostgREST für Clients); View `leaderboard_public` mit `security_invoker = true` statt implizitem Security Definer. Runbook `docs/runbooks/supabase-security-advisor.md`. Erweiterung `migrations.test.ts`. Security Advisor: **0 Errors** bestätigt.
 - 2026-05-18: **Dokumentations-Sync**: Phase-2-Checkliste korrigiert — Statistiken-Dashboard (CL-B02), Streaks (CL-B01) und Push-Notifications (CL-B04) waren als `[ ]` offen gelistet, obwohl sie gemäß Feature-Prioritäten-Tabelle und Ist-Stand-Dokumentation vollständig implementiert sind.
+- 2026-05-13: **RevenueCat Production Guard**: SDK-Initialisierung nur bei verfügbarem Native Module und gültiger Konfiguration; verhindert Fehler in Expo Go und Dev-Builds ohne Store-Secrets.
+- 2026-05-13: **AdMob Production Guard**: außerhalb von Store-Builds werden Test-Ad-Unit-IDs genutzt; Produktions-IDs bleiben Store-/Production-Builds vorbehalten.
+- 2026-05-14: **Release- und Store-Konfigurationsguards**: öffentliche Release-Links vereinheitlicht, LP-Pack-Käufe gegen fehlende RevenueCat-Konfiguration abgesichert und nutzerfreundliche Fehlermeldungen dokumentiert.
+- 2026-05-16: **Readiness Gates ergänzt**: TestFlight-, Dashboard- und Store-Metadata-Checks für mobile Release-Vorbereitung hinzugefügt.
+- 2026-05-20: **Tech-Stack- und Status-Doku aktualisiert**: Gemini 3 Flash, OAuth-Status und LP-System-Hinweise in der Produktdokumentation nachgezogen.

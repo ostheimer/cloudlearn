@@ -575,6 +575,27 @@ CREATE INDEX scans_created_idx
 │   └── POST   /sync         # FSRS-Daten synchronisieren (Device <-> Server)
 ├── /stats
 │   └── GET    /             # Lernstatistiken
+├── /usage
+│   └── GET    /             # LP-/Nutzungsstatus des Nutzers
+├── /lp
+│   ├── GET    /balance      # LP-Guthaben und Tageslimits
+│   ├── POST   /earn         # LP verdienen (session, dailyGoal, ad)
+│   ├── POST   /spend        # LP für KI-Features einlösen
+│   ├── POST   /milestone    # Einmalige Streak-/First-Action-Boni
+│   └── POST   /purchase     # LP-Pack-Kauf nach RevenueCat-Flow
+├── /leaderboard
+│   ├── GET    /global       # Globales LP-Leaderboard
+│   └── GET    /friends      # Freunde-Leaderboard
+├── /friends
+│   ├── GET    /             # Freundesliste
+│   ├── POST   /             # Freundschaft hinzufügen
+│   └── DELETE /             # Freundschaft entfernen
+├── /push
+│   ├── POST   /register     # Expo-Push-Token registrieren
+│   └── POST   /streak-alerts # Cron-Trigger für Streak-Alerts
+├── /referral
+│   ├── GET    /info         # Eigener Referral-Code und Referral-Status
+│   └── POST   /claim        # Referral-Code einlösen
 └── /subscription
     ├── GET    /status       # Abo-Status prüfen
     └── POST   /webhook      # RevenueCat Webhook
@@ -586,7 +607,7 @@ CREATE INDEX scans_created_idx
 - **Idempotenz:** `POST /scan/process` und `POST /cards/:id/review` mit `Idempotency-Key`
 - **Pagination:** Cursor-basierte Pagination für Listenendpunkte
 - **Fehlermodell:** einheitliches JSON-Format mit `code`, `message`, `request_id`
-- **Rate Limits:** pro Nutzer und Tarif (free/pro), inklusive Retry-After Header
+- **Rate Limits:** pro Nutzer, Tarif und LP-Guthaben (free/pro/lifetime), inklusive Retry-After Header
 - **Observability:** korrelierbare `request_id` über API, Worker und DB
 
 ### Kern-Endpoint: POST /api/scan/process
@@ -754,7 +775,7 @@ console.log(updated.card.stability);  // Stabilität der Erinnerung
 
 ## Monetarisierung
 
-clearn.ai verwendet ein **LP-System (Lernpunkte)** als universelle In-App-Währung. Die kanonische Quelle ist `packages/contracts/src/featureGates.ts`.
+clearn.ai verwendet ein **LP-System (Lernpunkte)** als universelle In-App-Währung. Die kanonische Quelle ist `packages/contracts/src/featureGates.ts`; `apps/api/src/lib/featureGates.ts` setzt dieselben Regeln serverseitig durch.
 
 ### Tier-Übersicht
 
@@ -789,12 +810,12 @@ clearn.ai verwendet ein **LP-System (Lernpunkte)** als universelle In-App-Währu
 
 ### LP-Packs (käuflich, konsumierbar)
 
-| Pack | LP | Preis |
-|------|----|-------|
-| Starter | 100 LP | €0,99 |
-| Basis | 300 LP | €2,49 |
-| Profi | 750 LP | €4,99 |
-| Power | 2.000 LP | €9,99 |
+| Pack | Produkt-ID | LP | Preis |
+|------|------------|----|-------|
+| Starter | `lp_pack_100` | 100 LP | €0,99 |
+| Basis | `lp_pack_300` | 300 LP | €2,49 |
+| Profi | `lp_pack_750` | 750 LP | €4,99 |
+| Power | `lp_pack_2000` | 2.000 LP | €9,99 |
 
 ---
 
