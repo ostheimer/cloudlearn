@@ -575,6 +575,23 @@ CREATE INDEX scans_created_idx
 │   └── POST   /sync         # FSRS-Daten synchronisieren (Device <-> Server)
 ├── /stats
 │   └── GET    /             # Lernstatistiken
+├── /lp
+│   ├── GET    /balance      # LP-Guthaben des Nutzers (lp_balance)
+│   ├── GET    /transactions # LP-Transaktionsverlauf (lp_transactions)
+│   └── POST   /rewards/claim # Belohnung einlösen (rewards_claimed)
+├── /leaderboard
+│   ├── GET    /global       # Globales Leaderboard
+│   └── GET    /friends      # Freunde-Leaderboard
+├── /friends
+│   ├── GET    /             # Freundesliste
+│   ├── POST   /             # Freundschaft anfragen
+│   └── DELETE /:id          # Freundschaft beenden
+├── /push
+│   ├── POST   /register     # Push-Token registrieren
+│   └── POST   /streak-alerts # Streak-Alert-Einstellungen
+├── /referral
+│   ├── GET    /info          # Referral-Info und eigener Code
+│   └── POST   /claim         # Referral-Code eines anderen einlösen
 └── /subscription
     ├── GET    /status       # Abo-Status prüfen
     └── POST   /webhook      # RevenueCat Webhook
@@ -756,7 +773,18 @@ console.log(updated.card.stability);  // Stabilität der Erinnerung
 
 > **Hinweis (2026-03):** Das Monetarisierungsmodell wurde auf ein LP-System (Lernpunkte) umgestellt. Die untenstehende Tabelle ist veraltet. Aktuelles Modell: siehe `packages/contracts/src/featureGates.ts`.
 
-### Pricing-Modell
+### LP-System (Lernpunkte) — aktuelles Modell
+
+Das Monetarisierungsmodell basiert auf Lernpunkten (LP):
+
+- **LP-Guthaben** (`lp_balance`) je Nutzer; vollständiger Transaktionsverlauf in `lp_transactions`
+- **LP verdienen**: Tägliche Reviews, Streak-Milestones, Rewarded Ads (AdMob), Referral-Einlösung
+- **LP einlösen**: KI-Scans jenseits des Gratis-Kontingents, Premium-Features und kosmetische Belohnungen (`rewards_claimed`)
+- **Leaderboard**: Global- und Freunde-Leaderboard über `GET /api/v1/leaderboard/global` und `/friends`
+- **Referral**: Eigener Code abrufbar über `GET /api/v1/referral/info`; Einlösung über `POST /api/v1/referral/claim`
+- **Feature Gates und Tier-Limits**: Vollständig konfiguriert in `packages/contracts/src/featureGates.ts` (TIER_LIMITS)
+
+### Veraltete Preistabelle (vor 2026-03)
 
 | | Free | Pro (€7,99/Mo) | Lifetime (€179,99) |
 |--|------|----------------|---------------------|
