@@ -576,19 +576,21 @@ CREATE INDEX scans_created_idx
 ├── /stats
 │   └── GET    /             # Lernstatistiken
 ├── /lp
-│   ├── GET    /balance      # LP-Guthaben des Nutzers (lp_balance)
-│   ├── GET    /transactions # LP-Transaktionsverlauf (lp_transactions)
-│   └── POST   /rewards/claim # Belohnung einlösen (rewards_claimed)
+│   ├── GET    /balance      # LP-Guthaben des Nutzers
+│   ├── POST   /earn         # LP verdienen (Review-Completion, Streak-Milestone)
+│   ├── POST   /spend        # LP einlösen (Scan jenseits Gratis-Limit)
+│   ├── POST   /milestone    # Milestone-Bonus einlösen
+│   └── POST   /purchase     # LP-Pack kaufen (RevenueCat)
 ├── /leaderboard
 │   ├── GET    /global       # Globales Leaderboard
 │   └── GET    /friends      # Freunde-Leaderboard
 ├── /friends
 │   ├── GET    /             # Freundesliste
 │   ├── POST   /             # Freundschaft anfragen
-│   └── DELETE /:id          # Freundschaft beenden
+│   └── DELETE /             # Freundschaft beenden (?friendId=...)
 ├── /push
 │   ├── POST   /register     # Push-Token registrieren
-│   └── POST   /streak-alerts # Streak-Alert-Einstellungen
+│   └── POST   /streak-alerts # Cron-Trigger: Streak-Alert-Push-Notifications (x-cron-secret erforderlich)
 ├── /referral
 │   ├── GET    /info          # Referral-Info und eigener Code
 │   └── POST   /claim         # Referral-Code eines anderen einlösen
