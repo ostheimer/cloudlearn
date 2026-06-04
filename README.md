@@ -820,6 +820,9 @@ clearn.ai verwendet ein **LP-System (Lernpunkte)** als universelle In-App-Währu
 - [x] TestFlight / Internal Testing (Runbook + Preflight-Script)
 
 ### Phase 2: Beta Launch (4-6 Wochen)
+
+> **Hinweis (2026-05):** Die meisten Phase-2-Items sind als Scaffold implementiert, nicht vollständig funktionsfähig. Aktuellen Stand pro Feature siehe [Implementierungsstatus](#implementierungsstatus).
+
 - [x] Onboarding-Flow mit erstem "Aha"-Moment in < 2 Minuten (3 Schritte, Starter-Deck, AsyncStorage)
 - [x] Statistiken-Dashboard (Retention, Reviews, Streak) (Scaffold)
 - [x] Push-Notifications (Lern-Erinnerungen, Opt-In/Quiet-Hours Scaffold)
@@ -828,6 +831,9 @@ clearn.ai verwendet ein **LP-System (Lernpunkte)** als universelle In-App-Währu
 - [x] Beta-Launch DACH mit 100-300 aktiven Testern (Feedback/Triage-Loop vorbereitet)
 
 ### Phase 3: Growth (laufend)
+
+> **Hinweis (2026-05):** Alle Phase-3-Items sind als Scaffold oder In-Memory-Mock vorhanden. Vollständige Implementierungen folgen nach stabilem Phase-2-Abschluss. Aktuellen Stand siehe [Implementierungsstatus](#implementierungsstatus).
+
 - [x] Mehrere Lernmodi (MCQ, Cloze+, Matching) + psychometrische Bewertung (Domain-Scaffold)
 - [x] PDF-Import (Queue/Retry Scaffold)
 - [x] Mathpix-Integration (Kostenkontroll-Scaffold)
