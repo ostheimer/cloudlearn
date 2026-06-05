@@ -2,6 +2,20 @@
 
 Letzte Aktualisierung: 2026-03-12
 
+> ⚠️ **Veraltet — nicht die Quelle der Wahrheit für die LP-Ökonomie.**
+> Die konkreten Zahlen in diesem Konzept (LP-Monatskontingente, LP-Kosten je
+> KI-Aktion, Paketgrößen/-preise und harte Limits) entsprechen **nicht** dem
+> aktuellen Code-Stand. Verbindliche Quelle ist
+> [`packages/contracts/src/featureGates.ts`](../../packages/contracts/src/featureGates.ts)
+> (serverseitig gespiegelt in `apps/api/src/lib/featureGates.ts`).
+>
+> Abweichungen Stand Code 2026-06-05: Free-Monatskontingent 0 LP statt 10 ·
+> Pro 300 LP statt 200 · KI-Scan/URL-/PDF-Import (Free) 10/15/20 LP statt 2/3/5 ·
+> Max. Decks (Free) 10 statt 20 · Max. Karten 100/Deck statt 200 · LP-Pakete
+> 100/300/750/2000 LP statt 15/50/150. Dieses Dokument bleibt als
+> **strategischer Kontext** (Gamification, Wachstum, Wettbewerb, KPIs) erhalten;
+> für gültige Parameter immer `featureGates.ts` prüfen.
+
 ---
 
 ## 1. Leitprinzipien
