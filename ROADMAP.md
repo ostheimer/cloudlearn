@@ -256,7 +256,7 @@ Voraussetzung: Phase 2 + stabile Nutzerbasis.
 - [x] Erweiterte Lernmodi: Test-Modus, Match-Spiel, Auto-Play, Image Occlusion (CL-C01–C04)
 - [ ] PDF-Import (CL-D02)
 - [ ] Anki-Import/Export (CL-D03, CL-D04)
-- [ ] Paywall + RevenueCat (CL-D06, Kernflow umgesetzt; finale Store-Offerings ausstehend)
+- [x] Paywall + RevenueCat (CL-D06, Kernflow umgesetzt; finale Store-Offerings ausstehend)
 - [ ] Community-Decks (CL-D07)
 - [ ] Web-App (funktionsfähig machen)
 - [ ] B2B-Dashboard
@@ -392,3 +392,4 @@ Voraussetzung: Phase 2 + stabile Nutzerbasis.
 - 2026-05-14: **Release- und Store-Konfigurationsguards**: öffentliche Release-Links vereinheitlicht, LP-Pack-Käufe gegen fehlende RevenueCat-Konfiguration abgesichert und nutzerfreundliche Fehlermeldungen dokumentiert.
 - 2026-05-16: **Readiness Gates ergänzt**: TestFlight-, Dashboard- und Store-Metadata-Checks für mobile Release-Vorbereitung hinzugefügt.
 - 2026-05-20: **Tech-Stack- und Status-Doku aktualisiert**: Gemini 3 Flash, OAuth-Status und LP-System-Hinweise in der Produktdokumentation nachgezogen.
+- 2026-06-05: **Dokumentations-Sync**: Phase-3-Checkliste korrigiert — Paywall + RevenueCat (CL-D06) war als `[ ]` offen gelistet, obwohl die Feature-Prioritäten-Tabelle (D6) den Status `✅ Done` ausweist (Feature-Gating DB-backed, Usage-Indicator, Auto-Paywall implementiert; finale Store-Offerings ausstehend).
