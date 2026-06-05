@@ -46,4 +46,25 @@ describe("documentation status consistency", () => {
       expect(apiOverview).toContain(route);
     }
   });
+
+  it("does not list already resolved documentation discrepancies in AGENTS", () => {
+    const agents = readRepoFile("AGENTS.md");
+    const roadmap = readRepoFile("ROADMAP.md");
+    const readme = readRepoFile("README.md");
+
+    const phase2 = sectionBetween(roadmap, "## Phase 2 - Beta Launch", "##");
+    const nextSteps = sectionBetween(readme, "### Nächste Schritte", "##");
+    const monetization = sectionBetween(readme, "## Monetarisierung", "##");
+
+    expect(phase2).toContain("- [x] Statistiken-Dashboard (CL-B02)");
+    expect(phase2).toContain("- [x] Streaks + Push-Notifications (CL-B01, CL-B04)");
+    expect(nextSteps).not.toContain("**Priorität A**");
+    expect(nextSteps).not.toContain("**Priorität B**");
+    expect(nextSteps).not.toContain("**Priorität C**");
+    expect(monetization).not.toContain("untenstehende Tabelle ist veraltet");
+
+    expect(agents).not.toContain("ROADMAP.md Phase 2 — internal inconsistency");
+    expect(agents).not.toContain('README.md "Nächste Schritte" — outdated priorities');
+    expect(agents).not.toContain("README.md Monetarisierung — veraltete Tabelle");
+  });
 });
