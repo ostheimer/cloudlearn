@@ -599,7 +599,7 @@ CREATE INDEX scans_created_idx
 ├── /account
 │   └── DELETE /             # Account-Löschung (via accountDeletionService.ts)
 ├── /math
-│   └── POST   /process      # Mathpix-Integration für Formel-OCR (via mathpixService.ts)
+│   └── POST   /formula      # Mathpix-Integration für Formel-OCR (via mathpixService.ts)
 ├── /beta
 │   └── POST   /feedback     # Beta-Feedback einreichen (via betaFeedbackService.ts)
 ├── /courses
