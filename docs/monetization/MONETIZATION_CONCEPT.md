@@ -1,5 +1,7 @@
 # Monetarisierungskonzept — clearn.ai
 
+> **⚠️ ACHTUNG (Stand 2026-06-06):** Die Werte in diesem Dokument divergieren von der tatsächlichen Implementierung in `packages/contracts/src/featureGates.ts`. Entscheidung über die kanonische Quelle steht aus — siehe BACKLOG CL-MON-06.
+
 Letzte Aktualisierung: 2026-03-12
 
 ---
@@ -69,7 +71,7 @@ Gekaufte LP verfallen **nicht** (kein Ablaufdatum).
 ### 3.4 LP durch Rewarded Ads verdienen
 
 | Platzierung | Wann | LP |
-|-------------|------|----|
+|-------------|------|----|>
 | Rewarded Video im Scan-Screen | Freiwillig, wenn LP knapp | +1 LP |
 | Rewarded Video bei LP = 0 | „Noch ein Scan? Schau ein Video!" | +2 LP |
 
@@ -164,7 +166,7 @@ Monatliches Abo-Kontingent wird am 1. des Monats auf `lp_balance` aufaddiert (ni
 ### Was wir von den Besten übernehmen
 
 | App | Strategie | Unser Äquivalent |
-|-----|-----------|-----------------|
+|-----|-----------|------------------|
 | **Duolingo** | Gems (eine Währung), Streak, Leaderboard, Friend-Streak, Rewarded Ads, 90% Word-of-Mouth | LP, Streak-Belohnungen, Leaderboard, Friend-Streak, Rewarded Ads, Referral |
 | **Quizlet** | Freemium + tägliche Limits auf Free | LP-System mit klaren Limits |
 | **Tinder** | Consumables (Super-Like, Boost) + Abo + Decoy-Pricing | LP-Pakete mit Decoy (Starter/Standard/Power) |
@@ -191,7 +193,7 @@ Monatliches Abo-Kontingent wird am 1. des Monats auf `lp_balance` aufaddiert (ni
 ### API-Kosten pro LP
 
 | Aktion | LP | API-Kosten | Kosten/LP |
-|--------|-----|-----------|-----------|
+|--------|-----|-----------|----------|
 | KI-Scan | 2 LP | ~0,005 € | 0,0025 € |
 | URL-Import | 3 LP | ~0,010 € | 0,0033 € |
 | PDF-Import | 5 LP | ~0,020 € | 0,0040 € |
@@ -275,7 +277,7 @@ CREATE TABLE friend_streaks (
 ## 10. Implementierungs-Reihenfolge
 
 | Phase | Inhalt | Priorität |
-|-------|--------|-----------|
+|-------|--------|----------|
 | **Phase 1** | LP-System (Balance, Spend, Earn durch Lernen), featureGates anpassen, Paywall aktualisieren | P0 |
 | **Phase 2** | RevenueCat: Abo (ohne Lifetime) + Consumable Add-ons, Rewarded Ads (AdMob) | P0 |
 | **Phase 3** | Referral-Programm, Friend-Streaks, Leaderboard | P1 |
@@ -288,7 +290,7 @@ CREATE TABLE friend_streaks (
 ## 11. KPIs
 
 | KPI | Ziel (6 Monate) | Benchmark |
-|-----|-----------------|-----------|
+|-----|-----------------|----------|
 | Free→Pro Conversion | 5–8% | Duolingo: 8,8%, Branchenschnitt: 2–5% |
 | D7 Retention | >30% | Top-Apps: 25–35% |
 | D30 Retention | >15% | Top-Apps: 10–20% |

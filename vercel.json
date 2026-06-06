@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "_note": "DEPRECATED: This root vercel.json targets the mobile build and is an outdated artifact. API and web are deployed as separate Vercel projects (clearn-api, clearn-web). See ROADMAP.md for details.",
   "buildCommand": "pnpm --filter @clearn/mobile build",
   "outputDirectory": "apps/mobile/dist"
 }
