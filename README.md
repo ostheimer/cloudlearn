@@ -815,7 +815,7 @@ clearn.ai verwendet ein **LP-System (Lernpunkte)** als universelle In-App-Währu
 ### LP verdienen (kostenlos)
 
 | Aktion | LP |
-|--------|----|>
+|--------|----|
 | Abgeschlossene Review-Session (min. 5 Karten) | +5 |
 | Tagesziel erreicht | +10 Bonus |
 | Streak-Meilenstein 7 Tage | +25 |
