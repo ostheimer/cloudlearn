@@ -28,6 +28,9 @@ Screenshots in `screenshots/` — **echte Simulator-Screenshots** (iPhone 16 Pro
 | 13 | Bibliothek: Ordner-Tab | `screenshots/05c-library-folders.png` | Simulator (mit Ordner) |
 | 14 | Kurs-Detail | `screenshots/13-course-detail.png` | Simulator (mit Deck) |
 | 15 | Ordner-Detail | `screenshots/14-folder-detail.png` | Simulator (mit Deck) |
+| 16 | Tracking-Einstellungen | — | implementiert |
+| 17 | Auth Callback | — | implementiert |
+| 18 | Passwort zurücksetzen | — | implementiert |
 
 ---
 
@@ -450,7 +453,7 @@ Aktionen: Offline speichern, Bearbeiten, Zu Kurs hinzufügen, Zu Ordner, Duplizi
 
 ### 8.5 Sprache
 - `Globe` 16px + „Sprache" (base, semibold)
-- 2 Buttons nebeneinander: „Deutsch" | „English"
+- 2 Buttons nebeneinander: „Deutsch" | "English"
   - Aktiv: `primary`, Text weiß, kein Border
   - Inaktiv: `surface`, border 1px
 
@@ -603,6 +606,30 @@ Aktionen: Offline speichern, Bearbeiten, Zu Kurs hinzufügen, Zu Ordner, Duplizi
 - Regionen-Liste: Card pro Region (surface, borderRadius md, border 1px)
   - TextInput für Label + `Trash2` Löschen-Button
 - „Als Deck speichern" Button (primary, `Check`-Icon)
+
+---
+
+## 14. Tracking-Einstellungen — `tracking-preferences`
+
+Quelle: `apps/mobile/app/tracking-preferences.tsx`
+
+Screen für Privacy- und Tracking-Einstellungen. Ermöglicht dem Nutzer, Analytics- und Tracking-Präferenzen zu konfigurieren (z.B. PostHog, AdMob-Personalisierung). Wird typischerweise beim ersten App-Start oder aus den Profil-Einstellungen heraus aufgerufen.
+
+---
+
+## 15. Auth Callback — `auth-callback`
+
+Quelle: `apps/mobile/app/auth-callback.tsx`
+
+OAuth-Callback-Screen, der nach einem externen Authentifizierungsflow (z.B. Apple Sign-In, Google OAuth via Supabase) aufgerufen wird. Verarbeitet den Callback-Token, schließt die Auth-Session ab und leitet den Nutzer weiter (Home oder Onboarding).
+
+---
+
+## 16. Passwort zurücksetzen — `reset-password`
+
+Quelle: `apps/mobile/app/reset-password.tsx`
+
+Screen zur Eingabe eines neuen Passworts nach dem Klick auf einen Passwort-Reset-Link (per E-Mail verschickt über Supabase Auth). Zeigt zwei Passwortfelder (neu + bestätigen) und einen Submit-Button. Nach erfolgreichem Reset wird der Nutzer zum Login weitergeleitet.
 
 ---
 

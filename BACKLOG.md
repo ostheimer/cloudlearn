@@ -535,7 +535,7 @@ Prüfungssimulation: Aus den Karten eines Decks werden automatisch MC-Fragen und
 - **Abhängigkeiten:** keine
 
 **Beschreibung**
-Spielerisches Zuordnen: Begriffe und Definitionen werden gemischt angezeigt. Nutzer tippt Paare an. Timer + Highscore.
+Spielerhaftes Zuordnen: Begriffe und Definitionen werden gemischt angezeigt. Nutzer tippt Paare an. Timer + Highscore.
 
 **Akzeptanzkriterien**
 - [ ] 6-8 Karten pro Runde (Begriff + Definition getrennt)
@@ -814,12 +814,12 @@ Die tatsächlich im Code implementierten LP-Kosten in `src/features/paywall/feat
 - ✅ **CL-A04** Begriff ↔ Definition
 - ✅ **CL-A05** Stern/Favorit
 
-### Sprint Prio-B (2-3 Wochen)
-- **CL-B01** Streaks
-- **CL-B02** Statistiken-Screen
-- **CL-B03** Vorlesen (TTS)
-- **CL-B04** Push-Erinnerungen
-- **CL-B05** Home-Screen aufwerten
+### Sprint Prio-B (abgeschlossen)
+- ✅ **CL-B01** Streaks
+- ✅ **CL-B02** Statistiken-Screen
+- ✅ **CL-B03** Vorlesen (TTS)
+- ✅ **CL-B04** Push-Erinnerungen
+- ✅ **CL-B05** Home-Screen aufwerten
 
 ### Sprint Prio-C/D (fortlaufend)
 - Nach Bedarf und Nutzer-Feedback priorisieren
