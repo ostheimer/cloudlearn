@@ -285,7 +285,7 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 │  │   Auth)   │  │ (LLM API) │  │                │  │
 │  └───────────┘  └───────────┘  └────────────────┘  │
 │                                                     │
-└──────────┬──────────────┬───────────┬───────────┘
+└──────────┬────────────┬───────────┬───────────┘
            │              │               │
            ▼              ▼               ▼
     ┌────────────┐ ┌────────────┐  ┌────────────┐
@@ -596,6 +596,22 @@ CREATE INDEX scans_created_idx
 ├── /referral
 │   ├── GET    /info         # Eigener Referral-Code und Referral-Status
 │   └── POST   /claim        # Referral-Code einlösen
+├── /account
+│   └── DELETE /             # Account-Löschung (via accountDeletionService.ts)
+├── /math
+│   └── POST   /formula      # Mathpix-Integration für Formel-OCR (via mathpixService.ts)
+├── /beta
+│   └── POST   /feedback     # Beta-Feedback einreichen (via betaFeedbackService.ts)
+├── /courses
+│   ├── GET    /             # Alle Kurse des Nutzers
+│   ├── POST   /             # Neuen Kurs erstellen
+│   ├── PATCH  /:id          # Kurs bearbeiten
+│   └── DELETE /:id          # Kurs löschen (via courseService.ts)
+├── /folders
+│   ├── GET    /             # Alle Ordner des Nutzers
+│   ├── POST   /             # Neuen Ordner erstellen
+│   ├── PATCH  /:id          # Ordner bearbeiten
+│   └── DELETE /:id          # Ordner löschen (via folderService.ts)
 └── /subscription
     ├── GET    /status       # Abo-Status prüfen
     └── POST   /webhook      # RevenueCat Webhook
@@ -793,6 +809,8 @@ clearn.ai verwendet ein **LP-System (Lernpunkte)** als universelle In-App-Währu
 | Offline-Download | ❌ | ✅ | ✅ |
 | Erweiterte Statistiken | ❌ | ✅ | ✅ |
 | Werbefrei | ❌ | ✅ | ✅ |
+
+> **Hinweis zum Lifetime-Tier:** (Status: entfernt — siehe ROADMAP-Changelog) `revenueCatService.ts` wurde ohne Lifetime-Tier implementiert. Die obige Tabelle dokumentiert das ursprüngliche Konzept; aktiv ist nur Free und Pro.
 
 ### LP verdienen (kostenlos)
 
@@ -1055,6 +1073,8 @@ vercel inspect <api-preview-url>
 - Für Vercel sind `apps/web` und `apps/api` bewusst standalone lauffähig (eigene `vercel.json`, eigene `tsconfig`).
 - Deploy-Status wird mit `vercel inspect` auf `Ready` verifiziert.
 
+> **Hinweis:** Die root `vercel.json` zeigt noch auf den Mobile-Build und ist ein veraltetes Artefakt. Die eigentlichen Deployments laufen über die projektspezifischen Konfigurationen in `apps/api/vercel.json` und `apps/web/vercel.json`.
+
 ### Autonome Agent-Ausführung
 
 ```bash
@@ -1100,7 +1120,7 @@ clearn/
 
 ## Lizenz
 
-Proprietär — © 2026 clearn.ai
+Proprietary — © 2026 clearn.ai
 
 ---
 
