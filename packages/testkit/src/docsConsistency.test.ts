@@ -47,6 +47,12 @@ describe("documentation status consistency", () => {
     }
   });
 
+  it("keeps documentation table separators valid markdown", () => {
+    for (const path of ["README.md", "docs/monetization/MONETIZATION_CONCEPT.md"]) {
+      expect(readRepoFile(path), path).not.toContain("|>");
+    }
+  });
+
   it("does not list already resolved documentation discrepancies in AGENTS", () => {
     const agents = readRepoFile("AGENTS.md");
     const roadmap = readRepoFile("ROADMAP.md");

@@ -71,7 +71,7 @@ Gekaufte LP verfallen **nicht** (kein Ablaufdatum).
 ### 3.4 LP durch Rewarded Ads verdienen
 
 | Platzierung | Wann | LP |
-|-------------|------|----|>
+|-------------|------|----|
 | Rewarded Video im Scan-Screen | Freiwillig, wenn LP knapp | +1 LP |
 | Rewarded Video bei LP = 0 | „Noch ein Scan? Schau ein Video!" | +2 LP |
 
