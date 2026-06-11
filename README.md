@@ -559,6 +559,8 @@ CREATE INDEX scans_created_idx
 │   └── GET  /history        # Scan-Historie des Nutzers
 ├── /import
 │   └── POST /url            # URL importieren -> Web-Text + Bilder -> Karten
+├── /upload                  # File-Upload-Endpunkt (im Code vorhanden: apps/api/app/api/v1/upload/)
+├── /export                  # Export-Endpunkt (im Code vorhanden: apps/api/app/api/v1/export/)
 ├── /decks
 │   ├── GET    /             # Alle Decks des Nutzers
 │   ├── POST   /             # Neues Deck erstellen
@@ -612,6 +614,8 @@ CREATE INDEX scans_created_idx
 │   ├── POST   /             # Neuen Ordner erstellen
 │   ├── PATCH  /:id          # Ordner bearbeiten
 │   └── DELETE /:id          # Ordner löschen (via folderService.ts)
+├── /b2b                     # B2B-Endpunkt (im Code vorhanden: apps/api/app/api/v1/b2b/)
+├── /community               # Community-Endpunkt (im Code vorhanden: apps/api/app/api/v1/community/)
 └── /subscription
     ├── GET    /status       # Abo-Status prüfen
     └── POST   /webhook      # RevenueCat Webhook
@@ -810,12 +814,12 @@ clearn.ai verwendet ein **LP-System (Lernpunkte)** als universelle In-App-Währu
 | Erweiterte Statistiken | ❌ | ✅ | ✅ |
 | Werbefrei | ❌ | ✅ | ✅ |
 
-> **Hinweis zum Lifetime-Tier:** (Status: entfernt — siehe ROADMAP-Changelog) `revenueCatService.ts` wurde ohne Lifetime-Tier implementiert. Die obige Tabelle dokumentiert das ursprüngliche Konzept; aktiv ist nur Free und Pro.
+> **Hinweis zum Lifetime-Tier:** Das Lifetime-Tier ist technisch implementiert in `packages/contracts/src/featureGates.ts` (maxDecks: 500 etc.) und serverseitig in `apps/api/src/lib/featureGates.ts` durchgesetzt. Es ist jedoch nicht im aktuellen Paywall-UI exponiert — `revenueCatService.ts` wurde ohne aktives Lifetime-Angebot implementiert. Das RevenueCat-Entitlement `EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_LIFETIME=lifetime` ist als Umgebungsvariable vorhanden. Die obige Tabelle spiegelt den technisch implementierten Stand wider; im Produkt aktiv buchbar sind derzeit nur Free und Pro.
 
 ### LP verdienen (kostenlos)
 
 | Aktion | LP |
-|--------|----|
+|--------|----||
 | Abgeschlossene Review-Session (min. 5 Karten) | +5 |
 | Tagesziel erreicht | +10 Bonus |
 | Streak-Meilenstein 7 Tage | +25 |
