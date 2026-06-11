@@ -559,8 +559,10 @@ CREATE INDEX scans_created_idx
 │   └── GET  /history        # Scan-Historie des Nutzers
 ├── /import
 │   └── POST /url            # URL importieren -> Web-Text + Bilder -> Karten
-├── /upload                  # File-Upload-Endpunkt (im Code vorhanden: apps/api/app/api/v1/upload/)
-├── /export                  # Export-Endpunkt (im Code vorhanden: apps/api/app/api/v1/export/)
+├── /upload
+│   └── POST /sign           # Signed-URL für direkten Datei-Upload generieren (apps/api/app/api/v1/upload/sign/)
+├── /export
+│   └── POST /anki           # Anki .apkg-Export (apps/api/app/api/v1/export/anki/)
 ├── /decks
 │   ├── GET    /             # Alle Decks des Nutzers
 │   ├── POST   /             # Neues Deck erstellen
@@ -614,8 +616,10 @@ CREATE INDEX scans_created_idx
 │   ├── POST   /             # Neuen Ordner erstellen
 │   ├── PATCH  /:id          # Ordner bearbeiten
 │   └── DELETE /:id          # Ordner löschen (via folderService.ts)
-├── /b2b                     # B2B-Endpunkt (im Code vorhanden: apps/api/app/api/v1/b2b/)
-├── /community               # Community-Endpunkt (im Code vorhanden: apps/api/app/api/v1/community/)
+├── /b2b
+│   └── /classes             # B2B-Klassen-Management (apps/api/app/api/v1/b2b/classes/)
+├── /community
+│   └── /decks               # Community-Decks (apps/api/app/api/v1/community/decks/)
 └── /subscription
     ├── GET    /status       # Abo-Status prüfen
     └── POST   /webhook      # RevenueCat Webhook
@@ -819,7 +823,7 @@ clearn.ai verwendet ein **LP-System (Lernpunkte)** als universelle In-App-Währu
 ### LP verdienen (kostenlos)
 
 | Aktion | LP |
-|--------|----||
+|--------|----|
 | Abgeschlossene Review-Session (min. 5 Karten) | +5 |
 | Tagesziel erreicht | +10 Bonus |
 | Streak-Meilenstein 7 Tage | +25 |
