@@ -9,6 +9,14 @@ function readRepoFile(path: string): string {
   return readFileSync(resolve(repoRoot, path), "utf8");
 }
 
+function commentBeforeEnvVar(contents: string, envVar: string): string {
+  const lines = contents.split("\n");
+  const index = lines.findIndex((line) => line.startsWith(`${envVar}=`));
+  expect(index).toBeGreaterThan(0);
+
+  return lines[index - 1] ?? "";
+}
+
 function sectionBetween(markdown: string, heading: string, nextHeadingLevel: string): string {
   const start = markdown.indexOf(heading);
   expect(start).toBeGreaterThanOrEqual(0);
@@ -51,6 +59,18 @@ describe("documentation status consistency", () => {
     for (const path of ["README.md", "docs/monetization/MONETIZATION_CONCEPT.md"]) {
       expect(readRepoFile(path), path).not.toContain("|>");
     }
+  });
+
+  it("keeps the root env example CRON_SECRET comment aligned with the protected cron endpoint", () => {
+    const envExample = readRepoFile(".env.example");
+    const streakAlertsRoute = readRepoFile("apps/api/app/api/v1/push/streak-alerts/route.ts");
+    const resetAiUsageFunction = readRepoFile("apps/api/supabase/functions/reset-ai-usage/index.ts");
+    const cronSecretComment = commentBeforeEnvVar(envExample, "CRON_SECRET");
+
+    expect(streakAlertsRoute).toContain("env.CRON_SECRET");
+    expect(resetAiUsageFunction).not.toContain("CRON_SECRET");
+    expect(cronSecretComment).toContain("/api/v1/push/streak-alerts");
+    expect(cronSecretComment).not.toContain("reset-ai-usage");
   });
 
   it("does not list already resolved documentation discrepancies in AGENTS", () => {
