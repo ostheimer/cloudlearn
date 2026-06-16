@@ -547,6 +547,76 @@ CREATE INDEX scans_created_idx
   ON scans(user_id, created_at DESC);
 ```
 
+### Ergänzende Tabellen (laut ROADMAP-Changelog in Production-DB vorhanden)
+
+Die folgenden Tabellen und Views wurden im Verlauf der LP-System- und Social-Feature-Implementierung per Supabase-Migration eingespielt (siehe ROADMAP-Changelog ab 2026-03-12). Sie sind nicht Bestandteil der initialen `20260209230000_init.sql`, sondern wurden in späteren Migrations-Dateien hinzugefügt.
+
+```sql
+-- LP-Buchungen (append-only Transaktionslog)
+-- Eingespielt via: Migration 20260312_add_lp_system.sql (LP-System Phase 1)
+CREATE TABLE lp_transactions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  amount INT NOT NULL,           -- positiv = Gutschrift, negativ = Abbuchung
+  reason TEXT NOT NULL,          -- earn_session | spend_ai_scan | purchase | milestone | ...
+  reference_id TEXT,             -- z.B. review_session_id oder lp_pack_id
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+ALTER TABLE lp_transactions ENABLE ROW LEVEL SECURITY;
+-- Hinweis: nur Service-Role-API-Zugriff; kein direkter PostgREST-Client-Zugriff
+
+-- Eingelöste Belohnungen (Milestone-Tracking, idempotent)
+-- Eingespielt via: Migration 20260312_add_lp_system.sql (LP-System Phase 1)
+CREATE TABLE rewards_claimed (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  reward_key TEXT NOT NULL,      -- streak_7 | streak_30 | streak_100 | first_review | first_deck | ...
+  claimed_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(user_id, reward_key)    -- verhindert doppeltes Einlösen
+);
+ALTER TABLE rewards_claimed ENABLE ROW LEVEL SECURITY;
+-- Hinweis: nur Service-Role-API-Zugriff; kein direkter PostgREST-Client-Zugriff
+
+-- Freundschaftsverbindungen (bidirektional, für Freunde-Leaderboard)
+-- Eingespielt via: Migration 20260312200000_add_social_features.sql (LP-System Phase 4)
+CREATE TABLE friend_connections (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  friend_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(user_id, friend_id)
+);
+ALTER TABLE friend_connections ENABLE ROW LEVEL SECURITY;
+
+-- Push-Notification-Tokens (Expo Push)
+-- Eingespielt via: Migration 20260312200000_add_social_features.sql (LP-System Phase 4)
+CREATE TABLE push_tokens (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  token TEXT NOT NULL,
+  platform TEXT,                 -- ios | android
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(user_id, token)
+);
+ALTER TABLE push_tokens ENABLE ROW LEVEL SECURITY;
+
+-- Öffentliche Bestenliste (View, Top-50 nach LP-Guthaben)
+-- Eingespielt via: Migration 20260312200000_add_social_features.sql (LP-System Phase 4)
+-- Sicherheitshinweis: security_invoker = true (kein impliziter Security Definer)
+CREATE VIEW leaderboard_public
+  WITH (security_invoker = true)
+  AS
+  SELECT
+    p.id,
+    p.display_name,
+    p.avatar_url,
+    p.lp_balance,
+    p.current_streak
+  FROM profiles p
+  ORDER BY p.lp_balance DESC
+  LIMIT 50;
+```
+
 ---
 
 ## API-Struktur
@@ -810,12 +880,12 @@ clearn.ai verwendet ein **LP-System (Lernpunkte)** als universelle In-App-Währu
 | Erweiterte Statistiken | ❌ | ✅ | ✅ |
 | Werbefrei | ❌ | ✅ | ✅ |
 
-> **Hinweis zum Lifetime-Tier:** (Status: entfernt — siehe ROADMAP-Changelog) `revenueCatService.ts` wurde ohne Lifetime-Tier implementiert. Die obige Tabelle dokumentiert das ursprüngliche Konzept; aktiv ist nur Free und Pro.
+> **Hinweis zum Lifetime-Tier:** Das Lifetime-Tier ist im Code (`packages/contracts/src/featureGates.ts`) weiterhin vollständig definiert (eigener Eintrag in `TIER_LIMITS` mit identischen Limits wie Pro). Es wird im Store aktuell nicht angeboten — `revenueCatService.ts` wurde ohne Lifetime-Entitlement implementiert. Die obige Tabelle dokumentiert die technischen Limits; aktiv buchbar sind derzeit nur Free und Pro.
 
 ### LP verdienen (kostenlos)
 
 | Aktion | LP |
-|--------|----|
+|--------|-|
 | Abgeschlossene Review-Session (min. 5 Karten) | +5 |
 | Tagesziel erreicht | +10 Bonus |
 | Streak-Meilenstein 7 Tage | +25 |
@@ -1098,6 +1168,10 @@ pnpm run orchestrator:verify
 clearn/
 ├── apps/
 │   ├── mobile/                # Expo App (auth, tabs, OCR/Edit, Review, i18n)
+│   │   └── app/
+│   │       ├── tracking-preferences.tsx  # DSGVO-Tracking-Einstellungen
+│   │       ├── auth-callback.tsx         # OAuth-Redirect-Handler
+│   │       └── reset-password.tsx        # Passwort-Reset
 │   ├── api/                   # Next.js Route Handlers (/api/v1/*)
 │   └── web/                   # Landing + Learn Client (Next.js)
 ├── packages/
