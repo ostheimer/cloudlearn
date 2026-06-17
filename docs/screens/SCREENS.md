@@ -4,7 +4,7 @@ Exakte Beschreibung aller Screens wie sie derzeit im Code implementiert sind.
 Gerät: iPhone 16 Pro (393 × 852 pt, 3× Retina).  
 Screenshots aufgenommen im iOS Simulator (Xcode 26.2, iOS 26.2).
 
-Stand: 2026-02-16 (Ist-Zustand); 2026-02-24 (Tab-Badge, Zuletzt gelernt → learn, Kartenanzahl, Alle lernen); 2026-02-28 (URL-Import + Bildquiz).
+Stand: 2026-02-16 (Ist-Zustand); 2026-02-24 (Tab-Badge, Zuletzt gelernt → learn, Kartenanzahl, Alle lernen); 2026-02-28 (URL-Import + Bildquiz); 2026-06-17 (Leaderboard, LP Store, Referral, Onboarding).
 
 Manuelle Regression (Simulator): Checkliste in [docs/testing/regression-mobile.md](../testing/regression-mobile.md).
 
@@ -31,6 +31,10 @@ Screenshots in `screenshots/` — **echte Simulator-Screenshots** (iPhone 16 Pro
 | 16 | Tracking-Einstellungen | — | implementiert |
 | 17 | Auth Callback | — | implementiert |
 | 18 | Passwort zurücksetzen | — | implementiert |
+| 19 | Leaderboard | — | implementiert |
+| 20 | LP Store | — | implementiert |
+| 21 | Referral | — | implementiert |
+| 22 | Onboarding | — | implementiert |
 
 ---
 
@@ -90,6 +94,12 @@ Screenshots in `screenshots/` — **echte Simulator-Screenshots** (iPhone 16 Pro
 Versteckte Routen im Tab-Kontext (kein Tab-Icon, `href: null`):
 - `library-course/[id]` — Kurs-Detail aus Bibliothek
 - `library-folder/[id]` — Ordner-Detail aus Bibliothek
+
+Root-Stack-Screens ohne Tab-Icon (außerhalb `(tabs)`, über App-Navigation erreichbar):
+- `leaderboard` — Bestenliste (LP-Rangliste)
+- `lp-store` — LP Store (Lernpunkte kaufen und verdienen)
+- `referral` — Freunde einladen / Referral-Code einlösen
+- `onboarding` — Erstmalige Einführung (einmalig beim ersten App-Start)
 
 ---
 
@@ -633,6 +643,171 @@ Screen zur Eingabe eines neuen Passworts nach dem Klick auf einen Passwort-Reset
 
 ---
 
+## 17. Leaderboard — `leaderboard`
+
+Quelle: `apps/mobile/app/leaderboard.tsx`
+
+**Root-Stack.** SafeAreaView, Hintergrund `background`.
+
+### 17.1 Header
+- Zeile: `ArrowLeft` 24px (zurück) links, „Bestenliste" (xl, bold, zentriert), `Crown` 24px primary rechts
+
+### 17.2 Tab-Umschalter (Global / Freunde)
+- 2 Tabs nebeneinander: „Global" (`Globe`-Icon) | „Freunde" (`Users`-Icon)
+- Container: `surfaceSecondary`, borderRadius md, padding 3
+- Aktiver Tab: `surface`, shadow sm, Text bold
+- Inaktiver Tab: transparent, textSecondary
+
+### 17.3 Podium (Top 3)
+Nur angezeigt wenn ≥ 3 Einträge. Reihenfolge der Säulen: 2. Platz (links), 1. Platz (Mitte), 3. Platz (rechts).
+
+| Platz | Höhe | Farbe | Icon |
+|-------|------|-------|------|
+| 1 (Mitte) | 100px | Gold (`#f59e0b`) | `Trophy` |
+| 2 (Links) | 80px | Silber (`#94a3b8`) | `Medal` |
+| 3 (Rechts) | 70px | Bronze (`#b45309`) | `Medal` |
+
+Jede Säule: Avatar-Kreis (48×48, Initialen, farbig) + Name (xs, bold) + LP-Wert (xs, textSecondary).
+
+### 17.4 Rangliste (FlatList)
+Ab Rang 4 (oder alle wenn < 3 Einträge): Liste aller Nutzer.
+
+**LeaderboardRow:**
+- `surface`, borderRadius md, padding 14, border 1px, marginBottom sm
+- Links: **RankBadge** (Rang 1–3: `Trophy`/`Medal`-Icon in gold/silber/bronze; Rang 4+: Zahl in 28×28 Kreis `surfaceSecondary`)
+- Mitte: Avatar-Kreis 40×40 (Initialen, `primaryLight`) + Name (base, semibold) + Streak (xs, textTertiary, `Flame`-Icon)
+- Rechts: LP-Wert (base, bold, primary) + „LP" (xs, textTertiary)
+
+### 17.5 Empty State (Freunde)
+- 64×64 Kreis (`surfaceSecondary`) + `Users` 28px textTertiary
+- „Noch keine Freunde" (base, textSecondary)
+- „Freunde einladen" Button → `/referral`
+
+### Daten-API
+- Global: `getGlobalLeaderboard()` (domain package)
+- Freunde: `getFriendsLeaderboard()`
+
+---
+
+## 18. LP Store — `lp-store`
+
+Quelle: `apps/mobile/app/lp-store.tsx`
+
+**Root-Stack.** SafeAreaView + ScrollView.
+
+### 18.1 Guthaben-Card
+- Hintergrund: `warningLight`, border `warning`, borderRadius lg, padding lg
+- Zeile: `Zap`-Icon 28px warning + LP-Guthaben (48px, extrabold, `text`) + „Lernpunkte" (sm, textSecondary)
+- Lädt aktuelles Guthaben via `getLpBalance()`
+
+### 18.2 Täglich verdienen
+Abschnitt „Täglich verdienen" (sm, semibold, uppercase, textSecondary):
+
+| Quelle | Icon | Balken-Farbe | Beschreibung |
+|--------|------|-------------|-------------|
+| Lernen | `Brain` | `success` | Tages-Fortschritt (gelernte Karten / Tagesziel) |
+| Werbung | `PlayCircle` | `warning` | Heutige Anzeigen gesehen / max. erlaubt |
+
+Jede Zeile: Label + Fortschrittsbalken 8px + Wert rechts (xs, textTertiary).
+
+**Rewarded-Ad-Button:**
+- Hintergrund: `warning` (oder `surfaceSecondary` wenn Tageslimit erreicht)
+- `PlayCircle` 20px weiß + „Werbung ansehen (+X LP)" (base, bold, weiß)
+- Implementiert via `useRewardedAd()` Hook (Google AdMob)
+- Deaktiviert und Label „Tageslimit erreicht" wenn gecappt
+
+### 18.3 LP-Pakete kaufen
+Abschnitt „LP-Pakete" (sm, semibold, uppercase, textSecondary):
+
+Pakete aus der `LP_PACKS`-Konstante (z.B. 100 LP, 500 LP, 1000 LP). Jedes Paket:
+- `surface`, borderRadius lg, border 1px (border 2px `primary` wenn `popular: true`), padding lg, shadow sm
+- Wenn `popular: true`: Banner „BELIEBT" (xs, bold, primary, uppercase) oben rechts
+- LP-Menge (xxl, extrabold) + Preis (base, textSecondary)
+- Kauf-Button (`primary`, `ShoppingCart`-Icon): ruft RevenueCat-Paket auf via `purchaseRevenueCatPackage()`, bucht dann `grantLpPackPurchase()` im Backend
+
+### 18.4 Pro-Teaser
+- View `primaryLight`, borderRadius lg, border `primary`, padding lg
+- `Crown` 20px primary + „Werde Pro — unbegrenzte LP" (base, semibold)
+- „Upgrade" Button → `/paywall`
+
+### Daten-API
+- `getLpBalance()` — aktuelles LP-Guthaben
+- RevenueCat `getOfferings()` + `purchasePackage()` — Paket-Kauf
+- `grantLpPackPurchase(purchaseToken)` — Backend-Bestätigung
+
+---
+
+## 19. Referral — `referral`
+
+Quelle: `apps/mobile/app/referral.tsx`
+
+**Root-Stack.** SafeAreaView + ScrollView.
+
+### 19.1 Bonus-Banner
+- Hintergrund: `successLight`, border `success`, borderRadius lg, padding lg
+- `Gift`-Icon 24px success + „Empfehle clearn und verdiene LP!" (base, bold)
+- Zwei Zeilen: „Du erhältst: **50 LP**" + „Dein Freund erhält: **25 LP**" (sm, textSecondary)
+
+### 19.2 Statistiken
+Zwei nebeneinander liegende Cards:
+
+| Card | Icon | Wert | Label |
+|------|------|------|-------|
+| Eingeladen | `Users` | `referredCount` | „Freunde eingeladen" |
+| Verdient | `Zap` | `lpEarnedFromReferrals` LP | „durch Empfehlungen" |
+
+### 19.3 Mein Code
+- Label „DEIN REFERRAL-CODE" (xs, semibold, uppercase, letterSpacing 0.8)
+- Code-Anzeige: `surface`, borderRadius lg, border 1px, padding lg
+  - Code-Text: xxl, extrabold, primary, letterSpacing 6, fontVariant `tabular-nums`
+- Zwei Buttons nebeneinander:
+  - „Kopieren" (`Copy`-Icon): Code in Zwischenablage
+  - „Teilen" (`Share2`-Icon): nativer Share-Dialog
+
+### 19.4 Code einlösen
+- Label „REFERRAL-CODE EINLÖSEN"
+- TextInput: autoCapitalize `characters`, minLength 4, Placeholder „CODE EINGEBEN"
+- „Einlösen" Button (`primary`): ruft `claimReferralCode(code)` auf; zeigt Erfolg/Fehler
+
+### Daten-API
+- `getReferralInfo()` — Referral-Stats und eigener Code
+- `claimReferralCode(code)` — Code einlösen
+
+---
+
+## 20. Onboarding — `onboarding`
+
+Quelle: `apps/mobile/app/onboarding.tsx`
+
+**Root-Stack.** SafeAreaView, Hintergrund `background`.
+
+### 20.1 Fortschritts-Dots
+- 3 Punkte horizontal zentriert: aktiver Punkt `primary` (12×12), inaktive `surfaceSecondary` (8×8)
+
+### 20.2 Schritte
+
+| Schritt | Titel | Inhalt |
+|---------|-------|--------|
+| 1 | „Willkommen bei clearn!" | Illustrationsbereich + kurze Beschreibung der App |
+| 2 | „So funktioniert's" | Erklärt Flashcard-Lernmethode + FSRS-Spaced-Repetition |
+| 3 | „Dein erstes Deck" | Vorschau auf 3 Beispielkarten (Hund/dog, Katze/cat, Vogel/bird) |
+
+### 20.3 Navigation
+- Zurück-Button (Schritt 2+): `ArrowLeft` + „Zurück" (textSecondary)
+- Weiter-Button: „Weiter →" (`primary`)
+- Letzter Schritt: „Jetzt starten" Button (`primary`, `Play`-Icon)
+
+### 20.4 Abschluss-Aktion
+Beim Tippen auf „Jetzt starten":
+1. Erstellt Deck „Erste Karten" (DE) / „First cards" (EN)
+2. Erstellt 3 Musterkarten: Hund → dog, Katze → cat, Vogel → bird
+3. Setzt `dueCount = 3`
+4. Navigiert zu `/(tabs)/learn`
+
+State-Management: `useOnboardingState()` Hook, verhindert erneutes Anzeigen nach Abschluss.
+
+---
+
 ## Pflege
 
 Bei jeder Code-Änderung an einem Screen:
@@ -640,7 +815,7 @@ Bei jeder Code-Änderung an einem Screen:
 2. Wireframe bei Bedarf neu generieren
 3. ROADMAP.md Eintrag ergänzen
 
-Stand: 2026-02-16
+Stand: 2026-06-17
 
 ---
 
@@ -703,10 +878,10 @@ Referenz: ROADMAP.md Feature-Prioritäten A–D.
 
 - **Web-App als Feature-Parität**: Web ist Scaffold, fokus bleibt Mobile.
 - **Soziale Features**: Keine Kommentare/Likes auf Karten, kein Activity-Feed.
-- **Gamification-Exzesse**: Keine Level-Ups oder virtuelle Währung — Streak + Tagesziel reicht.
+- **Gamification-Exzesse**: Keine Level-Ups oder XP-Titel-Systeme. Lernpunkte (LP) sind als motivierende In-App-Währung implementiert (LP Store §18, Referral §19, tägliche Belohnungen).
 
 ### Nächste Umsetzungsschritte (empfohlen)
 
-1. **Tab-Badge für fällige Karten** (klein, 1-2h): `TabBar`-Konfiguration in `_layout.tsx` mit `tabBarBadge` von Expo Router. Größter UX-Impact.
+1. ✅ **Tab-Badge für fällige Karten** — implementiert in `_layout.tsx` mit `tabBarBadge` (vgl. §3 Lernen-Tab).
 2. **Deck-Items mit Kartenanzahl in der Bibliothek** (mittel, 2-4h): `listDecks` API-Response um `cardCount` und `dueCount` erweitern.
-3. **„Alle lernen"-Button in Kurs/Ordner-Detail** (mittel, 2-4h): Alle fälligen Karten des Kurses/Ordners laden und Learn-Screen damit starten.
+3. ✅ **„Alle lernen"-Button in Kurs/Ordner-Detail** — implementiert in Kurs-Detail (§5.3) und Ordner-Detail (§6).
