@@ -50,8 +50,8 @@
 ✅ Dauerhaft gelernt
 ```
 
-**Zielgruppe:** Alle Altersgruppen — Schüler, Studenten, Berufstätige, Lifelong Learners
-**Primärmarkt:** DACH (Deutschland, Österreich, Schweiz)
+**Zielgruppe:** Alle Altersgruppen — Schüler, Studenten, Berufstätige, Lifelong Learners  
+**Primärmarkt:** DACH (Deutschland, Österreich, Schweiz)  
 **Kernversprechen:** Vom Foto zum Wissen in unter 30 Sekunden
 
 ---
@@ -78,8 +78,8 @@
 
 ## Warum wir eine API brauchen
 
-Kurzfassung: Die API ist der **sichere Serverteil**.
-Die App macht alles, was lokal schnell ist (Kamera, OCR, Lernen).
+Kurzfassung: Die API ist der **sichere Serverteil**.  
+Die App macht alles, was lokal schnell ist (Kamera, OCR, Lernen).  
 Die API macht alles, was sicher, verbindlich oder zentral sein muss.
 
 ### Ohne API wäre problematisch
@@ -130,7 +130,7 @@ sequenceDiagram
 
 ### Merksatz
 
-**Alles was Schlüssel, Abrechnung, Limits, Sync und verlässliche Daten betrifft, gehört in die API.**
+**Alles was Schlüssel, Abrechnung, Limits, Sync und verlässliche Daten betrifft, gehört in die API.**  
 Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 
 ---
@@ -272,7 +272,7 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 │  │  Capture  │→ │   OCR     │  │  (ts-fsrs)     │  │
 │  └───────────┘  └─────┬─────┘  └────────────────┘  │
 │                       │                              │
-└───────────────────────│───────────────────────┘
+└───────────────────────│───────────────────────────┘
                         │ Extracted Text
                         ▼
 ┌─────────────────────────────────────────────────────┐
@@ -285,7 +285,7 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 │  │   Auth)   │  │ (LLM API) │  │                │  │
 │  └───────────┘  └───────────┘  └────────────────┘  │
 │                                                     │
-└─────────┬────────────┬───────────┬───────────┘
+└──────────┬────────────┬───────────┬───────────┘
            │              │               │
            ▼              ▼               ▼
     ┌────────────┐ ┌────────────┐  ┌────────────┐
@@ -470,7 +470,7 @@ CREATE TABLE cards (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   deck_id UUID REFERENCES decks(id) ON DELETE CASCADE,
   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
-
+  
   -- Inhalte
   front TEXT NOT NULL,          -- Frage
   back TEXT NOT NULL,            -- Antwort
@@ -480,7 +480,7 @@ CREATE TABLE cards (
   source_text TEXT,              -- Extrahierter OCR-Text
   source_scan_id UUID,
   ai_model TEXT,
-
+  
   -- FSRS-Daten (auf Device + Server gespiegelt)
   fsrs_stability FLOAT DEFAULT 0,
   fsrs_difficulty FLOAT DEFAULT 0,
@@ -489,7 +489,7 @@ CREATE TABLE cards (
   fsrs_reps INT DEFAULT 0,
   fsrs_lapses INT DEFAULT 0,
   fsrs_state TEXT DEFAULT 'new', -- new | learning | review | relearning
-
+  
   deleted_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
@@ -547,7 +547,7 @@ CREATE INDEX scans_created_idx
   ON scans(user_id, created_at DESC);
 ```
 
-> **Hinweis:** Das obige Schema zeigt die Basistabellen aus der Init-Migration (`20260209230000_init.sql`). Weitere Tabellen wurden in späteren Migrationen hinzugefügt (20260212–20260404): `courses`, `course_decks`, `folders`, `folder_decks`, `lp_transactions`, `rewards_claimed`, `friend_connections`, `push_tokens`; außerdem Spalten wie `starred`, `share_token`, `fsrs_elapsed_days`, `fsrs_scheduled_days`, `fsrs_learning_steps`, `lp_balance`, `lp_earned_today`, `referral_code`, `ai_scans_used`, `ai_url_imports_used` u. a.
+> **Hinweis zum Datenmodell:** Das SQL oben zeigt das Schema der Init-Migration. Zusätzliche Tabellen und Spalten wurden in den Migrationen 20260212–20260404 ergänzt (u.a. `lp_balance`, `lp_transactions`, `rewards_claimed`, `referral_code`, `ai_url_imports_used` auf `profiles`; Tabellen `lp_transactions`, `rewards_claimed`). Die vollständige Schemahistorie liegt in `apps/api/supabase/migrations/`.
 
 ---
 
@@ -645,7 +645,7 @@ Regeln:
 Antworte ausschließlich als JSON-Array:
 [{
   "front": "Frage",
-  "back": "Antwort",
+  "back": "Antwort", 
   "type": "basic|cloze|mcq",
   "difficulty": "easy|medium|hard",
   "tags": ["tag1", "tag2"]
@@ -658,10 +658,10 @@ Antworte ausschließlich als JSON-Array:
 
 ### Pipeline für robuste Ausgabe
 
-1. Prompting mit klarer Rollenbeschreibung und Ausgabeformat
-2. Strikte JSON-Schema-Validierung (Server)
-3. Auto-Retry mit reduziertem Prompt bei Parsing-Fehlern
-4. Fallback-Modell bei Provider-Ausfall
+1. Prompting mit klarer Rollenbeschreibung und Ausgabeformat  
+2. Strikte JSON-Schema-Validierung (Server)  
+3. Auto-Retry mit reduziertem Prompt bei Parsing-Fehlern  
+4. Fallback-Modell bei Provider-Ausfall  
 5. Nutzerseitige Schnellkorrektur vor dem Speichern
 
 ### Qualitätsmetriken
@@ -812,13 +812,12 @@ clearn.ai verwendet ein **LP-System (Lernpunkte)** als universelle In-App-Währu
 | Erweiterte Statistiken | ❌ | ✅ | ✅ |
 | Werbefrei | ❌ | ✅ | ✅ |
 
-> **Hinweis zum Lifetime-Tier:** `featureGates.ts` definiert weiterhin einen `lifetime`-Tier mit denselben Limits wie Pro (300 LP/Monat-Grant, maxDecks=500 usw.). `revenueCatService.ts` enthält jedoch keine Lifetime-Offering-Logik — d. h. es gibt kein käufliches Lifetime-Produkt im RevenueCat-Flow. Die Tier-Limits existieren im Code (für eventuelle spätere Aktivierung), sind aber im Store nicht buchbar.
+> **Hinweis zum Lifetime-Tier:** Der Tier ist vollständig im Code definiert (`featureGates.ts`, `revenueCatService.ts` mit `LIFETIME_ENTITLEMENT_HINT`, Paywall-UI). Das Produkt `ai.clearn.lifetime` (€89,99, Non-Consumable) ist in App Store Connect / Google Play noch nicht angelegt und das RevenueCat-Default-Offering enthält noch kein Lifetime-Package — die Option erscheint daher aktuell nicht in der Paywall. `check-dashboard-readiness.mjs` fordert `ai.clearn.lifetime` und das `lifetime`-Entitlement zwingend vor Go-Live ein (siehe `docs/monetization/REVENUECAT_SETUP.md`).
 
 ### LP verdienen (kostenlos)
 
 | Aktion | LP |
-|--------|----||
-| Abgeschlossene Review-Session (min. 5 Karten) | +5 |
+|--------|----|n| Abgeschlossene Review-Session (min. 5 Karten) | +5 |
 | Tagesziel erreicht | +10 Bonus |
 | Streak-Meilenstein 7 Tage | +25 |
 | Streak-Meilenstein 30 Tage | +100 |
@@ -930,8 +929,8 @@ Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testf�
 - **Bibliothek**: Kurse, Ordner, Deck duplizieren, Deck teilen (Deep-Link), Offline-Download (AsyncStorage), Deck-Details, Kartenanzahl
 - **LP-System**: Lernpunkte als universelle Währung — Balance, Verdienen (Reviews, Streaks, Referrals), Ausgeben (KI-Features), LP-Packs (RevenueCat), Leaderboard, Freundesliste, Rewarded Ads (AdMob)
 - **Onboarding-Flow**: 3-Schritte-Onboarding, Starter-Deck, Routing-Fix für Authenticated-/New-User-Pfade
-- **Tracking-Einstellungen** (`tracking-preferences.tsx`): Screen für DSGVO-konforme Analytics-/Tracking-Präferenzen des Nutzers
-- **Auth-Callback** (`auth-callback.tsx`): Deep-Link-Handler für OAuth-Flows (Apple Sign-In / Google Sign-In) — verarbeitet den Redirect nach erfolgter Supabase-OAuth-Authentifizierung
+- **Tracking-Einstellungen**: `tracking-preferences.tsx` — DSGVO-konformer Opt-in/Opt-out für Analytics und Marketing-Tracking
+- **Auth-Callback**: `auth-callback.tsx` — verarbeitet OAuth-Redirects (Apple/Google Sign-In) und setzt die Supabase-Session
 
 ### Scaffold vorhanden, noch nicht vollständig funktionsfähig
 
@@ -1028,7 +1027,7 @@ RATE_LIMIT_PRO_PER_MINUTE=240
 Wichtige Produktionshinweise:
 
 - `REVENUECAT_WEBHOOK_SECRET` muss in Vercel (Production) gesetzt sein, sonst liefert der Webhook `503 WEBHOOK_NOT_CONFIGURED` (fail-closed).
-- Die API vertraut in Production keinen clientseitigen Tier-Headern (z. B. `x-subscription-tier`); die Tier-Entscheidung erfolgt serverseitig.
+- Die API vertraut in Production keinen clientseitigen Tier-Headern (z. B. `x-subscription-tier`); die Tier-Entscheidung erfolgt serverseitig.
 - RevenueCat-Käufe in Mobile benötigen einen Dev/Store-Build (nicht Expo Go), da `react-native-purchases` ein Native-Modul ist.
 - Falls beim Start `PluginError: Unable to resolve a valid config plugin for react-native-purchases` erscheint, den Plugin-Eintrag in `apps/mobile/app.json` entfernen (für die aktuell genutzte Paketversion nicht erforderlich).
 
