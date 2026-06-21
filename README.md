@@ -810,7 +810,7 @@ clearn.ai verwendet ein **LP-System (Lernpunkte)** als universelle In-App-Währu
 | Erweiterte Statistiken | ❌ | ✅ | ✅ |
 | Werbefrei | ❌ | ✅ | ✅ |
 
-> **Hinweis zum Lifetime-Tier:** (Status: entfernt — siehe ROADMAP-Changelog) `revenueCatService.ts` wurde ohne Lifetime-Tier implementiert. Die obige Tabelle dokumentiert das ursprüngliche Konzept; aktiv ist nur Free und Pro.
+> **Hinweis zum Lifetime-Tier:** `revenueCatService.ts` wurde ohne Lifetime-Tier implementiert und verwaltet nur Free/Pro. Die Tier-Limits in `packages/contracts/src/featureGates.ts` definieren Lifetime jedoch weiterhin identisch zu Pro (als Absicherung). Aktiv vermarktet und über RevenueCat buchbar sind nur **Free** und **Pro**. Die obige Tabelle ist konzeptionell korrekt, spiegelt aber nicht den RevenueCat-Produktkatalog wider.
 
 ### LP verdienen (kostenlos)
 
