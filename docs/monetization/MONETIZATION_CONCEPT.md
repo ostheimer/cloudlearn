@@ -1,8 +1,8 @@
 # Monetarisierungskonzept — clearn.ai
 
-> **⚠️ ACHTUNG (Stand 2026-06-06):** Die Werte in diesem Dokument divergieren von der tatsächlichen Implementierung in `packages/contracts/src/featureGates.ts`. Entscheidung über die kanonische Quelle steht aus — siehe BACKLOG CL-MON-06.
+> **Kanonische Quelle:** Alle numerischen LP-Werte, Tier-Limits und Pack-Preise werden in `packages/contracts/src/featureGates.ts` verwaltet. Dieses Dokument spiegelt den Stand von Juni 2026 wider.
 
-Letzte Aktualisierung: 2026-03-12
+Letzte Aktualisierung: 2026-06-22
 
 ---
 
@@ -34,14 +34,14 @@ Produkt-IDs (RevenueCat):
 
 ### 3.1 LP-Kosten für KI-Features
 
-| Aktion | LP-Kosten | API-Kosten (ca.) | Begründung |
-|--------|-----------|-------------------|------------|
-| KI-Scan (Kamera/Text) | 2 LP | ~0,005 € | Gemini Flash, kurzer Prompt |
-| URL-Import | 3 LP | ~0,010 € | Scraping + mehr Tokens |
-| PDF-Import (nur Pro) | 5 LP | ~0,020 € | Längster Prompt, mehrere Seiten |
+| Aktion | LP-Kosten (Free) | LP-Kosten (Pro/Lifetime) | API-Kosten (ca.) | Begründung |
+|--------|-----------------|--------------------------|-------------------|------------|
+| KI-Scan (Kamera/Text) | 10 LP | 5 LP | ~0,005 € | Gemini Flash, kurzer Prompt |
+| URL-Import | 15 LP | 8 LP | ~0,010 € | Scraping + mehr Tokens |
+| PDF-Import (nur Pro) | 20 LP | 10 LP | ~0,020 € | Längster Prompt, mehrere Seiten |
 
-Free-User: 10 LP = 5 Scans ODER 3 URL-Importe ODER Mix.
-Pro-User: 200 LP = 100 Scans oder 66 URL-Importe — reicht für Power-User.
+Free-User: 10 LP = 1 Scan ODER anteilig URL/PDF-Importe.
+Pro-User: 200 LP = 40 Scans oder 25 URL-Importe — reicht für Power-User.
 
 ### 3.2 LP verdienen durch Lernen (Gamification)
 
@@ -51,27 +51,32 @@ Pro-User: 200 LP = 100 Scans oder 66 URL-Importe — reicht für Power-User.
 | 7-Tage-Streak | +3 LP | 1× pro Woche | Streak zählt nur bei ≥10 Karten/Tag |
 | 30-Tage-Streak | +10 LP | 1× pro Monat | — |
 | Perfekte Session (≥10 Karten, ≥90% „Gut/Leicht") | +1 LP | 2× pro Tag | Min. 10 verschiedene Karten, keine Wiederholungen |
+| Referral: Einladender (Eingeladener erreicht Tag 7) | +50 LP | — | Nur bei echtem Signup + Session |
+| Referral: Eingeladener (Signup-Bonus) | +25 LP | — | Einmalig |
+| Erstes Deck erstellt | +10 LP | Einmalig | — |
+| Erste Review abgeschlossen | +5 LP | Einmalig | — |
 
-**Max. verdienbar pro Monat: ~35 LP** (bei perfektem Verhalten).
+**Max. verdienbar pro Monat: ~35 LP** (bei perfektem Verhalten, ohne Referrals/Meilensteine).
 
-→ Free-User: 10 (Basis) + 35 (verdient) = **45 LP max.** = 22 Scans. Spürbar, aber kein Abo-Ersatz.
+→ Free-User: 10 (Basis) + 35 (verdient) = **45 LP max.** = 4 Scans. Spürbar, aber kein Abo-Ersatz.
 → Pro-User: 200 + 35 = **235 LP** — Bonus fühlt sich generös an.
 
 ### 3.3 LP kaufen (Consumable Add-ons via RevenueCat)
 
 | Paket | LP | Preis | Preis/LP | Produkt-ID |
 |-------|-----|-------|----------|------------|
-| Starter | 15 LP | 0,99 € | 0,066 € | `ai.clearn.addon.lp.15` |
-| **Standard** | 50 LP | 2,49 € | **0,050 €** | `ai.clearn.addon.lp.50` |
-| Power | 150 LP | 5,99 € | 0,040 € | `ai.clearn.addon.lp.150` |
+| Starter | 100 LP | 0,99 € | 0,0099 € | `lp_pack_100` |
+| **Basis** | 300 LP | 2,49 € | **0,0083 €** | `lp_pack_300` |
+| Profi | 750 LP | 4,99 € | 0,0067 € | `lp_pack_750` |
+| Power | 2.000 LP | 9,99 € | 0,0050 € | `lp_pack_2000` |
 
-Best-Value-Badge auf Standard-Paket (Decoy-Effekt: Starter wirkt teuer, Power für Power-User).
+Best-Value-Badge auf Basis-Paket (Decoy-Effekt: Starter wirkt teuer, Power für Power-User).
 Gekaufte LP verfallen **nicht** (kein Ablaufdatum).
 
 ### 3.4 LP durch Rewarded Ads verdienen
 
 | Platzierung | Wann | LP |
-|-------------|------|----|
+|-------------|------|----|-----|
 | Rewarded Video im Scan-Screen | Freiwillig, wenn LP knapp | +1 LP |
 | Rewarded Video bei LP = 0 | „Noch ein Scan? Schau ein Video!" | +2 LP |
 
@@ -90,8 +95,8 @@ Monatliches Abo-Kontingent wird am 1. des Monats auf `lp_balance` aufaddiert (ni
 
 | Limit | Free | Pro |
 |-------|------|-----|
-| Max. Decks | 20 | 500 |
-| Max. Karten | 200 | 10.000 |
+| Max. Decks | 10 | 500 |
+| Max. Karten/Deck | 100 | 2.000 |
 | PDF-Import | ❌ | ✅ |
 | Image Occlusion | ❌ | ✅ |
 | Offline-Download | ❌ | ✅ |
@@ -127,8 +132,8 @@ Monatliches Abo-Kontingent wird am 1. des Monats auf `lp_balance` aufaddiert (ni
 
 | Aktion | Belohnung Einlader | Belohnung Neuer Nutzer |
 |--------|-------------------|------------------------|
-| Freund registriert sich + 1. Session | +10 LP | +5 LP (statt 10 Basis) |
-| Freund wird Pro-Abonnent | +50 LP | — |
+| Freund registriert sich + erreicht Tag 7 | +50 LP | +25 LP (Signup-Bonus) |
+| Freund wird Pro-Abonnent | Bereits durch Tag-7-Bonus abgedeckt | — |
 
 → Anreiz zum Teilen. Viraler Loop wie Duolingo (90% Wachstum durch Word-of-Mouth).
 
@@ -169,7 +174,7 @@ Monatliches Abo-Kontingent wird am 1. des Monats auf `lp_balance` aufaddiert (ni
 |-----|-----------|------------------|
 | **Duolingo** | Gems (eine Währung), Streak, Leaderboard, Friend-Streak, Rewarded Ads, 90% Word-of-Mouth | LP, Streak-Belohnungen, Leaderboard, Friend-Streak, Rewarded Ads, Referral |
 | **Quizlet** | Freemium + tägliche Limits auf Free | LP-System mit klaren Limits |
-| **Tinder** | Consumables (Super-Like, Boost) + Abo + Decoy-Pricing | LP-Pakete mit Decoy (Starter/Standard/Power) |
+| **Tinder** | Consumables (Super-Like, Boost) + Abo + Decoy-Pricing | LP-Pakete mit Decoy (Starter/Basis/Profi/Power) |
 | **Candy Crush** | Rewarded Ads + Consumables + Zeitdruck | Rewarded Ads für LP + Add-on-Pakete |
 | **Spotify** | Free + Ads vs. Premium werbefrei | Free mit Ads vs. Pro werbefrei |
 
@@ -179,7 +184,7 @@ Monatliches Abo-Kontingent wird am 1. des Monats auf `lp_balance` aufaddiert (ni
 |---|-------|--------|--------|
 | 1 | **Kein Onboarding-Hook** — Nutzer muss sich registrieren, bevor er Wert sieht | 80% verlassen App in 3 Tagen | **Erster Scan ohne Registrierung** (5 LP geschenkt beim App-Start). Registrierung erst für Speichern/Sync nötig. |
 | 2 | **Keine Push-Re-Engagement** bei inaktiven Nutzern | Hohe Churn nach Tag 7 | **Progressive Push**: Tag 1: "Dein Streak wartet!", Tag 3: "Deine Karten werden vergessen…", Tag 7: "+5 Bonus-LP wenn du heute zurückkommst!" (Win-Back-LP) |
-| 3 | **Kein zeitlich begrenztes Angebot** | Keine Kaufdringlichkeit | **Flash Sales**: "Nur heute: 50 LP für 1,49 € statt 2,49 €" (1× pro Woche, zufälliger Tag). Countdown-Timer. |
+| 3 | **Kein zeitlich begrenztes Angebot** | Keine Kaufdringlichkeit | **Flash Sales**: "Nur heute: 300 LP für 1,49 € statt 2,49 €" (1× pro Woche, zufälliger Tag). Countdown-Timer. |
 | 4 | **Kein Pro-Trial-Trigger bei richtigem Moment** | Niedrige Conversion Free→Pro | **Kontextuelle Pro-Trigger**: Wenn Free-User zum 3. Mal LP-Limit erreicht → "7 Tage Pro gratis testen?" (nicht generisch beim Start). |
 | 5 | **Keine Klassenraum-/Gruppen-Funktion** | Kein B2B-Umsatz, keine Schulen | **Später (Phase 3)**: Lehrer-Accounts mit Klassen-Management, Schul-Lizenzen. |
 | 6 | **Kein Content-Marktplatz** | Beschränkt auf eigene Inhalte | Community-Decks (oben), später: **Premium-Decks** von verifizierten Erstellern (Creator verdient 70%, wir 30%). |
@@ -192,11 +197,11 @@ Monatliches Abo-Kontingent wird am 1. des Monats auf `lp_balance` aufaddiert (ni
 
 ### API-Kosten pro LP
 
-| Aktion | LP | API-Kosten | Kosten/LP |
-|--------|-----|-----------|----------|
-| KI-Scan | 2 LP | ~0,005 € | 0,0025 € |
-| URL-Import | 3 LP | ~0,010 € | 0,0033 € |
-| PDF-Import | 5 LP | ~0,020 € | 0,0040 € |
+| Aktion | LP (Free) | LP (Pro) | API-Kosten | Kosten/LP (Free) |
+|--------|-----------|----------|-----------|------------------|
+| KI-Scan | 10 LP | 5 LP | ~0,005 € | 0,0005 € |
+| URL-Import | 15 LP | 8 LP | ~0,010 € | 0,0007 € |
+| PDF-Import | 20 LP | 10 LP | ~0,020 € | 0,0010 € |
 
 ### Szenarien
 
@@ -204,11 +209,11 @@ Monatliches Abo-Kontingent wird am 1. des Monats auf `lp_balance` aufaddiert (ni
 |-----------|----------|------------|-----------|-------|
 | Free, passiv (nur Basis) | 10 | ~0,03 € | ~0,30 € (Ads) | +0,27 € |
 | Free, fleißig (45 LP) | 45 | ~0,11 € | ~0,80 € (Ads) | +0,69 € |
-| Free, kauft Standard-Paket | 60 | ~0,15 € | 2,49 € + Ads | +2,84 € |
+| Free, kauft Basis-Paket | 55 | ~0,15 € | 2,49 € + Ads | +2,84 € |
 | Pro, normal | 200 | ~0,50 € | 4,99 € | +4,49 € (90%) |
 | Pro, Power + Bonus | 235 | ~0,59 € | 4,99 € | +4,40 € (88%) |
 
-**Worst Case:** Free-User farmt max. LP (45) + max. Rewarded Ads (90 LP/Monat bei 3/Tag × 30 = 90 LP → gedeckelt auf 3/Tag = ~60 LP) = ~105 LP. API-Kosten: ~0,26 €. Werbeeinnahmen: ~1,00 €. → Immer noch profitabel.
+**Worst Case:** Free-User farmt max. LP (45) + max. Rewarded Ads (3/Tag × 30 = ~60 LP) = ~105 LP. API-Kosten: ~0,26 €. Werbeeinnahmen: ~1,00 €. → Immer noch profitabel.
 
 ### Skalierung
 

@@ -17,5 +17,5 @@ npx vitest run
 npx playwright test
 
 # Mobile
-pnpm --filter @clearn/mobile dev
+pnpm --filter @clearn/mobile test
 ```
