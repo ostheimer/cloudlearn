@@ -175,7 +175,7 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 | Metrik | Zielwert (Beta) | Warum relevant |
 |-------|------------------|----------------|
 | Time to First Card | < 30 Sekunden | Kernversprechen "Foto zu Wissen" |
-| OCR->Karte Erfolgsrate | > 95% | Prozessstabiität |
+| OCR->Karte Erfolgsrate | > 95% | Prozessstabilität |
 | Karten-Akzeptanzrate (ohne Edit) | > 70% | KI-Qualität |
 | Erstes Lernset am Tag 0 abgeschlossen | > 60% | Aktivierung |
 | D7 Retention | > 25% | Produktbindung |
@@ -197,7 +197,7 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 
 ### Datenschutz & DSGVO (MVP-Mindeststandard)
 
-- **Rechtsgrundlagen:** Vertragsrfüllung (Lernfunktion), berechtigtes Interesse (Betrieb), Einwilligung (Analytics/Marketing)
+- **Rechtsgrundlagen:** Vertragserfüllung (Lernfunktion), berechtigtes Interesse (Betrieb), Einwilligung (Analytics/Marketing)
 - **Auftragsverarbeitung:** AV-Verträge mit Supabase, Vercel, LLM-Anbieter, Sentry, PostHog, RevenueCat
 - **Datenminimierung:** Bilder optional, OCR-Text nur zweckgebunden; Löschfristen für Rohdaten
 - **Betroffenenrechte:** Export, Berichtigung, Löschung direkt in der App auslösbar
@@ -404,7 +404,7 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 
 > **Kernaussage:** Die Infrastrukturkosten sind extrem niedrig. Der On-Device-OCR-Ansatz spart ~90% der Verarbeitungskosten. Gemini Flash ist das günstigste multimodale Modell am Markt. Bei €7,99/Monat Abo bleiben selbst bei Power-Usern >75% Bruttomarge.
 
-### Noch zu berücksichtigende Kostenbllöcke (oft unterschätzt)
+### Noch zu berücksichtigende Kostenblöcke (oft unterschätzt)
 
 | Kostenblock | Typischer Effekt |
 |------------|------------------|
@@ -817,7 +817,7 @@ clearn.ai verwendet ein **LP-System (Lernpunkte)** als universelle In-App-Währu
 ### LP verdienen (kostenlos)
 
 | Aktion | LP |
-|--------|----|-----|
+|--------|----|
 | Abgeschlossene Review-Session (min. 5 Karten) | +5 |
 | Tagesziel erreicht | +10 Bonus |
 | Streak-Meilenstein 7 Tage | +25 |

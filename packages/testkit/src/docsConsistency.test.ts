@@ -17,6 +17,51 @@ function sectionBetween(markdown: string, heading: string, nextHeadingLevel: str
   return next === -1 ? markdown.slice(start) : markdown.slice(start, next);
 }
 
+function tableCellCount(line: string): number {
+  return line.trim().slice(1, -1).split("|").length;
+}
+
+function findMarkdownTableSeparatorIssues(path: string, markdown: string): string[] {
+  const issues: string[] = [];
+  const lines = markdown.split("\n");
+  let inFence = false;
+
+  lines.forEach((line, index) => {
+    const trimmed = line.trim();
+
+    if (/^(```|~~~)/.test(trimmed)) {
+      inFence = !inFence;
+      return;
+    }
+
+    if (inFence || !trimmed.startsWith("|") || !trimmed.endsWith("|")) {
+      return;
+    }
+
+    const cells = trimmed.slice(1, -1).split("|").map((cell) => cell.trim());
+    const isSeparator = cells.length > 1 && cells.every((cell) => /^:?-{2,}:?$/.test(cell));
+
+    if (!isSeparator) {
+      return;
+    }
+
+    const header = lines[index - 1]?.trim() ?? "";
+    if (!header.startsWith("|") || !header.endsWith("|")) {
+      issues.push(`${path}:${index + 1} separator has no table header`);
+      return;
+    }
+
+    const headerCellCount = tableCellCount(header);
+    if (cells.length !== headerCellCount) {
+      issues.push(
+        `${path}:${index + 1} separator has ${cells.length} cells, header has ${headerCellCount}`
+      );
+    }
+  });
+
+  return issues;
+}
+
 describe("documentation status consistency", () => {
   it("keeps ROADMAP Phase 2 aligned with completed Priority B tickets", () => {
     const roadmap = readRepoFile("ROADMAP.md");
@@ -48,8 +93,18 @@ describe("documentation status consistency", () => {
   });
 
   it("keeps documentation table separators valid markdown", () => {
+    const issues = ["README.md", "docs/monetization/MONETIZATION_CONCEPT.md"].flatMap((path) =>
+      findMarkdownTableSeparatorIssues(path, readRepoFile(path))
+    );
+
+    expect(issues).toEqual([]);
+  });
+
+  it("keeps common German documentation terms spelled correctly", () => {
     for (const path of ["README.md", "docs/monetization/MONETIZATION_CONCEPT.md"]) {
-      expect(readRepoFile(path), path).not.toContain("|>");
+      expect(readRepoFile(path), path).not.toMatch(
+        /Prozessstabiität|Vertragsrfüllung|Kostenbllöcke/
+      );
     }
   });
 
