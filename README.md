@@ -613,7 +613,7 @@ CREATE INDEX scans_created_idx
 │   ├── PATCH  /:id          # Ordner bearbeiten
 │   └── DELETE /:id          # Ordner löschen (via folderService.ts)
 ├── /b2b
-│   └── GET|POST /classes    # B2B-Klassenverwaltung (currently unauthenticated — auth gate pending, see BACKLOG CL-507)
+│   └── GET|POST /classes    # B2B-Klassenverwaltung (currently unauthenticated — auth gate not yet implemented)
 └── /subscription
     ├── GET    /status       # Abo-Status prüfen
     └── POST   /webhook      # RevenueCat Webhook
@@ -805,7 +805,7 @@ clearn.ai verwendet ein **LP-System (Lernpunkte)** als universelle In-App-Währu
 | LP-Verdienst-Cap/Tag | 30 LP | 100 LP | 100 LP |
 | LP-Cost KI-Scan | 10 LP | 5 LP | 5 LP |
 | LP-Cost URL-Import | 15 LP | 8 LP | 8 LP |
-| LP-Cost PDF-Import | 20 LP | 10 LP | 10 LP |
+| LP-Cost PDF-Import | 20 LP | 12 LP | 12 LP |
 | PDF-Import | ❌ | ✅ | ✅ |
 | Image Occlusion | ❌ | ✅ | ✅ |
 | Offline-Download | ❌ | ✅ | ✅ |

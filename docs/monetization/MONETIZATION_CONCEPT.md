@@ -20,9 +20,11 @@ Letzte Aktualisierung: 2026-06-22
 
 | Tarif | Preis | Abrechnung | LP/Monat |
 |-------|-------|------------|----------|
-| **Free** | 0 € | — | 10 LP |
+| **Free** | 0 € | — | 0 LP¹ |
 | **Pro Monthly** | 4,99 € | monatlich, 7 Tage Gratis-Test | 300 LP |
 | **Pro Annual** | 39,99 € | jährlich (~3,33 €/Monat, −33%) | 300 LP/Monat |
+
+¹ Free-Nutzer erhalten einmalig 10 LP als Startguthaben (DB-Default); kein monatlicher Grant (`lpGrantPerMonth: 0`).
 
 Produkt-IDs (RevenueCat):
 - `ai.clearn.pro.monthly` (Auto-Renewing Subscription)
@@ -38,9 +40,11 @@ Produkt-IDs (RevenueCat):
 |--------|-----------------|--------------------------|-------------------|------------|
 | KI-Scan (Kamera/Text) | 10 LP | 5 LP | ~0,005 € | Gemini Flash, kurzer Prompt |
 | URL-Import | 15 LP | 8 LP | ~0,010 € | Scraping + mehr Tokens |
-| PDF-Import (nur Pro) | 20 LP | 12 LP | ~0,020 € | Längster Prompt, mehrere Seiten |
+| PDF-Import | 20 LP | 12 LP | ~0,020 € | Längster Prompt, mehrere Seiten |
 
-Free-User: 10 LP = 1 Scan ODER anteilig URL/PDF-Importe.
+> **Hinweis:** Kein Pro-Gate für PDF-Import in der API-Route — Free-Nutzer können PDFs importieren, zahlen aber 20 LP statt 12 LP. Nur `pdfImport: false` im Feature-Flag versteckt den UI-Einstiegspunkt; der Endpunkt selbst ist offen.
+
+Free-User: 10 LP (Startguthaben) = 1 Scan ODER anteilig URL/PDF-Importe.
 Pro-User: 300 LP = 60 Scans oder 37 URL-Importe — reicht für Power-User.
 
 ### 3.2 LP verdienen durch Lernen (Gamification)
@@ -77,7 +81,7 @@ Gekaufte LP verfallen **nicht** (kein Ablaufdatum).
 ### 3.4 LP durch Rewarded Ads verdienen
 
 | Platzierung | Wann | LP |
-|-------------|------|----|
+|-------------|------|----|--|
 | Rewarded Video im Scan-Screen | Freiwillig, wenn LP knapp | +5 LP |
 | Rewarded Video bei LP = 0 | „Noch ein Scan? Schau ein Video!" | +5 LP |
 
@@ -214,7 +218,7 @@ Monatliches Abo-Kontingent wird am 1. des Monats auf `lp_balance` aufaddiert (ni
 | Pro, normal | 300 | ~0,75 € | 4,99 € | +4,24 € (85%) |
 | Pro, Power + Bonus | 335 | ~0,84 € | 4,99 € | +4,15 € (83%) |
 
-**Worst Case:** Free-User farmt max. Lernen (30 LP/Tag × 30 = ~900 LP) + max. Rewarded Ads (20 LP/Tag × 30 = ~600 LP) = ~1.500 LP. API-Kosten (Scans à 10 LP/0,005 €): ~0,75 €. Werbeeinnahmen durch tägl. Ad-Nutzung: ~1,50 €. → `lpEarnCapPerDay` und `lpAdCapPerDay` in featureGates.ts begrenzen das Missbrauchsrisiko; Marge auch im Worst Case positiv.
+**Worst Case:** Free-User farmt max. Lernen (30 LP/Tag × 30 = ~900 LP) + max. Rewarded Ads (20 LP/Tag × 30 = ~600 LP) = ~1.500 LP. API-Kosten je nach Feature-Mix: ~0,75 € (alle Scans à 10 LP/0,005 €) bis ~1,50 € (alle PDF-Imports à 20 LP/0,020 €). Werbeeinnahmen durch tägl. Ad-Nutzung: ~1,50 €. → `lpEarnCapPerDay` und `lpAdCapPerDay` in featureGates.ts begrenzen das Missbrauchsrisiko; Marge auch im Worst Case positiv.
 
 ### Skalierung
 
@@ -283,7 +287,7 @@ CREATE TABLE friend_streaks (
 ## 10. Implementierungs-Reihenfolge
 
 | Phase | Inhalt | Priorität |
-|-------|--------|-----------|
+|-------|--------|----------|
 | **Phase 1** | LP-System (Balance, Spend, Earn durch Lernen), featureGates anpassen, Paywall aktualisieren | P0 |
 | **Phase 2** | RevenueCat: Abo (ohne Lifetime) + Consumable Add-ons, Rewarded Ads (AdMob) | P0 |
 | **Phase 3** | Referral-Programm, Friend-Streaks, Leaderboard | P1 |
