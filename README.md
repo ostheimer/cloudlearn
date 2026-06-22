@@ -175,7 +175,7 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 | Metrik | Zielwert (Beta) | Warum relevant |
 |-------|------------------|----------------|
 | Time to First Card | < 30 Sekunden | Kernversprechen "Foto zu Wissen" |
-| OCR->Karte Erfolgsrate | > 95% | Prozessstabilität |
+| OCR->Karte Erfolgsrate | > 95% | Prozessstabiität |
 | Karten-Akzeptanzrate (ohne Edit) | > 70% | KI-Qualität |
 | Erstes Lernset am Tag 0 abgeschlossen | > 60% | Aktivierung |
 | D7 Retention | > 25% | Produktbindung |
@@ -197,7 +197,7 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 
 ### Datenschutz & DSGVO (MVP-Mindeststandard)
 
-- **Rechtsgrundlagen:** Vertragserfüllung (Lernfunktion), berechtigtes Interesse (Betrieb), Einwilligung (Analytics/Marketing)
+- **Rechtsgrundlagen:** Vertragsrfüllung (Lernfunktion), berechtigtes Interesse (Betrieb), Einwilligung (Analytics/Marketing)
 - **Auftragsverarbeitung:** AV-Verträge mit Supabase, Vercel, LLM-Anbieter, Sentry, PostHog, RevenueCat
 - **Datenminimierung:** Bilder optional, OCR-Text nur zweckgebunden; Löschfristen für Rohdaten
 - **Betroffenenrechte:** Export, Berichtigung, Löschung direkt in der App auslösbar
@@ -272,9 +272,9 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 │  │  Capture  │→ │   OCR     │  │  (ts-fsrs)     │  │
 │  └───────────┘  └─────┬─────┘  └────────────────┘  │
 │                       │                              │
-└───────────────────────│───────────────────────────┘
+└───────────────────────│───────────────────────┘
                         │ Extracted Text
-                        ▼
+                        ↓
 ┌─────────────────────────────────────────────────────┐
 │                  BACKEND API                         │
 │            (Next.js API Routes / Vercel)             │
@@ -287,7 +287,7 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 │                                                     │
 └──────────┬────────────┬───────────┬───────────┘
            │              │               │
-           ▼              ▼               ▼
+           ↓              ↓               ↓
     ┌────────────┐ ┌────────────┐  ┌────────────┐
     │  Supabase  │ │    S3 /    │  │  Gemini /  │
     │ PostgreSQL │ │ Cloudflare │  │  OpenAI    │
@@ -404,7 +404,7 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 
 > **Kernaussage:** Die Infrastrukturkosten sind extrem niedrig. Der On-Device-OCR-Ansatz spart ~90% der Verarbeitungskosten. Gemini Flash ist das günstigste multimodale Modell am Markt. Bei €7,99/Monat Abo bleiben selbst bei Power-Usern >75% Bruttomarge.
 
-### Noch zu berücksichtigende Kostenblöcke (oft unterschätzt)
+### Noch zu berücksichtigende Kostenbllöcke (oft unterschätzt)
 
 | Kostenblock | Typischer Effekt |
 |------------|------------------|
@@ -601,7 +601,7 @@ CREATE INDEX scans_created_idx
 ├── /math
 │   └── POST   /formula      # Mathpix-Integration für Formel-OCR (via mathpixService.ts)
 ├── /beta
-│   └── POST   /feedback     # Beta-Feedback einreichen (via betaFeedbackService.ts)
+│   └── POST   /feedback     # Beta-Feedback einreichen (intentionally unauthenticated, via betaFeedbackService.ts)
 ├── /courses
 │   ├── GET    /             # Alle Kurse des Nutzers
 │   ├── POST   /             # Neuen Kurs erstellen
@@ -612,6 +612,8 @@ CREATE INDEX scans_created_idx
 │   ├── POST   /             # Neuen Ordner erstellen
 │   ├── PATCH  /:id          # Ordner bearbeiten
 │   └── DELETE /:id          # Ordner löschen (via folderService.ts)
+├── /b2b
+│   └── GET|POST /classes    # B2B-Klassenverwaltung (currently unauthenticated — auth gate pending, see BACKLOG CL-507)
 └── /subscription
     ├── GET    /status       # Abo-Status prüfen
     └── POST   /webhook      # RevenueCat Webhook
@@ -803,7 +805,7 @@ clearn.ai verwendet ein **LP-System (Lernpunkte)** als universelle In-App-Währu
 | LP-Verdienst-Cap/Tag | 30 LP | 100 LP | 100 LP |
 | LP-Cost KI-Scan | 10 LP | 5 LP | 5 LP |
 | LP-Cost URL-Import | 15 LP | 8 LP | 8 LP |
-| LP-Cost PDF-Import | 20 LP | 12 LP | 12 LP |
+| LP-Cost PDF-Import | 20 LP | 10 LP | 10 LP |
 | PDF-Import | ❌ | ✅ | ✅ |
 | Image Occlusion | ❌ | ✅ | ✅ |
 | Offline-Download | ❌ | ✅ | ✅ |
@@ -815,7 +817,7 @@ clearn.ai verwendet ein **LP-System (Lernpunkte)** als universelle In-App-Währu
 ### LP verdienen (kostenlos)
 
 | Aktion | LP |
-|--------|----|
+|--------|----|-----|
 | Abgeschlossene Review-Session (min. 5 Karten) | +5 |
 | Tagesziel erreicht | +10 Bonus |
 | Streak-Meilenstein 7 Tage | +25 |
