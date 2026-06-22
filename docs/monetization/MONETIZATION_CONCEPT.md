@@ -21,8 +21,8 @@ Letzte Aktualisierung: 2026-06-22
 | Tarif | Preis | Abrechnung | LP/Monat |
 |-------|-------|------------|----------|
 | **Free** | 0 € | — | 10 LP |
-| **Pro Monthly** | 4,99 € | monatlich, 7 Tage Gratis-Test | 200 LP |
-| **Pro Annual** | 39,99 € | jährlich (~3,33 €/Monat, −33%) | 200 LP/Monat |
+| **Pro Monthly** | 4,99 € | monatlich, 7 Tage Gratis-Test | 300 LP |
+| **Pro Annual** | 39,99 € | jährlich (~3,33 €/Monat, −33%) | 300 LP/Monat |
 
 Produkt-IDs (RevenueCat):
 - `ai.clearn.pro.monthly` (Auto-Renewing Subscription)
@@ -38,28 +38,29 @@ Produkt-IDs (RevenueCat):
 |--------|-----------------|--------------------------|-------------------|------------|
 | KI-Scan (Kamera/Text) | 10 LP | 5 LP | ~0,005 € | Gemini Flash, kurzer Prompt |
 | URL-Import | 15 LP | 8 LP | ~0,010 € | Scraping + mehr Tokens |
-| PDF-Import (nur Pro) | 20 LP | 10 LP | ~0,020 € | Längster Prompt, mehrere Seiten |
+| PDF-Import (nur Pro) | 20 LP | 12 LP | ~0,020 € | Längster Prompt, mehrere Seiten |
 
 Free-User: 10 LP = 1 Scan ODER anteilig URL/PDF-Importe.
-Pro-User: 200 LP = 40 Scans oder 25 URL-Importe — reicht für Power-User.
+Pro-User: 300 LP = 60 Scans oder 37 URL-Importe — reicht für Power-User.
 
 ### 3.2 LP verdienen durch Lernen (Gamification)
 
-| Aktion | LP | Limit | Anti-Abuse |
-|--------|----|-------|------------|
-| Tagesziel erreicht (mind. 10 Karten reviewed) | +1 LP | 1× pro Tag | Tagesziel muss echte Reviews sein, kein Farming |
-| 7-Tage-Streak | +3 LP | 1× pro Woche | Streak zählt nur bei ≥10 Karten/Tag |
-| 30-Tage-Streak | +10 LP | 1× pro Monat | — |
-| Perfekte Session (≥10 Karten, ≥90% „Gut/Leicht") | +1 LP | 2× pro Tag | Min. 10 verschiedene Karten, keine Wiederholungen |
-| Referral: Einladender (Eingeladener erreicht Tag 7) | +50 LP | — | Nur bei echtem Signup + Session |
-| Referral: Eingeladener (Signup-Bonus) | +25 LP | — | Einmalig |
+| Aktion | LP | Limit | Anmerkung |
+|--------|----|-------|----------|
+| Abgeschlossene Lernsession (≥5 Karten) | +5 LP | bis 30 LP/Tag (Free) · bis 100 LP/Tag (Pro) | Tägliche Kappung gilt für alle Lern-Aktionen |
+| Tagesziel erreicht | +10 LP | 1× pro Tag | Zusatzbonus zum Session-LP |
+| 7-Tage-Streak (Meilenstein) | +25 LP | Einmalig | Aus `rewards_claimed` — kein Reset |
+| 30-Tage-Streak (Meilenstein) | +100 LP | Einmalig | — |
+| 100-Tage-Streak (Meilenstein) | +300 LP | Einmalig | — |
+| Referral: Einladender | +50 LP | — | Wird sofort gutgeschrieben wenn der Eingeladene den Code einlöst |
+| Referral: Eingeladener (Signup-Bonus) | +25 LP | — | Einmalig beim Code-Claim |
 | Erstes Deck erstellt | +10 LP | Einmalig | — |
 | Erste Review abgeschlossen | +5 LP | Einmalig | — |
 
-**Max. verdienbar pro Monat: ~35 LP** (bei perfektem Verhalten, ohne Referrals/Meilensteine).
+**Tageslimit:** Free bis 30 LP/Tag durch Lernen · Pro bis 100 LP/Tag (Meilensteine und Referrals zählen nicht zum Tageslimit).
 
-→ Free-User: 10 (Basis) + 35 (verdient) = **45 LP max.** = 4 Scans. Spürbar, aber kein Abo-Ersatz.
-→ Pro-User: 200 + 35 = **235 LP** — Bonus fühlt sich generös an.
+→ Free-User: kein monatlicher Grant; täglich bis zu 30 LP durch Lernen verdienbar + einmalige Meilensteine. Spürbar, aber kein Abo-Ersatz.
+→ Pro-User: 300 LP monatlicher Grant + täglich bis zu 100 LP verdienbar — deutlich großzügiger.
 
 ### 3.3 LP kaufen (Consumable Add-ons via RevenueCat)
 
@@ -76,18 +77,18 @@ Gekaufte LP verfallen **nicht** (kein Ablaufdatum).
 ### 3.4 LP durch Rewarded Ads verdienen
 
 | Platzierung | Wann | LP |
-|-------------|------|----|-----|
-| Rewarded Video im Scan-Screen | Freiwillig, wenn LP knapp | +1 LP |
-| Rewarded Video bei LP = 0 | „Noch ein Scan? Schau ein Video!" | +2 LP |
+|-------------|------|----|
+| Rewarded Video im Scan-Screen | Freiwillig, wenn LP knapp | +5 LP |
+| Rewarded Video bei LP = 0 | „Noch ein Scan? Schau ein Video!" | +5 LP |
 
-**Limit: Max. 3 Rewarded Ads pro Tag** (verhindert Ad-Farming, schützt Abo-Wert).
+**Limit: Max. 20 LP/Tag durch Rewarded Ads (Free)** = 4 Ads à 5 LP · Pro-Nutzer sehen keine Werbung und erhalten kein Ad-LP.
 
 ### 3.5 Verbrauchsreihenfolge
 
 **Ein einziger Topf** (`lp_balance`). Kein Unterschied ob verdient, gekauft oder Abo-Kontingent.
 Monatliches Abo-Kontingent wird am 1. des Monats auf `lp_balance` aufaddiert (nicht ersetzt).
 
-**Cap:** LP-Balance kann max. 500 betragen (verhindert unbegrenztes Horten).
+**Balance-Cap:** Ein Balance-Cap ist in `grantLpPurchase` aktuell nicht implementiert — 750-LP- und 2.000-LP-Pakete werden vollständig gutgeschrieben.
 
 ---
 
@@ -114,7 +115,7 @@ Monatliches Abo-Kontingent wird am 1. des Monats auf `lp_balance` aufaddiert (ni
 |-------------|-----|----------|
 | Home-Screen unten | Banner (320×50) | Permanent |
 | Nach jeder 3. Lernsession | Interstitial | Max. 5/Tag |
-| Freiwillig im Scan-Screen | Rewarded Video → +1–2 LP | Max. 3/Tag |
+| Freiwillig im Scan-Screen | Rewarded Video → +5 LP | Max. 20 LP/Tag |
 
 **Pro-Nutzer: komplett werbefrei** (starker Upgrade-Anreiz).
 
@@ -132,8 +133,8 @@ Monatliches Abo-Kontingent wird am 1. des Monats auf `lp_balance` aufaddiert (ni
 
 | Aktion | Belohnung Einlader | Belohnung Neuer Nutzer |
 |--------|-------------------|------------------------|
-| Freund registriert sich + erreicht Tag 7 | +50 LP | +25 LP (Signup-Bonus) |
-| Freund wird Pro-Abonnent | Bereits durch Tag-7-Bonus abgedeckt | — |
+| Freund registriert sich und löst Referral-Code ein | +50 LP | +25 LP (Signup-Bonus) |
+| Freund wird Pro-Abonnent | Bereits durch Referral-Bonus abgedeckt | — |
 
 → Anreiz zum Teilen. Viraler Loop wie Duolingo (90% Wachstum durch Word-of-Mouth).
 
@@ -201,7 +202,7 @@ Monatliches Abo-Kontingent wird am 1. des Monats auf `lp_balance` aufaddiert (ni
 |--------|-----------|----------|-----------|------------------|
 | KI-Scan | 10 LP | 5 LP | ~0,005 € | 0,0005 € |
 | URL-Import | 15 LP | 8 LP | ~0,010 € | 0,0007 € |
-| PDF-Import | 20 LP | 10 LP | ~0,020 € | 0,0010 € |
+| PDF-Import | 20 LP | 12 LP | ~0,020 € | 0,0010 € |
 
 ### Szenarien
 
@@ -209,11 +210,11 @@ Monatliches Abo-Kontingent wird am 1. des Monats auf `lp_balance` aufaddiert (ni
 |-----------|----------|------------|-----------|-------|
 | Free, passiv (nur Basis) | 10 | ~0,03 € | ~0,30 € (Ads) | +0,27 € |
 | Free, fleißig (45 LP) | 45 | ~0,11 € | ~0,80 € (Ads) | +0,69 € |
-| Free, kauft Basis-Paket | 55 | ~0,15 € | 2,49 € + Ads | +2,84 € |
-| Pro, normal | 200 | ~0,50 € | 4,99 € | +4,49 € (90%) |
-| Pro, Power + Bonus | 235 | ~0,59 € | 4,99 € | +4,40 € (88%) |
+| Free, kauft Basis-Paket (300 LP) | 310 | ~0,15 € | 2,49 € + Ads | +2,84 € |
+| Pro, normal | 300 | ~0,75 € | 4,99 € | +4,24 € (85%) |
+| Pro, Power + Bonus | 335 | ~0,84 € | 4,99 € | +4,15 € (83%) |
 
-**Worst Case:** Free-User farmt max. LP (45) + max. Rewarded Ads (3/Tag × 30 = ~60 LP) = ~105 LP. API-Kosten: ~0,26 €. Werbeeinnahmen: ~1,00 €. → Immer noch profitabel.
+**Worst Case:** Free-User farmt max. Lernen (30 LP/Tag × 30 = ~900 LP) + max. Rewarded Ads (20 LP/Tag × 30 = ~600 LP) = ~1.500 LP. API-Kosten (Scans à 10 LP/0,005 €): ~0,75 €. Werbeeinnahmen durch tägl. Ad-Nutzung: ~1,50 €. → `lpEarnCapPerDay` und `lpAdCapPerDay` in featureGates.ts begrenzen das Missbrauchsrisiko; Marge auch im Worst Case positiv.
 
 ### Skalierung
 
@@ -282,7 +283,7 @@ CREATE TABLE friend_streaks (
 ## 10. Implementierungs-Reihenfolge
 
 | Phase | Inhalt | Priorität |
-|-------|--------|----------|
+|-------|--------|-----------|
 | **Phase 1** | LP-System (Balance, Spend, Earn durch Lernen), featureGates anpassen, Paywall aktualisieren | P0 |
 | **Phase 2** | RevenueCat: Abo (ohne Lifetime) + Consumable Add-ons, Rewarded Ads (AdMob) | P0 |
 | **Phase 3** | Referral-Programm, Friend-Streaks, Leaderboard | P1 |
