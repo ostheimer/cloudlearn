@@ -338,4 +338,4 @@ CREATE TABLE friend_streaks (
 - [Duolingo Friend Streak](https://blog.duolingo.com/friend-streak)
 - [RevenueCat: Gamification in Apps](https://revenuecat.com/blog/growth/gamification-in-apps-complete-guide/)
 - [Gemini API Pricing](https://ai.google.dev/gemini-api/docs/pricing)
-- [App Monetization Strategies 2025](https://blog.funnelfox.com/how-app-monetization-strategies-impact-user-accounting-and-retention/)
+- [App Monetization Strategies 2025](https://blog.funnelfox.com/how-app-monetization-strategies-impact-user-acquisition-and-retention/)

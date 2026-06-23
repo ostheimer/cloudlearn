@@ -53,6 +53,15 @@ describe("documentation status consistency", () => {
     }
   });
 
+  it("keeps monetization reference links on their intended slugs", () => {
+    const monetizationConcept = readRepoFile("docs/monetization/MONETIZATION_CONCEPT.md");
+
+    expect(monetizationConcept).toContain(
+      "https://blog.funnelfox.com/how-app-monetization-strategies-impact-user-acquisition-and-retention/",
+    );
+    expect(monetizationConcept).not.toContain("user-accounting-and-retention");
+  });
+
   it("does not list already resolved documentation discrepancies in AGENTS", () => {
     const agents = readRepoFile("AGENTS.md");
     const roadmap = readRepoFile("ROADMAP.md");
