@@ -6,21 +6,32 @@ Letzte Aktualisierung: 2026-03-12
 
 ### Abweichungen zum Code (Stand 2026-06-23)
 
-| Wert | Dieses Dokument | featureGates.ts (Code) |
-|------|----------------|------------------------|
-| LP-Kosten KI-Scan (Free) | 2 LP | 10 LP |
-| LP-Kosten URL-Import (Free) | 3 LP | 15 LP |
-| LP-Kosten PDF-Import | 5 LP | 20 LP |
+| Wert | Dieses Dokument | featureGates.ts / lpService.ts (Code) |
+|------|----------------|---------------------------------------|
+| LP-Kosten KI-Scan (Free) | 2 LP | 10 LP (lpCostAiScan) |
+| LP-Kosten URL-Import (Free) | 3 LP | 15 LP (lpCostUrlImport) |
+| LP-Kosten PDF-Import (Free) | 5 LP | 20 LP (lpCostPdfImport) |
+| LP-Kosten PDF-Import (Pro/Lifetime) | 5 LP | 12 LP (lpCostPdfImport) |
 | LP-Grant/Monat Free | 10 LP | 0 LP (kein automatischer Grant) |
 | LP-Grant/Monat Pro | 200 LP | 300 LP |
-| LP tägl. verdienbar (Cap) | ~35 LP/Monat | 30 LP/Tag (lpEarnCapPerDay) |
+| LP-Balance Cap | 500 LP (Section 3.5) | Kein Cap (nicht in lpService.ts durchgesetzt) |
+| LP tägl. verdienbar Cap (Free) | ~35 LP/Monat gesamt | 30 LP/Tag (lpEarnCapPerDay) |
+| LP-Verdienst: Lernsession | +1 LP/Tag (Tagesziel 10 Karten) | +5 LP/Session (perReviewSession, min. 5 Karten) |
+| LP-Verdienst: Tagesziel-Bonus | — | +10 LP (dailyGoalBonus) |
+| LP-Verdienst: 7-Tage-Streak | +3 LP | +25 LP (streakDay7) |
+| LP-Verdienst: 30-Tage-Streak | +10 LP | +100 LP (streakDay30) |
+| LP-Verdienst: 100-Tage-Streak | — | +300 LP (streakDay100) |
+| LP-Verdienst: Rewarded Ad | +1/+2 LP, max. 3 Ads/Tag | +5 LP/Ad, max. 20 LP/Tag (lpAdCapPerDay Free) |
 | LP-Pack Starter | 15 LP / 0,99 € | 100 LP / 0,99 € |
 | LP-Pack Standard | 50 LP / 2,49 € | 300 LP / 2,49 € |
 | LP-Pack Power | 150 LP / 5,99 € | 750 LP / 4,99 € |
 | LP-Pack 4. Option | — | 2.000 LP / 9,99 € |
+| LP-Pack Produkt-IDs | ai.clearn.addon.lp.{15,50,150} | lp_pack_{100,300,750,2000} |
 | Max. Decks (Free) | 20 | 10 (maxDecks) |
-| Max. Karten/Deck (Free) | 200 Karten gesamt | 100 (maxCardsPerDeck) |
-| Max. Karten/Deck (Pro) | 10.000 Karten gesamt | 2.000 (maxCardsPerDeck) |
+| Max. Karten gesamt (Free) | 200 | Kein Gesamt-Limit im Code |
+| Max. Karten/Deck (Free) | — (kein Per-Deck-Limit dokumentiert) | 100 (maxCardsPerDeck) |
+| Max. Karten gesamt (Pro) | 10.000 | Kein Gesamt-Limit im Code |
+| Max. Karten/Deck (Pro) | — (kein Per-Deck-Limit dokumentiert) | 2.000 (maxCardsPerDeck) |
 
 ---
 
@@ -325,4 +336,4 @@ CREATE TABLE friend_streaks (
 - [Duolingo Friend Streak](https://blog.duolingo.com/friend-streak)
 - [RevenueCat: Gamification in Apps](https://revenuecat.com/blog/growth/gamification-in-apps-complete-guide/)
 - [Gemini API Pricing](https://ai.google.dev/gemini-api/docs/pricing)
-- [App Monetization Strategies 2025](https://blog.funnelfox.com/how-app-monetization-strategies-impact-user-acquisition-and-retention/)
+- [App Monetization Strategies 2025](https://blog.funnelfox.com/how-app-monetization-strategies-impact-user-accounting-and-retention/)
