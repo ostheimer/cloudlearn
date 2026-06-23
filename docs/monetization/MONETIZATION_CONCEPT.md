@@ -4,6 +4,21 @@
 
 Letzte Aktualisierung: 2026-03-12
 
+### Abweichungen zum Code (Stand 2026-06-23)
+
+| Wert | Dieses Dokument | featureGates.ts (Code) |
+|------|----------------|------------------------|
+| LP-Kosten KI-Scan (Free) | 2 LP | 10 LP |
+| LP-Kosten URL-Import (Free) | 3 LP | 15 LP |
+| LP-Kosten PDF-Import | 5 LP | 20 LP |
+| LP-Grant/Monat Free | 10 LP | 0 LP (kein automatischer Grant) |
+| LP-Grant/Monat Pro | 200 LP | 300 LP |
+| LP tägl. verdienbar (Cap) | ~35 LP/Monat | 30 LP/Tag (lpEarnCapPerDay) |
+| LP-Pack Starter | 15 LP / 0,99 € | 100 LP / 0,99 € |
+| LP-Pack Standard | 50 LP / 2,49 € | 300 LP / 2,49 € |
+| LP-Pack Power | 150 LP / 5,99 € | 750 LP / 4,99 € |
+| LP-Pack 4. Option | — | 2.000 LP / 9,99 € |
+
 ---
 
 ## 1. Leitprinzipien
