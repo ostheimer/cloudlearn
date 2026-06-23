@@ -219,7 +219,7 @@ Ein Ticket ist erst "Done", wenn:
 
 **Akzeptanzkriterien**
 - [ ] Free Limit fuer Scans/KI-Nutzung erzwungen
-- [ ] Paywall zeigt Monats- und Jahresoption (Lifetime-Option entfernt — siehe CL-D06)
+- [ ] Paywall zeigt Monats-, Jahres- und Lifetime-Option
 - [ ] Aktivierung/Entzug von Entitlements wirkt sofort auf Feature-Zugriff
 
 **Testfaelle**
