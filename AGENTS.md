@@ -26,4 +26,6 @@ pnpm --filter @clearn/mobile dev
 
 `apps/api/src/lib/featureGates.ts` ist ein **server-seitiger Spiegel** mit identischen Werten für den Einsatz innerhalb der API ohne Cross-Workspace-Import. Bei Änderungen zuerst `packages/contracts/src/featureGates.ts` anpassen, dann `apps/api/src/lib/featureGates.ts` synchronisieren.
 
+`apps/mobile/src/features/paywall/lpPackOffers.ts` ist eine **dritte Datei**, die LP-Pack-IDs und LP-Mengen aus `featureGates.ts` dupliziert (mit `popular`-Flag statt Preise). Bei Änderungen an LP-Packs muss auch diese Datei synchronisiert werden.
+
 Wenn `docs/monetization/MONETIZATION_CONCEPT.md` von `packages/contracts/src/featureGates.ts` abweicht, ist der Code die Wahrheit — bis eine Produktentscheidung das ändert (nachverfolgt in BACKLOG CL-MON-06).
