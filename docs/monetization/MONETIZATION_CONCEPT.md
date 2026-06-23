@@ -10,14 +10,16 @@ Letzte Aktualisierung: 2026-03-12
 |------|----------------|---------------------------------------|
 | LP-Kosten KI-Scan (Free) | 2 LP | 10 LP (lpCostAiScan) |
 | LP-Kosten URL-Import (Free) | 3 LP | 15 LP (lpCostUrlImport) |
+| LP-Kosten KI-Scan (Pro/Lifetime) | 2 LP (Abschnitt 3.1 impliziert: 200 LP ÷ 100 Scans) | 5 LP (lpCostAiScan) |
+| LP-Kosten URL-Import (Pro/Lifetime) | 3 LP (Abschnitt 3.1 impliziert: 200 LP ÷ 66 Importe) | 8 LP (lpCostUrlImport) |
 | LP-Kosten PDF-Import (Free) | 5 LP | 20 LP (lpCostPdfImport) |
 | LP-Kosten PDF-Import (Pro/Lifetime) | 5 LP | 12 LP (lpCostPdfImport) |
 | LP-Grant/Monat Free | 10 LP | 0 LP (kein automatischer Grant) |
 | LP-Grant/Monat Pro | 200 LP | 300 LP |
 | LP-Balance Cap | 500 LP (Section 3.5) | Kein Cap (nicht in lpService.ts durchgesetzt) |
-| LP tägl. verdienbar Cap (Free) | ~35 LP/Monat gesamt | 30 LP/Tag (lpEarnCapPerDay) |
+| LP tägl. verdienbar Cap (Free) | ~35 LP/Monat gesamt | 30 LP/Tag (lpEarnCapPerDay) — gilt nur für earnLp(); claimMilestoneReward() umgeht den Cap und zahlt Streak-Belohnungen direkt aus |
 | LP-Verdienst: Lernsession | +1 LP/Tag (Tagesziel 10 Karten) | +5 LP/Session (perReviewSession, min. 5 Karten) |
-| LP-Verdienst: Tagesziel-Bonus | — | +10 LP (dailyGoalBonus) |
+| LP-Verdienst: Tagesziel-Bonus | — | +10 LP (dailyGoalBonus) — in featureGates.ts definiert, API-Route vorhanden, aber Mobile-App ruft earnLp("dailyGoal") nie auf (Feature nicht verdrahtet) |
 | LP-Verdienst: 7-Tage-Streak | +3 LP | +25 LP (streakDay7) |
 | LP-Verdienst: 30-Tage-Streak | +10 LP | +100 LP (streakDay30) |
 | LP-Verdienst: 100-Tage-Streak | — | +300 LP (streakDay100) |
