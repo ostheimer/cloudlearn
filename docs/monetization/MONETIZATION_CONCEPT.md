@@ -18,6 +18,9 @@ Letzte Aktualisierung: 2026-03-12
 | LP-Pack Standard | 50 LP / 2,49 € | 300 LP / 2,49 € |
 | LP-Pack Power | 150 LP / 5,99 € | 750 LP / 4,99 € |
 | LP-Pack 4. Option | — | 2.000 LP / 9,99 € |
+| Max. Decks (Free) | 20 | 10 (maxDecks) |
+| Max. Karten/Deck (Free) | 200 Karten gesamt | 100 (maxCardsPerDeck) |
+| Max. Karten/Deck (Pro) | 10.000 Karten gesamt | 2.000 (maxCardsPerDeck) |
 
 ---
 
