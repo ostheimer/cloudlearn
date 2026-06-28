@@ -31,6 +31,9 @@ Screenshots in `screenshots/` — **echte Simulator-Screenshots** (iPhone 16 Pro
 | 16 | Tracking-Einstellungen | — | implementiert |
 | 17 | Auth Callback | — | implementiert |
 | 18 | Passwort zurücksetzen | — | implementiert |
+| 19 | Leaderboard | — | implementiert |
+| 20 | LP-Store | — | implementiert |
+| 21 | Referral | — | implementiert |
 
 ---
 
@@ -630,6 +633,30 @@ OAuth-Callback-Screen, der nach einem externen Authentifizierungsflow (z.B. Appl
 Quelle: `apps/mobile/app/reset-password.tsx`
 
 Screen zur Eingabe eines neuen Passworts nach dem Klick auf einen Passwort-Reset-Link (per E-Mail verschickt über Supabase Auth). Zeigt zwei Passwortfelder (neu + bestätigen) und einen Submit-Button. Nach erfolgreichem Reset wird der Nutzer zum Login weitergeleitet.
+
+---
+
+## 17. Leaderboard — `leaderboard`
+
+Quelle: `apps/mobile/app/leaderboard.tsx`
+
+Vollständiger Screen zur Anzeige des LP-Leaderboards. Zeigt die Rangliste der Nutzer nach Lernpunkten (LP) — global und unter Freunden. Entspricht den API-Endpoints `GET /api/v1/leaderboard/global` und `GET /api/v1/leaderboard/friends`. Wird aus dem Profil oder dem LP-Dashboard heraus aufgerufen.
+
+---
+
+## 18. LP-Store — `lp-store`
+
+Quelle: `apps/mobile/app/lp-store.tsx`
+
+Vollständiger Screen für den Kauf von LP-Packs (Lernpunkte). Zeigt die verfügbaren LP-Packs (Starter 100 LP, Basis 300 LP, Profi 750 LP, Power 2.000 LP) mit Preisen und löst den RevenueCat-Kaufflow aus. Entspricht dem Backend-Endpoint `POST /api/v1/lp/purchase`. Wird aus dem LP-Balance-Widget oder der Paywall heraus aufgerufen.
+
+---
+
+## 19. Referral — `referral`
+
+Quelle: `apps/mobile/app/referral.tsx`
+
+Vollständiger Screen für das Referral-Programm. Zeigt dem Nutzer seinen persönlichen Referral-Code, den Einladungslink zum Teilen sowie den aktuellen Referral-Status (wie viele Eingeladene haben Tag 7 erreicht). Löst LP-Boni aus (Einladender: +50 LP, Eingeladener: +25 LP Signup-Bonus). Entspricht den API-Endpoints `GET /api/v1/referral/info` und `POST /api/v1/referral/claim`.
 
 ---
 
