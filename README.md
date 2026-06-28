@@ -564,7 +564,10 @@ CREATE INDEX scans_created_idx
 │   ├── POST   /             # Neues Deck erstellen
 │   ├── PATCH  /:id          # Deck bearbeiten
 │   ├── DELETE /:id          # Deck löschen
-│   └── GET    /:id/cards    # Alle Karten eines Decks
+│   ├── GET    /:id/cards    # Alle Karten eines Decks
+│   ├── POST   /:id/duplicate  # Deck duplizieren (inkl. aller Karten)
+│   ├── GET    /:id/share    # Share-Link/Deep-Link für ein Deck abrufen
+│   └── POST   /share        # Deep-Link einlösen → Deck in eigene Bibliothek kopieren
 ├── /cards
 │   ├── POST   /             # Karte(n) erstellen
 │   ├── PATCH  /:id          # Karte bearbeiten
@@ -605,13 +608,17 @@ CREATE INDEX scans_created_idx
 ├── /courses
 │   ├── GET    /             # Alle Kurse des Nutzers
 │   ├── POST   /             # Neuen Kurs erstellen
+│   ├── GET    /:id          # Einzelnen Kurs abrufen (hinzugefügt 2026-02-16)
 │   ├── PATCH  /:id          # Kurs bearbeiten
 │   └── DELETE /:id          # Kurs löschen (via courseService.ts)
 ├── /folders
 │   ├── GET    /             # Alle Ordner des Nutzers
 │   ├── POST   /             # Neuen Ordner erstellen
+│   ├── GET    /:id          # Einzelnen Ordner abrufen (hinzugefügt 2026-02-16)
 │   ├── PATCH  /:id          # Ordner bearbeiten
 │   └── DELETE /:id          # Ordner löschen (via folderService.ts)
+├── /export
+│   └── GET    /anki         # Anki-Export (.apkg) — Scaffold/Mock, noch kein echtes .apkg
 └── /subscription
     ├── GET    /status       # Abo-Status prüfen
     └── POST   /webhook      # RevenueCat Webhook
@@ -623,7 +630,7 @@ CREATE INDEX scans_created_idx
 - **Idempotenz:** `POST /scan/process` und `POST /cards/:id/review` mit `Idempotency-Key`
 - **Pagination:** Cursor-basierte Pagination für Listenendpunkte
 - **Fehlermodell:** einheitliches JSON-Format mit `code`, `message`, `request_id`
-- **Rate Limits:** pro Nutzer, Tarif und LP-Guthaben (free/pro/lifetime), inklusive Retry-After Header
+- **Rate Limits:** pro Nutzer, Tarif und LP-Guthaben (free/pro), inklusive Retry-After Header
 - **Observability:** korrelierbare `request_id` über API, Worker und DB
 
 ### Kern-Endpoint: POST /api/scan/process
@@ -680,6 +687,8 @@ Antworte ausschließlich als JSON-Array:
 ---
 
 ## Offline- & Sync-Strategie
+
+> **Wichtig — zwei verschiedene Offline-Konzepte:** Das MVP implementiert einen **AsyncStorage-basierten Karten-Cache** (voll funktionsfähig: fällige Karten werden lokal gecacht, Reviews werden offline in einer Retry-Queue gespeichert und beim nächsten Online-Sync hochgeladen). Ein **vollständiger SQLite-basierter Offline-Sync** (bidirektionale Persistenz, Offline-Erstellung neuer Decks, konfliktresistente Merge-Logik) ist als offenes Ticket **CL-D01** geplant, aber noch nicht implementiert. Die Aussage „Offline-Download (AsyncStorage)" im Implementierungsstatus bezieht sich auf den AsyncStorage-Cache, nicht auf CL-D01.
 
 ### Prinzipien
 
@@ -812,6 +821,8 @@ clearn.ai verwendet ein **LP-System (Lernpunkte)** als universelle In-App-Währu
 
 > **Hinweis zum Lifetime-Tier:** (Status: entfernt — siehe ROADMAP-Changelog) `revenueCatService.ts` wurde ohne Lifetime-Tier implementiert. Die obige Tabelle dokumentiert das ursprüngliche Konzept; aktiv ist nur Free und Pro.
 
+> **Hinweis zu `EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_LIFETIME` in `.env.example`:** Der Key ist in `.env.example` noch vorhanden, weil er früher für das Lifetime-Tier benötigt wurde. Da das Lifetime-Tier aus der aktiven Monetarisierung entfernt wurde, hat dieser Key im aktuellen Code keine Funktion mehr. Er wird gesetzt, um Linter-/Env-Validierungsfehler zu vermeiden; eine Bereinigung (Entfernung aus `.env.example` und ggf. aus der Env-Validierungslogik) ist als Housekeeping-Task offen.
+
 ### LP verdienen (kostenlos)
 
 | Aktion | LP |
@@ -925,13 +936,13 @@ Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testf�
 - **Statistiken**: Reviews heute/Woche/gesamt, Genauigkeit, Lernverlauf 30 Tage — API und Mobile-Screen vollständig
 - **Streaks + TTS + Push-Notifications**: Tagesserien-Tracking, Vorlesen (expo-speech), konfigurierbare tägliche Erinnerungen
 - **Erweiterte Lernmodi**: Flip-Animation, Swipe (4 FSRS-Stufen, Tinder-Stil), Test-Modus (MC/Wahr-Falsch), Match-Spiel (Timer, Sterne), Auto-Play, Image Occlusion
-- **Bibliothek**: Kurse, Ordner, Deck duplizieren, Deck teilen (Deep-Link), Offline-Download (AsyncStorage), Deck-Details, Kartenanzahl
+- **Bibliothek**: Kurse, Ordner, Deck duplizieren, Deck teilen (Deep-Link), Offline-Download (AsyncStorage-Cache — fällige Karten lokal gecacht + Retry-Queue; kein vollständiger SQLite-Sync, siehe CL-D01), Deck-Details, Kartenanzahl
 - **LP-System**: Lernpunkte als universelle Währung — Balance, Verdienen (Reviews, Streaks, Referrals), Ausgeben (KI-Features), LP-Packs (RevenueCat), Leaderboard, Freundesliste, Rewarded Ads (AdMob)
 - **Onboarding-Flow**: 3-Schritte-Onboarding, Starter-Deck, Routing-Fix für Authenticated-/New-User-Pfade
 
 ### Scaffold vorhanden, noch nicht vollständig funktionsfähig
 
-- Offline-Sync (Store existiert, Sync-Aufruf ist nicht aktiv)
+- Offline-Sync (Store existiert, Sync-Aufruf ist nicht aktiv; vollständiger SQLite-Sync als CL-D01 offen)
 - PDF-Import (Job-Queue vorhanden, kein echtes Parsing)
 - Anki-Export (Mock-Daten)
 - Mathpix (Mock)
@@ -1010,7 +1021,7 @@ REVENUECAT_WEBHOOK_SECRET=...
 EXPO_PUBLIC_REVENUECAT_IOS_API_KEY=appl_...
 EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY=goog_...
 EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_PRO=pro
-EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_LIFETIME=lifetime
+EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_LIFETIME=lifetime  # Legacy-Key: Lifetime-Tier nicht aktiv, Key bleibt zur Kompatibilität
 
 # Monitoring
 SENTRY_DSN=https://...
@@ -1027,6 +1038,7 @@ Wichtige Produktionshinweise:
 - Die API vertraut in Production keinen clientseitigen Tier-Headern (z. B. `x-subscription-tier`); die Tier-Entscheidung erfolgt serverseitig.
 - RevenueCat-Käufe in Mobile benötigen einen Dev/Store-Build (nicht Expo Go), da `react-native-purchases` ein Native-Modul ist.
 - Falls beim Start `PluginError: Unable to resolve a valid config plugin for react-native-purchases` erscheint, den Plugin-Eintrag in `apps/mobile/app.json` entfernen (für die aktuell genutzte Paketversion nicht erforderlich).
+- `EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_LIFETIME` ist ein Legacy-Key aus der Planungsphase. Das Lifetime-Tier ist nicht aktiv; der Key hat im aktuellen Code keine Funktion und kann ignoriert werden.
 
 ### Entwicklungsserver starten
 
