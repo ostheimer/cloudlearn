@@ -656,7 +656,7 @@ Vollständiger Screen für den Kauf von LP-Packs (Lernpunkte). Zeigt die verfüg
 
 Quelle: `apps/mobile/app/referral.tsx`
 
-Vollständiger Screen für das Referral-Programm. Zeigt dem Nutzer seinen persönlichen Referral-Code, den Einladungslink zum Teilen sowie den aktuellen Referral-Status (wie viele Eingeladene haben Tag 7 erreicht). Löst LP-Boni aus (Einladender: +50 LP, Eingeladener: +25 LP Signup-Bonus). Entspricht den API-Endpoints `GET /api/v1/referral/info` und `POST /api/v1/referral/claim`.
+Vollständiger Screen für das Referral-Programm. Zeigt dem Nutzer seinen persönlichen Referral-Code, den Einladungslink zum Teilen sowie den aktuellen Referral-Status (wie viele Nutzer haben den eigenen Code eingelöst). LP-Boni werden sofort beim Einlösen des Codes ausgezahlt (Einladender: +50 LP, Eingeladener: +25 LP Signup-Bonus). Entspricht den API-Endpoints `GET /api/v1/referral/info` und `POST /api/v1/referral/claim`.
 
 ---
 
