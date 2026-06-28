@@ -630,7 +630,7 @@ CREATE INDEX scans_created_idx
 - **Idempotenz:** `POST /scan/process` und `POST /cards/:id/review` mit `Idempotency-Key`
 - **Pagination:** Cursor-basierte Pagination für Listenendpunkte
 - **Fehlermodell:** einheitliches JSON-Format mit `code`, `message`, `request_id`
-- **Rate Limits:** pro Nutzer, Tarif und LP-Guthaben (free/pro), inklusive Retry-After Header
+- **Rate Limits:** pro Nutzer, Tarif und LP-Guthaben (free/pro); 429-Antworten enthalten keinen Retry-After Header (jsonError gibt nur withRequestIdHeaders zurück)
 - **Observability:** korrelierbare `request_id` über API, Worker und DB
 
 ### Kern-Endpoint: POST /api/scan/process
@@ -688,7 +688,7 @@ Antworte ausschließlich als JSON-Array:
 
 ## Offline- & Sync-Strategie
 
-> **Wichtig — zwei verschiedene Offline-Konzepte:** Das MVP implementiert einen **AsyncStorage-basierten Cache** (voll funktionsfähig: Deck-Metadaten und Karten-Inhalte werden für das Deck-Detail lokal gecacht; fällige Karten werden **nicht** gecacht — der Learn-Flow ruft immer `/api/v1/learn/due` auf und benötigt eine Verbindung; Reviews werden offline in einer Retry-Queue gespeichert und beim nächsten Online-Sync hochgeladen). Ein **vollständiger SQLite-basierter Offline-Sync** (bidirektionale Persistenz, Offline-Erstellung neuer Decks, konfliktresistente Merge-Logik) ist als offenes Ticket **CL-D01** geplant, aber noch nicht implementiert. Die Aussage „Offline-Download (AsyncStorage)" im Implementierungsstatus bezieht sich auf den AsyncStorage-Cache für Deck-Detail, nicht auf CL-D01.
+> **Wichtig — zwei verschiedene Offline-Konzepte:** Das MVP hat eine **AsyncStorage-Download-Funktion** (`handleDownloadOffline` schreibt Deck-Daten unter `offline_deck_${deckId}`), aber `loadCards` in `apps/mobile/app/deck/[id].tsx` liest den gespeicherten Wert **nicht** zurück — es setzt nur den `isOffline`-Flag und ruft weiterhin `listCardsInDeck` per API auf. Das Deck-Detail bleibt daher offline leer (keine Karten aus Cache). Reviews werden offline in einer Retry-Queue gespeichert und beim nächsten Online-Sync hochgeladen; fällige Karten werden nicht gecacht — der Learn-Flow benötigt immer eine Verbindung. Ein **vollständiger SQLite-basierter Offline-Sync** (bidirektionale Persistenz, Offline-Erstellung neuer Decks, konfliktresistente Merge-Logik) ist als offenes Ticket **CL-D01** geplant, aber noch nicht implementiert.
 
 ### Prinzipien
 
@@ -936,7 +936,7 @@ Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testf�
 - **Statistiken**: Reviews heute/Woche/gesamt, Genauigkeit, Lernverlauf 30 Tage — API und Mobile-Screen vollständig
 - **Streaks + TTS + Push-Notifications**: Tagesserien-Tracking, Vorlesen (expo-speech), konfigurierbare tägliche Erinnerungen
 - **Erweiterte Lernmodi**: Flip-Animation, Swipe (4 FSRS-Stufen, Tinder-Stil), Test-Modus (MC/Wahr-Falsch), Match-Spiel (Timer, Sterne), Auto-Play, Image Occlusion
-- **Bibliothek**: Kurse, Ordner, Deck duplizieren, Deck teilen (Deep-Link), Offline-Download (AsyncStorage-Cache — Deck-Metadaten und Karten-Inhalte für Deck-Detail; fällige Karten werden NICHT gecacht, Learn benötigt eine Verbindung; Retry-Queue für Reviews; kein vollständiger SQLite-Sync, siehe CL-D01), Deck-Details, Kartenanzahl
+- **Bibliothek**: Kurse, Ordner, Deck duplizieren, Deck teilen (Deep-Link), Offline-Download (AsyncStorage-Download via handleDownloadOffline — Daten werden in AsyncStorage geschrieben, aber von loadCards nicht gelesen; setzt nur isOffline-Flag; Deck-Detail bleibt offline ohne Karten; fällige Karten NICHT gecacht, Learn benötigt Verbindung; Retry-Queue für Reviews; kein vollständiger SQLite-Sync, CL-D01 offen), Deck-Details, Kartenanzahl
 - **LP-System**: Lernpunkte als universelle Währung — Balance, Verdienen (Reviews, Streaks, Referrals), Ausgeben (KI-Features), LP-Packs (RevenueCat), Leaderboard, Freundesliste, Rewarded Ads (AdMob)
 - **Onboarding-Flow**: 3-Schritte-Onboarding, Starter-Deck, Routing-Fix für Authenticated-/New-User-Pfade
 
