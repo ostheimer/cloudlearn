@@ -1,10 +1,10 @@
 > **⚠️ VERALTET — Konzeptversion nicht mehr aktuell**
-> 
+>
 > Dieses Dokument beschreibt eine frühere Konzeptversion mit abweichenden LP-Werten und Tier-Limits.
 > Die **kanonischen Werte** für LP-Kosten, Deck-Limits und Tier-Grenzen liegen in:
 > - Code: `packages/contracts/src/featureGates.ts`
-> - Dokumentation: `README.md` (Abschnitt "Monetarisierung")  
-> 
+> - Dokumentation: `README.md` (Abschnitt "Monetarisierung")
+>
 > Konkrete Abweichungen: Free LP/Monat (dieses Dok: 10, aktuell: 0), LP-Pack (dieses Dok: 15 LP/€0,99, aktuell: 100 LP/€0,99), Free Max Decks (dieses Dok: 20, aktuell: 10).
 > Ticket CL-MON-06 tracking the reconciliation.
 
