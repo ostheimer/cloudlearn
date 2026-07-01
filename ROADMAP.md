@@ -28,7 +28,7 @@ Letzte Aktualisierung: 2026-06-04 (Mai-2026-Changelog und LP-/API-Dokumentation 
 | Swipe links/rechts (4-Stufen-Rating) | ✅ | ❌ | ✅ | **✅** |
 | Vorlesen (TTS) | ✅ | Add-on | ❌ | **✅** |
 | Stern/Favorit markieren | ✅ | Flag | ❌ | **✅** |
-| Auto-Play (Slideshow) | ✅ | ❌ | ❌ | ❌ |
+| Auto-Play (Slideshow) | ✅ | ❌ | ❌ | **✅** |
 | Begriff ↔ Definition umschalten | ✅ | ✅ | ❌ | **✅** |
 | Fortschrittsbalken in Session | ✅ | ✅ | ✅ | **✅** |
 | Streaks (Tagesserien) | ✅ | ❌ | ✅ | **✅** |
@@ -392,3 +392,4 @@ Voraussetzung: Phase 2 + stabile Nutzerbasis.
 - 2026-05-14: **Release- und Store-Konfigurationsguards**: öffentliche Release-Links vereinheitlicht, LP-Pack-Käufe gegen fehlende RevenueCat-Konfiguration abgesichert und nutzerfreundliche Fehlermeldungen dokumentiert.
 - 2026-05-16: **Readiness Gates ergänzt**: TestFlight-, Dashboard- und Store-Metadata-Checks für mobile Release-Vorbereitung hinzugefügt.
 - 2026-05-20: **Tech-Stack- und Status-Doku aktualisiert**: Gemini 3 Flash, OAuth-Status und LP-System-Hinweise in der Produktdokumentation nachgezogen.
+- 2026-06-30: **Wettbewerbsvergleich-Tabelle korrigiert**: Auto-Play von ❌ auf ✅ gesetzt — CL-C03 ist als Done markiert, die Tabelle war inkonsistent.
