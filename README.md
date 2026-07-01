@@ -547,74 +547,110 @@ CREATE INDEX scans_created_idx
   ON scans(user_id, created_at DESC);
 ```
 
-### Ergänzende Tabellen (laut ROADMAP-Changelog in Production-DB vorhanden)
+### Ergänzende Spalten und Tabellen (per Supabase-Migration in Production-DB vorhanden)
 
-Die folgenden Tabellen und Views wurden im Verlauf der LP-System- und Social-Feature-Implementierung per Supabase-Migration eingespielt (siehe ROADMAP-Changelog ab 2026-03-12). Sie sind nicht Bestandteil der initialen `20260209230000_init.sql`, sondern wurden in späteren Migrations-Dateien hinzugefügt.
+Die folgenden Spalten, Tabellen und Views wurden per Supabase-Migration hinzugefügt. Sie sind nicht Bestandteil der initialen `20260209230000_init.sql`, sondern wurden in späteren Migrations-Dateien eingespielt.
 
 ```sql
+-- Streak-Spalten in profiles
+-- Eingespielt via: 20260211190000_add_streak_stats.sql
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS current_streak   INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS longest_streak   INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS last_review_date DATE,
+  ADD COLUMN IF NOT EXISTS daily_goal       INTEGER NOT NULL DEFAULT 10;
+
+-- LP-Spalten in profiles
+-- Eingespielt via: 20260312150000_add_lp_system.sql
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS lp_balance       INTEGER NOT NULL DEFAULT 10,
+  ADD COLUMN IF NOT EXISTS lp_earned_today  INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS lp_ads_today     INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS lp_period_start  DATE    NOT NULL DEFAULT CURRENT_DATE,
+  ADD COLUMN IF NOT EXISTS referral_code    TEXT    UNIQUE,
+  ADD COLUMN IF NOT EXISTS referred_by      UUID    REFERENCES profiles(id);
+
 -- LP-Buchungen (append-only Transaktionslog)
--- Eingespielt via: Migration 20260312_add_lp_system.sql (LP-System Phase 1)
+-- Eingespielt via: 20260312150000_add_lp_system.sql + 20260324120000_security_advisor_rls_leaderboard.sql
 CREATE TABLE lp_transactions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
-  amount INT NOT NULL,           -- positiv = Gutschrift, negativ = Abbuchung
-  reason TEXT NOT NULL,          -- earn_session | spend_ai_scan | purchase | milestone | ...
-  reference_id TEXT,             -- z.B. review_session_id oder lp_pack_id
-  created_at TIMESTAMPTZ DEFAULT now()
+  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID        NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  type        TEXT        NOT NULL CHECK (type IN (
+    'abo_grant',    -- monatlicher Abo-LP-Zuschuss
+    'earned',       -- durch Lernen verdient (Streak, Session, Tagesziel)
+    'purchased',    -- gekauftes Add-on-Pack
+    'ad_reward',    -- Rewarded Ad geschaut
+    'referral',     -- Referral-Bonus
+    'spent',        -- für KI-Feature eingelöst
+    'win_back',     -- Re-Engagement-Bonus
+    'event_bonus',  -- saisonales Event
+    'admin'         -- manuelle Anpassung
+  )),
+  amount      INTEGER     NOT NULL,   -- positiv = Gutschrift, negativ = Abbuchung
+  reason      TEXT,                   -- freitext-Kontext (z.B. Anlass, Scan-ID)
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE lp_transactions ENABLE ROW LEVEL SECURITY;
 -- Hinweis: nur Service-Role-API-Zugriff; kein direkter PostgREST-Client-Zugriff
 
 -- Eingelöste Belohnungen (Milestone-Tracking, idempotent)
--- Eingespielt via: Migration 20260312_add_lp_system.sql (LP-System Phase 1)
+-- Eingespielt via: 20260312150000_add_lp_system.sql + 20260324120000_security_advisor_rls_leaderboard.sql
 CREATE TABLE rewards_claimed (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
-  reward_key TEXT NOT NULL,      -- streak_7 | streak_30 | streak_100 | first_review | first_deck | ...
-  claimed_at TIMESTAMPTZ DEFAULT now(),
-  UNIQUE(user_id, reward_key)    -- verhindert doppeltes Einlösen
+  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID        NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  reward_key  TEXT        NOT NULL,   -- streak_7 | streak_30 | streak_100 | first_review | first_deck | ...
+  lp_granted  INTEGER     NOT NULL DEFAULT 0,
+  claimed_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_id, reward_key)
 );
 ALTER TABLE rewards_claimed ENABLE ROW LEVEL SECURITY;
 -- Hinweis: nur Service-Role-API-Zugriff; kein direkter PostgREST-Client-Zugriff
 
 -- Freundschaftsverbindungen (bidirektional, für Freunde-Leaderboard)
--- Eingespielt via: Migration 20260312200000_add_social_features.sql (LP-System Phase 4)
+-- Eingespielt via: 20260312200000_add_social_features.sql
 CREATE TABLE friend_connections (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
-  friend_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  UNIQUE(user_id, friend_id)
+  id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    UUID        NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  friend_id  UUID        NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_id, friend_id),
+  CHECK (user_id <> friend_id)
 );
 ALTER TABLE friend_connections ENABLE ROW LEVEL SECURITY;
 
 -- Push-Notification-Tokens (Expo Push)
--- Eingespielt via: Migration 20260312200000_add_social_features.sql (LP-System Phase 4)
+-- Eingespielt via: 20260312200000_add_social_features.sql
 CREATE TABLE push_tokens (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
-  token TEXT NOT NULL,
-  platform TEXT,                 -- ios | android
-  updated_at TIMESTAMPTZ DEFAULT now(),
-  UNIQUE(user_id, token)
+  id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    UUID        NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  token      TEXT        NOT NULL,
+  platform   TEXT        NOT NULL CHECK (platform IN ('ios', 'android', 'web')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_id, token)
 );
 ALTER TABLE push_tokens ENABLE ROW LEVEL SECURITY;
 
--- Öffentliche Bestenliste (View, Top-50 nach LP-Guthaben)
--- Eingespielt via: Migration 20260312200000_add_social_features.sql (LP-System Phase 4)
--- Sicherheitshinweis: security_invoker = true (kein impliziter Security Definer)
+-- Öffentliche Bestenliste (View, nach LP-Guthaben)
+-- Eingespielt via: 20260312200000_add_social_features.sql (erstellt),
+--   20260324120000_security_advisor_rls_leaderboard.sql (security_invoker ergänzt)
+-- security_invoker = true: RLS der zugrundeliegenden Tabellen greift auch in der View
 CREATE VIEW leaderboard_public
   WITH (security_invoker = true)
   AS
   SELECT
     p.id,
-    p.display_name,
+    COALESCE(p.display_name, 'Lernender') AS display_name,
     p.avatar_url,
     p.lp_balance,
-    p.current_streak
+    p.subscription_tier,
+    COALESCE(streak.current_streak, 0) AS current_streak
   FROM profiles p
-  ORDER BY p.lp_balance DESC
-  LIMIT 50;
+  LEFT JOIN (
+    SELECT id, current_streak FROM profiles
+  ) streak ON streak.id = p.id
+  WHERE p.lp_balance > 0
+  ORDER BY p.lp_balance DESC;
 ```
 
 ---
@@ -880,7 +916,7 @@ clearn.ai verwendet ein **LP-System (Lernpunkte)** als universelle In-App-Währu
 | Erweiterte Statistiken | ❌ | ✅ | ✅ |
 | Werbefrei | ❌ | ✅ | ✅ |
 
-> **Hinweis zum Lifetime-Tier:** Das Lifetime-Tier ist im Code (`packages/contracts/src/featureGates.ts`) weiterhin vollständig definiert (eigener Eintrag in `TIER_LIMITS` mit identischen Limits wie Pro). Es wird im Store aktuell nicht angeboten — `revenueCatService.ts` wurde ohne Lifetime-Entitlement implementiert. Die obige Tabelle dokumentiert die technischen Limits; aktiv buchbar sind derzeit nur Free und Pro.
+> **Hinweis zum Lifetime-Tier:** Das Lifetime-Tier ist in `packages/contracts/src/featureGates.ts`, `apps/api/src/services/revenueCatService.ts` und `apps/mobile/src/features/paywall/subscriptionMapping.ts` vollständig implementiert (Entitlement-ID via `EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_LIFETIME`). Es wird im Store aktuell nicht angeboten; aktiv buchbar sind derzeit nur Free und Pro.
 
 ### LP verdienen (kostenlos)
 
