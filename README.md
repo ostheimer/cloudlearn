@@ -552,6 +552,20 @@ CREATE INDEX scans_created_idx
 Die folgenden Spalten, Tabellen und Views wurden per Supabase-Migration hinzugefügt. Sie sind nicht Bestandteil der initialen `20260209230000_init.sql`, sondern wurden in späteren Migrations-Dateien eingespielt.
 
 ```sql
+-- Karten-Metadaten (Schwierigkeit, Tags)
+-- Eingespielt via: 20260211120000_add_card_difficulty_tags.sql
+ALTER TABLE cards
+  ADD COLUMN IF NOT EXISTS difficulty TEXT   NOT NULL DEFAULT 'medium',
+  ADD COLUMN IF NOT EXISTS tags       TEXT[] NOT NULL DEFAULT '{}';
+
+-- Karten-Favoriten
+-- Eingespielt via: 20260211180000_add_card_starred.sql
+ALTER TABLE cards
+  ADD COLUMN IF NOT EXISTS starred BOOLEAN NOT NULL DEFAULT false;
+
+CREATE INDEX IF NOT EXISTS cards_starred_idx
+  ON cards (user_id, starred) WHERE deleted_at IS NULL AND starred = true;
+
 -- Streak-Spalten in profiles
 -- Eingespielt via: 20260211190000_add_streak_stats.sql
 ALTER TABLE profiles
@@ -562,6 +576,93 @@ ALTER TABLE profiles
 
 CREATE INDEX IF NOT EXISTS review_logs_user_date_idx
   ON review_logs (user_id, reviewed_at DESC);
+
+-- FSRS v5-Zusatzfelder in cards
+-- Eingespielt via: 20260212000000_add_fsrs_fields.sql
+ALTER TABLE cards
+  ADD COLUMN IF NOT EXISTS fsrs_reps           INTEGER     NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS fsrs_lapses         INTEGER     NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS fsrs_elapsed_days   REAL        NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS fsrs_scheduled_days REAL        NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS fsrs_learning_steps INTEGER     NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS fsrs_last_review    TIMESTAMPTZ;
+
+-- Kurse, Ordner und Deck-Sharing
+-- Eingespielt via: 20260212120000_add_courses_folders_sharing.sql
+CREATE TABLE IF NOT EXISTS courses (
+  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID        NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  title       TEXT        NOT NULL,
+  description TEXT,
+  color       TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS course_decks (
+  course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+  deck_id   UUID NOT NULL REFERENCES decks(id)   ON DELETE CASCADE,
+  position  INT  NOT NULL DEFAULT 0,
+  added_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (course_id, deck_id)
+);
+
+CREATE TABLE IF NOT EXISTS folders (
+  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID        NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  title       TEXT        NOT NULL,
+  parent_id   UUID        REFERENCES folders(id) ON DELETE CASCADE,
+  color       TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS folder_decks (
+  folder_id UUID NOT NULL REFERENCES folders(id) ON DELETE CASCADE,
+  deck_id   UUID NOT NULL REFERENCES decks(id)   ON DELETE CASCADE,
+  added_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (folder_id, deck_id)
+);
+
+ALTER TABLE decks
+  ADD COLUMN IF NOT EXISTS share_token    UUID,
+  ADD COLUMN IF NOT EXISTS source_deck_id UUID REFERENCES decks(id) ON DELETE SET NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS decks_share_token_idx  ON decks (share_token) WHERE share_token IS NOT NULL;
+CREATE INDEX IF NOT EXISTS courses_user_idx              ON courses (user_id);
+CREATE INDEX IF NOT EXISTS folders_user_idx              ON folders (user_id);
+CREATE INDEX IF NOT EXISTS folders_parent_idx            ON folders (parent_id);
+CREATE INDEX IF NOT EXISTS course_decks_deck_idx         ON course_decks (deck_id);
+CREATE INDEX IF NOT EXISTS folder_decks_deck_idx         ON folder_decks (deck_id);
+
+ALTER TABLE courses      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE course_decks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE folders      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE folder_decks ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "users_own_courses" ON courses
+  FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "users_own_course_decks" ON course_decks
+  FOR ALL USING (
+    EXISTS (SELECT 1 FROM courses WHERE courses.id = course_decks.course_id AND courses.user_id = auth.uid())
+  );
+CREATE POLICY "users_own_folders" ON folders
+  FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "users_own_folder_decks" ON folder_decks
+  FOR ALL USING (
+    EXISTS (SELECT 1 FROM folders WHERE folders.id = folder_decks.folder_id AND folders.user_id = auth.uid())
+  );
+CREATE POLICY "shared_decks_visible" ON decks
+  FOR SELECT USING (share_token IS NOT NULL);
+
+-- KI-Nutzungslimits in profiles
+-- Eingespielt via: 20260301100000_add_ai_usage_limits.sql
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS ai_scans_used       INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS ai_url_imports_used INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS usage_period_start  DATE    NOT NULL DEFAULT CURRENT_DATE;
+
+CREATE INDEX IF NOT EXISTS profiles_usage_period_start_idx ON profiles (id, usage_period_start);
 
 -- LP-Spalten in profiles
 -- Eingespielt via: 20260312150000_add_lp_system.sql
@@ -603,6 +704,12 @@ ALTER TABLE lp_transactions ENABLE ROW LEVEL SECURITY;
 
 CREATE INDEX IF NOT EXISTS lp_transactions_user_created_idx
   ON lp_transactions (user_id, created_at DESC);
+
+-- Startguthaben für bestehende Nutzer (analog zu Migration)
+INSERT INTO lp_transactions (user_id, type, amount, reason)
+SELECT id, 'admin', 10, 'initial_balance'
+FROM profiles
+ON CONFLICT DO NOTHING;
 
 -- Eingelöste Belohnungen (Milestone-Tracking, idempotent)
 -- Eingespielt via: 20260312150000_add_lp_system.sql + 20260324120000_security_advisor_rls_leaderboard.sql
@@ -676,6 +783,48 @@ CREATE VIEW leaderboard_public
   ) streak ON streak.id = p.id
   WHERE p.lp_balance > 0
   ORDER BY p.lp_balance DESC;
+
+-- Gelöschte Konten (Tombstone-Tabelle + atomare Cleanup-Funktion)
+-- Eingespielt via: 20260404120000_add_deleted_accounts.sql
+-- delete_account_data() wird von /api/v1/account DELETE via accountDeletionService.ts aufgerufen
+CREATE TABLE IF NOT EXISTS deleted_accounts (
+  user_id    UUID        PRIMARY KEY,
+  email      TEXT,
+  reason     TEXT        NOT NULL DEFAULT 'self_service',
+  deleted_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS deleted_accounts_deleted_at_idx
+  ON deleted_accounts (deleted_at DESC);
+
+CREATE OR REPLACE FUNCTION delete_account_data(
+  target_user_id UUID,
+  target_email   TEXT DEFAULT NULL
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO deleted_accounts (user_id, email, reason, deleted_at)
+  VALUES (target_user_id, target_email, 'self_service', now())
+  ON CONFLICT (user_id) DO UPDATE
+    SET email      = EXCLUDED.email,
+        reason     = EXCLUDED.reason,
+        deleted_at = EXCLUDED.deleted_at;
+
+  UPDATE profiles
+  SET referred_by = NULL
+  WHERE referred_by = target_user_id;
+
+  DELETE FROM profiles
+  WHERE id = target_user_id;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION delete_account_data(UUID, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION delete_account_data(UUID, TEXT) TO service_role;
 ```
 
 ---
