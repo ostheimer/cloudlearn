@@ -560,6 +560,9 @@ ALTER TABLE profiles
   ADD COLUMN IF NOT EXISTS last_review_date DATE,
   ADD COLUMN IF NOT EXISTS daily_goal       INTEGER NOT NULL DEFAULT 10;
 
+CREATE INDEX IF NOT EXISTS review_logs_user_date_idx
+  ON review_logs (user_id, reviewed_at DESC);
+
 -- LP-Spalten in profiles
 -- Eingespielt via: 20260312150000_add_lp_system.sql
 ALTER TABLE profiles
@@ -598,6 +601,9 @@ CREATE TABLE lp_transactions (
 ALTER TABLE lp_transactions ENABLE ROW LEVEL SECURITY;
 -- Hinweis: nur Service-Role-API-Zugriff; kein direkter PostgREST-Client-Zugriff
 
+CREATE INDEX IF NOT EXISTS lp_transactions_user_created_idx
+  ON lp_transactions (user_id, created_at DESC);
+
 -- Eingelöste Belohnungen (Milestone-Tracking, idempotent)
 -- Eingespielt via: 20260312150000_add_lp_system.sql + 20260324120000_security_advisor_rls_leaderboard.sql
 CREATE TABLE rewards_claimed (
@@ -610,6 +616,8 @@ CREATE TABLE rewards_claimed (
 );
 ALTER TABLE rewards_claimed ENABLE ROW LEVEL SECURITY;
 -- Hinweis: nur Service-Role-API-Zugriff; kein direkter PostgREST-Client-Zugriff
+
+CREATE INDEX IF NOT EXISTS rewards_claimed_user_idx ON rewards_claimed (user_id);
 
 -- Freundschaftsverbindungen (bidirektional, für Freunde-Leaderboard)
 -- Eingespielt via: 20260312200000_add_social_features.sql
@@ -625,6 +633,9 @@ ALTER TABLE friend_connections ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "users_own_connections" ON friend_connections
   FOR ALL USING (auth.uid() = user_id);
 
+CREATE INDEX IF NOT EXISTS friend_connections_user_idx ON friend_connections (user_id);
+CREATE INDEX IF NOT EXISTS friend_connections_friend_idx ON friend_connections (friend_id);
+
 -- Push-Notification-Tokens (Expo Push)
 -- Eingespielt via: 20260312200000_add_social_features.sql
 CREATE TABLE push_tokens (
@@ -639,6 +650,8 @@ CREATE TABLE push_tokens (
 ALTER TABLE push_tokens ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "users_own_push_tokens" ON push_tokens
   FOR ALL USING (auth.uid() = user_id);
+
+CREATE INDEX IF NOT EXISTS push_tokens_user_idx ON push_tokens (user_id);
 
 -- Öffentliche Bestenliste (View, nach LP-Guthaben)
 -- Eingespielt via: 20260312200000_add_social_features.sql (erstellt),
@@ -928,7 +941,7 @@ clearn.ai verwendet ein **LP-System (Lernpunkte)** als universelle In-App-Währu
 | Erweiterte Statistiken | ❌ | ✅ | ✅ |
 | Werbefrei | ❌ | ✅ | ✅ |
 
-> **Hinweis zum Lifetime-Tier:** Das Lifetime-Tier ist in `packages/contracts/src/featureGates.ts`, `apps/api/src/services/revenueCatService.ts` und `apps/mobile/src/features/paywall/subscriptionMapping.ts` vollständig implementiert (Entitlement-ID via `EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_LIFETIME`). Es wird im Store aktuell nicht angeboten; aktiv buchbar sind derzeit nur Free und Pro.
+> **Hinweis zum Lifetime-Tier:** Das Lifetime-Tier ist vollständig implementiert: Feature-Limits in `packages/contracts/src/featureGates.ts`, Entitlement-Auflösung in `apps/api/src/services/revenueCatService.ts` und `apps/mobile/src/features/paywall/subscriptionMapping.ts`, Paywall-Filterung in `apps/mobile/src/features/paywall/subscriptionOffers.ts` (Package-Typ `LIFETIME`, Entitlement via `EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_LIFETIME`). Es wird in der Paywall angezeigt, sobald RevenueCat mit einem Lifetime-Offering konfiguriert ist; Readiness-Skripte prüfen dessen Konfiguration vor dem Release.
 
 ### LP verdienen (kostenlos)
 
