@@ -63,6 +63,14 @@ describe("documentation status consistency", () => {
     }
   });
 
+  it("keeps ROADMAP German quote pairs typographic", () => {
+    const mismatchedQuoteLines = readRepoFile("ROADMAP.md")
+      .split("\n")
+      .flatMap((line, index) => (/„[^“\n]*"/.test(line) ? [`ROADMAP.md:${index + 1}`] : []));
+
+    expect(mismatchedQuoteLines).toEqual([]);
+  });
+
   it("does not list already resolved documentation discrepancies in AGENTS", () => {
     const agents = readRepoFile("AGENTS.md");
     const roadmap = readRepoFile("ROADMAP.md");
