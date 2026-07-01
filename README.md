@@ -570,6 +570,11 @@ ALTER TABLE profiles
   ADD COLUMN IF NOT EXISTS referral_code    TEXT    UNIQUE,
   ADD COLUMN IF NOT EXISTS referred_by      UUID    REFERENCES profiles(id);
 
+-- Referral-Codes für bestehende Nutzer befüllen (analog zu Migration)
+UPDATE profiles
+SET referral_code = upper(substring(replace(gen_random_uuid()::text, '-', ''), 1, 8))
+WHERE referral_code IS NULL;
+
 -- LP-Buchungen (append-only Transaktionslog)
 -- Eingespielt via: 20260312150000_add_lp_system.sql + 20260324120000_security_advisor_rls_leaderboard.sql
 CREATE TABLE lp_transactions (
@@ -617,6 +622,8 @@ CREATE TABLE friend_connections (
   CHECK (user_id <> friend_id)
 );
 ALTER TABLE friend_connections ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "users_own_connections" ON friend_connections
+  FOR ALL USING (auth.uid() = user_id);
 
 -- Push-Notification-Tokens (Expo Push)
 -- Eingespielt via: 20260312200000_add_social_features.sql
@@ -630,11 +637,16 @@ CREATE TABLE push_tokens (
   UNIQUE (user_id, token)
 );
 ALTER TABLE push_tokens ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "users_own_push_tokens" ON push_tokens
+  FOR ALL USING (auth.uid() = user_id);
 
 -- Öffentliche Bestenliste (View, nach LP-Guthaben)
 -- Eingespielt via: 20260312200000_add_social_features.sql (erstellt),
 --   20260324120000_security_advisor_rls_leaderboard.sql (security_invoker ergänzt)
--- security_invoker = true: RLS der zugrundeliegenden Tabellen greift auch in der View
+-- Zugriffsmodell: security_invoker = true hält die profiles-RLS (auth.uid() = id) aktiv.
+-- Direkte PostgREST-Abfragen (anon/authenticated) liefern daher nur die eigene Zeile.
+-- Die API-Leaderboard-Routen verwenden den Service-Role-Client (umgeht RLS) und
+-- lesen profiles direkt — nicht diese View.
 CREATE VIEW leaderboard_public
   WITH (security_invoker = true)
   AS
