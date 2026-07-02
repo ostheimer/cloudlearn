@@ -231,7 +231,7 @@ Letzte Aktualisierung: 2026-06-04 (Mai-2026-Changelog und LP-/API-Dokumentation 
 | D2 | CL-D02 | **PDF-Import** (echtes Parsing → KI → Karten) | Groß | Groß | ❌ Offen |
 | D3 | CL-D03 | **Anki-Import** (.apkg → clearn-Decks) | Mittel | Mittel | ❌ Offen |
 | D4 | CL-D04 | **Anki-Export** (clearn-Decks → .apkg) | Mittel | Mittel | ❌ Offen |
-| D5 | CL-D05 | **Apple/Google Sign-In** (OAuth neben E-Mail) | Mittel | Mittel | ❌ Offen |
+| D5 | CL-D05 | **Apple/Google Sign-In** (OAuth neben E-Mail) | Mittel | Mittel | 🔄 In Arbeit (oauth.ts in `apps/mobile/src/lib/oauth.ts` implementiert; Supabase-Provider-Aktivierung und reale Tests ausstehend — siehe BACKLOG CL-D05) |
 | D6 | CL-D06 | **Paywall + RevenueCat** (echte In-App-Käufe) | Groß | Groß | ✅ Done (Feature-Gating DB-backed; Usage-Indicator; Auto-Paywall) — App-Store-Produkte: `CL-MON-01`/`CL-MON-02` offen |
 | D7 | CL-D07 | **Community-Decks** (teilen, bewerten, suchen) | Groß | Groß | ❌ Offen |
 | D8 | CL-D08 | **Onboarding-Flow** (Erster Lernerfolg in < 2 Min) | Mittel | Groß | ✅ Done |
@@ -392,4 +392,5 @@ Voraussetzung: Phase 2 + stabile Nutzerbasis.
 - 2026-05-14: **Release- und Store-Konfigurationsguards**: öffentliche Release-Links vereinheitlicht, LP-Pack-Käufe gegen fehlende RevenueCat-Konfiguration abgesichert und nutzerfreundliche Fehlermeldungen dokumentiert.
 - 2026-05-16: **Readiness Gates ergänzt**: TestFlight-, Dashboard- und Store-Metadata-Checks für mobile Release-Vorbereitung hinzugefügt.
 - 2026-05-20: **Tech-Stack- und Status-Doku aktualisiert**: Gemini 3 Flash, OAuth-Status und LP-System-Hinweise in der Produktdokumentation nachgezogen.
+- 2026-06-18: **CL-D05 Status korrigiert**: Apple/Google Sign-In in der Feature-Prioritäten-Tabelle von „Offen“ auf „In Arbeit“ aktualisiert, um BACKLOG CL-D05 widerzuspiegeln (oauth.ts implementiert; Supabase-Provider-Aktivierung und reale Tests ausstehend).
 - 2026-06-30: **Wettbewerbsvergleich-Tabelle korrigiert**: Auto-Play von ❌ auf ✅ gesetzt — CL-C03 ist als Done markiert, die Tabelle war inkonsistent.
