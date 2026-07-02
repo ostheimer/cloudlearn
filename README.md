@@ -898,7 +898,7 @@ Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testf�
 
 <a id="implementierungsstatus"></a>
 
-## Implementierungsstatus (Basis 2026-02-13, ergänzt 2026-05)
+## Implementierungsstatus (Basis 2026-02-13, ergänzt 2026-06)
 
 > Den vollständigen, laufend aktualisierten Changelog mit allen umgesetzten Features findet sich in `ROADMAP.md`.
 
