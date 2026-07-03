@@ -1,6 +1,6 @@
 # ROADMAP
 
-Letzte Aktualisierung: 2026-06-04 (Mai-2026-Changelog und LP-/API-Dokumentation nachgezogen)
+Letzte Aktualisierung: 2026-07-03 (Wettbewerbsvergleich, API-Doku und Offline-Cache-Fallback nachgezogen)
 
 ## Gesamtstatus
 
@@ -32,10 +32,10 @@ Letzte Aktualisierung: 2026-06-04 (Mai-2026-Changelog und LP-/API-Dokumentation 
 | Begriff ↔ Definition umschalten | ✅ | ✅ | ❌ | **✅** |
 | Fortschrittsbalken in Session | ✅ | ✅ | ✅ | **✅** |
 | Streaks (Tagesserien) | ✅ | ❌ | ✅ | **✅** |
-| Test-Modus (MC, Wahr/Falsch) | ✅ | ❌ | ❌ | ❌ |
-| Match-Spiel (Timer) | ✅ | ❌ | ❌ | ❌ |
+| Test-Modus (MC, Wahr/Falsch) | ✅ | ❌ | ❌ | **✅** |
+| Match-Spiel (Timer) | ✅ | ❌ | ❌ | **✅** |
 | Statistiken/Analytics | ✅ | ✅ | ✅ | **✅** (Home) |
-| Image Occlusion | ✅ (Scaffold) | Add-on | ❌ | ❌ |
+| Image Occlusion | ✅ (Scaffold) | Add-on | ❌ | **✅** (Scaffold) |
 | Offline-Lernen | ✅ | ✅ | Teilweise | **✅** (Download) |
 | Deck-Aktionsmenü | ✅ | ✅ | ✅ | **✅** |
 | Ordner/Kurse | ✅ | ❌ | ❌ | **✅** |
@@ -394,3 +394,4 @@ Voraussetzung: Phase 2 + stabile Nutzerbasis.
 - 2026-05-20: **Tech-Stack- und Status-Doku aktualisiert**: Gemini 3 Flash, OAuth-Status und LP-System-Hinweise in der Produktdokumentation nachgezogen.
 - 2026-06-18: **CL-D05 Status korrigiert**: Apple/Google Sign-In in der Feature-Prioritäten-Tabelle von „Offen“ auf „In Arbeit“ aktualisiert, um BACKLOG CL-D05 widerzuspiegeln (oauth.ts implementiert; Supabase-Provider-Aktivierung und reale Tests ausstehend).
 - 2026-06-30: **Wettbewerbsvergleich-Tabelle korrigiert**: Auto-Play von ❌ auf ✅ gesetzt — CL-C03 ist als Done markiert, die Tabelle war inkonsistent.
+- 2026-07-03: **Wettbewerbsvergleich, API-Doku und Offline-Cache korrigiert**: Test-Modus, Match-Spiel und Image Occlusion in der Wettbewerbstabelle auf ✅ gesetzt; README-API-Baum mit den tatsächlichen `apps/api/app/api/v1`-Routen abgeglichen; Deck-Detail nutzt den gespeicherten AsyncStorage-Offline-Export nun als Karten-Fallback bei API-Fehlern.

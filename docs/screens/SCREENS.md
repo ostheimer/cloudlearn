@@ -4,7 +4,7 @@ Exakte Beschreibung aller Screens wie sie derzeit im Code implementiert sind.
 Gerät: iPhone 16 Pro (393 × 852 pt, 3× Retina).  
 Screenshots aufgenommen im iOS Simulator (Xcode 26.2, iOS 26.2).
 
-Stand: 2026-02-16 (Ist-Zustand); 2026-02-24 (Tab-Badge, Zuletzt gelernt → learn, Kartenanzahl, Alle lernen); 2026-02-28 (URL-Import + Bildquiz).
+Stand: 2026-02-16 (Ist-Zustand); 2026-02-24 (Tab-Badge, Zuletzt gelernt → learn, Kartenanzahl, Alle lernen); 2026-02-28 (URL-Import + Bildquiz); 2026-07-03 (Leaderboard, LP Store, Referral, Onboarding).
 
 Manuelle Regression (Simulator): Checkliste in [docs/testing/regression-mobile.md](../testing/regression-mobile.md).
 
@@ -31,6 +31,10 @@ Screenshots in `screenshots/` — **echte Simulator-Screenshots** (iPhone 16 Pro
 | 16 | Tracking-Einstellungen | — | implementiert |
 | 17 | Auth Callback | — | implementiert |
 | 18 | Passwort zurücksetzen | — | implementiert |
+| 19 | Leaderboard | — | implementiert |
+| 20 | LP Store | — | implementiert |
+| 21 | Referral | — | implementiert |
+| 22 | Onboarding | — | implementiert |
 
 ---
 
@@ -90,6 +94,12 @@ Screenshots in `screenshots/` — **echte Simulator-Screenshots** (iPhone 16 Pro
 Versteckte Routen im Tab-Kontext (kein Tab-Icon, `href: null`):
 - `library-course/[id]` — Kurs-Detail aus Bibliothek
 - `library-folder/[id]` — Ordner-Detail aus Bibliothek
+
+Root-Stack-Screens ohne Tab-Icon:
+- `leaderboard` — LP-Bestenliste global/Freunde
+- `lp-store` — LP kaufen und per Rewarded Ad verdienen
+- `referral` — Referral-Code teilen/einlösen
+- `onboarding` — Erststart-Flow mit Starter-Deck
 
 ---
 
@@ -633,6 +643,46 @@ Screen zur Eingabe eines neuen Passworts nach dem Klick auf einen Passwort-Reset
 
 ---
 
+## 17. Leaderboard — `leaderboard`
+
+Quelle: `apps/mobile/app/leaderboard.tsx`
+
+Root-Stack-Screen für die LP-Bestenliste. Enthält einen Global/Freunde-Umschalter, Podium für Top-3-Einträge, Ranglistenzeilen mit LP und Streak sowie einen Freunde-Empty-State mit Navigation zu `/referral`.
+
+**Daten-APIs:** `GET /api/v1/leaderboard/global`, `GET /api/v1/leaderboard/friends`.
+
+---
+
+## 18. LP Store — `lp-store`
+
+Quelle: `apps/mobile/app/lp-store.tsx`
+
+Root-Stack-Screen für Lernpunkte. Zeigt LP-Guthaben, tägliche Earn-Fortschritte, Rewarded-Ad-Aktion und LP-Pack-Angebote (`lp_pack_100`, `lp_pack_300`, `lp_pack_750`, `lp_pack_2000`) mit RevenueCat-Kaufbestätigung.
+
+**Daten-APIs:** `GET /api/v1/usage`, `POST /api/v1/lp/purchase`.
+
+---
+
+## 19. Referral — `referral`
+
+Quelle: `apps/mobile/app/referral.tsx`
+
+Root-Stack-Screen für das Referral-Programm. Zeigt Bonus-Banner, Referral-Statistiken, eigenen Code mit Kopieren/Teilen und Formular zum Einlösen fremder Codes. LP-Boni werden beim Code-Claim ausgezahlt.
+
+**Daten-APIs:** `GET /api/v1/referral/info`, `POST /api/v1/referral/claim`.
+
+---
+
+## 20. Onboarding — `onboarding`
+
+Quelle: `apps/mobile/app/onboarding.tsx`
+
+Root-Stack-Screen für neue Nutzer. Drei Schritte führen von Einführung über Lernprinzip zu Starter-Deck; Abschluss erstellt Beispielkarten, markiert Onboarding als abgeschlossen und navigiert in den Lernfluss.
+
+**State:** `useOnboardingState()` und Root-Redirect-Logik in `apps/mobile/app/_layout.tsx`.
+
+---
+
 ## Pflege
 
 Bei jeder Code-Änderung an einem Screen:
@@ -640,7 +690,7 @@ Bei jeder Code-Änderung an einem Screen:
 2. Wireframe bei Bedarf neu generieren
 3. ROADMAP.md Eintrag ergänzen
 
-Stand: 2026-02-16
+Stand: 2026-07-03
 
 ---
 

@@ -41,6 +41,10 @@ import {
   type Card,
 } from "../../src/lib/api";
 import { summarizeCardMedia } from "../../src/lib/cardMedia";
+import {
+  cardsFromOfflineDeckCache,
+  offlineDeckStorageKey,
+} from "../../src/lib/offlineDeckCache";
 import { useSessionStore } from "../../src/store/sessionStore";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
 import { useTranslation } from "react-i18next";
@@ -401,7 +405,11 @@ export default function DeckDetailScreen() {
       const { cards: fetched } = await listCardsInDeck(deckId);
       setCards(fetched);
     } catch {
-      // Silently fail
+      const cached = await AsyncStorage.getItem(offlineDeckStorageKey(deckId));
+      const cachedCards = cardsFromOfflineDeckCache(cached);
+      if (cachedCards) {
+        setCards(cachedCards);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -411,7 +419,7 @@ export default function DeckDetailScreen() {
   useEffect(() => {
     loadCards();
     // Check offline status
-    AsyncStorage.getItem(`offline_deck_${deckId}`).then((data) => {
+    AsyncStorage.getItem(offlineDeckStorageKey(deckId)).then((data) => {
       setIsOffline(!!data);
     });
   }, [loadCards, deckId]);
@@ -430,7 +438,7 @@ export default function DeckDetailScreen() {
     }
     try {
       const data = await exportDeckForOffline(deckId);
-      await AsyncStorage.setItem(`offline_deck_${deckId}`, JSON.stringify(data));
+      await AsyncStorage.setItem(offlineDeckStorageKey(deckId), JSON.stringify(data));
       setIsOffline(true);
       Alert.alert(t("common.success"), t("deckAction.downloadSuccess"));
     } catch {
