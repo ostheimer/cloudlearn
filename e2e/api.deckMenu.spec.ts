@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { apiRequest } from "./helpers";
 
-test.describe("Deck Menu API Flow", () => {
+test.describe.serial("Deck Menu API Flow", () => {
   let deckId: string;
   let courseId: string;
   let folderId: string;

@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { apiRequest } from "./helpers";
 
-test.describe("API CRUD Flow", () => {
+test.describe.serial("API CRUD Flow", () => {
   let deckId: string;
   let cardId: string;
 

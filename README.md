@@ -547,6 +547,23 @@ CREATE INDEX scans_created_idx
   ON scans(user_id, created_at DESC);
 ```
 
+### Ergänzende Migrationen
+
+Die initiale Migration oben ist nur das Basisschema. Spätere Production-Migrationen in `apps/api/supabase/migrations/` ergänzen unter anderem:
+
+| Migration | Bereich | Ergänzung |
+|-----------|---------|-----------|
+| `20260211120000_add_card_difficulty_tags.sql` | Karten | `difficulty`, `tags` |
+| `20260211180000_add_card_starred.sql` | Karten | `starred` + Favoriten-Index |
+| `20260211190000_add_streak_stats.sql` | Profile/Reviews | Streak-Spalten, `daily_goal`, Review-Date-Index |
+| `20260212000000_add_fsrs_fields.sql` | Karten | FSRS-v5-Zusatzfelder |
+| `20260212120000_add_courses_folders_sharing.sql` | Bibliothek | Kurse, Ordner, Zuordnungstabellen, Share-Tokens |
+| `20260301100000_add_ai_usage_limits.sql` | Monetarisierung | AI-Usage-Zähler und Periodenstart |
+| `20260312150000_add_lp_system.sql` | LP-System | LP-Balance, `lp_transactions`, `rewards_claimed`, Referral-Codes |
+| `20260312200000_add_social_features.sql` | Social | `friend_connections`, `push_tokens`, `leaderboard_public` |
+| `20260324120000_security_advisor_rls_leaderboard.sql` | Security | RLS für LP-Tabellen, `security_invoker`-Leaderboard |
+| `20260404120000_add_deleted_accounts.sql` | Account-Löschung | Tombstones und `delete_account_data()` |
+
 ---
 
 ## API-Struktur
@@ -558,13 +575,23 @@ CREATE INDEX scans_created_idx
 │   ├── POST /process        # OCR-Text empfangen -> KI-Verarbeitung -> Karten (Idempotency-Key)
 │   └── GET  /history        # Scan-Historie des Nutzers
 ├── /import
-│   └── POST /url            # URL importieren -> Web-Text + Bilder -> Karten
+│   ├── POST   /url          # URL importieren -> Web-Text + Bilder -> Karten
+│   └── GET|POST /pdf        # PDF-Import-Job prüfen/starten (Scaffold; LP-Spend aktiv, Parsing noch Job-basiert)
+├── /export
+│   └── POST   /anki         # Anki-Export (.apkg), Body: { "deckId": "uuid" } (Mock-Content, CL-D04)
+├── /upload
+│   └── POST   /sign         # Custom-HMAC-Upload-Token (Scaffold, keine echte SigV4 Presigned URL)
 ├── /decks
 │   ├── GET    /             # Alle Decks des Nutzers
 │   ├── POST   /             # Neues Deck erstellen
 │   ├── PATCH  /:id          # Deck bearbeiten
 │   ├── DELETE /:id          # Deck löschen
-│   └── GET    /:id/cards    # Alle Karten eines Decks
+│   ├── GET    /:id/cards    # Alle Karten eines Decks
+│   ├── GET    /:id/details  # Detail-Metadaten (Kartenanzahl, Kurse, Ordner)
+│   ├── POST   /:id/duplicate # Deck duplizieren
+│   ├── GET    /:id/export   # Offline-Export (Deck + Karten)
+│   ├── POST   /:id/share    # Share-Link/Deep-Link generieren
+│   └── GET    /share/:token # Geteiltes Deck samt Karten abrufen
 ├── /cards
 │   ├── POST   /             # Karte(n) erstellen
 │   ├── PATCH  /:id          # Karte bearbeiten
@@ -601,17 +628,25 @@ CREATE INDEX scans_created_idx
 ├── /math
 │   └── POST   /formula      # Mathpix-Integration für Formel-OCR (via mathpixService.ts)
 ├── /beta
-│   └── POST   /feedback     # Beta-Feedback einreichen (via betaFeedbackService.ts)
+│   └── GET|POST /feedback   # Beta-Feedback lesen/einreichen (via betaFeedbackService.ts)
+├── /b2b
+│   └── GET|POST /classes    # B2B-Klassenverwaltung (Scaffold, Auth-Gate noch offen)
 ├── /courses
 │   ├── GET    /             # Alle Kurse des Nutzers
 │   ├── POST   /             # Neuen Kurs erstellen
+│   ├── GET    /:id          # Einzelnen Kurs abrufen
 │   ├── PATCH  /:id          # Kurs bearbeiten
-│   └── DELETE /:id          # Kurs löschen (via courseService.ts)
+│   ├── DELETE /:id          # Kurs löschen
+│   └── GET|POST|DELETE /:id/decks # Decks zu Kursen zuordnen/entfernen
 ├── /folders
 │   ├── GET    /             # Alle Ordner des Nutzers
 │   ├── POST   /             # Neuen Ordner erstellen
+│   ├── GET    /:id          # Einzelnen Ordner abrufen
 │   ├── PATCH  /:id          # Ordner bearbeiten
-│   └── DELETE /:id          # Ordner löschen (via folderService.ts)
+│   ├── DELETE /:id          # Ordner löschen
+│   └── GET|POST|DELETE /:id/decks # Decks zu Ordnern zuordnen/entfernen
+├── /community
+│   └── GET|POST /decks      # Community-Decks durchsuchen/publizieren (Scaffold)
 └── /subscription
     ├── GET    /status       # Abo-Status prüfen
     └── POST   /webhook      # RevenueCat Webhook
@@ -623,7 +658,7 @@ CREATE INDEX scans_created_idx
 - **Idempotenz:** `POST /scan/process` und `POST /cards/:id/review` mit `Idempotency-Key`
 - **Pagination:** Cursor-basierte Pagination für Listenendpunkte
 - **Fehlermodell:** einheitliches JSON-Format mit `code`, `message`, `request_id`
-- **Rate Limits:** pro Nutzer, Tarif und LP-Guthaben (free/pro/lifetime), inklusive Retry-After Header
+- **Rate Limits:** pro Nutzer, Tarif und LP-Guthaben (free/pro/lifetime); 429-Antworten enthalten aktuell keinen `Retry-After`-Header
 - **Observability:** korrelierbare `request_id` über API, Worker und DB
 
 ### Kern-Endpoint: POST /api/scan/process
@@ -810,7 +845,7 @@ clearn.ai verwendet ein **LP-System (Lernpunkte)** als universelle In-App-Währu
 | Erweiterte Statistiken | ❌ | ✅ | ✅ |
 | Werbefrei | ❌ | ✅ | ✅ |
 
-> **Hinweis zum Lifetime-Tier:** (Status: entfernt — siehe ROADMAP-Changelog) `revenueCatService.ts` wurde ohne Lifetime-Tier implementiert. Die obige Tabelle dokumentiert das ursprüngliche Konzept; aktiv ist nur Free und Pro.
+> **Hinweis zum Lifetime-Tier:** Lifetime ist im Code weiterhin verdrahtet: `packages/contracts/src/featureGates.ts`, `apps/api/src/services/revenueCatService.ts`, `apps/mobile/src/features/paywall/subscriptionMapping.ts` und `apps/mobile/src/features/paywall/subscriptionOffers.ts` erkennen Lifetime-Entitlements bzw. -Packages. Ob Lifetime im Store sichtbar ist, hängt von der RevenueCat-Offering-Konfiguration ab.
 
 ### LP verdienen (kostenlos)
 
@@ -898,7 +933,7 @@ Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testf�
 
 <a id="implementierungsstatus"></a>
 
-## Implementierungsstatus (Basis 2026-02-13, ergänzt 2026-05)
+## Implementierungsstatus (Basis 2026-02-13, ergänzt 2026-06)
 
 > Den vollständigen, laufend aktualisierten Changelog mit allen umgesetzten Features findet sich in `ROADMAP.md`.
 
@@ -925,13 +960,13 @@ Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testf�
 - **Statistiken**: Reviews heute/Woche/gesamt, Genauigkeit, Lernverlauf 30 Tage — API und Mobile-Screen vollständig
 - **Streaks + TTS + Push-Notifications**: Tagesserien-Tracking, Vorlesen (expo-speech), konfigurierbare tägliche Erinnerungen
 - **Erweiterte Lernmodi**: Flip-Animation, Swipe (4 FSRS-Stufen, Tinder-Stil), Test-Modus (MC/Wahr-Falsch), Match-Spiel (Timer, Sterne), Auto-Play, Image Occlusion
-- **Bibliothek**: Kurse, Ordner, Deck duplizieren, Deck teilen (Deep-Link), Offline-Download (AsyncStorage), Deck-Details, Kartenanzahl
+- **Bibliothek**: Kurse, Ordner, Deck duplizieren, Deck teilen (Deep-Link), Offline-Download (AsyncStorage-Cache für Deck-Detail mit Karten-Fallback bei API-Fehlern), Deck-Details, Kartenanzahl
 - **LP-System**: Lernpunkte als universelle Währung — Balance, Verdienen (Reviews, Streaks, Referrals), Ausgeben (KI-Features), LP-Packs (RevenueCat), Leaderboard, Freundesliste, Rewarded Ads (AdMob)
 - **Onboarding-Flow**: 3-Schritte-Onboarding, Starter-Deck, Routing-Fix für Authenticated-/New-User-Pfade
 
 ### Scaffold vorhanden, noch nicht vollständig funktionsfähig
 
-- Offline-Sync (Store existiert, Sync-Aufruf ist nicht aktiv)
+- Offline-Sync (Retry-Queue existiert; vollständige SQLite-Persistenz und Offline-Erstellung bleiben CL-D01)
 - PDF-Import (Job-Queue vorhanden, kein echtes Parsing)
 - Anki-Export (Mock-Daten)
 - Mathpix (Mock)
@@ -1010,7 +1045,7 @@ REVENUECAT_WEBHOOK_SECRET=...
 EXPO_PUBLIC_REVENUECAT_IOS_API_KEY=appl_...
 EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY=goog_...
 EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_PRO=pro
-EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_LIFETIME=lifetime
+EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_LIFETIME=lifetime  # aktiv: Klassifizierung von Lifetime-Entitlements
 
 # Monitoring
 SENTRY_DSN=https://...
@@ -1027,6 +1062,7 @@ Wichtige Produktionshinweise:
 - Die API vertraut in Production keinen clientseitigen Tier-Headern (z. B. `x-subscription-tier`); die Tier-Entscheidung erfolgt serverseitig.
 - RevenueCat-Käufe in Mobile benötigen einen Dev/Store-Build (nicht Expo Go), da `react-native-purchases` ein Native-Modul ist.
 - Falls beim Start `PluginError: Unable to resolve a valid config plugin for react-native-purchases` erscheint, den Plugin-Eintrag in `apps/mobile/app.json` entfernen (für die aktuell genutzte Paketversion nicht erforderlich).
+- `EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_LIFETIME` wird für die Klassifizierung von Lifetime-Entitlements gelesen; den Key nicht als veraltete Altlast entfernen.
 
 ### Entwicklungsserver starten
 

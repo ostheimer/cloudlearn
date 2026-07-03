@@ -35,6 +35,13 @@ test.describe("API URL Import", () => {
       test.skip(true, "URL import endpoint ist auf der Zielumgebung noch nicht ausgerollt.");
     }
 
+    if (importRes.status === 402) {
+      await apiRequest<{ deleted: boolean }>(`/api/v1/decks/${deckId}`, {
+        method: "DELETE",
+      });
+      test.skip(true, "URL import needs LP balance on the shared live E2E user.");
+    }
+
     expect(importRes.status).toBe(200);
     expect(importRes.body.sourceUrl).toBe("https://example.com/");
     expect(importRes.body.cards.length).toBeGreaterThan(0);
