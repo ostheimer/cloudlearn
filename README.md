@@ -560,7 +560,7 @@ CREATE INDEX scans_created_idx
 ├── /import
 │   └── POST /url            # URL importieren -> Web-Text + Bilder -> Karten
 ├── /export
-│   └── POST /anki           # Deck als .apkg exportieren (Anki-Format, via ankiExportService.ts)
+│   └── POST /anki           # Deck als .apkg exportieren (Scaffold — gibt aktuell Mock-JSON zurück, kein echtes .apkg; CL-D04)
 ├── /upload
 │   └── POST /sign           # Signed URL für R2-Bild-Upload generieren
 ├── /decks
