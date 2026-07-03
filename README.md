@@ -559,6 +559,10 @@ CREATE INDEX scans_created_idx
 │   └── GET  /history        # Scan-Historie des Nutzers
 ├── /import
 │   └── POST /url            # URL importieren -> Web-Text + Bilder -> Karten
+├── /export
+│   └── POST /anki           # Deck als .apkg exportieren (Anki-Format, via ankiExportService.ts)
+├── /upload
+│   └── POST /sign           # Signed URL für R2-Bild-Upload generieren
 ├── /decks
 │   ├── GET    /             # Alle Decks des Nutzers
 │   ├── POST   /             # Neues Deck erstellen
@@ -602,6 +606,8 @@ CREATE INDEX scans_created_idx
 │   └── POST   /formula      # Mathpix-Integration für Formel-OCR (via mathpixService.ts)
 ├── /beta
 │   └── POST   /feedback     # Beta-Feedback einreichen (via betaFeedbackService.ts)
+├── /b2b
+│   └── GET    /classes      # Klassen-Verwaltung für B2B-Dashboard (via b2bService.ts)
 ├── /courses
 │   ├── GET    /             # Alle Kurse des Nutzers
 │   ├── POST   /             # Neuen Kurs erstellen
@@ -612,6 +618,8 @@ CREATE INDEX scans_created_idx
 │   ├── POST   /             # Neuen Ordner erstellen
 │   ├── PATCH  /:id          # Ordner bearbeiten
 │   └── DELETE /:id          # Ordner löschen (via folderService.ts)
+├── /community
+│   └── GET    /decks        # Community-Decks durchsuchen und teilen (via communityService.ts)
 └── /subscription
     ├── GET    /status       # Abo-Status prüfen
     └── POST   /webhook      # RevenueCat Webhook
