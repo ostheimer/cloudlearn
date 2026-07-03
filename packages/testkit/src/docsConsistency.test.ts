@@ -71,6 +71,17 @@ describe("documentation status consistency", () => {
     expect(mismatchedQuoteLines).toEqual([]);
   });
 
+  it("keeps ROADMAP last-updated date aligned with its latest changelog entry", () => {
+    const roadmap = readRepoFile("ROADMAP.md");
+    const headerDate = roadmap.match(/^Letzte Aktualisierung: (\d{4}-\d{2}-\d{2})/m)?.[1];
+    const changelogDates = Array.from(roadmap.matchAll(/^- (\d{4}-\d{2}-\d{2}): /gm), ([, date]) => date);
+    const sortedDates = [...changelogDates].sort();
+
+    expect(headerDate).toBeDefined();
+    expect(sortedDates.length).toBeGreaterThan(0);
+    expect(headerDate).toBe(sortedDates[sortedDates.length - 1]);
+  });
+
   it("does not list already resolved documentation discrepancies in AGENTS", () => {
     const agents = readRepoFile("AGENTS.md");
     const roadmap = readRepoFile("ROADMAP.md");

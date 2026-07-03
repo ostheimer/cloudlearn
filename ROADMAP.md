@@ -1,6 +1,6 @@
 # ROADMAP
 
-Letzte Aktualisierung: 2026-06-04 (Mai-2026-Changelog und LP-/API-Dokumentation nachgezogen)
+Letzte Aktualisierung: 2026-06-30 (Wettbewerbsvergleich und CL-D05-Status nachgezogen)
 
 ## Gesamtstatus
 
