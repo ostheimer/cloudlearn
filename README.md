@@ -562,7 +562,7 @@ CREATE INDEX scans_created_idx
 ├── /export
 │   └── POST /anki           # Deck als .apkg exportieren (Scaffold — gibt aktuell Mock-JSON zurück, kein echtes .apkg; CL-D04)
 ├── /upload
-│   └── POST /sign           # Signed URL für R2-Bild-Upload generieren
+│   └── POST /sign           # Custom-HMAC-Token generieren (Scaffold — kein echtes SigV4 Presigned URL; direkter R2-PUT durch Client schlägt fehl)
 ├── /decks
 │   ├── GET    /             # Alle Decks des Nutzers
 │   ├── POST   /             # Neues Deck erstellen
