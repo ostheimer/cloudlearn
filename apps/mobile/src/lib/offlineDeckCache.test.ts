@@ -45,4 +45,14 @@ describe("offline deck cache", () => {
     expect(cardsFromOfflineDeckCache("{")).toBeNull();
     expect(cardsFromOfflineDeckCache(JSON.stringify({ deck }))).toBeNull();
   });
+
+  it("ignores cache payloads with malformed cards", () => {
+    const raw = JSON.stringify({
+      deck,
+      cards: [{ ...card, front: null }],
+      exportedAt: "2026-07-03T00:00:00.000Z",
+    });
+
+    expect(cardsFromOfflineDeckCache(raw)).toBeNull();
+  });
 });
