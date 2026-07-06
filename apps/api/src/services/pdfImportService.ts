@@ -85,7 +85,7 @@ export async function processPdfImport(
   );
   const cards = flashcardListSchema.parse(generated.cards);
 
-  let deck = parsed.deckId ? await getDeck(parsed.deckId) : null;
+  let deck = parsed.deckId ? await getDeck(parsed.deckId, userId) : null;
   if (!deck) {
     deck = await createDeck(userId, generated.title, ["pdf-import"]);
   }

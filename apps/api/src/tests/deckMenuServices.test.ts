@@ -119,7 +119,7 @@ describe.skipIf(!HAS_DB)("deck menu services — integration tests (Supabase)", 
   it("generates and retrieves share token", async () => {
     const { generateShareToken, getDeckByShareToken } = await import("@/services/deckService");
 
-    const result = await generateShareToken(testDeckId);
+    const result = await generateShareToken(userId, testDeckId);
     expect(result.shareToken).toBeTruthy();
     expect(result.deck).toBeTruthy();
 
@@ -128,7 +128,7 @@ describe.skipIf(!HAS_DB)("deck menu services — integration tests (Supabase)", 
     expect(shared!.id).toBe(testDeckId);
 
     // Sharing again must return the same token, not invalidate old links
-    const again = await generateShareToken(testDeckId);
+    const again = await generateShareToken(userId, testDeckId);
     expect(again.shareToken).toBe(result.shareToken);
   });
 
@@ -136,7 +136,7 @@ describe.skipIf(!HAS_DB)("deck menu services — integration tests (Supabase)", 
   it("gets deck details with card count and associations", async () => {
     const { getDeckDetails } = await import("@/services/deckService");
 
-    const details = await getDeckDetails(testDeckId);
+    const details = await getDeckDetails(userId, testDeckId);
     expect(details).toBeTruthy();
     expect(details!.cardCount).toBe(2);
     expect(details!.title).toBe("Menu Test Deck");
@@ -153,10 +153,39 @@ describe.skipIf(!HAS_DB)("deck menu services — integration tests (Supabase)", 
     expect(data.cards.length).toBe(2);
   });
 
+  // Ownership enforcement (issue #94): a second user must not touch this deck
+  it("blocks cross-user access to decks and cards", async () => {
+    const { updateDeckForUser, deleteDeckForUser, generateShareToken, getDeckDetails } =
+      await import("@/services/deckService");
+    const { createCardForUser } = await import("@/services/cardService");
+
+    const attacker = "11111111-1111-4111-8111-111111111111";
+
+    // Read/modify/delete of a foreign deck must fail
+    expect(await getDeckDetails(attacker, testDeckId)).toBeNull();
+    expect(await updateDeckForUser({ userId: attacker, deckId: testDeckId, title: "Hacked" })).toBeNull();
+    expect(await deleteDeckForUser(attacker, testDeckId)).toBe(false);
+    await expect(generateShareToken(attacker, testDeckId)).rejects.toThrow();
+
+    // Inserting a card into a foreign deck must fail
+    await expect(
+      createCardForUser({
+        userId: attacker,
+        deckId: testDeckId,
+        card: { front: "x", back: "y", type: "basic", difficulty: "easy", tags: [] },
+      })
+    ).rejects.toThrow();
+
+    // The original deck must be untouched
+    const { getDeckDetails: getDetails } = await import("@/services/deckService");
+    const details = await getDetails(userId, testDeckId);
+    expect(details!.title).toBe("Menu Test Deck");
+  });
+
   // Cleanup
   it("cleanup: deletes test deck", async () => {
     const { deleteDeckForUser } = await import("@/services/deckService");
-    const ok = await deleteDeckForUser(testDeckId);
+    const ok = await deleteDeckForUser(userId, testDeckId);
     expect(ok).toBe(true);
   });
 });

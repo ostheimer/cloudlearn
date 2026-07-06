@@ -46,8 +46,9 @@ export async function processScan(
 
   const cards = flashcardListSchema.parse(generated.cards);
 
-  // Use authenticated userId instead of body userId
-  let deck = parsed.deckId ? await getDeck(parsed.deckId) : null;
+  // Use authenticated userId instead of body userId; getDeck enforces ownership,
+  // so an unknown or foreign deckId falls back to creating a fresh deck
+  let deck = parsed.deckId ? await getDeck(parsed.deckId, userId) : null;
   if (!deck) {
     // Use AI-generated title instead of generic "Automatisch erstellt"
     deck = await createDeck(userId, generated.title, ["scan"]);

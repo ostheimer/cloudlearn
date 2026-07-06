@@ -1,6 +1,7 @@
 import { flashcardSchema } from "@/lib/contracts";
 import { z } from "zod";
-import { createCard, softDeleteCard, updateCard } from "@/lib/db";
+import { createCard, getDeck, softDeleteCard, updateCard } from "@/lib/db";
+import { HttpError } from "@/lib/http";
 
 const createCardSchema = z.object({
   userId: z.string().uuid(),
@@ -9,6 +10,7 @@ const createCardSchema = z.object({
 });
 
 const updateCardSchema = z.object({
+  userId: z.string().uuid(),
   cardId: z.string().uuid(),
   front: z.string().min(1).optional(),
   back: z.string().min(1).optional(),
@@ -20,6 +22,9 @@ const updateCardSchema = z.object({
 
 export async function createCardForUser(input: unknown) {
   const parsed = createCardSchema.parse(input);
+  // Only allow adding cards to a deck the user owns
+  const deck = await getDeck(parsed.deckId, parsed.userId);
+  if (!deck) throw new HttpError("Deck not found", 404, "DECK_NOT_FOUND");
   return createCard(parsed.userId, parsed.deckId, parsed.card);
 }
 
@@ -39,9 +44,9 @@ export async function updateCardForUser(input: unknown) {
   if (parsed.difficulty !== undefined) updates.difficulty = parsed.difficulty;
   if (parsed.tags !== undefined) updates.tags = parsed.tags;
   if (parsed.starred !== undefined) updates.starred = parsed.starred;
-  return updateCard(parsed.cardId, updates);
+  return updateCard(parsed.cardId, parsed.userId, updates);
 }
 
-export async function deleteCardForUser(cardId: string): Promise<boolean> {
-  return softDeleteCard(cardId);
+export async function deleteCardForUser(userId: string, cardId: string): Promise<boolean> {
+  return softDeleteCard(cardId, userId);
 }

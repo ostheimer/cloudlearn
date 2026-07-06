@@ -159,13 +159,15 @@ export async function listDecks(userId: string): Promise<DeckRecord[]> {
 }
 
 export async function getDeck(
-  deckId: string
+  deckId: string,
+  userId: string
 ): Promise<DeckRecord | null> {
   const db = getDb();
   const { data, error } = await db
     .from("decks")
     .select()
     .eq("id", deckId)
+    .eq("user_id", userId)
     .is("deleted_at", null)
     .maybeSingle();
   if (error || !data) return null;
@@ -174,6 +176,7 @@ export async function getDeck(
 
 export async function updateDeck(
   deckId: string,
+  userId: string,
   updates: Partial<Pick<DeckRecord, "title" | "tags">>
 ): Promise<DeckRecord | null> {
   const db = getDb();
@@ -187,20 +190,22 @@ export async function updateDeck(
     .from("decks")
     .update(dbUpdates)
     .eq("id", deckId)
+    .eq("user_id", userId)
     .is("deleted_at", null)
     .select()
-    .single();
-  if (error) return null;
+    .maybeSingle();
+  if (error || !data) return null;
   return mapDeckRow(data);
 }
 
-export async function softDeleteDeck(deckId: string): Promise<boolean> {
+export async function softDeleteDeck(deckId: string, userId: string): Promise<boolean> {
   const db = getDb();
   const now = new Date().toISOString();
   const { data, error } = await db
     .from("decks")
     .update({ deleted_at: now, updated_at: now })
     .eq("id", deckId)
+    .eq("user_id", userId)
     .is("deleted_at", null)
     .select("id")
     .maybeSingle();
@@ -238,6 +243,7 @@ export async function createCard(
 
 export async function updateCard(
   cardId: string,
+  userId: string,
   updates: Partial<Pick<CardRecord, "front" | "back" | "type" | "difficulty" | "tags" | "starred">>
 ): Promise<CardRecord | null> {
   const db = getDb();
@@ -255,19 +261,21 @@ export async function updateCard(
     .from("cards")
     .update(dbUpdates)
     .eq("id", cardId)
+    .eq("user_id", userId)
     .is("deleted_at", null)
     .select()
-    .single();
-  if (error) return null;
+    .maybeSingle();
+  if (error || !data) return null;
   return mapCardRow(data);
 }
 
-export async function softDeleteCard(cardId: string): Promise<boolean> {
+export async function softDeleteCard(cardId: string, userId: string): Promise<boolean> {
   const db = getDb();
   const { data, error } = await db
     .from("cards")
     .update({ deleted_at: new Date().toISOString() })
     .eq("id", cardId)
+    .eq("user_id", userId)
     .is("deleted_at", null)
     .select("id")
     .maybeSingle();
@@ -906,28 +914,30 @@ export async function listFoldersForDeck(deckId: string): Promise<FolderRecord[]
 
 // ─── Deck Sharing & Duplication ──────────────────────────────────────────────
 
-export async function getDeckShareToken(deckId: string): Promise<string | null> {
+export async function getDeckShareToken(deckId: string, userId: string): Promise<string | null> {
   const db = getDb();
   const { data, error } = await db
     .from("decks")
     .select("share_token")
     .eq("id", deckId)
+    .eq("user_id", userId)
     .is("deleted_at", null)
     .maybeSingle();
   if (error || !data) return null;
   return data.share_token ?? null;
 }
 
-export async function setDeckShareToken(deckId: string, shareToken: string): Promise<DeckRecord | null> {
+export async function setDeckShareToken(deckId: string, userId: string, shareToken: string): Promise<DeckRecord | null> {
   const db = getDb();
   const { data, error } = await db
     .from("decks")
     .update({ share_token: shareToken, updated_at: new Date().toISOString() })
     .eq("id", deckId)
+    .eq("user_id", userId)
     .is("deleted_at", null)
     .select()
-    .single();
-  if (error) return null;
+    .maybeSingle();
+  if (error || !data) return null;
   return mapDeckRow(data);
 }
 
@@ -1133,12 +1143,13 @@ export async function countUserCards(userId: string): Promise<number> {
   return count ?? 0;
 }
 
-export async function getDeckWithCardCount(deckId: string): Promise<(DeckRecord & { cardCount: number }) | null> {
+export async function getDeckWithCardCount(deckId: string, userId: string): Promise<(DeckRecord & { cardCount: number }) | null> {
   const db = getDb();
   const { data: deck, error: deckError } = await db
     .from("decks")
     .select()
     .eq("id", deckId)
+    .eq("user_id", userId)
     .is("deleted_at", null)
     .maybeSingle();
   if (deckError || !deck) return null;

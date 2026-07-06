@@ -15,7 +15,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     if (!auth) return jsonError(requestId, "UNAUTHORIZED", "Authentication required", 401);
 
     const { id } = await params;
-    const details = await getDeckDetails(id);
+    const details = await getDeckDetails(auth.userId, id);
     if (!details) {
       return jsonError(requestId, "DECK_NOT_FOUND", "Deck not found", 404);
     }
