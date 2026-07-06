@@ -15,6 +15,7 @@ import {
   listFoldersForDeck,
 } from "@/lib/db";
 import { randomUUID } from "node:crypto";
+import { HttpError } from "@/lib/http";
 
 const createDeckSchema = z.object({
   userId: z.string().uuid(),
@@ -75,6 +76,21 @@ export async function generateShareToken(userId: string, deckId: string) {
 
 export async function getDeckByShareToken(shareToken: string) {
   return dbGetDeckByShareToken(shareToken);
+}
+
+/**
+ * Imports a shared deck into the caller's library as an independent copy.
+ * Possession of the share token is the authorization — no ownership needed.
+ * The copy gets fresh cards with reset FSRS progress; the original is
+ * untouched and later edits on either side don't affect the other.
+ */
+export async function importSharedDeck(userId: string, shareToken: string) {
+  const source = await dbGetDeckByShareToken(shareToken);
+  if (!source) {
+    throw new HttpError("Shared deck not found or link expired", 404, "DECK_NOT_FOUND");
+  }
+  const deck = await dbDuplicateDeck(userId, source.id, source.title);
+  return { deck };
 }
 
 export async function getDeckDetails(userId: string, deckId: string) {
