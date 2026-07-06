@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  countUserDecks,
   createDeck,
   listDecks,
   listCardsForDeck,
@@ -15,7 +16,9 @@ import {
   listFoldersForDeck,
 } from "@/lib/db";
 import { randomUUID } from "node:crypto";
+import { getLimitsForTier } from "@/lib/featureGates";
 import { HttpError } from "@/lib/http";
+import { getSubscriptionStatus } from "@/services/subscriptionService";
 
 const createDeckSchema = z.object({
   userId: z.string().uuid(),
@@ -32,6 +35,12 @@ const updateDeckSchema = z.object({
 
 export async function createDeckForUser(input: unknown) {
   const parsed = createDeckSchema.parse(input);
+  const subscription = await getSubscriptionStatus(parsed.userId);
+  const limits = getLimitsForTier(subscription.tier);
+  const deckCount = await countUserDecks(parsed.userId);
+  if (deckCount >= limits.maxDecks) {
+    throw new HttpError("Deck limit reached for current tier.", 402, "PAYWALL_REQUIRED");
+  }
   return createDeck(parsed.userId, parsed.title, parsed.tags);
 }
 

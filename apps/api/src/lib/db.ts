@@ -1143,6 +1143,17 @@ export async function countUserCards(userId: string): Promise<number> {
   return count ?? 0;
 }
 
+export async function countCardsInDeck(userId: string, deckId: string): Promise<number> {
+  const db = getDb();
+  const { count } = await db
+    .from("cards")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("deck_id", deckId)
+    .is("deleted_at", null);
+  return count ?? 0;
+}
+
 export async function getDeckWithCardCount(deckId: string, userId: string): Promise<(DeckRecord & { cardCount: number }) | null> {
   const db = getDb();
   const { data: deck, error: deckError } = await db

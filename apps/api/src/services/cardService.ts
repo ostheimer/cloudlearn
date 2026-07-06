@@ -1,7 +1,9 @@
 import { flashcardSchema } from "@/lib/contracts";
 import { z } from "zod";
-import { createCard, getDeck, softDeleteCard, updateCard } from "@/lib/db";
+import { countCardsInDeck, createCard, getDeck, softDeleteCard, updateCard } from "@/lib/db";
+import { getLimitsForTier } from "@/lib/featureGates";
 import { HttpError } from "@/lib/http";
+import { getSubscriptionStatus } from "@/services/subscriptionService";
 
 const createCardSchema = z.object({
   userId: z.string().uuid(),
@@ -25,6 +27,14 @@ export async function createCardForUser(input: unknown) {
   // Only allow adding cards to a deck the user owns
   const deck = await getDeck(parsed.deckId, parsed.userId);
   if (!deck) throw new HttpError("Deck not found", 404, "DECK_NOT_FOUND");
+
+  const subscription = await getSubscriptionStatus(parsed.userId);
+  const limits = getLimitsForTier(subscription.tier);
+  const cardCount = await countCardsInDeck(parsed.userId, parsed.deckId);
+  if (cardCount >= limits.maxCardsPerDeck) {
+    throw new HttpError("Card limit reached for current tier.", 402, "PAYWALL_REQUIRED");
+  }
+
   return createCard(parsed.userId, parsed.deckId, parsed.card);
 }
 
