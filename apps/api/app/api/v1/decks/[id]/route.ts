@@ -16,7 +16,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     const body = await request.json();
     const { id } = await params;
-    const deck = await updateDeckForUser({ ...body, deckId: id });
+    const deck = await updateDeckForUser({ ...body, deckId: id, userId: auth.userId });
     if (!deck) {
       return jsonError(requestId, "DECK_NOT_FOUND", "Deck not found", 404);
     }
@@ -34,7 +34,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     if (!auth) return jsonError(requestId, "UNAUTHORIZED", "Authentication required", 401);
 
     const { id } = await params;
-    const ok = await deleteDeckForUser(id);
+    const ok = await deleteDeckForUser(auth.userId, id);
     if (!ok) {
       return jsonError(requestId, "DECK_NOT_FOUND", "Deck not found", 404);
     }

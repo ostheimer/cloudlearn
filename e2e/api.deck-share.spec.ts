@@ -48,8 +48,29 @@ test.describe.serial("API Deck Sharing Flow", () => {
       `https://clearn-api.vercel.app/api/v1/decks/share/${shareToken}`
     );
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { deck: { id: string; title: string } };
+    const body = (await res.json()) as { deck: { title: string } };
     expect(body.deck.title).toBe("E2E Share Deck");
+  });
+
+  test("public share endpoint does not leak internal IDs, owner or FSRS data (#94)", async () => {
+    const res = await fetch(
+      `https://clearn-api.vercel.app/api/v1/decks/share/${shareToken}`
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      deck: Record<string, unknown>;
+      cards: Array<Record<string, unknown>>;
+    };
+    // Data minimization: none of these internal fields belong in a public link
+    expect(body.deck).not.toHaveProperty("id");
+    expect(body.deck).not.toHaveProperty("userId");
+    expect(body.deck).not.toHaveProperty("shareToken");
+    for (const card of body.cards) {
+      expect(card).not.toHaveProperty("id");
+      expect(card).not.toHaveProperty("userId");
+      expect(card).not.toHaveProperty("deckId");
+      expect(card).not.toHaveProperty("fsrsDue");
+    }
   });
 
   test("the generated share link actually renders a page", async () => {

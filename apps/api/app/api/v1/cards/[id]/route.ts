@@ -16,7 +16,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     const body = await request.json();
     const { id } = await params;
-    const card = await updateCardForUser({ ...body, cardId: id });
+    const card = await updateCardForUser({ ...body, cardId: id, userId: auth.userId });
     if (!card) {
       return jsonError(requestId, "CARD_NOT_FOUND", "Card not found", 404);
     }
@@ -34,7 +34,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     if (!auth) return jsonError(requestId, "UNAUTHORIZED", "Authentication required", 401);
 
     const { id } = await params;
-    const ok = await deleteCardForUser(id);
+    const ok = await deleteCardForUser(auth.userId, id);
     if (!ok) {
       return jsonError(requestId, "CARD_NOT_FOUND", "Card not found", 404);
     }

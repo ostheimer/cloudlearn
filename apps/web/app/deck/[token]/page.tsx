@@ -13,14 +13,12 @@ const API_BASE_URL = (process.env.CLEARN_API_BASE_URL ?? "https://clearn-api.ver
 const MAX_PREVIEW_CARDS = 30;
 
 interface SharedDeck {
-  id: string;
   title: string;
   tags: string[];
   cardCount?: number;
 }
 
 interface SharedCard {
-  id: string;
   front: string;
   back: string;
 }
@@ -184,7 +182,7 @@ export default async function SharedDeckPage({ params }: PageProps) {
       <section style={{ display: "grid", gap: 12, marginTop: 22 }}>
         {previewCards.map((card, index) => (
           <div
-            key={card.id}
+            key={index}
             style={{
               padding: 20,
               borderRadius: 22,

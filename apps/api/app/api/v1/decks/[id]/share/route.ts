@@ -16,7 +16,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     if (!auth) return jsonError(requestId, "UNAUTHORIZED", "Authentication required", 401);
 
     const { id } = await params;
-    const result = await generateShareToken(id);
+    const result = await generateShareToken(auth.userId, id);
     return jsonOk(requestId, {
       requestId,
       shareToken: result.shareToken,
