@@ -180,6 +180,18 @@ export const resources = {
       "deckAction.deleteError": "Löschen fehlgeschlagen",
       "deckAction.alreadyOffline": "Bereits offline verfügbar",
 
+      // Shared deck (received via link)
+      "sharedDeck.title": "Geteiltes Deck",
+      "sharedDeck.cardCount": "{{count}} Karten",
+      "sharedDeck.readOnlyNote": "Vorschau – übernimm das Deck, um deine eigene Kopie frei zu bearbeiten.",
+      "sharedDeck.import": "In meine Bibliothek übernehmen",
+      "sharedDeck.importing": "Wird übernommen…",
+      "sharedDeck.importSuccess": "In deine Bibliothek übernommen",
+      "sharedDeck.importError": "Übernehmen fehlgeschlagen. Bitte versuch es nochmal.",
+      "sharedDeck.loadError": "Dieses Deck konnte nicht geladen werden. Vielleicht ist der Link abgelaufen.",
+      "sharedDeck.empty": "Dieses Deck enthält noch keine Karten.",
+      "sharedDeck.retry": "Nochmal versuchen",
+
       // Course picker
       "course.select": "Kurs auswählen",
       "course.titlePlaceholder": "Kursname eingeben...",
@@ -572,6 +584,18 @@ export const resources = {
       "deckAction.deleteMessage": "\"{{title}}\" and all cards will be permanently deleted.",
       "deckAction.deleteError": "Deletion failed",
       "deckAction.alreadyOffline": "Already available offline",
+
+      // Shared deck (received via link)
+      "sharedDeck.title": "Shared deck",
+      "sharedDeck.cardCount": "{{count}} cards",
+      "sharedDeck.readOnlyNote": "Preview – save it to edit your own copy freely.",
+      "sharedDeck.import": "Save to my library",
+      "sharedDeck.importing": "Saving…",
+      "sharedDeck.importSuccess": "Saved to your library",
+      "sharedDeck.importError": "Couldn't save the deck. Please try again.",
+      "sharedDeck.loadError": "Couldn't load this deck. The link may have expired.",
+      "sharedDeck.empty": "This deck has no cards yet.",
+      "sharedDeck.retry": "Try again",
 
       // Course picker
       "course.select": "Select course",

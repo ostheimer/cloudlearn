@@ -4,6 +4,7 @@ import { cache } from "react";
 import { notFound } from "next/navigation";
 import { SiteFrame } from "@/components/site-frame";
 import { landingCtas } from "@/lib/landing";
+import { ImportInAppCta } from "./import-cta";
 
 const API_BASE_URL = (process.env.CLEARN_API_BASE_URL ?? "https://clearn-api.vercel.app").replace(
   /\/+$/,
@@ -147,16 +148,18 @@ export default async function SharedDeckPage({ params }: PageProps) {
           {deck.tags.length > 0 ? ` · ${deck.tags.join(", ")}` : ""}
         </p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center" }}>
+          <ImportInAppCta token={token} />
           <a
             href={landingCtas.primary.href}
             style={{
               display: "inline-flex",
               textDecoration: "none",
-              background: "#f8fafc",
-              color: "#0f172a",
+              background: "rgba(255,255,255,0.08)",
+              color: "#f8fafc",
               borderRadius: 14,
               padding: "14px 18px",
-              fontWeight: 800,
+              fontWeight: 700,
+              border: "1px solid rgba(255,255,255,0.16)",
             }}
           >
             {landingCtas.primary.label}
