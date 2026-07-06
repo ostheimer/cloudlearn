@@ -8,6 +8,7 @@ import {
   getDeck,
   duplicateDeck as dbDuplicateDeck,
   setDeckShareToken,
+  getDeckShareToken,
   getDeckByShareToken as dbGetDeckByShareToken,
   getDeckWithCardCount,
   listCoursesForDeck,
@@ -62,6 +63,9 @@ export async function duplicateDeckForUser(userId: string, deckId: string) {
 export async function generateShareToken(deckId: string) {
   const deck = await getDeck(deckId);
   if (!deck) throw new Error("Deck not found");
+  // Reuse an existing token so previously sent share links stay valid
+  const existingToken = await getDeckShareToken(deckId);
+  if (existingToken) return { shareToken: existingToken, deck };
   const shareToken = randomUUID();
   const updated = await setDeckShareToken(deckId, shareToken);
   if (!updated) throw new Error("Could not generate share token");

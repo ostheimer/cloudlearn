@@ -906,6 +906,18 @@ export async function listFoldersForDeck(deckId: string): Promise<FolderRecord[]
 
 // ─── Deck Sharing & Duplication ──────────────────────────────────────────────
 
+export async function getDeckShareToken(deckId: string): Promise<string | null> {
+  const db = getDb();
+  const { data, error } = await db
+    .from("decks")
+    .select("share_token")
+    .eq("id", deckId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (error || !data) return null;
+  return data.share_token ?? null;
+}
+
 export async function setDeckShareToken(deckId: string, shareToken: string): Promise<DeckRecord | null> {
   const db = getDb();
   const { data, error } = await db

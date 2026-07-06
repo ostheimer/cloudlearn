@@ -126,6 +126,10 @@ describe.skipIf(!HAS_DB)("deck menu services — integration tests (Supabase)", 
     const shared = await getDeckByShareToken(result.shareToken);
     expect(shared).toBeTruthy();
     expect(shared!.id).toBe(testDeckId);
+
+    // Sharing again must return the same token, not invalidate old links
+    const again = await generateShareToken(testDeckId);
+    expect(again.shareToken).toBe(result.shareToken);
   });
 
   // Details
