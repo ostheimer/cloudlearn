@@ -40,4 +40,36 @@ test.describe("Shared Deck Page (/deck/[token])", () => {
       await apiRequest(`/api/v1/decks/${deckId}`, { method: "DELETE" });
     }
   });
+
+  test.describe("mobile", () => {
+    test.use({
+      viewport: { width: 375, height: 812 },
+      userAgent:
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+    });
+
+    test("offers an 'übernehmen' deep link into the app (#99)", async ({ page }) => {
+      const { status, body } = await apiRequest<{ deck: { id: string } }>("/api/v1/decks", {
+        method: "POST",
+        body: JSON.stringify({ title: "E2E Import Web Deck", tags: ["e2e"] }),
+      });
+      expect(status).toBe(201);
+      const deckId = body.deck.id;
+
+      try {
+        const share = await apiRequest<{ shareToken: string; shareUrl: string }>(
+          `/api/v1/decks/${deckId}/share`,
+          { method: "POST" }
+        );
+        // Use the relative path so the configured baseURL is exercised
+        await page.goto(`/deck/${share.body.shareToken}`);
+
+        const deepLink = page.locator(`a[href="clearn://deck/share/${share.body.shareToken}"]`);
+        await expect(deepLink).toBeVisible();
+        await expect(deepLink).toContainText("übernehmen");
+      } finally {
+        await apiRequest(`/api/v1/decks/${deckId}`, { method: "DELETE" });
+      }
+    });
+  });
 });
