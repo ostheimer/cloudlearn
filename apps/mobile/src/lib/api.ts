@@ -644,6 +644,16 @@ export async function getSharedDeck(shareToken: string): Promise<{ deck: Deck; c
   return request<{ deck: Deck; cards: Card[] }>(`/api/v1/decks/share/${shareToken}`);
 }
 
+/**
+ * Imports a shared deck into the signed-in user's library as an independent
+ * copy (fresh FSRS progress). Requires only the share token, not ownership.
+ */
+export async function importSharedDeck(shareToken: string): Promise<{ deck: Deck }> {
+  return requestAuthenticated<{ deck: Deck }>(`/api/v1/decks/share/${shareToken}/import`, {
+    method: "POST",
+  });
+}
+
 export interface DeckDetails {
   id: string;
   userId: string;
