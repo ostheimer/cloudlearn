@@ -14,6 +14,7 @@ const envSchema = z.object({
   R2_SIGNED_URL_TTL_SECONDS: z.coerce.number().int().positive().default(300),
   REVENUECAT_WEBHOOK_SECRET: z.string().optional(),
   CRON_SECRET: z.string().optional(),
+  SHARE_LINK_BASE_URL: z.string().url().default("https://clearn-web.vercel.app"),
   FREE_SCAN_LIMIT_PER_MONTH: z.coerce.number().int().positive().default(5),
   FREE_URL_IMPORT_LIMIT_PER_MONTH: z.coerce.number().int().positive().default(2),
   FREE_DECK_LIMIT: z.coerce.number().int().positive().default(10),

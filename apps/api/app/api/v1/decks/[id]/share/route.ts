@@ -3,6 +3,7 @@ import { jsonError, jsonOk, normalizeError } from "@/lib/http";
 import { createRequestContext } from "@/lib/observability";
 import { getAuthUser } from "@/lib/auth";
 import { generateShareToken } from "@/services/deckService";
+import { buildShareUrl } from "@/lib/shareLink";
 
 interface Params {
   params: Promise<{ id: string }>;
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     return jsonOk(requestId, {
       requestId,
       shareToken: result.shareToken,
-      shareUrl: `https://clearn.ai/deck/${result.shareToken}`,
+      shareUrl: buildShareUrl(result.shareToken),
     }, 201);
   } catch (error) {
     const normalized = normalizeError(error);
