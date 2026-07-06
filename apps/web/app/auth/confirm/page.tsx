@@ -26,6 +26,13 @@ function parseAuthResult(): ConfirmResult {
   return { state: "failed", description: get("error_description") };
 }
 
+function isMobileDevice(): boolean {
+  const ua = navigator.userAgent;
+  if (/iphone|ipod|android/i.test(ua)) return true;
+  // iPads (auch iPadOS 13+, das sich als "Macintosh" meldet) haben Touch
+  return /ipad/i.test(ua) || (/macintosh/i.test(ua) && navigator.maxTouchPoints > 1);
+}
+
 const appLinkStyle = {
   display: "inline-block",
   marginTop: "2rem",
@@ -37,6 +44,48 @@ const appLinkStyle = {
   fontWeight: 700,
   textDecoration: "none",
 } as const;
+
+/**
+ * clearn:// can only be opened by a phone with the app installed — on
+ * desktop browsers the link would silently do nothing, so we show an
+ * instruction instead of a dead button.
+ */
+function AppCta({ label }: { label: string }) {
+  const [mobile, setMobile] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    setMobile(isMobileDevice());
+  }, []);
+
+  if (mobile === null) return null;
+
+  if (mobile) {
+    return (
+      <a href="clearn://" style={appLinkStyle}>
+        {label}
+      </a>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        marginTop: "2rem",
+        padding: "1rem 1.5rem",
+        background: "#eef2ff",
+        border: "1px solid #c7d2fe",
+        borderRadius: "12px",
+        color: "#3730a3",
+        fontSize: "1rem",
+        fontWeight: 600,
+        maxWidth: "440px",
+        lineHeight: 1.6,
+      }}
+    >
+      📱 Weiter geht’s am Handy: Öffne dort die <strong>clearn</strong>-App und melde dich an.
+    </div>
+  );
+}
 
 export default function AuthConfirmPage() {
   const [result, setResult] = useState<ConfirmResult>({ state: "checking" });
@@ -73,12 +122,7 @@ export default function AuthConfirmPage() {
             Dein Konto ist jetzt aktiv. Öffne die <strong>clearn</strong> App auf deinem Handy und
             melde dich an.
           </p>
-          <a href="clearn://" style={appLinkStyle}>
-            🧠 Jetzt in der App anmelden
-          </a>
-          <p style={{ marginTop: "0.9rem", fontSize: "0.85rem", color: "#9ca3af" }}>
-            Der Knopf funktioniert auf dem Handy mit installierter clearn-App.
-          </p>
+          <AppCta label="🧠 Jetzt in der App anmelden" />
         </>
       )}
 
@@ -95,9 +139,7 @@ export default function AuthConfirmPage() {
               ? "Bestätigungslinks sind aus Sicherheitsgründen nur kurz gültig. Keine Sorge: Öffne die clearn-App und melde dich an — dort kannst du dir einen neuen Link zuschicken lassen."
               : "Der Link ist ungültig oder wurde schon verwendet. Öffne die clearn-App und melde dich an — falls dein Konto noch nicht bestätigt ist, kannst du dort einen neuen Link anfordern."}
           </p>
-          <a href="clearn://" style={appLinkStyle}>
-            📱 clearn-App öffnen
-          </a>
+          <AppCta label="📱 clearn-App öffnen" />
           <p style={{ marginTop: "1.4rem", fontSize: "0.9rem", color: "#6b7280" }}>
             Klappt es nicht?{" "}
             <a href={siteConfig.supportMailto} style={{ color: "#4338ca", fontWeight: 600 }}>

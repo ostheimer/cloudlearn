@@ -22,7 +22,7 @@ export default defineConfig({
   reporter: "html",
   timeout: 30_000,
   use: {
-    baseURL: "https://clearn-web.vercel.app",
+    baseURL: process.env.E2E_WEB_BASE_URL ?? "https://clearn-web.vercel.app",
     trace: "on-first-retry",
   },
   projects: [
@@ -30,14 +30,14 @@ export default defineConfig({
       name: "api",
       testMatch: /api\..+\.ts$/,
       use: {
-        baseURL: "https://clearn-api.vercel.app",
+        baseURL: process.env.E2E_API_BASE_URL ?? "https://clearn-api.vercel.app",
       },
     },
     {
       name: "web",
       testMatch: /web\..+\.ts$/,
       use: {
-        baseURL: "https://clearn-web.vercel.app",
+        baseURL: process.env.E2E_WEB_BASE_URL ?? "https://clearn-web.vercel.app",
       },
     },
   ],
