@@ -559,6 +559,7 @@ Die initiale Migration oben ist nur das Basisschema. Spätere Production-Migrati
 | `20260212000000_add_fsrs_fields.sql` | Karten | FSRS-v5-Zusatzfelder |
 | `20260212120000_add_courses_folders_sharing.sql` | Bibliothek | Kurse, Ordner, Zuordnungstabellen, Share-Tokens |
 | `20260301100000_add_ai_usage_limits.sql` | Monetarisierung | AI-Usage-Zähler und Periodenstart |
+| `20260312120000_schedule_reset_ai_usage_cron.sql` | Monetarisierung | Supabase-Cron für monatlichen AI-Usage-Reset |
 | `20260312150000_add_lp_system.sql` | LP-System | LP-Balance, `lp_transactions`, `rewards_claimed`, Referral-Codes |
 | `20260312200000_add_social_features.sql` | Social | `friend_connections`, `push_tokens`, `leaderboard_public` |
 | `20260324120000_security_advisor_rls_leaderboard.sql` | Security | RLS für LP-Tabellen, `security_invoker`-Leaderboard |
@@ -947,6 +948,7 @@ Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testf�
 - **Home-Dashboard**: Fällige Karten, Deck-Anzahl, CTA zum Lernen/Scannen
 - **Auth**: Login, Registrierung, Passwort-Reset (Supabase Auth + JWT)
 - **Profil**: E-Mail-Anzeige, Abo-Status, Sprache, Abmelden
+- **Tracking-Einstellungen**: `apps/mobile/app/tracking-preferences.tsx` — App Tracking Transparency (ATT) Consent-Flow, erreichbar vom Profil-Tab; für App-Store-Compliance zwingend erforderlich
 - **Paywall + RevenueCat**: Angebotsliste, Kauf, Restore, 402-Weiterleitung aus Scan-Flow, Webhook-Sync auf Backend-Tier
 - **Lernmodus UX**: Fullscreen-Kartenmodus ohne Tab-Bar, zentriertes Layout (Header + Kartenfortschritt), Swipe-Counter (rot/grün), Icons außerhalb der Karte (verhindert versehentliches Flippen), größere Schrift, weicher Snap-Back, sichtbarer Fly-out, Zurück-Pfeil als Icon
 - **Bibliothek-Navigation**: Kurs-/Ordner-Details öffnen innerhalb des Tab-Kontexts (Tab-Bar bleibt sichtbar), während Lernscreens weiterhin ohne Tab-Bar laufen
@@ -972,6 +974,8 @@ Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testf�
 - Mathpix (Mock)
 - Community-Decks (In-Memory, kein Mobile-Screen)
 - B2B-Dashboard (In-Memory, kein Mobile-Screen)
+
+> **Hinweis:** `apps/api/src/lib/inMemoryStore.ts` ist weiterhin aktiv für Community, B2B und Beta-Feedback — keine tote Datei. `apps/web/app/` enthält die Web-Pflichtseiten `impressum/`, `privacy/` und `support/`.
 
 ### Nächste Schritte (siehe `ROADMAP.md` und `BACKLOG.md`)
 
@@ -1143,7 +1147,8 @@ clearn/
 ├── docs/
 │   ├── adr/                   # Architekturentscheidungen
 │   ├── aso/                   # App Store Optimization Checklisten
-│   ├── runbooks/              # DoD, Incident, Security, Delivery
+│   ├── monetization/          # LP-System-Konzept, RevenueCat-Setup
+│   ├── runbooks/              # 25+ Runbooks: DoD, Incident, Security, EAS, App Store, TestFlight, Passkeys, etc.
 │   └── screens/               # Screen-Map & Wireframes (SCREENS.md, wireframes/)
 ├── scripts/                   # Orchestrator, Build, Restore, Perf
 ├── .github/workflows/ci.yml   # CI: lint + typecheck + test
