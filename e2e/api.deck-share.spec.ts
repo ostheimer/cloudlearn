@@ -33,6 +33,16 @@ test.describe.serial("API Deck Sharing Flow", () => {
     expect(shareUrl).not.toContain("clearn.ai");
   });
 
+  test("sharing again returns the same token — old links stay valid", async () => {
+    const { status, body } = await apiRequest<{ shareToken: string; shareUrl: string }>(
+      `/api/v1/decks/${deckId}/share`,
+      { method: "POST" }
+    );
+    expect(status).toBe(201);
+    expect(body.shareToken).toBe(shareToken);
+    expect(body.shareUrl).toBe(shareUrl);
+  });
+
   test("shared deck is readable without authentication", async () => {
     const res = await fetch(
       `https://clearn-api.vercel.app/api/v1/decks/share/${shareToken}`
