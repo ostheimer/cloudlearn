@@ -109,12 +109,14 @@ export default async function SharedDeckPage({ params }: PageProps) {
         style={{
           display: "grid",
           gap: 18,
-          padding: "34px 28px",
+          padding: "34px 24px",
           borderRadius: 28,
           background:
             "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.88) 56%, rgba(79,70,229,0.82))",
           color: "#f8fafc",
           boxShadow: "0 28px 70px rgba(15,23,42,0.14)",
+          justifyItems: "center",
+          textAlign: "center",
         }}
       >
         <div
@@ -131,12 +133,22 @@ export default async function SharedDeckPage({ params }: PageProps) {
         >
           Geteiltes Deck
         </div>
-        <h1 style={{ margin: 0, fontSize: 40, lineHeight: 1.1 }}>{deck.title}</h1>
-        <p style={{ margin: 0, color: "#dbe4ff", fontSize: 17 }}>
+        <h1
+          style={{
+            margin: 0,
+            fontSize: "clamp(26px, 7.5vw, 40px)",
+            lineHeight: 1.15,
+            maxWidth: "100%",
+            overflowWrap: "anywhere",
+          }}
+        >
+          {deck.title}
+        </h1>
+        <p style={{ margin: 0, color: "#dbe4ff", fontSize: 17, overflowWrap: "anywhere" }}>
           {cardCount} {cardCount === 1 ? "Karte" : "Karten"}
           {deck.tags.length > 0 ? ` · ${deck.tags.join(", ")}` : ""}
         </p>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center" }}>
           <a
             href={landingCtas.primary.href}
             style={{
@@ -181,6 +193,7 @@ export default async function SharedDeckPage({ params }: PageProps) {
               boxShadow: "0 22px 60px rgba(15,23,42,0.08)",
               display: "grid",
               gap: 8,
+              overflowWrap: "anywhere",
             }}
           >
             <span style={{ color: "#6366f1", fontWeight: 700, fontSize: 13 }}>
