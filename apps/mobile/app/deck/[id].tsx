@@ -650,6 +650,7 @@ export default function DeckDetailScreen() {
               <TouchableOpacity
                 onPress={() => setMenuVisible(true)}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={{ width: 32, height: 32, alignItems: "center", justifyContent: "center" }}
               >
                 <MoreVertical size={22} color={colors.text} />
               </TouchableOpacity>
