@@ -31,6 +31,7 @@
     "expo-build-properties": "^55.0.9",
     "expo-camera": "~17.0.10",
     "expo-clipboard": "^55.0.8",
+    "expo-dev-client": "~6.0.21",
     "expo-document-picker": "~14.0.8",
     "expo-image-picker": "~17.0.10",
     "expo-linking": "~8.0.11",
