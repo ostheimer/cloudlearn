@@ -270,6 +270,12 @@ export const ArrowLeft = (p: IconProps) => (
   </Icon>
 );
 
+export const Zap = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M13 2L4 14h6l-1 8 9-12h-6z" />
+  </Icon>
+);
+
 export const Folder = (p: IconProps) => (
   <Icon {...p}>
     <path d="M3 7a2 2 0 0 1 2-2h3.5l2 2H19a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />

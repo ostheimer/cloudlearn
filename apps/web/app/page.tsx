@@ -15,7 +15,7 @@ import {
   Target,
   Folder,
   Share,
-  Trophy,
+  Zap,
   Check,
   CheckCircle,
   ShieldCheck,
@@ -28,7 +28,6 @@ import {
   Flame,
   Globe,
   Smartphone,
-  Users,
   type IconProps,
 } from "@/components/icons";
 
@@ -85,14 +84,14 @@ const features: { Icon: IconType; tint: string; title: string; body: string }[] 
   {
     Icon: Share,
     tint: "g-violet",
-    title: "Teilen & offline",
-    body: "Decks per Link teilen und als eigene Kopie übernehmen — und offline lernen, auch ohne Internet.",
+    title: "Teilen & übernehmen",
+    body: "Decks per Link teilen — andere übernehmen sie als eigene Kopie mit frischem Lernfortschritt.",
   },
   {
-    Icon: Trophy,
+    Icon: Flame,
     tint: "g-blue",
-    title: "Streaks, Statistik & Freunde",
-    body: "Tagesziele, Serien und Lernpunkte — plus eine Bestenliste, auf der du dich mit Freunden misst.",
+    title: "Streaks & Lernpunkte",
+    body: "Tagesziele, Serien und Statistiken — plus Lernpunkte, die du dir durchs Lernen verdienst und für KI-Funktionen einsetzt.",
   },
 ];
 
@@ -109,8 +108,8 @@ const faqs = [
     a: "Ja! Registriere dich auf clearn-web.vercel.app und leg sofort los — ganz ohne Installation. Zusätzlich gibt es clearn als iPhone-App (aktuell über TestFlight).",
   },
   {
-    q: "Was kostet clearn?",
-    a: "Du kannst kostenlos starten und Decks anlegen. Für intensives KI-Erstellen gibt es Lernpunkte und optionale Pro-Funktionen — zum Ausprobieren brauchst du nichts zu zahlen.",
+    q: "Was kostet clearn? Was ist gratis, was Pro?",
+    a: "Starten ist kostenlos: Konto anlegen, Decks & Karten erstellen und lernen — inklusive Spaced Repetition, allen Lernmodi, Kurse & Ordner, Teilen und Statistik. Das KI-Erstellen läuft über Lernpunkte, die du dir durchs Lernen verdienst. Mit Pro gibt es mehr: mehr Decks & Karten, PDF-Import, Bild-Occlusion, Offline-Download, günstigere KI-Kosten und monatliche Lernpunkte.",
   },
   {
     q: "Woraus kann ich Karten erstellen?",
@@ -156,7 +155,7 @@ export default function LandingPage() {
           <div className="container hero__inner">
             <div className="hero__copy">
               <span className="pill pill-dark">
-                <span className="dot" /> Kostenlos · im Browser & als iPhone-App
+                <span className="dot" /> Im Browser & als iPhone-App
               </span>
               <h1 className="h-display">
                 Lernmaterial rein.
@@ -473,7 +472,7 @@ export default function LandingPage() {
                   <span className="tick">
                     <Check size={13} strokeWidth={3} />
                   </span>{" "}
-                  Automatisch synchron & offline lernbar
+                  Deine Decks automatisch synchron auf allen Geräten
                 </li>
               </ul>
             </div>
@@ -498,7 +497,7 @@ export default function LandingPage() {
               </div>
               <div className="stat">
                 <b>Sync</b>
-                <span>synchron & offline auf allen Geräten</span>
+                <span>synchron auf allen Geräten</span>
               </div>
             </div>
           </div>
@@ -519,46 +518,50 @@ export default function LandingPage() {
                   </div>
                   <span>Tagesziel fast geschafft — noch 3 Karten</span>
                 </div>
-                <div className="mini-card">
-                  <small style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                    <Trophy size={13} /> Bestenliste
-                  </small>
-                  <div style={{ display: "grid", gap: 6, marginTop: 4 }}>
-                    <span style={{ display: "flex", justifyContent: "space-between", color: "var(--ink-2)", fontWeight: 700, fontSize: "0.9rem" }}>
-                      <span>1. Lena</span> <span>2 480 LP</span>
-                    </span>
-                    <span style={{ display: "flex", justifyContent: "space-between", color: "var(--brand-600)", fontWeight: 800, fontSize: "0.9rem" }}>
-                      <span>2. Du</span> <span>2 190 LP</span>
-                    </span>
-                    <span style={{ display: "flex", justifyContent: "space-between", color: "var(--ink-3)", fontSize: "0.9rem" }}>
-                      <span>3. Max</span> <span>1 940 LP</span>
-                    </span>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div className="mini-card center">
+                    <strong
+                      style={{
+                        fontSize: "1.4rem",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Zap size={16} style={{ color: "var(--amber)" }} /> 240
+                    </strong>
+                    <span>Lernpunkte verdient</span>
+                  </div>
+                  <div className="mini-card center">
+                    <strong style={{ fontSize: "1.4rem" }}>96%</strong>
+                    <span>Trefferquote</span>
                   </div>
                 </div>
               </div>
             </div>
             <div className="reveal">
-              <span className="eyebrow">Dranbleiben & Vergleichen</span>
+              <span className="eyebrow">Dranbleiben</span>
               <h2 className="h2" style={{ marginBlock: "14px 16px" }}>
                 Gewohnheiten, die Wissen sichern
               </h2>
               <p className="lead">
                 Lernen scheitert selten am Anfang, sondern am Dranbleiben. Streaks, Tagesziele und
-                Lernpunkte machen jede Wiederholung sichtbar belohnend — und mit Freunden auf der
-                Bestenliste bleibt es spannend.
+                Lernpunkte machen jede Wiederholung sichtbar belohnend — und deine Statistik zeigt,
+                wie weit du schon bist.
               </p>
               <ul className="reset check-list">
                 <li>
                   <span className="tick">
                     <Check size={13} strokeWidth={3} />
                   </span>{" "}
-                  Tägliche Serie, Tagesziele & Lernpunkte
+                  Tägliche Serie, Tagesziele & Streaks
                 </li>
                 <li>
                   <span className="tick">
-                    <Users size={13} strokeWidth={2.5} />
+                    <Zap size={13} strokeWidth={2.5} />
                   </span>{" "}
-                  Bestenliste — vergleich dich mit Freunden
+                  Lernpunkte fürs Lernen — für KI-Funktionen einsetzbar
                 </li>
                 <li>
                   <span className="tick">
