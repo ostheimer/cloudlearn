@@ -9,7 +9,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Download } from "lucide-react-native";
+import { ChevronLeft, Download } from "lucide-react-native";
 import {
   getSharedDeck,
   importSharedDeck,
@@ -74,7 +74,23 @@ export default function SharedDeckScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={["bottom"]}>
-      <Stack.Screen options={{ title: t("sharedDeck.title") }} />
+      <Stack.Screen
+        options={{
+          title: t("sharedDeck.title"),
+          ...(router.canGoBack()
+            ? {}
+            : {
+                headerLeft: () => (
+                  <TouchableOpacity
+                    onPress={() => router.replace("/(tabs)")}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <ChevronLeft size={24} color={colors.primary} />
+                  </TouchableOpacity>
+                ),
+              }),
+        }}
+      />
 
       {loading ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
