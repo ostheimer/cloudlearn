@@ -630,16 +630,18 @@ export default function DeckDetailScreen() {
           headerBackTitle: "Decks",
           headerTintColor: colors.primary,
           headerStyle: { backgroundColor: colors.background },
-          headerLeft: router.canGoBack()
-            ? undefined
-            : () => (
-                <TouchableOpacity
-                  onPress={() => router.replace("/(tabs)/decks")}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <ChevronLeft size={24} color={colors.primary} />
-                </TouchableOpacity>
-              ),
+          ...(router.canGoBack()
+            ? {}
+            : {
+                headerLeft: () => (
+                  <TouchableOpacity
+                    onPress={() => router.replace("/(tabs)/decks")}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <ChevronLeft size={24} color={colors.primary} />
+                  </TouchableOpacity>
+                ),
+              }),
           headerRight: () => (
             <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
               {isOffline && (
