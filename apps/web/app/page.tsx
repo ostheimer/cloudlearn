@@ -44,7 +44,7 @@ const sources: { Icon: IconType; label: string }[] = [
 const steps = [
   {
     title: "Erfassen",
-    body: "Dein Material rein — Foto, PDF, Text oder Link. Der schnellste Weg von vorhandenem Lernstoff zu digitalen Karten.",
+    body: "Dein vorhandenes Lernmaterial rein — egal woher. Der schnellste Weg von Rohstoff zu digitalen Karten.",
   },
   {
     title: "Strukturieren",
@@ -61,7 +61,7 @@ const features: { Icon: IconType; tint: string; title: string; body: string }[] 
     Icon: Camera,
     tint: "g-indigo",
     title: "Foto & KI-Erstellung",
-    body: "Foto, PDF, Text oder Link rein — OCR liest den Inhalt, die KI baut fertige Frage-Antwort-Karten. Kein Abtippen.",
+    body: "Wirf dein Material hinein — OCR liest den Inhalt, die KI baut daraus in Sekunden fertige Frage-Antwort-Karten.",
   },
   {
     Icon: Repeat,
@@ -259,7 +259,7 @@ export default function LandingPage() {
               <span className="eyebrow-chip">So geht's</span>
               <h2 className="h2">In drei Schritten vom Material zum Wissen</h2>
               <p className="lead">
-                Kein Abtippen, kein Karten-Basteln. clearn übernimmt die Fleißarbeit — du
+                Kein stundenlanges Karten-Basteln — clearn übernimmt die Fleißarbeit, du
                 konzentrierst dich aufs Lernen.
               </p>
             </div>
@@ -350,7 +350,7 @@ export default function LandingPage() {
                   <span className="tick">
                     <Check size={13} strokeWidth={3} />
                   </span>{" "}
-                  Verschiedenste Quellen — von der Handykamera bis zum PDF
+                  Foto scannen, importieren oder selbst tippen — wie du willst
                 </li>
                 <li>
                   <span className="tick">
@@ -485,7 +485,7 @@ export default function LandingPage() {
             <div className="stat-band reveal">
               <div className="stat">
                 <b>5</b>
-                <span>Quellen (Foto bis PDF)</span>
+                <span>Import-Quellen</span>
               </div>
               <div className="stat">
                 <b>FSRS</b>
