@@ -24,3 +24,38 @@ export const siteNavLinks = [
   { href: siteConfig.privacyPath, label: "Datenschutz" },
   { href: siteConfig.impressumPath, label: "Impressum" },
 ] as const;
+
+/** Primary in-page navigation shown in the marketing header. */
+export const marketingNavLinks = [
+  { href: "/#features", label: "Features" },
+  { href: "/#lernmodi", label: "Lernmodi" },
+  { href: "/#so-gehts", label: "So geht's" },
+  { href: "/#faq", label: "FAQ" },
+] as const;
+
+/** Grouped links for the site footer. */
+export const footerSections = [
+  {
+    title: "Produkt",
+    links: [
+      { href: "/#features", label: "Features" },
+      { href: "/#lernmodi", label: "Lernmodi" },
+      { href: "/#so-gehts", label: "So geht's" },
+      { href: "/#faq", label: "FAQ" },
+    ],
+  },
+  {
+    title: "Rechtliches",
+    links: [
+      { href: siteConfig.privacyPath, label: "Datenschutz" },
+      { href: siteConfig.impressumPath, label: "Impressum" },
+    ],
+  },
+  {
+    title: "Kontakt",
+    links: [
+      { href: siteConfig.supportPath, label: "Support" },
+      { href: siteConfig.supportMailto, label: siteConfig.supportEmail },
+    ],
+  },
+] as const;
