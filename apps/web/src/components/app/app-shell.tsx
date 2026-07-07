@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useAuth } from "./auth-context";
+import { GraduationCap, BarChart, Globe, LogOut } from "@/components/icons";
 
 const NAV = [
   { href: "/dashboard", label: "Bibliothek", exact: true },
@@ -57,7 +58,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="container app-topbar__inner">
           <Link href="/dashboard" className="brand">
             <span className="brand__mark" aria-hidden>
-              🧠
+              <GraduationCap size={20} />
             </span>
             clearn.ai
           </Link>
@@ -102,13 +103,13 @@ export function AppShell({ children }: { children: ReactNode }) {
                   {email}
                 </div>
                 <Link href="/dashboard/stats" role="menuitem" onClick={() => setMenuOpen(false)}>
-                  📊 Statistik
+                  <BarChart size={16} /> Statistik
                 </Link>
                 <a href="/" role="menuitem">
-                  🌐 Zur Website
+                  <Globe size={16} /> Zur Website
                 </a>
                 <button type="button" className="danger" role="menuitem" onClick={handleSignOut}>
-                  ↪ Abmelden
+                  <LogOut size={16} /> Abmelden
                 </button>
               </div>
             )}

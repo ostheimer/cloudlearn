@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { siteConfig, marketingNavLinks } from "@/lib/site";
+import { GraduationCap, Menu, X } from "@/components/icons";
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
@@ -12,7 +13,7 @@ export function SiteHeader() {
       <div className="container site-header__inner">
         <Link href="/" className="brand" onClick={() => setOpen(false)}>
           <span className="brand__mark" aria-hidden>
-            🧠
+            <GraduationCap size={20} />
           </span>
           {siteConfig.brandName}
         </Link>
@@ -42,9 +43,7 @@ export function SiteHeader() {
           aria-controls="mobile-nav"
           onClick={() => setOpen((v) => !v)}
         >
-          <span aria-hidden style={{ fontSize: 22, lineHeight: 1 }}>
-            {open ? "✕" : "☰"}
-          </span>
+          {open ? <X size={22} /> : <Menu size={22} />}
         </button>
       </div>
 

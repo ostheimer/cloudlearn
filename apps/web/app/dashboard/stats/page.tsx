@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getStats, isApiError, type StatsResponse } from "@/lib/api";
+import { Flame, Clock, CheckCircle, Target, BarChart } from "@/components/icons";
 
 export default function StatsPage() {
   const [stats, setStats] = useState<StatsResponse | null>(null);
@@ -32,7 +33,7 @@ export default function StatsPage() {
     return (
       <div className="empty-state">
         <div className="ic" aria-hidden>
-          📊
+          <BarChart size={30} />
         </div>
         <h3>Noch keine Statistik</h3>
         <p>{error ?? "Sobald du lernst, erscheinen hier deine Fortschritte."}</p>
@@ -55,10 +56,10 @@ export default function StatsPage() {
   const maxCount = Math.max(1, ...days.map((d) => d.count));
 
   const tiles = [
-    { ic: "🔥", value: stats.currentStreak, label: "Tage-Streak" },
-    { ic: "⏰", value: stats.dueCards, label: "Jetzt fällig" },
-    { ic: "✅", value: stats.reviewsToday, label: "Heute wiederholt" },
-    { ic: "🎯", value: `${accuracy}%`, label: "Trefferquote" },
+    { Icon: Flame, value: stats.currentStreak, label: "Tage-Streak" },
+    { Icon: Clock, value: stats.dueCards, label: "Jetzt fällig" },
+    { Icon: CheckCircle, value: stats.reviewsToday, label: "Heute wiederholt" },
+    { Icon: Target, value: `${accuracy}%`, label: "Trefferquote" },
   ];
 
   return (
@@ -75,8 +76,8 @@ export default function StatsPage() {
       <div className="stat-grid">
         {tiles.map((t) => (
           <div key={t.label} className="stat-tile">
-            <span className="ic" aria-hidden>
-              {t.ic}
+            <span className="ic" aria-hidden style={{ color: "var(--brand-600)" }}>
+              <t.Icon size={22} />
             </span>
             <b>{t.value}</b>
             <span>{t.label}</span>

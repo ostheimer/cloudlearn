@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { siteConfig } from "@/lib/site";
+import { CheckCircle, AlertTriangle } from "@/components/icons";
 
 /**
  * Landing page of the Supabase e-mail confirmation redirect.
@@ -82,7 +83,7 @@ function AppCta({ label }: { label: string }) {
         lineHeight: 1.6,
       }}
     >
-      📱 Weiter geht’s am Handy: Öffne dort die <strong>clearn</strong>-App und melde dich an.
+      Weiter geht’s am Handy: Öffne dort die <strong>clearn</strong>-App und melde dich an.
     </div>
   );
 }
@@ -114,7 +115,9 @@ export default function AuthConfirmPage() {
 
       {result.state === "success" && (
         <>
-          <div style={{ fontSize: "64px", marginBottom: "1rem" }}>✅</div>
+          <div style={{ marginBottom: "1rem", color: "#10b981" }}>
+            <CheckCircle size={64} />
+          </div>
           <h1 style={{ fontSize: "2rem", fontWeight: 800, color: "#111827", marginBottom: "0.5rem" }}>
             E-Mail bestätigt!
           </h1>
@@ -122,13 +125,15 @@ export default function AuthConfirmPage() {
             Dein Konto ist jetzt aktiv. Öffne die <strong>clearn</strong> App auf deinem Handy und
             melde dich an.
           </p>
-          <AppCta label="🧠 Jetzt in der App anmelden" />
+          <AppCta label="Jetzt in der App anmelden" />
         </>
       )}
 
       {(result.state === "expired" || result.state === "failed") && (
         <>
-          <div style={{ fontSize: "64px", marginBottom: "1rem" }}>⚠️</div>
+          <div style={{ marginBottom: "1rem", color: "#f59e0b" }}>
+            <AlertTriangle size={64} />
+          </div>
           <h1 style={{ fontSize: "2rem", fontWeight: 800, color: "#111827", marginBottom: "0.5rem" }}>
             {result.state === "expired"
               ? "Dieser Bestätigungslink ist abgelaufen"
@@ -139,7 +144,7 @@ export default function AuthConfirmPage() {
               ? "Bestätigungslinks sind aus Sicherheitsgründen nur kurz gültig. Keine Sorge: Öffne die clearn-App und melde dich an — dort kannst du dir einen neuen Link zuschicken lassen."
               : "Der Link ist ungültig oder wurde schon verwendet. Öffne die clearn-App und melde dich an — falls dein Konto noch nicht bestätigt ist, kannst du dort einen neuen Link anfordern."}
           </p>
-          <AppCta label="📱 clearn-App öffnen" />
+          <AppCta label="clearn-App öffnen" />
           <p style={{ marginTop: "1.4rem", fontSize: "0.9rem", color: "#6b7280" }}>
             Klappt es nicht?{" "}
             <a href={siteConfig.supportMailto} style={{ color: "#4338ca", fontWeight: 600 }}>

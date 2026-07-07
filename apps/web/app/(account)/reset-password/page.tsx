@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getSupabase } from "@/lib/supabase-browser";
 import { toGermanAuthError } from "@/lib/auth-errors";
+import { AlertTriangle, CheckCircle } from "@/components/icons";
 
 type Phase = "checking" | "ready" | "invalid" | "done";
 
@@ -85,7 +86,9 @@ export default function ResetPasswordPage() {
     return (
       <div className="auth-card">
         <div className="auth-head">
-          <div style={{ fontSize: 48 }}>⚠️</div>
+          <div style={{ color: "#dc2626" }}>
+            <AlertTriangle size={48} />
+          </div>
           <h1 className="h3">Link ungültig oder abgelaufen</h1>
         </div>
         <p className="muted center">
@@ -102,7 +105,9 @@ export default function ResetPasswordPage() {
     return (
       <div className="auth-card">
         <div className="auth-head">
-          <div style={{ fontSize: 48 }}>✅</div>
+          <div style={{ color: "var(--green)" }}>
+            <CheckCircle size={48} />
+          </div>
           <h1 className="h3">Passwort geändert</h1>
         </div>
         <p className="muted center">Du wirst zu deiner Bibliothek weitergeleitet…</p>
@@ -150,7 +155,7 @@ export default function ResetPasswordPage() {
 
         {error && (
           <div className="form-error" role="alert">
-            <span aria-hidden>⚠️</span>
+            <AlertTriangle size={16} />
             <span>{error}</span>
           </div>
         )}

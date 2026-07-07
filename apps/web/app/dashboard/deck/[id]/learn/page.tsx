@@ -11,6 +11,7 @@ import {
   type Card,
   type ReviewRating,
 } from "@/lib/api";
+import { X, Trophy, Layers, AlertTriangle } from "@/components/icons";
 
 const RATINGS: { key: ReviewRating; label: string; cls: string }[] = [
   { key: "again", label: "Nochmal", cls: "rating--again" },
@@ -70,7 +71,7 @@ export default function LearnPage() {
     return (
       <div className="empty-state">
         <div className="ic" aria-hidden>
-          ⚠️
+          <AlertTriangle size={30} />
         </div>
         <h3>Konnte nicht laden</h3>
         <p>{error}</p>
@@ -85,7 +86,7 @@ export default function LearnPage() {
     return (
       <div className="empty-state">
         <div className="ic" aria-hidden>
-          🃏
+          <Layers size={30} />
         </div>
         <h3>Keine Karten zum Lernen</h3>
         <p>Füge dem Deck zuerst ein paar Karten hinzu.</p>
@@ -100,8 +101,8 @@ export default function LearnPage() {
     return (
       <div className="study-wrap">
         <div className="study-done">
-          <div className="big" aria-hidden>
-            🎉
+          <div className="big" aria-hidden style={{ color: "var(--amber)" }}>
+            <Trophy size={56} />
           </div>
           <h2 className="h2">Session geschafft!</h2>
           <p className="lead">
@@ -133,7 +134,7 @@ export default function LearnPage() {
     <div className="study-wrap">
       <div className="study-top">
         <Link href={`/dashboard/deck/${deckId}`} className="crumb" style={{ margin: 0 }}>
-          ✕ Beenden
+          <X size={16} /> Beenden
         </Link>
         <div className="progress">
           <i style={{ width: `${(index / total) * 100}%` }} />
@@ -160,7 +161,7 @@ export default function LearnPage() {
           <div className="flip__face flip__face--front">
             <span className="flip__label">Frage</span>
             <span className="flip__q">{current?.front}</span>
-            <span className="flip__hint">Tippen zum Umdrehen ↻</span>
+            <span className="flip__hint">Tippen zum Umdrehen</span>
           </div>
           <div className="flip__face flip__face--back">
             <span className="flip__label">Antwort</span>

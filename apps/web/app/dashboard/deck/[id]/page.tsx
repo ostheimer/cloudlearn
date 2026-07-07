@@ -15,6 +15,16 @@ import {
   type Card,
   type DeckDetails,
 } from "@/lib/api";
+import {
+  ArrowLeft,
+  Play,
+  Pencil,
+  Trash,
+  Star,
+  StarFilled,
+  Layers,
+  AlertTriangle,
+} from "@/components/icons";
 
 type CardModal =
   | { type: "add" }
@@ -74,7 +84,7 @@ export default function DeckDetailPage() {
     return (
       <div className="empty-state">
         <div className="ic" aria-hidden>
-          ⚠️
+          <AlertTriangle size={30} />
         </div>
         <h3>Deck nicht gefunden</h3>
         <p>{error}</p>
@@ -88,7 +98,7 @@ export default function DeckDetailPage() {
   return (
     <>
       <Link href="/dashboard" className="crumb">
-        ← Bibliothek
+        <ArrowLeft size={16} /> Bibliothek
       </Link>
 
       <div className="detail-head">
@@ -103,7 +113,7 @@ export default function DeckDetailPage() {
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           {cards.length > 0 && (
             <Link href={`/dashboard/deck/${deckId}/learn`} className="btn btn-ghost">
-              ▶ Lernen
+              <Play size={16} /> Lernen
             </Link>
           )}
           <button
@@ -118,7 +128,7 @@ export default function DeckDetailPage() {
 
       {error && (
         <div className="form-error" role="alert" style={{ marginBottom: 16 }}>
-          <span aria-hidden>⚠️</span>
+          <AlertTriangle size={16} />
           <span>{error}</span>
         </div>
       )}
@@ -126,7 +136,7 @@ export default function DeckDetailPage() {
       {cards.length === 0 ? (
         <div className="empty-state">
           <div className="ic" aria-hidden>
-            🃏
+            <Layers size={30} />
           </div>
           <h3>Noch keine Karten</h3>
           <p>Füge deine erste Karte hinzu — Vorderseite ist die Frage, Rückseite die Antwort.</p>
@@ -155,7 +165,7 @@ export default function DeckDetailPage() {
                   onClick={() => toggleStar(card)}
                   style={card.starred ? { color: "var(--amber)" } : undefined}
                 >
-                  {card.starred ? "★" : "☆"}
+                  {card.starred ? <StarFilled size={17} /> : <Star size={17} />}
                 </button>
                 <button
                   type="button"
@@ -163,7 +173,7 @@ export default function DeckDetailPage() {
                   aria-label="Karte bearbeiten"
                   onClick={() => setModal({ type: "edit", card })}
                 >
-                  ✎
+                  <Pencil size={16} />
                 </button>
                 <button
                   type="button"
@@ -171,7 +181,7 @@ export default function DeckDetailPage() {
                   aria-label="Karte löschen"
                   onClick={() => setModal({ type: "delete", card })}
                 >
-                  🗑
+                  <Trash size={16} />
                 </button>
               </div>
             </div>
@@ -285,7 +295,7 @@ function CardEditor({
         </div>
         {error && (
           <div className="form-error" role="alert">
-            <span aria-hidden>⚠️</span>
+            <AlertTriangle size={16} />
             <span>{error}</span>
           </div>
         )}

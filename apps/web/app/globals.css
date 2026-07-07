@@ -699,6 +699,17 @@ p {
   color: var(--ink-2);
 }
 
+.trust__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.trust__lead {
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
 /* ---------- Feature grid ---------- */
 .grid {
   display: grid;
@@ -1092,9 +1103,10 @@ ul.reset {
 
 .faq summary .chev {
   flex: none;
+  display: inline-flex;
+  align-items: center;
   transition: transform 0.2s ease;
   color: var(--brand);
-  font-size: 1.2rem;
 }
 
 .faq details[open] summary .chev {
