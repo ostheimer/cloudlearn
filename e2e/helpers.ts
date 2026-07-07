@@ -2,15 +2,24 @@
  * E2E test helpers for clearn.ai
  *
  * Provides authenticated API access for test scenarios.
- * Uses apitest@clearn.test user created via admin API.
+ * All credentials are read from the environment (.env locally, secrets in CI)
+ * and are never hard-coded — see .env.example. Uses the apitest@clearn.test user.
  */
 
-const SUPABASE_URL = "https://yektpwhycxusblnueplm.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_BN5r8pNWC40Eahc8h5NqpA_imO5Ky-f";
-const API_BASE = "https://clearn-api.vercel.app";
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(
+      `Missing required environment variable "${name}". E2E tests read all ` +
+        `credentials from the environment (.env locally, secrets in CI) — they ` +
+        `must never be hard-coded. See .env.example for the required variables.`
+    );
+  }
+  return value;
+}
 
-const TEST_EMAIL = "apitest@clearn.test";
-const TEST_PASSWORD = "ApiTest1234!";
+// Public base URL (not a secret); overridable for preview/staging runs.
+const API_BASE = process.env.E2E_API_BASE_URL ?? "https://clearn-api.vercel.app";
 
 let cachedToken: string | null = null;
 let tokenExpiry = 0;
@@ -24,20 +33,22 @@ export async function getAuthToken(): Promise<string> {
     return cachedToken;
   }
 
-  const res = await fetch(
-    `${SUPABASE_URL}/auth/v1/token?grant_type=password`,
-    {
-      method: "POST",
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        email: TEST_EMAIL,
-        password: TEST_PASSWORD,
-      }),
-    }
-  );
+  const supabaseUrl = requireEnv("SUPABASE_URL");
+  const supabaseAnonKey = requireEnv("SUPABASE_ANON_KEY");
+  const testEmail = requireEnv("TEST_USER_EMAIL");
+  const testPassword = requireEnv("TEST_USER_PASSWORD");
+
+  const res = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
+    method: "POST",
+    headers: {
+      apikey: supabaseAnonKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      email: testEmail,
+      password: testPassword,
+    }),
+  });
 
   const data = await res.json();
   if (!data.access_token) {
