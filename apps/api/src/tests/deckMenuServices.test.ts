@@ -158,6 +158,7 @@ describe.skipIf(!HAS_DB)("deck menu services — integration tests (Supabase)", 
     const { updateDeckForUser, deleteDeckForUser, generateShareToken, getDeckDetails } =
       await import("@/services/deckService");
     const { createCardForUser } = await import("@/services/cardService");
+    const { storeReview } = await import("@/services/reviewService");
 
     const attacker = "11111111-1111-4111-8111-111111111111";
 
@@ -175,6 +176,24 @@ describe.skipIf(!HAS_DB)("deck menu services — integration tests (Supabase)", 
         card: { front: "x", back: "y", type: "basic", difficulty: "easy", tags: [] },
       })
     ).rejects.toThrow();
+
+    const { listCardsInDeck } = await import("@/services/deckService");
+    const victimCards = await listCardsInDeck(userId, testDeckId);
+    const victimCardId = victimCards[0]!.id;
+
+    // Reviewing a foreign card must fail (issue #94 follow-up)
+    await expect(
+      storeReview(
+        {
+          userId: attacker,
+          cardId: victimCardId,
+          rating: "good",
+          reviewedAt: new Date().toISOString(),
+          idempotencyKey: `review-cross-user-${Date.now()}`,
+        },
+        "req-cross-user-review"
+      )
+    ).rejects.toThrow("Card not found");
 
     // The original deck must be untouched
     const { getDeckDetails: getDetails } = await import("@/services/deckService");

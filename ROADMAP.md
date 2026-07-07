@@ -1,6 +1,6 @@
 # ROADMAP
 
-Letzte Aktualisierung: 2026-07-03 (Wettbewerbsvergleich, API-Doku und Offline-Cache-Fallback nachgezogen)
+Letzte Aktualisierung: 2026-07-07 (Review-IDOR + Idempotenz-Fix nach #100)
 
 ## Gesamtstatus
 
@@ -395,3 +395,4 @@ Voraussetzung: Phase 2 + stabile Nutzerbasis.
 - 2026-06-18: **CL-D05 Status korrigiert**: Apple/Google Sign-In in der Feature-Prioritäten-Tabelle von „Offen“ auf „In Arbeit“ aktualisiert, um BACKLOG CL-D05 widerzuspiegeln (oauth.ts implementiert; Supabase-Provider-Aktivierung und reale Tests ausstehend).
 - 2026-06-30: **Wettbewerbsvergleich-Tabelle korrigiert**: Auto-Play von ❌ auf ✅ gesetzt — CL-C03 ist als Done markiert, die Tabelle war inkonsistent.
 - 2026-07-03: **Wettbewerbsvergleich, API-Doku und Offline-Cache korrigiert**: Test-Modus, Match-Spiel und Image Occlusion in der Wettbewerbstabelle auf ✅ gesetzt; README-API-Baum mit den tatsächlichen `apps/api/app/api/v1`-Routen abgeglichen; Deck-Detail nutzt den gespeicherten AsyncStorage-Offline-Export nun als Karten-Fallback bei API-Fehlern.
+- 2026-07-07: **Review-IDOR geschlossen (Follow-up zu #100)**: `POST /cards/:id/review` und Sync-Reviews prüfen jetzt `user_id` an der DB-Schicht (`getCard`/`updateCardFsrs`); idempotente Retries wenden FSRS nicht erneut an. Regressionstests in `reviewService.test.ts` und `deckMenuServices.test.ts`.
