@@ -40,3 +40,7 @@ apps/mobile/*.p12
 apps/mobile/*.mobileprovision
 apps/mobile/dashboard-readiness.local.json
 apps/mobile/testflight-readiness.local.json
+
+# Stray root work artifacts (issue #91)
+/expo-qr.png
+/ss-check-initial.png
