@@ -8,6 +8,7 @@ import {
   getAuthProviderAvailability,
   type AuthProviderAvailability,
 } from "@/lib/auth-availability";
+import { GraduationCap, MailCheck, AlertTriangle } from "@/components/icons";
 
 export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const router = useRouter();
@@ -93,7 +94,9 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
     return (
       <div className="auth-card">
         <div className="auth-head">
-          <div style={{ fontSize: 48 }}>📬</div>
+          <div style={{ color: "var(--brand-600)" }}>
+            <MailCheck size={48} />
+          </div>
           <h1 className="h3">Fast geschafft!</h1>
         </div>
         <p className="muted center">
@@ -114,7 +117,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       <div className="auth-head">
         <Link href="/" className="brand">
           <span className="brand__mark" aria-hidden>
-            🧠
+            <GraduationCap size={20} />
           </span>
           clearn.ai
         </Link>
@@ -136,7 +139,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
                 onClick={() => handleOAuth("google")}
                 disabled={busy}
               >
-                <span aria-hidden>🔵</span> Mit Google fortfahren
+                Mit Google fortfahren
               </button>
             )}
             {providers.apple && (
@@ -146,7 +149,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
                 onClick={() => handleOAuth("apple")}
                 disabled={busy}
               >
-                <span aria-hidden></span> Mit Apple fortfahren
+                Mit Apple fortfahren
               </button>
             )}
           </div>
@@ -186,7 +189,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
 
         {error && (
           <div className="form-error" role="alert">
-            <span aria-hidden>⚠️</span>
+            <AlertTriangle size={16} />
             <span>{error}</span>
           </div>
         )}

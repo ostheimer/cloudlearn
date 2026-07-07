@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
+import { GraduationCap, MailCheck, AlertTriangle } from "@/components/icons";
 
 export default function ForgotPasswordPage() {
   const { resetPassword } = useAuth();
@@ -32,7 +33,9 @@ export default function ForgotPasswordPage() {
     return (
       <div className="auth-card">
         <div className="auth-head">
-          <div style={{ fontSize: 48 }}>📬</div>
+          <div style={{ color: "var(--brand-600)" }}>
+            <MailCheck size={48} />
+          </div>
           <h1 className="h3">E-Mail unterwegs</h1>
         </div>
         <p className="muted center">
@@ -51,7 +54,7 @@ export default function ForgotPasswordPage() {
       <div className="auth-head">
         <Link href="/" className="brand">
           <span className="brand__mark" aria-hidden>
-            🧠
+            <GraduationCap size={20} />
           </span>
           clearn.ai
         </Link>
@@ -79,7 +82,7 @@ export default function ForgotPasswordPage() {
 
         {error && (
           <div className="form-error" role="alert">
-            <span aria-hidden>⚠️</span>
+            <AlertTriangle size={16} />
             <span>{error}</span>
           </div>
         )}

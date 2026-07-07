@@ -1,3 +1,4 @@
+import type { ComponentType } from "react";
 import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
@@ -5,6 +6,39 @@ import { FlashcardDemo } from "@/components/marketing/flashcard-demo";
 import { ScrollReveal } from "@/components/marketing/scroll-reveal";
 import { siteConfig } from "@/lib/site";
 import { landingCtas } from "@/lib/landing";
+import {
+  Camera,
+  ImageIcon,
+  TextType,
+  Link as LinkIcon,
+  FileText,
+  Sparkles,
+  Repeat,
+  Shuffle,
+  Flame,
+  RefreshSync,
+  Check,
+  CheckCircle,
+  Target,
+  Layers,
+  ListChecks,
+  Match,
+  Pencil,
+  ShieldCheck,
+  MapPin,
+  Plus,
+  type IconProps,
+} from "@/components/icons";
+
+type IconType = ComponentType<IconProps>;
+
+const sources: { Icon: IconType; label: string }[] = [
+  { Icon: Camera, label: "Foto" },
+  { Icon: ImageIcon, label: "Galerie" },
+  { Icon: TextType, label: "Text" },
+  { Icon: LinkIcon, label: "URL" },
+  { Icon: FileText, label: "PDF" },
+];
 
 const steps = [
   {
@@ -21,50 +55,50 @@ const steps = [
   },
 ];
 
-const features = [
+const features: { Icon: IconType; tint: string; title: string; body: string }[] = [
   {
-    icon: "📸",
+    Icon: Camera,
     tint: "g-indigo",
     title: "Foto → Flashcards",
     body: "Fotografiere Skript, Buch oder Tafel. OCR liest den Text, die KI macht daraus lernbare Karten.",
   },
   {
-    icon: "✨",
+    Icon: Sparkles,
     tint: "g-violet",
     title: "KI-Kartengenerator",
-    body: "Aus Text, URL oder PDF entstehen präzise Frage-Antwort-Paare — statt stundenlangem Abtippen.",
+    body: "Aus Foto, Text, URL oder PDF entstehen präzise Frage-Antwort-Paare — statt stundenlangem Abtippen.",
   },
   {
-    icon: "🔁",
+    Icon: Repeat,
     tint: "g-green",
     title: "Spaced Repetition",
     body: "Ein modernes FSRS-Verfahren plant jede Wiederholung optimal — du lernst weniger und behältst mehr.",
   },
   {
-    icon: "🎯",
+    Icon: Target,
     tint: "g-pink",
     title: "Mehrere Lernmodi",
     body: "Karteikarten, Multiple Choice, Zuordnen und Lückentext — dasselbe Deck, verschiedene Blickwinkel.",
   },
   {
-    icon: "🔥",
+    Icon: Flame,
     tint: "g-amber",
     title: "Streaks & Lernpunkte",
     body: "Tagesziele, Serien und Lernpunkte machen aus Wiederholen eine Gewohnheit, die bleibt.",
   },
   {
-    icon: "☁️",
+    Icon: RefreshSync,
     tint: "g-blue",
     title: "Sync & Teilen",
     body: "Decks sind an dein Konto gebunden, synchron auf allen Geräten — und mit einem Link teilbar.",
   },
 ];
 
-const modes = [
-  { icon: "🃏", tint: "g-indigo", title: "Karteikarten", desc: "Klassisch umdrehen & bewerten" },
-  { icon: "🔤", tint: "g-violet", title: "Multiple Choice", desc: "Antwort aus Optionen wählen" },
-  { icon: "🔗", tint: "g-pink", title: "Zuordnen", desc: "Begriffe & Definitionen paaren" },
-  { icon: "✍️", tint: "g-green", title: "Lückentext", desc: "Fehlendes aktiv ergänzen" },
+const modes: { Icon: IconType; tint: string; title: string; desc: string }[] = [
+  { Icon: Layers, tint: "g-indigo", title: "Karteikarten", desc: "Klassisch umdrehen & bewerten" },
+  { Icon: ListChecks, tint: "g-violet", title: "Multiple Choice", desc: "Antwort aus Optionen wählen" },
+  { Icon: Match, tint: "g-pink", title: "Zuordnen", desc: "Begriffe & Definitionen paaren" },
+  { Icon: Pencil, tint: "g-green", title: "Lückentext", desc: "Fehlendes aktiv ergänzen" },
 ];
 
 const faqs = [
@@ -97,7 +131,7 @@ const structuredData = {
   applicationCategory: "EducationalApplication",
   operatingSystem: "iOS",
   description:
-    "clearn verwandelt Fotos, PDFs, Texte und URLs in strukturierte Flashcards und lässt dich mit Spaced Repetition effizient lernen.",
+    "clearn verwandelt Fotos, Screenshots, PDFs, Texte und Links in strukturierte Flashcards und lässt dich mit Spaced Repetition effizient lernen.",
   offers: { "@type": "Offer", price: "0", priceCurrency: "EUR" },
 };
 
@@ -106,7 +140,6 @@ export default function LandingPage() {
     <>
       <script
         type="application/ld+json"
-        // eslint-disable-next-line react/no-danger
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
       <SiteHeader />
@@ -125,9 +158,9 @@ export default function LandingPage() {
                 <span className="gradient-text">Flashcards raus.</span>
               </h1>
               <p className="lead">
-                clearn verwandelt Fotos, PDFs, Texte und URLs in klare Lernkarten. Danach bringt dir
-                Spaced Repetition genau die Karten, die heute fällig sind — und dein Fortschritt
-                bleibt sichtbar.
+                clearn verwandelt Fotos, Screenshots, PDFs, Texte und Links in klare Lernkarten.
+                Danach bringt dir Spaced Repetition genau die Karten, die heute fällig sind — und
+                dein Fortschritt bleibt sichtbar.
               </p>
               <div className="hero__cta">
                 <a
@@ -142,22 +175,37 @@ export default function LandingPage() {
                 </a>
               </div>
               <div className="hero__meta">
-                <span>✅ Kostenlos starten</span>
-                <span>🔒 Datenschutz-first</span>
-                <span>🇦🇹 Made in Austria</span>
+                <span>
+                  <Check size={16} /> Kostenlos starten
+                </span>
+                <span>
+                  <ShieldCheck size={16} /> Datenschutz-first
+                </span>
+                <span>
+                  <MapPin size={16} /> Made in Austria
+                </span>
               </div>
             </div>
 
             {/* Phone mockup with floating chips */}
             <div className="hero__visual" aria-hidden>
               <div className="float-card float-card--a">
-                <span className="ic g-indigo">📸</span> Foto gescannt
+                <span className="ic g-indigo">
+                  <Camera size={16} />
+                </span>{" "}
+                Foto gescannt
               </div>
               <div className="float-card float-card--b">
-                <span className="ic g-green">✅</span> 24 Karten erstellt
+                <span className="ic g-green">
+                  <CheckCircle size={16} />
+                </span>{" "}
+                24 Karten erstellt
               </div>
               <div className="float-card float-card--c">
-                <span className="ic g-amber">🔥</span> 7-Tage-Streak
+                <span className="ic g-amber">
+                  <Flame size={16} />
+                </span>{" "}
+                7-Tage-Streak
               </div>
 
               <div className="phone">
@@ -179,7 +227,7 @@ export default function LandingPage() {
                   <div className="mini-card">
                     <small>Frage</small>
                     <strong>Was ist die Funktion der Mitochondrien?</strong>
-                    <span>Tippen zum Umdrehen ↻</span>
+                    <span>Tippen zum Umdrehen</span>
                   </div>
                 </div>
               </div>
@@ -187,14 +235,15 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* ---------------- Trust strip ---------------- */}
+        {/* ---------------- Sources strip (matches the app's capture screen) ---------------- */}
         <div className="trust">
           <div className="container trust__inner">
-            <span>📸 <b>Foto → Karten</b></span>
-            <span>📄 <b>PDF-Import</b></span>
-            <span>🔗 <b>URL-Import</b></span>
-            <span>🧠 <b>FSRS-Spaced-Repetition</b></span>
-            <span>☁️ <b>Sync</b></span>
+            <span className="trust__lead">KI macht Karten aus:</span>
+            {sources.map(({ Icon, label }) => (
+              <span key={label} className="trust__item">
+                <Icon size={18} /> <b>{label}</b>
+              </span>
+            ))}
           </div>
         </div>
 
@@ -234,13 +283,13 @@ export default function LandingPage() {
               </p>
             </div>
             <div className="grid grid-3">
-              {features.map((f) => (
-                <article key={f.title} className="card reveal">
-                  <div className={`card__icon ${f.tint}`} aria-hidden>
-                    {f.icon}
+              {features.map(({ Icon, tint, title, body }) => (
+                <article key={title} className="card reveal">
+                  <div className={`card__icon ${tint}`}>
+                    <Icon size={24} />
                   </div>
-                  <h3 className="h3">{f.title}</h3>
-                  <p>{f.body}</p>
+                  <h3 className="h3">{title}</h3>
+                  <p>{body}</p>
                 </article>
               ))}
             </div>
@@ -266,9 +315,18 @@ export default function LandingPage() {
                   <span>Diffusion von Wasser durch eine semipermeable Membran.</span>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <span className="pill">✓ Übernehmen</span>
-                  <span className="pill" style={{ background: "var(--bg-softer)", color: "var(--ink-3)", borderColor: "var(--line)" }}>
-                    ✎ Bearbeiten
+                  <span className="pill">
+                    <Check size={14} /> Übernehmen
+                  </span>
+                  <span
+                    className="pill"
+                    style={{
+                      background: "var(--bg-softer)",
+                      color: "var(--ink-3)",
+                      borderColor: "var(--line)",
+                    }}
+                  >
+                    <Pencil size={14} /> Bearbeiten
                   </span>
                 </div>
               </div>
@@ -284,13 +342,22 @@ export default function LandingPage() {
               </p>
               <ul className="reset check-list">
                 <li>
-                  <span className="tick">✓</span> Kamera, Galerie, Text, URL & PDF als Quelle
+                  <span className="tick">
+                    <Check size={13} strokeWidth={3} />
+                  </span>{" "}
+                  Kamera, Galerie, Text, URL & PDF als Quelle
                 </li>
                 <li>
-                  <span className="tick">✓</span> Mathematische Formeln werden sauber erkannt
+                  <span className="tick">
+                    <Check size={13} strokeWidth={3} />
+                  </span>{" "}
+                  Mathematische Formeln werden sauber erkannt
                 </li>
                 <li>
-                  <span className="tick">✓</span> Jede Karte bleibt vollständig bearbeitbar
+                  <span className="tick">
+                    <Check size={13} strokeWidth={3} />
+                  </span>{" "}
+                  Jede Karte bleibt vollständig bearbeitbar
                 </li>
               </ul>
             </div>
@@ -312,14 +379,14 @@ export default function LandingPage() {
             <div className="split" style={{ marginBottom: 40 }}>
               <div className="reveal">
                 <div className="modes">
-                  {modes.map((m) => (
-                    <div key={m.title} className="mode">
-                      <span className={`ic ${m.tint}`} aria-hidden>
-                        {m.icon}
+                  {modes.map(({ Icon, tint, title, desc }) => (
+                    <div key={title} className="mode">
+                      <span className={`ic ${tint}`}>
+                        <Icon size={20} />
                       </span>
                       <div>
-                        <b>{m.title}</b>
-                        <span>{m.desc}</span>
+                        <b>{title}</b>
+                        <span>{desc}</span>
                       </div>
                     </div>
                   ))}
@@ -354,8 +421,8 @@ export default function LandingPage() {
                 <span>Quellen: Foto, Galerie, Text, URL, PDF</span>
               </div>
               <div className="stat">
-                <b>☁️</b>
-                <span>Sync auf allen Geräten</span>
+                <b>Sync</b>
+                <span>auf allen Geräten</span>
               </div>
             </div>
           </div>
@@ -368,7 +435,9 @@ export default function LandingPage() {
               <div className="stack">
                 <div className="mini-card">
                   <small>Fortschritt</small>
-                  <strong>🔥 7-Tage-Streak</strong>
+                  <strong style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <Flame size={16} style={{ color: "var(--amber)" }} /> 7-Tage-Streak
+                  </strong>
                   <div className="mini-bar">
                     <i style={{ width: "86%" }} />
                   </div>
@@ -398,13 +467,22 @@ export default function LandingPage() {
               </p>
               <ul className="reset check-list">
                 <li>
-                  <span className="tick">✓</span> Tägliche Serie & individuelle Tagesziele
+                  <span className="tick">
+                    <Check size={13} strokeWidth={3} />
+                  </span>{" "}
+                  Tägliche Serie & individuelle Tagesziele
                 </li>
                 <li>
-                  <span className="tick">✓</span> Lernpunkte als Belohnung fürs Wiederholen
+                  <span className="tick">
+                    <Check size={13} strokeWidth={3} />
+                  </span>{" "}
+                  Lernpunkte als Belohnung fürs Wiederholen
                 </li>
                 <li>
-                  <span className="tick">✓</span> Statistiken zu Streak, Trefferquote & Fortschritt
+                  <span className="tick">
+                    <Check size={13} strokeWidth={3} />
+                  </span>{" "}
+                  Statistiken zu Streak, Trefferquote & Fortschritt
                 </li>
               </ul>
             </div>
@@ -424,7 +502,7 @@ export default function LandingPage() {
                   <summary>
                     {item.q}
                     <span className="chev" aria-hidden>
-                      +
+                      <Plus size={18} />
                     </span>
                   </summary>
                   <p>{item.a}</p>

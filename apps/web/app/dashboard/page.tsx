@@ -14,6 +14,17 @@ import {
   isApiError,
   type Deck,
 } from "@/lib/api";
+import {
+  Search,
+  Layers,
+  MoreHorizontal,
+  Play,
+  Pencil,
+  Copy,
+  Share,
+  Trash,
+  AlertTriangle,
+} from "@/components/icons";
 
 type ModalState =
   | { type: "create" }
@@ -87,7 +98,9 @@ export default function LibraryPage() {
 
       <div className="toolbar">
         <div className="input-icon">
-          <span aria-hidden>🔎</span>
+          <span aria-hidden>
+            <Search size={16} />
+          </span>
           <input
             className="input"
             placeholder="Decks durchsuchen…"
@@ -99,7 +112,7 @@ export default function LibraryPage() {
 
       {pageError && (
         <div className="form-error" role="alert" style={{ marginBottom: 18 }}>
-          <span aria-hidden>⚠️</span>
+          <AlertTriangle size={16} />
           <span>{pageError}</span>
         </div>
       )}
@@ -241,7 +254,7 @@ function DeckCard({
       <Link href={`/dashboard/deck/${deck.id}`} className="deck-card">
         <div className="deck-card__top">
           <span className="deck-card__badge" aria-hidden>
-            🗂️
+            <Layers size={18} />
           </span>
         </div>
         <div className="deck-card__title">{deck.title}</div>
@@ -265,24 +278,24 @@ function DeckCard({
           aria-expanded={menuOpen}
           onClick={onToggleMenu}
         >
-          ⋯
+          <MoreHorizontal size={18} />
         </button>
         {menuOpen && (
           <div className="menu" role="menu" onClick={(e) => e.stopPropagation()}>
             <Link href={`/dashboard/deck/${deck.id}/learn`} role="menuitem">
-              ▶ Lernen
+              <Play size={15} /> Lernen
             </Link>
             <button type="button" onClick={onRename}>
-              ✎ Umbenennen
+              <Pencil size={15} /> Umbenennen
             </button>
             <button type="button" onClick={onDuplicate}>
-              ⧉ Duplizieren
+              <Copy size={15} /> Duplizieren
             </button>
             <button type="button" onClick={onShare}>
-              🔗 Teilen
+              <Share size={15} /> Teilen
             </button>
             <button type="button" className="danger" onClick={onDelete}>
-              🗑 Löschen
+              <Trash size={15} /> Löschen
             </button>
           </div>
         )}
@@ -301,7 +314,7 @@ function EmptyState({
   return (
     <div className="empty-state">
       <div className="ic" aria-hidden>
-        🗂️
+        <Layers size={30} />
       </div>
       <h3>{hasDecks ? "Keine Treffer" : "Noch keine Decks"}</h3>
       <p>
@@ -374,7 +387,7 @@ function CreateOrRenameModal({
         </div>
         {error && (
           <div className="form-error" role="alert">
-            <span aria-hidden>⚠️</span>
+            <AlertTriangle size={16} />
             <span>{error}</span>
           </div>
         )}

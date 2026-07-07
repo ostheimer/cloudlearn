@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getSupabase } from "@/lib/supabase-browser";
+import { AlertTriangle } from "@/components/icons";
 
 /**
  * Landing point for OAuth and e-mail-confirmation redirects. The Supabase
@@ -65,7 +66,9 @@ export default function AuthCallbackPage() {
       <div className="auth-card center">
         {error ? (
           <>
-            <div style={{ fontSize: 48 }}>⚠️</div>
+            <div style={{ color: "#dc2626" }}>
+              <AlertTriangle size={48} />
+            </div>
             <h1 className="h3">Anmeldung fehlgeschlagen</h1>
             <p className="muted">{error}</p>
             <Link href="/login" className="btn btn-primary btn-block">

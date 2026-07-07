@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { siteConfig, footerSections } from "@/lib/site";
+import { GraduationCap } from "@/components/icons";
 
 function isInternal(href: string): boolean {
   return href.startsWith("/");
@@ -13,7 +14,7 @@ export function SiteFooter() {
           <div className="footer-col">
             <Link href="/" className="brand" style={{ marginBottom: 14 }}>
               <span className="brand__mark" aria-hidden>
-                🧠
+                <GraduationCap size={20} />
               </span>
               {siteConfig.brandName}
             </Link>
