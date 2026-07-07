@@ -165,15 +165,46 @@ p {
 }
 
 /* ---------- Typography ---------- */
-.eyebrow {
+/* Landmark section marker — for the big, nav-linked sections
+   (So geht's, Features, Lernmodi, FAQ). Reads as a distinct chip. */
+.eyebrow-chip {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  /* Inside the centered .section-head grid, keep the chip at content width
+     and centered instead of stretching across the whole column. */
+  justify-self: center;
+  width: fit-content;
+  padding: 7px 15px;
+  border-radius: var(--r-pill);
+  background: var(--brand-50);
+  color: var(--brand-700);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* Secondary sub-label — quieter kicker with a short leading rule, used for
+   supporting blocks inside a section (Erfassen & Erstellen, Dranbleiben). */
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--brand-600);
+  color: var(--ink-3);
+}
+
+.eyebrow::before {
+  content: "";
+  width: 22px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--brand);
 }
 
 .h-display {
