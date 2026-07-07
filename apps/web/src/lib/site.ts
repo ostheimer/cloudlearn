@@ -25,11 +25,14 @@ export const siteNavLinks = [
   { href: siteConfig.impressumPath, label: "Impressum" },
 ] as const;
 
-/** Primary in-page navigation shown in the marketing header. */
+/**
+ * Primary in-page navigation shown in the marketing header.
+ * Ordered to follow the page flow: erst "So geht's", dann Features, Lernmodi, FAQ.
+ */
 export const marketingNavLinks = [
+  { href: "/#so-gehts", label: "So geht's" },
   { href: "/#features", label: "Features" },
   { href: "/#lernmodi", label: "Lernmodi" },
-  { href: "/#so-gehts", label: "So geht's" },
   { href: "/#faq", label: "FAQ" },
 ] as const;
 
@@ -38,9 +41,9 @@ export const footerSections = [
   {
     title: "Produkt",
     links: [
+      { href: "/#so-gehts", label: "So geht's" },
       { href: "/#features", label: "Features" },
       { href: "/#lernmodi", label: "Lernmodi" },
-      { href: "/#so-gehts", label: "So geht's" },
       { href: "/#faq", label: "FAQ" },
     ],
   },

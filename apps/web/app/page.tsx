@@ -202,7 +202,7 @@ export default function LandingPage() {
         <section id="so-gehts" className="section">
           <div className="container">
             <div className="section-head center reveal">
-              <span className="eyebrow">So geht's</span>
+              <span className="eyebrow-chip">So geht's</span>
               <h2 className="h2">In drei Schritten vom Material zum Wissen</h2>
               <p className="lead">
                 Kein Abtippen, kein Karten-Basteln. clearn übernimmt die Fleißarbeit — du
@@ -227,7 +227,7 @@ export default function LandingPage() {
         <section id="features" className="section" style={{ background: "var(--bg-soft)" }}>
           <div className="container">
             <div className="section-head center reveal">
-              <span className="eyebrow">Features</span>
+              <span className="eyebrow-chip">Features</span>
               <h2 className="h2">Alles, was gutes Lernen braucht</h2>
               <p className="lead">
                 Von der Erfassung bis zur letzten Wiederholung — clearn deckt den ganzen Lernweg ab.
@@ -301,7 +301,7 @@ export default function LandingPage() {
         <section id="lernmodi" className="section" style={{ background: "var(--bg-soft)" }}>
           <div className="container">
             <div className="section-head center reveal">
-              <span className="eyebrow">Lernmodi</span>
+              <span className="eyebrow-chip">Lernmodi</span>
               <h2 className="h2">Ein Deck, viele Wege es zu können</h2>
               <p className="lead">
                 Wer aus mehreren Perspektiven übt, erinnert sich besser. clearn bietet den Stoff in
@@ -415,7 +415,7 @@ export default function LandingPage() {
         <section id="faq" className="section" style={{ background: "var(--bg-soft)" }}>
           <div className="container">
             <div className="section-head center reveal">
-              <span className="eyebrow">FAQ</span>
+              <span className="eyebrow-chip">FAQ</span>
               <h2 className="h2">Häufige Fragen</h2>
             </div>
             <div className="faq reveal">
