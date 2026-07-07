@@ -22,6 +22,7 @@ import {
   X,
   Check,
   ChevronRight,
+  ChevronLeft,
   Star,
   Brain,
   Puzzle,
@@ -505,7 +506,11 @@ export default function DeckDetailScreen() {
           onPress: async () => {
             try {
               await deleteDeck(deckId);
-              router.back();
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace("/(tabs)/decks");
+              }
             } catch {
               Alert.alert(t("common.error"), t("deckAction.deleteError"));
             }
@@ -625,6 +630,16 @@ export default function DeckDetailScreen() {
           headerBackTitle: "Decks",
           headerTintColor: colors.primary,
           headerStyle: { backgroundColor: colors.background },
+          headerLeft: router.canGoBack()
+            ? undefined
+            : () => (
+                <TouchableOpacity
+                  onPress={() => router.replace("/(tabs)/decks")}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <ChevronLeft size={24} color={colors.primary} />
+                </TouchableOpacity>
+              ),
           headerRight: () => (
             <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
               {isOffline && (
