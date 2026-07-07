@@ -26,12 +26,12 @@ export function SiteHeader() {
         </nav>
 
         <div className="header-actions">
-          <Link href={siteConfig.supportPath} className="nav-link">
-            Support
+          <Link href="/login" className="nav-link">
+            Anmelden
           </Link>
-          <a href={siteConfig.betaMailto} className="btn btn-primary">
-            App holen
-          </a>
+          <Link href="/signup" className="btn btn-primary">
+            Kostenlos starten
+          </Link>
         </div>
 
         <button
@@ -63,14 +63,17 @@ export function SiteHeader() {
           <Link href={siteConfig.supportPath} className="nav-link" onClick={() => setOpen(false)}>
             Support
           </Link>
-          <a
-            href={siteConfig.betaMailto}
+          <Link href="/login" className="nav-link" onClick={() => setOpen(false)}>
+            Anmelden
+          </Link>
+          <Link
+            href="/signup"
             className="btn btn-primary btn-block"
             style={{ marginTop: 8 }}
             onClick={() => setOpen(false)}
           >
-            App holen
-          </a>
+            Kostenlos starten
+          </Link>
         </nav>
       )}
     </header>
