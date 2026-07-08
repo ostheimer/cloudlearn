@@ -15,7 +15,11 @@ export function LpBadge({ onPress }: LpBadgeProps) {
   const { t } = useTranslation();
   const colors = useColors();
   const isAuthenticated = useSessionStore((state) => state.isAuthenticated);
-  const { lpBalance, isLoaded, setUsage } = useUsageStore();
+  const { lpBalance, lpCostAiScan, isLoaded, setUsage } = useUsageStore();
+
+  const isLow = lpBalance < lpCostAiScan;
+  const accent = isLow ? colors.error : colors.warning;
+  const accentBg = isLow ? colors.errorLight : colors.warningLight;
 
   // Load LP balance on first mount
   useEffect(() => {
@@ -47,20 +51,20 @@ export function LpBadge({ onPress }: LpBadgeProps) {
         flexDirection: "row",
         alignItems: "center",
         gap: spacing.xs,
-        backgroundColor: colors.warningLight ?? colors.surfaceSecondary,
+        backgroundColor: accentBg ?? colors.surfaceSecondary,
         borderRadius: radius.full ?? 999,
         paddingHorizontal: spacing.sm,
         paddingVertical: 4,
         borderWidth: 1,
-        borderColor: colors.warning ?? colors.border,
+        borderColor: accent ?? colors.border,
       }}
     >
-      <Zap size={14} color={colors.warning ?? colors.text} />
+      <Zap size={14} color={accent ?? colors.text} />
       <Text
         style={{
           fontSize: typography.sm,
           fontWeight: typography.semibold,
-          color: colors.warning ?? colors.text,
+          color: accent ?? colors.text,
         }}
       >
         {lpBalance.toLocaleString("de-DE")} LP
