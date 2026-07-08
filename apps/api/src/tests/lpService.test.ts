@@ -167,16 +167,31 @@ describe("LP earn cap logic", () => {
     expect(capReached).toBe(true);
   });
 
-  it("session with < 5 cards earns 0 LP", () => {
-    const count = 3;
-    const rawGrant = count >= 5 ? LP_EARN_RULES.perReviewSession : 0;
+  // Server-side session model (implemented atomically in earn_session_lp):
+  //   pending = recorded reviews − already-rewarded watermark
+  //   grant   = floor(pending / cardsPerChunk) * perReviewSession, capped per day
+  //   watermark advances by exactly the reviews paid for (leftovers roll forward)
+  const CARDS_PER_CHUNK = 5;
+
+  it("session pays perReviewSession LP per full chunk of unrewarded reviews", () => {
+    const pending = 12; // 12 recorded reviews above the watermark
+    const rawGrant = Math.floor(pending / CARDS_PER_CHUNK) * LP_EARN_RULES.perReviewSession;
+    expect(rawGrant).toBe(10); // 2 full chunks → 10 LP; remaining 2 reviews roll forward
+  });
+
+  it("session with less than one full chunk of new reviews earns 0 LP", () => {
+    const pending = 3;
+    const rawGrant = Math.floor(pending / CARDS_PER_CHUNK) * LP_EARN_RULES.perReviewSession;
     expect(rawGrant).toBe(0);
   });
 
-  it("session with >= 5 cards earns perReviewSession LP", () => {
-    const count = 7;
-    const rawGrant = count >= 5 ? LP_EARN_RULES.perReviewSession : 0;
-    expect(rawGrant).toBe(LP_EARN_RULES.perReviewSession);
+  it("replaying session without new reviews earns 0 LP (watermark drained)", () => {
+    // Once the watermark catches up to the review count, pending is 0 — so replaying
+    // POST /lp/earn {type:"session"} cannot mint LP without real recorded reviews.
+    const total = 22;
+    const rewardedWatermark = 22;
+    const pending = Math.max(total - rewardedWatermark, 0);
+    expect(pending).toBe(0);
   });
 
   it("pro tier has higher daily earn cap", () => {
@@ -243,10 +258,10 @@ describe("spendLp (atomic spend_lp RPC)", () => {
   });
 });
 
-describe("earnLp (atomic earn_lp RPC)", () => {
+describe("earnLp — session via earn_session_lp, ad via earn_lp", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("grants perReviewSession LP for a qualifying session and maps the row", async () => {
+  it("session routes to earn_session_lp with the chunk config and maps the row", async () => {
     const db = makeMockDb();
     db.rpc.mockResolvedValue({
       data: [{ granted: 5, new_balance: 15, cap_reached: false }],
@@ -254,23 +269,21 @@ describe("earnLp (atomic earn_lp RPC)", () => {
     });
     useMockDb(db);
 
-    const result = await earnLp("user-1", "free", "session", 10);
+    const result = await earnLp("user-1", "free", "session");
 
     expect(db.rpc).toHaveBeenCalledWith(
-      "earn_lp",
+      "earn_session_lp",
       expect.objectContaining({
         p_user: "user-1",
-        p_raw_grant: LP_EARN_RULES.perReviewSession, // 5
-        p_is_ad: false,
+        p_lp_per_chunk: LP_EARN_RULES.perReviewSession, // 5
+        p_cards_per_chunk: 5,
         p_earn_cap: TIER_LIMITS.free.lpEarnCapPerDay,
-        p_ad_cap: TIER_LIMITS.free.lpAdCapPerDay,
-        p_type: "session",
       }),
     );
     expect(result).toEqual({ granted: 5, newBalance: 15, capReached: false });
   });
 
-  it("still calls the RPC with p_raw_grant=0 for a sub-threshold session (no early return)", async () => {
+  it("session's chunk size is a fixed server constant, not a client-supplied count", async () => {
     const db = makeMockDb();
     db.rpc.mockResolvedValue({
       data: [{ granted: 0, new_balance: 10, cap_reached: false }],
@@ -278,16 +291,14 @@ describe("earnLp (atomic earn_lp RPC)", () => {
     });
     useMockDb(db);
 
-    const result = await earnLp("user-1", "free", "session", 3);
+    await earnLp("user-1", "free", "session");
 
-    expect(db.rpc).toHaveBeenCalledWith(
-      "earn_lp",
-      expect.objectContaining({ p_raw_grant: 0, p_is_ad: false }),
-    );
-    expect(result).toEqual({ granted: 0, newBalance: 10, capReached: false });
+    const params = db.rpc.mock.calls[0]![1] as Record<string, unknown>;
+    expect(params).not.toHaveProperty("p_raw_grant"); // old client-derived grant is gone
+    expect(params.p_cards_per_chunk).toBe(5); // fixed, server-owned — never from the client
   });
 
-  it("reports capReached when earn_lp returns cap_reached=true", async () => {
+  it("session reports capReached when earn_session_lp returns cap_reached=true", async () => {
     const db = makeMockDb();
     db.rpc.mockResolvedValue({
       data: [{ granted: 0, new_balance: 10, cap_reached: true }],
@@ -295,12 +306,12 @@ describe("earnLp (atomic earn_lp RPC)", () => {
     });
     useMockDb(db);
 
-    const result = await earnLp("user-1", "free", "session", 10);
+    const result = await earnLp("user-1", "free", "session");
 
     expect(result).toEqual({ granted: 0, newBalance: 10, capReached: true });
   });
 
-  it("marks ad rewards with p_is_ad=true and the ad cap", async () => {
+  it("ad rewards go through earn_lp with p_is_ad=true and the ad cap", async () => {
     const db = makeMockDb();
     db.rpc.mockResolvedValue({
       data: [{ granted: 5, new_balance: 15, cap_reached: false }],
@@ -318,6 +329,14 @@ describe("earnLp (atomic earn_lp RPC)", () => {
         p_ad_cap: TIER_LIMITS.free.lpAdCapPerDay,
       }),
     );
+  });
+
+  it("throws with the failing earn path when the RPC returns an error", async () => {
+    const db = makeMockDb();
+    db.rpc.mockResolvedValue({ data: null, error: { message: "boom" } });
+    useMockDb(db);
+
+    await expect(earnLp("user-1", "free", "session")).rejects.toThrow("earnLp(session): boom");
   });
 });
 
@@ -472,9 +491,11 @@ describe("E2E scenarios (specification only)", () => {
     expect(true).toBe(true);
   });
 
-  it("should: POST /api/v1/lp/earn with type=session,sessionCardCount=10 grants LP", () => {
-    // Playwright: POST /api/v1/lp/earn {type:"session", sessionCardCount:10}
-    // Assert: granted == LP_EARN_RULES.perReviewSession (5)
+  it("should: POST /api/v1/lp/earn type=session grants from recorded reviews, not client count", () => {
+    // Playwright: record >=5 real reviews (POST /api/v1/cards/:id/review), then
+    //   POST /api/v1/lp/earn {type:"session"} → granted == perReviewSession (5).
+    // Replay {type:"session"} with no new reviews → granted == 0 (watermark drained).
+    // Forgery check: {type:"session", sessionCardCount:9999} with no reviews → granted == 0.
     expect(LP_EARN_RULES.perReviewSession).toBe(5);
   });
 
