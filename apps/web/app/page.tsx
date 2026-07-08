@@ -243,7 +243,7 @@ export default function LandingPage() {
         {/* ---------------- Sources strip (matches the app's capture screen) ---------------- */}
         <div className="trust">
           <div className="container trust__inner">
-            <span className="trust__lead">KI macht Karten aus:</span>
+            <span className="trust__lead">Deine Quellen für neue Karten:</span>
             {sources.map(({ Icon, label }) => (
               <span key={label} className="trust__item">
                 <Icon size={18} /> <b>{label}</b>
