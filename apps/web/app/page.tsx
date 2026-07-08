@@ -121,7 +121,7 @@ const faqs = [
   },
   {
     q: "Auf welchen Geräten läuft clearn?",
-    a: "Im Browser auf jedem Gerät und als iPhone-App. Deine Decks sind an dein Konto gebunden, synchron auf allen Geräten — und offline verfügbar.",
+    a: "Im Browser auf jedem Gerät und als iPhone-App. Deine Decks sind an dein Konto gebunden und synchron auf allen Geräten.",
   },
   {
     q: "Kann ich meine Decks teilen?",
@@ -316,7 +316,7 @@ export default function LandingPage() {
                 </div>
                 <div className="mini-card">
                   <small>KI-Vorschlag</small>
-                  <strong>„Was beschreibt die Osmose?"</strong>
+                  <strong>„Was beschreibt die Osmose?“</strong>
                   <span>Diffusion von Wasser durch eine semipermeable Membran.</span>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
@@ -454,7 +454,7 @@ export default function LandingPage() {
               <p className="lead">
                 clearn läuft direkt im Browser: registrieren und sofort loslegen, ganz ohne
                 Installation. Oder als iPhone-App für unterwegs. Deine Decks sind auf allen Geräten
-                gleich — und offline verfügbar.
+                gleich.
               </p>
               <ul className="reset check-list">
                 <li>

@@ -6,7 +6,7 @@ export default function PrivacyPage() {
     <ContentPage
       eyebrow="Datenschutz"
       title="Datenschutz für clearn"
-      lead="Diese kompakte Datenschutzhinweiseite beschreibt, welche Daten clearn für Anmeldung, Synchronisierung, Käufe und Support verarbeitet."
+      lead="Diese kompakte Datenschutzseite beschreibt, welche Daten clearn für Anmeldung, Synchronisierung, Käufe und Support verarbeitet."
     >
       <PageSection title="Verantwortliche Stelle">
         <p style={{ margin: 0 }}>

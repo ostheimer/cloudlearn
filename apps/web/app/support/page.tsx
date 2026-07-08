@@ -29,7 +29,7 @@ export default function SupportPage() {
         <ul style={{ margin: 0, paddingLeft: 20 }}>
           <li>Anmeldung, Passwort-Reset und E-Mail-Bestätigung</li>
           <li>PDF-, Bild-, Text- oder URL-Import</li>
-          <li>LP, Pro, Lifetime, Käufe und Wiederherstellung</li>
+          <li>Lernpunkte, Pro, Lifetime, Käufe und Wiederherstellung</li>
           <li>Datenschutzanfragen und Konto-Löschung</li>
           <li>Beta-Feedback und reproduzierbare Bugs</li>
         </ul>

@@ -122,7 +122,7 @@ export default function AuthConfirmPage() {
             E-Mail bestätigt!
           </h1>
           <p style={{ fontSize: "1.1rem", color: "#6b7280", maxWidth: "400px", lineHeight: 1.6 }}>
-            Dein Konto ist jetzt aktiv. Öffne die <strong>clearn</strong> App auf deinem Handy und
+            Dein Konto ist jetzt aktiv. Öffne die <strong>clearn</strong>-App auf deinem Handy und
             melde dich an.
           </p>
           <AppCta label="Jetzt in der App anmelden" />

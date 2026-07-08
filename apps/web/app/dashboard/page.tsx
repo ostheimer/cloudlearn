@@ -320,7 +320,7 @@ function EmptyState({
       <p>
         {hasDecks
           ? "Für deine Suche gibt es kein passendes Deck."
-          : "Lege dein erstes Deck an — oder erstelle in der App per Foto, PDF oder Text neue Karten."}
+          : "Lege dein erstes Deck an — oder erstelle in der App neue Karten aus deinem Lernmaterial."}
       </p>
       {!hasDecks && (
         <button type="button" className="btn btn-primary" onClick={onCreate}>
