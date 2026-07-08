@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
+import { Zap } from "lucide-react-native";
 import { useUsageStore } from "../store/usageStore";
 import { useSessionStore } from "../store/sessionStore";
 import { getLpBalance } from "../lib/api";
@@ -9,9 +10,6 @@ import { useTranslation } from "react-i18next";
 interface LpBadgeProps {
   onPress?: () => void;
 }
-
-// LP coin symbol
-const LP_ICON = "⚡";
 
 export function LpBadge({ onPress }: LpBadgeProps) {
   const { t } = useTranslation();
@@ -57,7 +55,7 @@ export function LpBadge({ onPress }: LpBadgeProps) {
         borderColor: colors.warning ?? colors.border,
       }}
     >
-      <Text style={{ fontSize: 14 }}>{LP_ICON}</Text>
+      <Zap size={14} color={colors.warning ?? colors.text} fill={colors.warning ?? colors.text} />
       <Text
         style={{
           fontSize: typography.sm,
@@ -65,7 +63,7 @@ export function LpBadge({ onPress }: LpBadgeProps) {
           color: colors.warning ?? colors.text,
         }}
       >
-        {lpBalance.toLocaleString("de-DE")}
+        {lpBalance.toLocaleString("de-DE")} LP
       </Text>
     </TouchableOpacity>
   );

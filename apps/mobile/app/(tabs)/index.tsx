@@ -229,7 +229,7 @@ export default function HomeScreen() {
               Foto — Karte — Wissen
             </Text>
           </View>
-          <LpBadge />
+          <LpBadge onPress={() => router.push("/lp-store")} />
         </View>
 
         {loading ? (
