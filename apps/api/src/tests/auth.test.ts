@@ -11,7 +11,7 @@ function makeMockDb({
 }: {
   deletedAccount?: Record<string, unknown> | null;
 }) {
-  const profileInsert = vi.fn().mockResolvedValue({ error: null });
+  const profileUpsert = vi.fn().mockResolvedValue({ error: null });
   const deletedAccountsSelect = vi.fn().mockReturnValue({
     eq: () => ({
       maybeSingle: async () => ({ data: deletedAccount, error: null }),
@@ -38,12 +38,12 @@ function makeMockDb({
       }
       if (table === "profiles") {
         return {
-          insert: profileInsert,
+          upsert: profileUpsert,
         };
       }
       throw new Error(`Unexpected table ${table}`);
     }),
-    __profileInsert: profileInsert,
+    __profileUpsert: profileUpsert,
   };
 }
 
@@ -65,7 +65,7 @@ describe("auth helper", () => {
     );
 
     expect(user).toBeNull();
-    expect(db.__profileInsert).not.toHaveBeenCalled();
+    expect(db.__profileUpsert).not.toHaveBeenCalled();
   });
 
   it("still bootstraps a profile for active accounts", async () => {
@@ -82,6 +82,9 @@ describe("auth helper", () => {
       userId: "11111111-1111-4111-8111-111111111111",
       email: "office@ostheimer.at",
     });
-    expect(db.__profileInsert).toHaveBeenCalledWith({ id: "11111111-1111-4111-8111-111111111111" });
+    expect(db.__profileUpsert).toHaveBeenCalledWith(
+      { id: "11111111-1111-4111-8111-111111111111" },
+      { onConflict: "id", ignoreDuplicates: true }
+    );
   });
 });
