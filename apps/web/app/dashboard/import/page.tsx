@@ -114,55 +114,58 @@ export default function ImportPage() {
             Aus Text oder einer Webseite macht die KI in Sekunden fertige Lernkarten.
           </p>
         </div>
+        {usage && (
+          <span className={enoughLp ? "lp-pill" : "lp-pill is-low"}>
+            <Zap size={15} /> {usage.lpBalance.toLocaleString("de-DE")} LP
+          </span>
+        )}
       </div>
 
-      <div style={{ maxWidth: 660 }}>
-        {usage && (
-          <div
-            className="panel"
-            style={{
-              marginBottom: 18,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 12,
-              flexWrap: "wrap",
-              padding: "14px 18px",
-            }}
-          >
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontWeight: 700 }}>
-              <Zap size={18} style={{ color: "var(--amber)" }} /> {usage.lpBalance} Lernpunkte
-            </span>
-            {cost !== null && (
-              <span className="muted" style={{ fontSize: "0.9rem" }}>
-                Diese Aktion kostet {cost} LP
-              </span>
-            )}
-          </div>
-        )}
-
-        <div className="segmented" style={{ marginBottom: 18 }}>
+      <div className="import-view">
+        <div className="source-grid">
           <button
             type="button"
-            className={source === "text" ? "active" : ""}
-            style={{ display: "inline-flex", alignItems: "center", gap: 7 }}
+            className="source-card source-card--text"
+            aria-pressed={source === "text"}
             onClick={() => {
               setSource("text");
               setError(null);
             }}
           >
-            <TextType size={16} /> Text
+            <span className="source-card__ic">
+              <TextType size={22} />
+            </span>
+            <span className="source-card__body">
+              <span className="source-card__title">Text eingeben</span>
+              <span className="source-card__hint">Zusammenfassung, Notizen, Definitionen</span>
+            </span>
+            {usage && (
+              <span className="source-card__cost">
+                <Zap size={12} /> {usage.lpCostAiScan} LP
+              </span>
+            )}
           </button>
           <button
             type="button"
-            className={source === "url" ? "active" : ""}
-            style={{ display: "inline-flex", alignItems: "center", gap: 7 }}
+            className="source-card source-card--url"
+            aria-pressed={source === "url"}
             onClick={() => {
               setSource("url");
               setError(null);
             }}
           >
-            <LinkIcon size={16} /> URL
+            <span className="source-card__ic">
+              <LinkIcon size={22} />
+            </span>
+            <span className="source-card__body">
+              <span className="source-card__title">URL importieren</span>
+              <span className="source-card__hint">Webseite als Lernkarten</span>
+            </span>
+            {usage && (
+              <span className="source-card__cost">
+                <Zap size={12} /> {usage.lpCostUrlImport} LP
+              </span>
+            )}
           </button>
         </div>
 
@@ -230,14 +233,27 @@ export default function ImportPage() {
           ) : (
             <>
               <Sparkles size={18} /> Karten erstellen
+              {cost !== null && (
+                <span className="btn-cost">
+                  <Zap size={13} /> {cost}
+                </span>
+              )}
             </>
           )}
         </button>
 
-        {busy && (
+        {busy ? (
           <p className="muted center" style={{ marginTop: 14 }}>
             Das kann ein paar Sekunden dauern — die KI liest dein Material und formt Karten.
           </p>
+        ) : (
+          <div className="info-note">
+            <Sparkles size={16} />
+            <span>
+              Die KI liest deinen Text oder die Webseite und macht daraus automatisch
+              Frage-Antwort-Karten.
+            </span>
+          </div>
         )}
       </div>
     </>

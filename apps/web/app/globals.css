@@ -14,8 +14,11 @@
   --violet: #8b5cf6;
   --violet-600: #7c3aed;
   --amber: #f59e0b;
+  --amber-50: #fffbeb;
   --green: #10b981;
   --pink: #ec4899;
+  --info: #3b82f6;
+  --info-50: #eff6ff;
 
   /* Neutrals (Slate) */
   --ink: #0f172a;
@@ -71,6 +74,9 @@
     --bg-softer: #1e293b;
     --surface: #131c30;
     --brand-50: #1e1b4b;
+    --info: #60a5fa;
+    --info-50: #1e3a5f;
+    --amber-50: #451a03;
     color-scheme: dark;
   }
 }
@@ -287,6 +293,27 @@ p {
 .btn-primary:hover {
   transform: translateY(-2px);
   box-shadow: 0 22px 48px rgba(79, 70, 229, 0.36);
+}
+
+/* Eingeloggter Bereich: flacher, einfarbiger Primär-Button wie in der App
+   (kein Verlauf, kein Glow). Marketing-Seite behält den Markenverlauf. */
+.app-shell .btn-primary {
+  background: var(--brand);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+}
+
+.app-shell .btn-primary:hover {
+  background: var(--brand-600);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1);
+}
+
+.app-shell .btn-primary:disabled,
+.app-shell .btn-primary[disabled] {
+  background: var(--ink-4);
+  box-shadow: none;
+  transform: none;
+  cursor: not-allowed;
 }
 
 .btn-ghost {
@@ -1986,4 +2013,148 @@ ul.reset {
     opacity: 1;
     transform: none;
   }
+}
+
+/* ---------- KI-Import (App-Scan-Look, an die Mobile-App angelehnt) ---------- */
+.import-view {
+  max-width: 660px;
+}
+
+/* Lernpunkte-Stand als Amber-Pille (wie das LP-Badge in der App) */
+.lp-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--amber-50);
+  color: #b45309;
+  border: 1px solid var(--amber);
+  border-radius: var(--r-pill);
+  padding: 4px 11px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.lp-pill svg {
+  color: var(--amber);
+}
+.lp-pill.is-low {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: #ef4444;
+  color: #b91c1c;
+}
+.lp-pill.is-low svg {
+  color: #ef4444;
+}
+@media (prefers-color-scheme: dark) {
+  /* Heller Text auf den dunklen Tint-Hintergründen (Kontrast) */
+  .lp-pill {
+    color: var(--amber);
+  }
+  .lp-pill.is-low {
+    color: #f87171;
+  }
+}
+
+/* Quellen-Auswahl = App-Scan-Karten (volle Breite, einfarbig) */
+.source-grid {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.source-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  padding: 16px 18px;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  color: #fff;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.15s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+.source-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+.source-card[aria-pressed="false"] {
+  opacity: 0.55;
+}
+.source-card[aria-pressed="true"] {
+  outline: 3px solid rgba(255, 255, 255, 0.65);
+  outline-offset: 2px;
+}
+/* Feste, in beiden Modi ausreichend dunkle Füllungen für weißen Text
+   (nicht die --info/--amber-Tokens, die im Dunkelmodus aufhellen) */
+.source-card--text {
+  background: #c2620a;
+}
+.source-card--url {
+  background: #2563eb;
+}
+.source-card__ic {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-sm);
+  display: grid;
+  place-items: center;
+  flex: none;
+  background: rgba(255, 255, 255, 0.2);
+}
+.source-card__body {
+  display: grid;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.source-card__title {
+  font-size: 1.02rem;
+  font-weight: 700;
+}
+.source-card__hint {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.82);
+}
+.source-card__cost {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+/* Kosten-Chip im Erstellen-Button (wie „⚡N" in der App) */
+.btn-cost {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
+  padding: 1px 7px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+/* Info-Hinweis unter dem Button (wie der Hinweis-Kasten der App) */
+.info-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--info-50);
+  color: var(--info);
+  border-radius: var(--r-sm);
+  padding: 12px 14px;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  margin-top: 18px;
+}
+.info-note svg {
+  flex: none;
+  margin-top: 1px;
 }
