@@ -298,12 +298,16 @@ export async function listCardsForDeck(
   return (data ?? []).map(mapCardRow);
 }
 
-export async function getCard(cardId: string): Promise<CardRecord | null> {
+export async function getCard(
+  cardId: string,
+  userId: string
+): Promise<CardRecord | null> {
   const db = getDb();
   const { data, error } = await db
     .from("cards")
     .select()
     .eq("id", cardId)
+    .eq("user_id", userId)
     .is("deleted_at", null)
     .maybeSingle();
   if (error || !data) return null;
@@ -312,6 +316,7 @@ export async function getCard(cardId: string): Promise<CardRecord | null> {
 
 export async function updateCardFsrs(
   cardId: string,
+  userId: string,
   next: Pick<
     CardRecord,
     | "fsrsDue"
@@ -343,6 +348,7 @@ export async function updateCardFsrs(
       updated_at: new Date().toISOString(),
     })
     .eq("id", cardId)
+    .eq("user_id", userId)
     .is("deleted_at", null)
     .select()
     .single();
