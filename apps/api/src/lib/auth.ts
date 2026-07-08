@@ -38,12 +38,12 @@ export async function getAuthUser(
   }
   if (deletedAccount) return null;
 
-  // Ensure profile row exists (ignore duplicate-key error 23505)
+  // Ensure profile row exists — idempotent, no error/log noise if it already exists.
   const { error: profileError } = await supabase
     .from("profiles")
-    .insert({ id: user.id });
-  if (profileError && profileError.code !== "23505") {
-    console.error("[auth] profile upsert error:", profileError.message);
+    .upsert({ id: user.id }, { onConflict: "id", ignoreDuplicates: true });
+  if (profileError) {
+    console.error("[auth] ensure-profile error:", profileError.message);
   }
 
   return { userId: user.id, email: user.email ?? "" };
