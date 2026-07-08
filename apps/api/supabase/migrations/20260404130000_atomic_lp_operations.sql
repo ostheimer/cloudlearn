@@ -25,7 +25,7 @@ begin
     return query select false, coalesce(v_balance, 0);
   end if;
 end; $$;
-grant execute on function spend_lp(uuid, int, text) to service_role, authenticated;
+grant execute on function spend_lp(uuid, int, text) to service_role;
 
 -- Atomic earn with day-reset + per-day caps under a row lock.
 create or replace function earn_lp(
@@ -54,7 +54,7 @@ begin
     values (p_user, case when p_is_ad then 'ad_reward' else 'earned' end, v_grant, p_type);
   return query select v_grant, v_bal + v_grant, false;
 end; $$;
-grant execute on function earn_lp(uuid, int, boolean, int, int, text, date) to service_role, authenticated;
+grant execute on function earn_lp(uuid, int, boolean, int, int, text, date) to service_role;
 
 -- Atomic unconditional credit (monthly grant, milestone, purchase).
 create or replace function add_lp(p_user uuid, p_amount int, p_type text, p_reason text)
@@ -67,4 +67,4 @@ begin
   insert into lp_transactions(user_id, type, amount, reason) values (p_user, p_type, p_amount, p_reason);
   return v_bal;
 end; $$;
-grant execute on function add_lp(uuid, int, text, text) to service_role, authenticated;
+grant execute on function add_lp(uuid, int, text, text) to service_role;
