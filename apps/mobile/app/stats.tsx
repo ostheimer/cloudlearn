@@ -17,12 +17,18 @@ import Svg, {
   Rect,
   Text as SvgText,
 } from "react-native-svg";
-import { ArrowLeft, TrendingUp, Flame, CheckCircle2 } from "lucide-react-native";
+import { ArrowLeft, TrendingUp, CheckCircle2 } from "lucide-react-native";
 import { useColors, spacing, radius, typography, shadows } from "../src/theme";
 import { getStats, type StatsResponse } from "../src/lib/api";
 
 const CHART_HEIGHT = 180;
 const BAR_CHART_HEIGHT = 160;
+
+// ─── Accuracy ring geometry ──────────────────────────────────────────────
+const RING_R = 40;
+const RING_STROKE = 12;
+const RING_SIZE = 2 * RING_R + RING_STROKE; // leave room for the stroke
+const RING_C = 2 * Math.PI * RING_R; // circumference
 
 // Horizontal chrome around the chart card contents:
 // ScrollView padding (spacing.xl) on both sides + card padding (spacing.lg) on both sides.
@@ -86,12 +92,10 @@ export default function StatsScreen() {
     };
   }, []);
 
-  // ─── Derived summary values ──────────────────────────────────────────────
+  // ─── Derived accuracy values ─────────────────────────────────────────────
   const accuracyRate = stats?.accuracyRate ?? 0;
   const reviewsTotal = stats?.reviewsTotal ?? 0;
-  const streak = stats?.currentStreak ?? 0;
   const accuracyPercent = Math.round(accuracyRate * 100);
-  const accuracyDisplay = reviewsTotal > 0 ? `${accuracyPercent}%` : "—";
 
   // ─── Chart data (guard undefined / sort ascending / last 14) ─────────────
   const accData = [...(stats?.accuracyByDay ?? [])]
@@ -118,6 +122,72 @@ export default function StatsScreen() {
 
   const hasAccuracyChart = accData.length >= 2;
   const hasBarChart = barData.some((d) => d.count > 0);
+
+  // ─── Accuracy progress ring renderer ─────────────────────────────────────
+  const renderAccuracyRing = () => {
+    const accClamped = Math.max(0, Math.min(1, accuracyRate));
+    const dash = accClamped * RING_C;
+    const c = RING_SIZE / 2; // center x/y
+
+    return (
+      <View
+        style={{
+          width: RING_SIZE,
+          height: RING_SIZE,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Svg width={RING_SIZE} height={RING_SIZE}>
+          {/* Background track */}
+          <Circle
+            cx={c}
+            cy={c}
+            r={RING_R}
+            stroke={colors.border}
+            strokeWidth={RING_STROKE}
+            fill="none"
+          />
+          {/* Foreground progress arc (starts at top, clockwise) */}
+          {reviewsTotal > 0 ? (
+            <Circle
+              cx={c}
+              cy={c}
+              r={RING_R}
+              stroke={colors.primary}
+              strokeWidth={RING_STROKE}
+              fill="none"
+              strokeLinecap="round"
+              strokeDasharray={`${dash.toFixed(2)} ${RING_C.toFixed(2)}`}
+              transform={`rotate(-90 ${c} ${c})`}
+            />
+          ) : null}
+        </Svg>
+        {/* Centered percentage label */}
+        <View
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 24,
+              fontWeight: typography.extrabold,
+              color: colors.text,
+            }}
+          >
+            {reviewsTotal > 0 ? `${accuracyPercent}%` : "—"}
+          </Text>
+        </View>
+      </View>
+    );
+  };
 
   // ─── Accuracy line chart renderer ────────────────────────────────────────
   const renderAccuracyChart = (width: number) => {
@@ -304,32 +374,6 @@ export default function StatsScreen() {
     );
   };
 
-  const miniStats: Array<{
-    key: string;
-    icon: React.ReactNode;
-    value: string;
-    label: string;
-  }> = [
-    {
-      key: "accuracy",
-      icon: <TrendingUp size={18} color={colors.success} />,
-      value: accuracyDisplay,
-      label: "Genauigkeit",
-    },
-    {
-      key: "streak",
-      icon: <Flame size={18} color={colors.warning} />,
-      value: String(streak),
-      label: streak === 1 ? "Tag Streak" : "Tage Streak",
-    },
-    {
-      key: "reviews",
-      icon: <CheckCircle2 size={18} color={colors.primary} />,
-      value: reviewsTotal.toLocaleString("de-DE"),
-      label: "Wiederholungen",
-    },
-  ];
-
   const cardStyle = {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
@@ -337,6 +381,12 @@ export default function StatsScreen() {
     borderWidth: 1,
     borderColor: colors.border,
     ...shadows.sm,
+  } as const;
+
+  const cardTitleStyle = {
+    fontSize: typography.base,
+    fontWeight: typography.semibold,
+    color: colors.text,
   } as const;
 
   const emptyStateText = (message: string) => (
@@ -409,60 +459,8 @@ export default function StatsScreen() {
           </View>
         ) : (
           <>
-            {/* Summary row */}
-            <View style={{ flexDirection: "row", gap: spacing.sm }}>
-              {miniStats.map((s) => (
-                <View
-                  key={s.key}
-                  style={{
-                    flex: 1,
-                    backgroundColor: colors.surface,
-                    borderRadius: radius.lg,
-                    padding: spacing.md,
-                    alignItems: "center",
-                    borderWidth: 1,
-                    borderColor: colors.border,
-                    ...shadows.sm,
-                  }}
-                >
-                  <View
-                    style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: radius.sm,
-                      backgroundColor: colors.surfaceSecondary,
-                      justifyContent: "center",
-                      alignItems: "center",
-                      marginBottom: spacing.sm,
-                    }}
-                  >
-                    {s.icon}
-                  </View>
-                  <Text
-                    style={{
-                      fontSize: 22,
-                      fontWeight: typography.extrabold,
-                      color: colors.text,
-                    }}
-                  >
-                    {s.value}
-                  </Text>
-                  <Text
-                    style={{
-                      fontSize: typography.xs,
-                      color: colors.textSecondary,
-                      marginTop: 2,
-                      textAlign: "center",
-                    }}
-                  >
-                    {s.label}
-                  </Text>
-                </View>
-              ))}
-            </View>
-
-            {/* Accuracy line chart */}
-            <View style={{ ...cardStyle, gap: spacing.sm }}>
+            {/* Genauigkeit — ring + context + trend */}
+            <View style={{ ...cardStyle, gap: spacing.md }}>
               <View
                 style={{
                   flexDirection: "row",
@@ -471,22 +469,73 @@ export default function StatsScreen() {
                 }}
               >
                 <TrendingUp size={18} color={colors.primary} />
-                <Text
-                  style={{
-                    fontSize: typography.base,
-                    fontWeight: typography.semibold,
-                    color: colors.text,
-                  }}
-                >
-                  Genauigkeit — letzte 14 Tage
-                </Text>
+                <Text style={cardTitleStyle}>Genauigkeit</Text>
               </View>
-              {hasAccuracyChart ? (
-                <ResponsiveChart render={renderAccuracyChart} />
+
+              {reviewsTotal > 0 ? (
+                <>
+                  {/* Ring + context row */}
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: spacing.lg,
+                    }}
+                  >
+                    {renderAccuracyRing()}
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <Text
+                        style={{
+                          fontSize: typography.base,
+                          fontWeight: typography.semibold,
+                          color: colors.text,
+                        }}
+                      >
+                        richtig beantwortet
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: typography.sm,
+                          color: colors.textSecondary,
+                        }}
+                      >
+                        bei {reviewsTotal.toLocaleString("de-DE")} Antworten
+                        insgesamt
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Divider */}
+                  <View
+                    style={{ height: 1, backgroundColor: colors.borderLight }}
+                  />
+
+                  {/* Trend line (>= 2 points) or hint */}
+                  {hasAccuracyChart ? (
+                    <View style={{ gap: spacing.xs }}>
+                      <Text
+                        style={{
+                          fontSize: typography.xs,
+                          color: colors.textTertiary,
+                        }}
+                      >
+                        Verlauf — letzte 14 Tage
+                      </Text>
+                      <ResponsiveChart render={renderAccuracyChart} />
+                    </View>
+                  ) : (
+                    <Text
+                      style={{
+                        fontSize: typography.sm,
+                        color: colors.textSecondary,
+                      }}
+                    >
+                      ↗ Verlauf erscheint ab 2 Lern-Tagen
+                    </Text>
+                  )}
+                </>
               ) : (
-                emptyStateText(
-                  "Lerne ein paar Tage, dann siehst du hier deinen Verlauf."
-                )
+                emptyStateText("Noch keine Antworten — leg los!")
               )}
             </View>
 
@@ -500,15 +549,7 @@ export default function StatsScreen() {
                 }}
               >
                 <CheckCircle2 size={18} color={colors.primary} />
-                <Text
-                  style={{
-                    fontSize: typography.base,
-                    fontWeight: typography.semibold,
-                    color: colors.text,
-                  }}
-                >
-                  Karten pro Tag
-                </Text>
+                <Text style={cardTitleStyle}>Karten pro Tag</Text>
               </View>
               {hasBarChart ? (
                 <ResponsiveChart render={renderBarChart} />

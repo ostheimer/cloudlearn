@@ -525,7 +525,7 @@ export default function HomeScreen() {
                     marginTop: 2,
                   }}
                 >
-                  Genauigkeit
+                  Fortschritt
                 </Text>
               </TouchableOpacity>
             </View>
