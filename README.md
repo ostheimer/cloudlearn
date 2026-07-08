@@ -1152,6 +1152,8 @@ clearn/
 └── package.json               # Workspace-Skripte
 ```
 
+> **Hinweis:** `packages/contracts` und `packages/domain` werden aktuell von keiner App importiert — jede App hält lokale Kopien der relevanten Schemas/Logik, damit Vercel- und Expo-Builds isoliert bleiben (siehe Update in [ADR 0001](docs/adr/0001-monorepo-stack.md)).
+
 ---
 
 ## Lizenz
