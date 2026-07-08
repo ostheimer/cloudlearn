@@ -300,6 +300,12 @@ export interface UrlImportResponse extends ScanResponse {
   imagesUsed: number;
 }
 
+export interface PdfImportResponse extends ScanResponse {
+  fileName: string;
+  pageCount: number;
+  extractedCharacters: number;
+}
+
 export interface AiUsageResponse {
   tier: "free" | "pro" | "lifetime";
   lpBalance: number;
@@ -343,6 +349,52 @@ export function importFromUrl(
       sourceUrl,
       maxImages,
       idempotencyKey: importIdempotencyKey("import-url"),
+      sourceLanguage: language,
+    }),
+  });
+}
+
+/**
+ * Erzeugt per KI Flashcards aus einem Foto. Nutzt denselben Endpunkt wie der
+ * Text-Scan (Bild statt Text). imageBase64 ist „nackt" (ohne data-URI-Präfix).
+ * Legt serverseitig ein neues Deck an.
+ */
+export function scanImage(
+  userId: string,
+  imageBase64: string,
+  mimeType: "image/jpeg" | "image/png" | "image/webp" = "image/jpeg",
+  language = "de"
+): Promise<ScanResponse> {
+  return authed<ScanResponse>("/api/v1/scan/process", {
+    method: "POST",
+    body: JSON.stringify({
+      userId,
+      imageBase64,
+      imageMimeType: mimeType,
+      idempotencyKey: importIdempotencyKey("scan-img"),
+      sourceLanguage: language,
+    }),
+  });
+}
+
+/**
+ * Erzeugt per KI Flashcards aus einem PDF. fileBase64 ist „nackt" (ohne
+ * data-URI-Präfix). Legt serverseitig ein neues Deck an. Reine Scan-PDFs ohne
+ * Text lehnt der Server mit 422 PDF_TEXT_NOT_FOUND ab.
+ */
+export function importPdf(
+  userId: string,
+  fileName: string,
+  fileBase64: string,
+  language = "de"
+): Promise<PdfImportResponse> {
+  return authed<PdfImportResponse>("/api/v1/import/pdf", {
+    method: "POST",
+    body: JSON.stringify({
+      userId,
+      fileName,
+      fileBase64,
+      idempotencyKey: importIdempotencyKey("import-pdf"),
       sourceLanguage: language,
     }),
   });
