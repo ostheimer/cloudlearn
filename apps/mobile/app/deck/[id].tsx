@@ -652,7 +652,11 @@ export default function DeckDetailScreen() {
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 style={{ width: 32, height: 32, alignItems: "center", justifyContent: "center" }}
               >
-                <MoreVertical size={22} color={colors.text} />
+                <MoreVertical
+                  size={22}
+                  color={colors.text}
+                  style={{ transform: [{ translateX: 1 }, { translateY: 0.5 }] }}
+                />
               </TouchableOpacity>
             </View>
           ),
