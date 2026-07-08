@@ -284,7 +284,7 @@ export default function LandingPage() {
               <span className="eyebrow-chip">Features</span>
               <h2 className="h2">Alles, was gutes Lernen braucht</h2>
               <p className="lead">
-                Von der Erfassung bis zur Bestenliste — clearn deckt den ganzen Lernweg ab.
+                Von der Erfassung bis zur letzten Wiederholung — clearn deckt den ganzen Lernweg ab.
               </p>
             </div>
             <div className="grid grid-3">
