@@ -44,7 +44,7 @@ const sources: { Icon: IconType; label: string }[] = [
 const steps = [
   {
     title: "Erfassen",
-    body: "Dein vorhandenes Lernmaterial rein — egal woher. Der schnellste Weg von Rohstoff zu digitalen Karten.",
+    body: "Bring dein vorhandenes Lernmaterial in clearn — der schnellste Weg von deinen Unterlagen zu digitalen Karten.",
   },
   {
     title: "Strukturieren",
@@ -61,7 +61,7 @@ const features: { Icon: IconType; tint: string; title: string; body: string }[] 
     Icon: Camera,
     tint: "g-indigo",
     title: "Foto & KI-Erstellung",
-    body: "Wirf dein Material hinein — OCR liest den Inhalt, die KI baut daraus in Sekunden fertige Frage-Antwort-Karten.",
+    body: "OCR liest den Inhalt deines Materials, die KI baut daraus in Sekunden fertige Frage-Antwort-Karten.",
   },
   {
     Icon: Repeat,
@@ -342,8 +342,9 @@ export default function LandingPage() {
                 Dein Material wird zu Karten — in Sekunden
               </h2>
               <p className="lead">
-                Fotografiere eine Buchseite, wirf ein PDF oder einen Link hinein: OCR erkennt den
-                Text, die KI schlägt fertige Flashcards vor. Du prüfst, passt an und lernst los.
+                Fotografiere eine Buchseite, importiere ein PDF oder füge einen Link ein: OCR
+                erkennt den Text, die KI schlägt fertige Flashcards vor. Du prüfst, passt an und
+                lernst los.
               </p>
               <ul className="reset check-list">
                 <li>
