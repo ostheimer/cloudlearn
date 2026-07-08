@@ -497,6 +497,7 @@ export async function getReviewStats(userId: string): Promise<{
   reviewsTotal: number;
   accuracyRate: number;
   reviewsByDay: Array<{ date: string; count: number }>;
+  accuracyByDay: Array<{ date: string; accuracy: number; count: number }>;
 }> {
   const db = getDb();
   const now = new Date();
@@ -538,17 +539,24 @@ export async function getReviewStats(userId: string): Promise<{
   // Daily counts for last 30 days (for heatmap)
   const { data: dailyData } = await db
     .from("review_logs")
-    .select("reviewed_at")
+    .select("reviewed_at, rating")
     .eq("user_id", userId)
     .gte("reviewed_at", monthStart)
     .order("reviewed_at", { ascending: true });
 
-  const dayMap: Record<string, number> = {};
+  const dayStats: Record<string, { count: number; good: number }> = {};
   (dailyData ?? []).forEach((r) => {
     const day = r.reviewed_at.split("T")[0] ?? "";
-    dayMap[day] = (dayMap[day] ?? 0) + 1;
+    if (!dayStats[day]) dayStats[day] = { count: 0, good: 0 };
+    dayStats[day].count += 1;
+    if ((r.rating ?? 0) >= 3) dayStats[day].good += 1;
   });
-  const reviewsByDay = Object.entries(dayMap).map(([date, count]) => ({ date, count }));
+  const reviewsByDay = Object.entries(dayStats).map(([date, s]) => ({ date, count: s.count }));
+  const accuracyByDay = Object.entries(dayStats).map(([date, s]) => ({
+    date,
+    count: s.count,
+    accuracy: s.count > 0 ? Math.round((s.good / s.count) * 100) / 100 : 0,
+  }));
 
   return {
     reviewsToday: todayCount ?? 0,
@@ -556,6 +564,7 @@ export async function getReviewStats(userId: string): Promise<{
     reviewsTotal: total,
     accuracyRate: Math.round(accuracyRate * 100) / 100,
     reviewsByDay,
+    accuracyByDay,
   };
 }
 
