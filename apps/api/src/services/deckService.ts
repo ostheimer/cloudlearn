@@ -16,6 +16,8 @@ import {
 } from "@/lib/db";
 import { randomUUID } from "node:crypto";
 import { HttpError } from "@/lib/http";
+import { getSubscriptionStatus } from "./subscriptionService";
+import { assertDeckLimit } from "@/lib/limits";
 
 const createDeckSchema = z.object({
   userId: z.string().uuid(),
@@ -32,6 +34,9 @@ const updateDeckSchema = z.object({
 
 export async function createDeckForUser(input: unknown) {
   const parsed = createDeckSchema.parse(input);
+  const { tier } = await getSubscriptionStatus(parsed.userId);
+  const existingDecks = await listDecks(parsed.userId);
+  assertDeckLimit(tier, existingDecks.length);
   return createDeck(parsed.userId, parsed.title, parsed.tags);
 }
 

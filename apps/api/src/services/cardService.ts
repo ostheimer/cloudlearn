@@ -1,7 +1,9 @@
 import { flashcardSchema } from "@/lib/contracts";
 import { z } from "zod";
-import { createCard, getDeck, softDeleteCard, updateCard } from "@/lib/db";
+import { createCard, getDeck, listCardsForDeck, softDeleteCard, updateCard } from "@/lib/db";
 import { HttpError } from "@/lib/http";
+import { getSubscriptionStatus } from "./subscriptionService";
+import { assertCardLimit } from "@/lib/limits";
 
 const createCardSchema = z.object({
   userId: z.string().uuid(),
@@ -25,6 +27,9 @@ export async function createCardForUser(input: unknown) {
   // Only allow adding cards to a deck the user owns
   const deck = await getDeck(parsed.deckId, parsed.userId);
   if (!deck) throw new HttpError("Deck not found", 404, "DECK_NOT_FOUND");
+  const { tier } = await getSubscriptionStatus(parsed.userId);
+  const existingCards = await listCardsForDeck(parsed.userId, parsed.deckId);
+  assertCardLimit(tier, existingCards.length);
   return createCard(parsed.userId, parsed.deckId, parsed.card);
 }
 
