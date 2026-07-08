@@ -678,6 +678,14 @@ Erster Start → Beispiel-Scan → erste Review → Erfolgserlebnis in unter 2 M
 
 ### CL-MON-01 — Supabase Migration + Edge Function deployen
 
+> **⚠️ OBSOLET (#79):** Das Monats-Kontingent-Modell (`ai_scans_used`, `ai_url_imports_used`,
+> `usage_period_start` + monatlicher Reset) wurde aus dem Code **entfernt** und in das
+> **LP-Modell (Learn Points)** konsolidiert (siehe `apps/api/src/lib/featureGates.ts`).
+> Dadurch sind die Edge Function `reset-ai-usage`, der monatliche pg_cron-Job und die
+> Migration `20260301100000_add_ai_usage_limits.sql` **tote Infrastruktur**. Der unten
+> offene Cron-Einrichtungsschritt ist damit hinfällig. Die bereits deployte Function + Cron
+> müssen in einem separaten **Follow-up ent-deployt** werden (nicht Teil dieses Code-Cleanups).
+
 - **Priorität:** P0 (blockiert alle Limits in Production)
 - **Status:** Teilweise erledigt (Migration + Function deployed; Cron manuell im Dashboard setzen)
 - **Schätzung:** 0.5 PT
