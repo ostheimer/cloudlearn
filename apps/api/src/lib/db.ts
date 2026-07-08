@@ -1005,8 +1005,6 @@ export async function duplicateDeck(
   return mapDeckRow(deckData);
 }
 
-// ─── AI Usage Quota (DB-backed, replaces in-memory usageLimit.ts) ───────────
-
 export interface AiUsageRecord {
   aiScansUsed: number;
   aiUrlImportsUsed: number;
@@ -1028,97 +1026,6 @@ export async function getAiUsage(userId: string): Promise<AiUsageRecord> {
     aiUrlImportsUsed: data.ai_url_imports_used ?? 0,
     usagePeriodStart: data.usage_period_start ?? new Date().toISOString().split("T")[0] ?? "",
   };
-}
-
-function currentMonthStart(now = new Date()): string {
-  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-01`;
-}
-
-// Atomically increments AI scan usage. Returns allowed=false if limit would be exceeded.
-export async function consumeAiScanQuota(
-  userId: string,
-  tier: string,
-  limit: number,
-  now = new Date()
-): Promise<{ allowed: boolean; remaining: number }> {
-  if (tier !== "free") {
-    return { allowed: true, remaining: Infinity };
-  }
-
-  const db = getDb();
-  const monthStart = currentMonthStart(now);
-
-  // Read current usage, resetting period if it's a new month
-  const { data, error } = await db
-    .from("profiles")
-    .select("ai_scans_used, usage_period_start")
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (error) throw new Error(`consumeAiScanQuota read: ${error.message}`);
-
-  const storedPeriod: string = data?.usage_period_start ?? "";
-  const currentCount: number = storedPeriod === monthStart ? (data?.ai_scans_used ?? 0) : 0;
-
-  if (currentCount >= limit) {
-    return { allowed: false, remaining: 0 };
-  }
-
-  const nextCount = currentCount + 1;
-  const { error: updateError } = await db
-    .from("profiles")
-    .update({
-      ai_scans_used: nextCount,
-      usage_period_start: monthStart,
-      updated_at: now.toISOString(),
-    })
-    .eq("id", userId);
-  if (updateError) throw new Error(`consumeAiScanQuota update: ${updateError.message}`);
-
-  return { allowed: true, remaining: Math.max(limit - nextCount, 0) };
-}
-
-// Atomically increments URL import usage. Returns allowed=false if limit would be exceeded.
-export async function consumeUrlImportQuota(
-  userId: string,
-  tier: string,
-  limit: number,
-  now = new Date()
-): Promise<{ allowed: boolean; remaining: number }> {
-  if (tier !== "free") {
-    return { allowed: true, remaining: Infinity };
-  }
-
-  const db = getDb();
-  const monthStart = currentMonthStart(now);
-
-  const { data, error } = await db
-    .from("profiles")
-    .select("ai_url_imports_used, usage_period_start")
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (error) throw new Error(`consumeUrlImportQuota read: ${error.message}`);
-
-  const storedPeriod: string = data?.usage_period_start ?? "";
-  const currentCount: number = storedPeriod === monthStart ? (data?.ai_url_imports_used ?? 0) : 0;
-
-  if (currentCount >= limit) {
-    return { allowed: false, remaining: 0 };
-  }
-
-  const nextCount = currentCount + 1;
-  const { error: updateError } = await db
-    .from("profiles")
-    .update({
-      ai_url_imports_used: nextCount,
-      usage_period_start: monthStart,
-      updated_at: now.toISOString(),
-    })
-    .eq("id", userId);
-  if (updateError) throw new Error(`consumeUrlImportQuota update: ${updateError.message}`);
-
-  return { allowed: true, remaining: Math.max(limit - nextCount, 0) };
 }
 
 // ─── Deck / Card Limit Checks ────────────────────────────────────────────────

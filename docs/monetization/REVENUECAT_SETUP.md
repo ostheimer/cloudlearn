@@ -140,13 +140,18 @@ FREE_CARD_LIMIT=100
 
 | Feature              | Free         | Pro/Lifetime  |
 |----------------------|--------------|---------------|
-| KI-Scans             | 5/Monat      | 300 LP/Monat inklusive, 5 LP/Scan |
-| URL-Import           | 2/Monat      | 300 LP/Monat inklusive, 8 LP/Import |
+| KI-Scans             | 10 LP/Scan   | 300 LP/Monat inklusive, 5 LP/Scan |
+| URL-Import           | 15 LP/Import | 300 LP/Monat inklusive, 8 LP/Import |
 | Max. Decks           | 10           | 500          |
 | Max. Karten          | 100          | 2.000 pro Deck |
 | PDF-Import           | 20 LP/Import | 12 LP/Import |
 | Image Occlusion      | ❌           | ✅            |
 | Offline-Download     | ❌           | ✅            |
+
+> **Hinweis (#79):** Das frühere Monatskontingent (5 KI-Scans/Monat, 2 URL-Imports/Monat)
+> wurde **entfernt** und vollständig ins **LP-Modell (Learn Points)** überführt. KI-Aktionen
+> kosten jetzt LP **pro Aktion** statt eines monatlichen Zählers; die maßgeblichen LP-Kosten
+> pro Tier stehen in `apps/api/src/lib/featureGates.ts`.
 
 ---
 
