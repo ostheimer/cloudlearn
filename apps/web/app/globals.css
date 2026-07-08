@@ -2079,12 +2079,9 @@ ul.reset {
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
 }
-.source-card[aria-pressed="false"] {
-  opacity: 0.55;
-}
-.source-card[aria-pressed="true"] {
-  outline: 3px solid rgba(255, 255, 255, 0.65);
-  outline-offset: 2px;
+.source-card__chevron {
+  flex: none;
+  opacity: 0.65;
 }
 /* Exakte App-Scan-Farben (fix, damit sie in beiden Modi gleich bleiben):
    Text = Amber (warning), URL = Blau (info). Foto/Galerie/PDF folgen in Runde 2
@@ -2158,4 +2155,52 @@ ul.reset {
 .info-note svg {
   flex: none;
   margin-top: 1px;
+}
+
+/* Zurück-Link im Eingabe-Schritt (wie „Zurück" in der App) */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--brand-600);
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 0;
+  margin-bottom: 18px;
+}
+.back-link:hover {
+  color: var(--brand);
+}
+.back-link:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Amber-Warnhinweis bei zu wenig Lernpunkten (wie in der App) */
+.lp-warn {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--amber-50);
+  color: #b45309;
+  border: 1px solid var(--amber);
+  border-radius: var(--r-sm);
+  padding: 12px 14px;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  margin-bottom: 18px;
+}
+.lp-warn svg {
+  color: var(--amber);
+  flex: none;
+  margin-top: 1px;
+}
+@media (prefers-color-scheme: dark) {
+  .lp-warn {
+    color: #fbbf24;
+  }
 }
