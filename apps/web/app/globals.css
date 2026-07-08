@@ -2086,13 +2086,14 @@ ul.reset {
   outline: 3px solid rgba(255, 255, 255, 0.65);
   outline-offset: 2px;
 }
-/* Feste, in beiden Modi ausreichend dunkle Füllungen für weißen Text
-   (nicht die --info/--amber-Tokens, die im Dunkelmodus aufhellen) */
+/* Exakte App-Scan-Farben (fix, damit sie in beiden Modi gleich bleiben):
+   Text = Amber (warning), URL = Blau (info). Foto/Galerie/PDF folgen in Runde 2
+   in Indigo/Grün/Dunkel — wie im App-Scan. */
 .source-card--text {
-  background: #c2620a;
+  background: #f59e0b;
 }
 .source-card--url {
-  background: #2563eb;
+  background: #3b82f6;
 }
 .source-card__ic {
   width: 44px;
