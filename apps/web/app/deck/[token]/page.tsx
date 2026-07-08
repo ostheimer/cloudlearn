@@ -53,10 +53,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { token } = await params;
   const result = await getSharedDeck(token);
   if (result.status !== "ok") {
-    return { title: "Geteiltes Deck – clearn.ai" };
+    return { title: "Geteiltes Deck" };
   }
   return {
-    title: `${result.deck.title} – geteiltes Deck | clearn.ai`,
+    title: `${result.deck.title} – geteiltes Deck`,
     description: `Lernkarten-Deck „${result.deck.title}“ — geteilt mit clearn.`,
   };
 }
