@@ -145,9 +145,12 @@ export function LpInsufficientModal({
                 paddingVertical: 3,
               }}
             >
-              <Text style={{ color: colors.textInverse, fontSize: typography.xs, fontWeight: typography.bold }}>
-                ⚡+5
-              </Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
+                <Zap size={12} color={colors.textInverse} />
+                <Text style={{ color: colors.textInverse, fontSize: typography.xs, fontWeight: typography.bold }}>
+                  +5
+                </Text>
+              </View>
             </View>
           </TouchableOpacity>
 

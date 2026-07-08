@@ -83,7 +83,7 @@ export function MilestoneToastView({ toast }: MilestoneToastProps) {
         </View>
         <View style={{ backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
-            <Zap size={12} color={colors.textInverse} fill={colors.textInverse} />
+            <Zap size={12} color={colors.textInverse} />
             <Text style={{ color: colors.textInverse, fontSize: typography.xs, fontWeight: typography.bold }}>
               +{toast.lpGranted}
             </Text>

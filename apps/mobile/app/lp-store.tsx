@@ -188,7 +188,7 @@ export default function LpStoreScreen() {
               }}
             >
               <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
-                <Zap size={32} color={colors.textInverse} fill={colors.textInverse} />
+                <Zap size={32} color={colors.textInverse} />
                 <Text style={{ fontSize: 48, fontWeight: typography.extrabold, color: colors.textInverse }}>
                   {lpBalance.toLocaleString("de-DE")}
                 </Text>
@@ -308,7 +308,10 @@ export default function LpStoreScreen() {
                   </View>
                   {!adCapped && !adBusy && (
                     <View style={{ backgroundColor: "rgba(255,255,255,0.25)", borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: 3 }}>
-                      <Text style={{ color: colors.textInverse, fontSize: typography.xs, fontWeight: typography.bold }}>⚡+5</Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
+                        <Zap size={12} color={colors.textInverse} />
+                        <Text style={{ color: colors.textInverse, fontSize: typography.xs, fontWeight: typography.bold }}>+5</Text>
+                      </View>
                     </View>
                   )}
                 </TouchableOpacity>
