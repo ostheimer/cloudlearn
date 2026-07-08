@@ -245,9 +245,13 @@ export default function ImportPage() {
           </p>
         </div>
         {usage && (
-          <span className={lowLp ? "lp-pill is-low" : "lp-pill"}>
+          <Link
+            href="/dashboard/lp"
+            className={lowLp ? "lp-pill is-low" : "lp-pill"}
+            aria-label="Lernpunkte ansehen"
+          >
             <Zap size={15} /> {usage.lpBalance.toLocaleString("de-DE")} LP
-          </span>
+          </Link>
         )}
       </div>
 

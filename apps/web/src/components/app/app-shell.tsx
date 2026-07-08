@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useAuth } from "./auth-context";
-import { GraduationCap, BarChart, Globe, LogOut } from "@/components/icons";
+import { GraduationCap, Zap, BarChart, Globe, LogOut } from "@/components/icons";
 
 const NAV = [
   { href: "/dashboard", label: "Bibliothek", exact: true },
@@ -102,6 +102,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                 >
                   {email}
                 </div>
+                <Link href="/dashboard/lp" role="menuitem" onClick={() => setMenuOpen(false)}>
+                  <Zap size={16} /> Lernpunkte
+                </Link>
                 <Link href="/dashboard/stats" role="menuitem" onClick={() => setMenuOpen(false)}>
                   <BarChart size={16} /> Statistik
                 </Link>

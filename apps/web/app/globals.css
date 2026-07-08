@@ -2041,6 +2041,13 @@ ul.reset {
   font-size: 0.85rem;
   font-weight: 700;
   white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+a.lp-pill:hover {
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.25);
+  transform: translateY(-1px);
 }
 .lp-pill svg {
   color: var(--amber);
@@ -2250,4 +2257,67 @@ ul.reset {
   .lp-warn {
     color: #fbbf24;
   }
+}
+
+/* ---------- Lernpunkte-Seite (App-Shop-Look) ---------- */
+.lp-balance {
+  background: var(--amber);
+  border-radius: 20px;
+  padding: 22px;
+  text-align: center;
+  color: #fff;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 16px;
+}
+.lp-balance__num {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.lp-balance__num b {
+  font-size: 2.6rem;
+  font-weight: 800;
+  line-height: 1;
+}
+.lp-balance__cap {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.95rem;
+  margin-top: 6px;
+}
+
+.lp-track {
+  height: 8px;
+  background: var(--bg-softer);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.lp-track > i {
+  display: block;
+  height: 8px;
+  background: var(--green);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.lp-costs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.lp-cost {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 12px;
+  text-align: center;
+}
+.lp-cost b {
+  display: block;
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--ink);
+}
+.lp-cost span {
+  font-size: 0.75rem;
+  color: var(--ink-3);
 }
