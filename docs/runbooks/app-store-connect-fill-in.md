@@ -127,7 +127,7 @@ ungefilterten UGC-Flows enthalten sind.
 8. Onboarding oder Login: `Erst einmal ohne Login starten` und Login-Optionen
 
 Für den ersten Upload ist die fokussierte 5er-Serie in
-[docs/screens/app-store/README.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/screens/app-store/README.md)
+[docs/screens/app-store/README.md](/docs/screens/app-store/README.md)
 priorisiert. Weitere Screenshots können danach ergänzt werden.
 
 ### Captions
@@ -143,11 +143,11 @@ Konto, Datenschutz und Face ID verwalten
 ## App-Datenschutz
 
 Vor dem Privacy Questionnaire ein echtes iOS-Archive bauen und den Privacy Report
-gegen [docs/runbooks/app-store-privacy-ads.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-privacy-ads.md)
+gegen [docs/runbooks/app-store-privacy-ads.md](/docs/runbooks/app-store-privacy-ads.md)
 prüfen.
 
 Der ausfüllbare Entwurf liegt in
-[docs/runbooks/app-store-privacy-questionnaire.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-privacy-questionnaire.md).
+[docs/runbooks/app-store-privacy-questionnaire.md](/docs/runbooks/app-store-privacy-questionnaire.md).
 
 Wichtig für die Antworten:
 

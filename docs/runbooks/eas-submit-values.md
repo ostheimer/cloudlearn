@@ -6,7 +6,7 @@ Stand: 2026-04-05
 
 Dieses Runbook hält nur die wenigen externen Werte fest, die für eine nicht-interaktive Store-Submission noch außerhalb des Repos ergänzt werden müssen.
 
-Repo-seitig ist der Submit-Pfad in [apps/mobile/eas.json](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/eas.json) bereits vorbereitet.
+Repo-seitig ist der Submit-Pfad in [apps/mobile/eas.json](/apps/mobile/eas.json) bereits vorbereitet.
 
 ## Bereits im Repo gesetzt
 
@@ -27,7 +27,7 @@ Repo-seitig ist der Submit-Pfad in [apps/mobile/eas.json](/Users/andreasostheime
 
 - `google-play-service-account.json`
   - Quelle: Google Play Console → Setup → API access
-  - Zielpfad: [google-play-service-account.json](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/google-play-service-account.json)
+  - Zielpfad: [google-play-service-account.json](/apps/mobile/google-play-service-account.json)
   - Die Datei ist bereits in `.gitignore`.
 
 ## Prüfen

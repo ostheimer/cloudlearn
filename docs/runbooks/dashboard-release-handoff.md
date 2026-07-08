@@ -11,10 +11,10 @@ Sobald ein externer Wert eingetragen wurde, muss der zugehörige Repo-Check erne
 
 - [ ] App `clearn` mit Bundle ID `app.clearn` anlegen oder prüfen.
 - [x] `ascAppId` aus App Information → Apple ID kopieren: `6766691399`.
-- [x] `ascAppId` in [apps/mobile/eas.json](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/eas.json) unter `submit.production.ios.ascAppId` eintragen.
+- [x] `ascAppId` in [apps/mobile/eas.json](/apps/mobile/eas.json) unter `submit.production.ios.ascAppId` eintragen.
 - [ ] Datenschutz-URL hinterlegen: `https://clearn-web.vercel.app/privacy`
 - [ ] Support-URL hinterlegen: `https://clearn-web.vercel.app/support`
-- [ ] Review Notes aus [docs/runbooks/app-store-review-notes.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-review-notes.md) übertragen.
+- [ ] Review Notes aus [docs/runbooks/app-store-review-notes.md](/docs/runbooks/app-store-review-notes.md) übertragen.
 - [ ] In-App-Käufe anlegen:
   - `ai.clearn.pro.monthly`
   - `ai.clearn.pro.annual`

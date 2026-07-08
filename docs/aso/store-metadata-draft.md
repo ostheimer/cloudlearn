@@ -106,4 +106,4 @@ flashcards, study, AI, notes, exam, school, university, OCR, spaced repetition, 
 - Claims zu PDF/OCR nur beibehalten, wenn der MVP im TestFlight-Build wirklich stabil funktioniert.
 - Begriffe in Paywall, Store-Text und App müssen deckungsgleich bleiben.
 - Screenshot-Captions an die finalen Screens anpassen.
-- Datenschutz- und Werbeaussagen gegen [docs/runbooks/app-store-privacy-ads.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-privacy-ads.md) prüfen.
+- Datenschutz- und Werbeaussagen gegen [docs/runbooks/app-store-privacy-ads.md](/docs/runbooks/app-store-privacy-ads.md) prüfen.

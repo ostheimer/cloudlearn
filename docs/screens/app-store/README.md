@@ -10,7 +10,7 @@ Die finalen Upload-Bilder werden aus echten App-Screens erzeugt und auf
 
 ## Warum neue Screens nötig sind
 
-Die älteren Screens in [docs/screens/screenshots](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/screens/screenshots)
+Die älteren Screens in [docs/screens/screenshots](/docs/screens/screenshots)
 sind echte Simulator-Screens, aber nicht mehr final für den Store:
 
 - Login zeigt nicht den aktuellen OAuth-/Gastmodus-Stand.

@@ -16,10 +16,10 @@ Der Test gilt erst als bestanden, wenn Code, Supabase-Migration und echter App-F
 
 ## Relevante Dateien
 
-- API-Route: [apps/api/app/api/v1/account/route.ts](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/api/app/api/v1/account/route.ts)
-- Service: [apps/api/src/services/accountDeletionService.ts](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/api/src/services/accountDeletionService.ts)
-- Supabase-Migration: [apps/api/supabase/migrations/20260404120000_add_deleted_accounts.sql](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/api/supabase/migrations/20260404120000_add_deleted_accounts.sql)
-- Mobile-UI: [apps/mobile/app/(tabs)/profile.tsx](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/app/(tabs)/profile.tsx)
+- API-Route: [apps/api/app/api/v1/account/route.ts](/apps/api/app/api/v1/account/route.ts)
+- Service: [apps/api/src/services/accountDeletionService.ts](/apps/api/src/services/accountDeletionService.ts)
+- Supabase-Migration: [apps/api/supabase/migrations/20260404120000_add_deleted_accounts.sql](/apps/api/supabase/migrations/20260404120000_add_deleted_accounts.sql)
+- Mobile-UI: [apps/mobile/app/(tabs)/profile.tsx](/apps/mobile/app/(tabs)/profile.tsx)
 
 ## Repo-Verifikation
 

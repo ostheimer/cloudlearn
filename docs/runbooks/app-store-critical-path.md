@@ -9,23 +9,23 @@ Sie ersetzt nicht die Fachdokumente, sondern verdichtet sie zu einer abarbeitbar
 
 ## Bereits vorhandene Detaildokumente
 
-- Kanonische Identitäten / URLs / Env-Namen: [docs/runbooks/product-identities.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/product-identities.md)
-- EAS / Build / Submit: [docs/runbooks/eas-build.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/eas-build.md)
-- RevenueCat / IAP Setup: [docs/monetization/REVENUECAT_SETUP.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/monetization/REVENUECAT_SETUP.md)
-- OAuth Setup: [docs/runbooks/mobile-oauth-setup.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/mobile-oauth-setup.md)
-- Passkeys und Face ID: [docs/runbooks/passkeys-and-biometric-auth.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/passkeys-and-biometric-auth.md)
-- App Store Privacy / Ads: [docs/runbooks/app-store-privacy-ads.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-privacy-ads.md)
-- App Store Privacy Questionnaire: [docs/runbooks/app-store-privacy-questionnaire.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-privacy-questionnaire.md)
-- Release-Gates: [docs/runbooks/release-gates.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/release-gates.md)
-- ASO / Store Assets: [docs/aso/checklist.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/aso/checklist.md)
-- Store-Metadata-Entwurf: [docs/aso/store-metadata-draft.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/aso/store-metadata-draft.md)
-- App-Store-Connect-Ausfüllpaket: [docs/runbooks/app-store-connect-fill-in.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-connect-fill-in.md)
-- Restore / Incident: [docs/runbooks/restore-test.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/restore-test.md)
-- Konto-Löschung E2E: [docs/runbooks/account-deletion-e2e.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/account-deletion-e2e.md)
-- App-Review-Notes: [docs/runbooks/app-store-review-notes.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-review-notes.md)
-- Reviewer-Demo-Konto: [docs/runbooks/reviewer-demo-account.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/reviewer-demo-account.md)
-- TestFlight-Smoke: [docs/runbooks/testflight-smoke-checklist.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/testflight-smoke-checklist.md)
-- Dashboard-Handoff: [docs/runbooks/dashboard-release-handoff.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/dashboard-release-handoff.md)
+- Kanonische Identitäten / URLs / Env-Namen: [docs/runbooks/product-identities.md](/docs/runbooks/product-identities.md)
+- EAS / Build / Submit: [docs/runbooks/eas-build.md](/docs/runbooks/eas-build.md)
+- RevenueCat / IAP Setup: [docs/monetization/REVENUECAT_SETUP.md](/docs/monetization/REVENUECAT_SETUP.md)
+- OAuth Setup: [docs/runbooks/mobile-oauth-setup.md](/docs/runbooks/mobile-oauth-setup.md)
+- Passkeys und Face ID: [docs/runbooks/passkeys-and-biometric-auth.md](/docs/runbooks/passkeys-and-biometric-auth.md)
+- App Store Privacy / Ads: [docs/runbooks/app-store-privacy-ads.md](/docs/runbooks/app-store-privacy-ads.md)
+- App Store Privacy Questionnaire: [docs/runbooks/app-store-privacy-questionnaire.md](/docs/runbooks/app-store-privacy-questionnaire.md)
+- Release-Gates: [docs/runbooks/release-gates.md](/docs/runbooks/release-gates.md)
+- ASO / Store Assets: [docs/aso/checklist.md](/docs/aso/checklist.md)
+- Store-Metadata-Entwurf: [docs/aso/store-metadata-draft.md](/docs/aso/store-metadata-draft.md)
+- App-Store-Connect-Ausfüllpaket: [docs/runbooks/app-store-connect-fill-in.md](/docs/runbooks/app-store-connect-fill-in.md)
+- Restore / Incident: [docs/runbooks/restore-test.md](/docs/runbooks/restore-test.md)
+- Konto-Löschung E2E: [docs/runbooks/account-deletion-e2e.md](/docs/runbooks/account-deletion-e2e.md)
+- App-Review-Notes: [docs/runbooks/app-store-review-notes.md](/docs/runbooks/app-store-review-notes.md)
+- Reviewer-Demo-Konto: [docs/runbooks/reviewer-demo-account.md](/docs/runbooks/reviewer-demo-account.md)
+- TestFlight-Smoke: [docs/runbooks/testflight-smoke-checklist.md](/docs/runbooks/testflight-smoke-checklist.md)
+- Dashboard-Handoff: [docs/runbooks/dashboard-release-handoff.md](/docs/runbooks/dashboard-release-handoff.md)
 
 ## Beschlossene Produktentscheidungen
 
@@ -56,7 +56,7 @@ Sie ersetzt nicht die Fachdokumente, sondern verdichtet sie zu einer abarbeitbar
 
 - [ ] Identitäten und Konfiguration vereinheitlichen.
   - Bundle ID, Android Package, RevenueCat App IDs, Deep Links, Domains und Env-Namen müssen konsistent sein.
-  - Kanonische Referenz: [docs/runbooks/product-identities.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/product-identities.md)
+  - Kanonische Referenz: [docs/runbooks/product-identities.md](/docs/runbooks/product-identities.md)
   - Repo-seitig bereits bereinigt:
     - kanonische Identitäten dokumentiert
     - RevenueCat-Doku auf `app.clearn` als App-ID korrigiert
@@ -71,11 +71,11 @@ Sie ersetzt nicht die Fachdokumente, sondern verdichtet sie zu einer abarbeitbar
     - Support-URL
     - Kontakt-/Impressumsseite
   - Repo-seitig jetzt vorhanden:
-    - [apps/web/app/privacy/page.tsx](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/web/app/privacy/page.tsx)
-    - [apps/web/app/support/page.tsx](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/web/app/support/page.tsx)
-    - [apps/web/app/impressum/page.tsx](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/web/app/impressum/page.tsx)
-    - mobile Einstiege in [apps/mobile/app/(tabs)/profile.tsx](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/app/(tabs)/profile.tsx)
-    - echte öffentliche Ostheimer-Kontaktdaten in [apps/web/src/lib/site.ts](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/web/src/lib/site.ts)
+    - [apps/web/app/privacy/page.tsx](/apps/web/app/privacy/page.tsx)
+    - [apps/web/app/support/page.tsx](/apps/web/app/support/page.tsx)
+    - [apps/web/app/impressum/page.tsx](/apps/web/app/impressum/page.tsx)
+    - mobile Einstiege in [apps/mobile/app/(tabs)/profile.tsx](/apps/mobile/app/(tabs)/profile.tsx)
+    - echte öffentliche Ostheimer-Kontaktdaten in [apps/web/src/lib/site.ts](/apps/web/src/lib/site.ts)
   - Offen bleibt:
     - die URLs in App Store Connect und den übrigen Store-/Dashboard-Setups hinterlegen
 
@@ -89,16 +89,16 @@ Sie ersetzt nicht die Fachdokumente, sondern verdichtet sie zu einer abarbeitbar
     - API-/Supabase-Löschpfad
     - klare Nutzerkommunikation zu Datenfolgen
   - Repo-seitig jetzt vorhanden:
-    - Mobile-UI in [apps/mobile/app/(tabs)/profile.tsx](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/app/(tabs)/profile.tsx)
-    - Mobile-API in [apps/mobile/src/lib/api.ts](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/src/lib/api.ts)
-    - Endpoint in [apps/api/app/api/v1/account/route.ts](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/api/app/api/v1/account/route.ts)
-    - Service in [apps/api/src/services/accountDeletionService.ts](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/api/src/services/accountDeletionService.ts)
-    - Tombstone-/Cleanup-Migration in [apps/api/supabase/migrations/20260404120000_add_deleted_accounts.sql](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/api/supabase/migrations/20260404120000_add_deleted_accounts.sql)
+    - Mobile-UI in [apps/mobile/app/(tabs)/profile.tsx](/apps/mobile/app/(tabs)/profile.tsx)
+    - Mobile-API in [apps/mobile/src/lib/api.ts](/apps/mobile/src/lib/api.ts)
+    - Endpoint in [apps/api/app/api/v1/account/route.ts](/apps/api/app/api/v1/account/route.ts)
+    - Service in [apps/api/src/services/accountDeletionService.ts](/apps/api/src/services/accountDeletionService.ts)
+    - Tombstone-/Cleanup-Migration in [apps/api/supabase/migrations/20260404120000_add_deleted_accounts.sql](/apps/api/supabase/migrations/20260404120000_add_deleted_accounts.sql)
   - Offen bleibt:
     - Migration auf der Ziel-Datenbank ausrollen
     - manueller End-to-End-Test gegen eine echte Supabase-Umgebung
   - Abnahme-Runbook:
-    - [docs/runbooks/account-deletion-e2e.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/account-deletion-e2e.md)
+    - [docs/runbooks/account-deletion-e2e.md](/docs/runbooks/account-deletion-e2e.md)
 
 - [ ] RevenueCat / Store-Produkte produktiv fertigstellen und verifizieren.
   - Produkte in App Store Connect wirklich anlegen
@@ -122,19 +122,19 @@ Sie ersetzt nicht die Fachdokumente, sondern verdichtet sie zu einer abarbeitbar
     - Aktivierung erst nach explizitem ATT-Opt-in
     - Rewarded Ads ohne ATT-Opt-in nur nicht-personalisiert
   - Repo-seitig jetzt vorhanden:
-    - persistierter Consent-State in [apps/mobile/src/features/ads/trackingConsent.ts](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/src/features/ads/trackingConsent.ts)
-    - kontextueller Pre-Prompt und Rewarded-Ad-Gating in [apps/mobile/src/features/ads/useRewardedAd.native.ts](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/src/features/ads/useRewardedAd.native.ts)
-    - sichtbarer Einstellungsweg in [apps/mobile/app/tracking-preferences.tsx](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/app/tracking-preferences.tsx) und [apps/mobile/app/(tabs)/profile.tsx](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/app/(tabs)/profile.tsx)
-    - Expo-Plugin für ATT in [apps/mobile/app.json](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/app.json)
-    - app-eigenes iOS Privacy Manifest in [apps/mobile/ios/clearnPreview/PrivacyInfo.xcprivacy](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/ios/clearnPreview/PrivacyInfo.xcprivacy)
+    - persistierter Consent-State in [apps/mobile/src/features/ads/trackingConsent.ts](/apps/mobile/src/features/ads/trackingConsent.ts)
+    - kontextueller Pre-Prompt und Rewarded-Ad-Gating in [apps/mobile/src/features/ads/useRewardedAd.native.ts](/apps/mobile/src/features/ads/useRewardedAd.native.ts)
+    - sichtbarer Einstellungsweg in [apps/mobile/app/tracking-preferences.tsx](/apps/mobile/app/tracking-preferences.tsx) und [apps/mobile/app/(tabs)/profile.tsx](/apps/mobile/app/(tabs)/profile.tsx)
+    - Expo-Plugin für ATT in [apps/mobile/app.json](/apps/mobile/app.json)
+    - app-eigenes iOS Privacy Manifest in [apps/mobile/ios/clearnPreview/PrivacyInfo.xcprivacy](/apps/mobile/ios/clearnPreview/PrivacyInfo.xcprivacy)
     - SDK-seitige Privacy Manifests im iOS-Build:
-      - Google Mobile Ads in [PrivacyInfo.xcprivacy](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/ios/Pods/Google-Mobile-Ads-SDK/Frameworks/GoogleMobileAdsFramework/GoogleMobileAds.xcframework/ios-arm64/GoogleMobileAds.framework/PrivacyInfo.xcprivacy)
-      - Google User Messaging Platform in [PrivacyInfo.xcprivacy](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/ios/Pods/GoogleUserMessagingPlatform/Frameworks/Release/UserMessagingPlatform.xcframework/ios-arm64/UserMessagingPlatform.framework/PrivacyInfo.xcprivacy)
+      - Google Mobile Ads in [PrivacyInfo.xcprivacy](/apps/mobile/ios/Pods/Google-Mobile-Ads-SDK/Frameworks/GoogleMobileAdsFramework/GoogleMobileAds.xcframework/ios-arm64/GoogleMobileAds.framework/PrivacyInfo.xcprivacy)
+      - Google User Messaging Platform in [PrivacyInfo.xcprivacy](/apps/mobile/ios/Pods/GoogleUserMessagingPlatform/Frameworks/Release/UserMessagingPlatform.xcframework/ios-arm64/UserMessagingPlatform.framework/PrivacyInfo.xcprivacy)
   - Besonders prüfen:
-    - [apps/mobile/app.json](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/app.json)
-    - [apps/mobile/app.config.js](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/app.config.js)
-    - [apps/mobile/ios/clearnPreview/PrivacyInfo.xcprivacy](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/ios/clearnPreview/PrivacyInfo.xcprivacy)
-    - [apps/mobile/src/features/ads/useRewardedAd.native.ts](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/src/features/ads/useRewardedAd.native.ts)
+    - [apps/mobile/app.json](/apps/mobile/app.json)
+    - [apps/mobile/app.config.js](/apps/mobile/app.config.js)
+    - [apps/mobile/ios/clearnPreview/PrivacyInfo.xcprivacy](/apps/mobile/ios/clearnPreview/PrivacyInfo.xcprivacy)
+    - [apps/mobile/src/features/ads/useRewardedAd.native.ts](/apps/mobile/src/features/ads/useRewardedAd.native.ts)
   - Offen bleibt:
     - im App Store Connect Privacy Questionnaire die SDK-Daten korrekt abbilden; insbesondere nicht fälschlich "kein Tracking" angeben, solange personalisierte Ads optional aktiviert werden können
     - das Privacy Report/Privacy Nutrition Label eines echten iOS-Archives gegen die oben eingebundenen SDK-Manifests prüfen
@@ -143,9 +143,9 @@ Sie ersetzt nicht die Fachdokumente, sondern verdichtet sie zu einer abarbeitbar
     - produktive AdMob IDs in der EAS-/Build-Umgebung setzen
     - `app.config.js` bricht Production-Builds ohne produktive AdMob App-IDs und Rewarded-Ad-Unit-IDs ab; Preview und Development nutzen weiterhin Google-Test-IDs
   - Repo-Audit:
-    - [docs/runbooks/app-store-privacy-ads.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-privacy-ads.md)
+    - [docs/runbooks/app-store-privacy-ads.md](/docs/runbooks/app-store-privacy-ads.md)
   - Ausfüllbarer Privacy-Questionnaire-Entwurf:
-    - [docs/runbooks/app-store-privacy-questionnaire.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-privacy-questionnaire.md)
+    - [docs/runbooks/app-store-privacy-questionnaire.md](/docs/runbooks/app-store-privacy-questionnaire.md)
 
 - [ ] TestFlight-/Reviewer-Readiness herstellen.
   - Benötigt:
@@ -154,11 +154,11 @@ Sie ersetzt nicht die Fachdokumente, sondern verdichtet sie zu einer abarbeitbar
     - Reviewer-Account / Demo-Zugang
     - Review Notes für Login, IAP und Kernflow
   - Repo-seitig vorbereitet:
-    - [docs/runbooks/app-store-review-notes.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-review-notes.md)
-    - [docs/runbooks/testflight-smoke-checklist.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/testflight-smoke-checklist.md)
+    - [docs/runbooks/app-store-review-notes.md](/docs/runbooks/app-store-review-notes.md)
+    - [docs/runbooks/testflight-smoke-checklist.md](/docs/runbooks/testflight-smoke-checklist.md)
     - lokaler Evidence-Check `pnpm --filter @clearn/mobile testflight:check`
     - kombinierter Mobile-Release-Check `pnpm release:mobile:check`
-    - ignoriertes Evidence-Template [apps/mobile/testflight-readiness.example.json](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/testflight-readiness.example.json)
+    - ignoriertes Evidence-Template [apps/mobile/testflight-readiness.example.json](/apps/mobile/testflight-readiness.example.json)
   - Offen bleibt:
     - `apps/mobile/testflight-readiness.local.json` nach echtem TestFlight-Smoke ausfüllen
     - `pnpm --filter @clearn/mobile testflight:check` muss vor Submission grün sein
@@ -170,7 +170,7 @@ Sie ersetzt nicht die Fachdokumente, sondern verdichtet sie zu einer abarbeitbar
   - Repo-seitig vorbereitet:
     - lokaler Evidence-Check `pnpm --filter @clearn/mobile dashboard:check`
     - kombinierter Mobile-Release-Check `pnpm release:mobile:check`
-    - ignoriertes Evidence-Template [apps/mobile/dashboard-readiness.example.json](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/dashboard-readiness.example.json)
+    - ignoriertes Evidence-Template [apps/mobile/dashboard-readiness.example.json](/apps/mobile/dashboard-readiness.example.json)
   - Offen bleibt:
     - `apps/mobile/dashboard-readiness.local.json` nach echten Dashboard-Schritten ausfüllen
     - `pnpm --filter @clearn/mobile dashboard:check` muss vor Submission grün sein
@@ -192,7 +192,7 @@ Sie ersetzt nicht die Fachdokumente, sondern verdichtet sie zu einer abarbeitbar
     - Tracking-Einstellungen
     - Hilfe / Datenschutz / Impressum
     - Store-Abo-Verwaltung für aktive Pro-Abos
-  - Relevante Datei: [apps/mobile/app/(tabs)/profile.tsx](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/app/(tabs)/profile.tsx)
+  - Relevante Datei: [apps/mobile/app/(tabs)/profile.tsx](/apps/mobile/app/(tabs)/profile.tsx)
   - Offen bleibt:
     - im TestFlight-Smoke verifizieren, dass die Store-Abo-Verwaltung auf iOS
       und Android wirklich öffnet
@@ -204,7 +204,7 @@ Sie ersetzt nicht die Fachdokumente, sondern verdichtet sie zu einer abarbeitbar
   - App Preview Video
   - Keyword-Set
   - Ausfüllpaket für App Store Connect:
-    - [docs/runbooks/app-store-connect-fill-in.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-connect-fill-in.md)
+    - [docs/runbooks/app-store-connect-fill-in.md](/docs/runbooks/app-store-connect-fill-in.md)
   - Repo-seitig vorbereitet:
     - Store-Metadata-Gate `pnpm --filter @clearn/mobile store:check`
     - Das Gate prüft App-Store-Limits, kanonische URLs/IDs, Produkt-IDs, Review-Notes und Screenshot-Captions.
@@ -225,21 +225,21 @@ Sie ersetzt nicht die Fachdokumente, sondern verdichtet sie zu einer abarbeitbar
   - Wenn Google-Login in v1 kommt, muss Apple-Login gleichwertig mitgeliefert werden.
   - Gleiche verifizierte E-Mail soll bei Apple, Google und E-Mail/Passwort zum selben Konto führen.
   - Repo-seitig jetzt vorhanden:
-    - Auth-UI in [apps/mobile/app/auth.tsx](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/app/auth.tsx)
-    - OAuth-Flow in [apps/mobile/src/lib/oauth.ts](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/src/lib/oauth.ts)
-    - PKCE-Client-Konfiguration in [apps/mobile/src/lib/supabase.ts](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/src/lib/supabase.ts)
-    - Session-Store-Anbindung in [apps/mobile/src/store/sessionStore.ts](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/src/store/sessionStore.ts)
+    - Auth-UI in [apps/mobile/app/auth.tsx](/apps/mobile/app/auth.tsx)
+    - OAuth-Flow in [apps/mobile/src/lib/oauth.ts](/apps/mobile/src/lib/oauth.ts)
+    - PKCE-Client-Konfiguration in [apps/mobile/src/lib/supabase.ts](/apps/mobile/src/lib/supabase.ts)
+    - Session-Store-Anbindung in [apps/mobile/src/store/sessionStore.ts](/apps/mobile/src/store/sessionStore.ts)
   - Offen bleibt:
     - Apple- und Google-Provider in Supabase produktiv aktivieren
     - Redirect-URLs in Supabase und den Provider-Dashboards hinterlegen
     - reale Happy-Path-/Cancel-/Fehler-Tests auf iOS, Android und Mobile-Web
-  - Detaildoku: [docs/runbooks/mobile-oauth-setup.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/mobile-oauth-setup.md)
+  - Detaildoku: [docs/runbooks/mobile-oauth-setup.md](/docs/runbooks/mobile-oauth-setup.md)
 
 - [ ] Passkey-Login entscheiden und ggf. implementieren.
   - Face ID / Touch ID ist als lokale Entsperrung umgesetzt und nutzt keine
     lokal gespeicherten Passwörter.
   - Echte Passkeys bleiben ein separater WebAuthn-/Provider-Pfad.
-  - Detaildoku: [docs/runbooks/passkeys-and-biometric-auth.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/passkeys-and-biometric-auth.md)
+  - Detaildoku: [docs/runbooks/passkeys-and-biometric-auth.md](/docs/runbooks/passkeys-and-biometric-auth.md)
 
 ## P2 — Kurz nach Launch oder nur falls Scope in v1 enthalten
 

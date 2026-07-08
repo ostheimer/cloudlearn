@@ -16,8 +16,8 @@
 - Datenschutz- und Support-URL aktuell.
 - TestFlight-/Beta-Beschreibung erklärt Kernflow in 2-3 Sätzen.
 - Paywall-Text und Store-Beschreibung verwenden dieselben Produktbegriffe.
-- Store-Metadata-Entwurf: [docs/aso/store-metadata-draft.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/aso/store-metadata-draft.md)
-- App-Store-Connect-Ausfüllpaket: [docs/runbooks/app-store-connect-fill-in.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-connect-fill-in.md)
+- Store-Metadata-Entwurf: [docs/aso/store-metadata-draft.md](/docs/aso/store-metadata-draft.md)
+- App-Store-Connect-Ausfüllpaket: [docs/runbooks/app-store-connect-fill-in.md](/docs/runbooks/app-store-connect-fill-in.md)
 - Store-Metadata-Gate läuft grün:
 
 ```bash
@@ -30,8 +30,8 @@ pnpm --filter @clearn/mobile store:check
 - Rewarded Ads werden in den Store-Texten als nicht-personalisierte Fallback-Variante beschrieben, wenn kein ATT-Opt-in vorliegt.
 - App Store Connect Privacy Questionnaire wird gegen die tatsächlich eingebundenen SDKs beantwortet, nicht nur gegen den eigenen App-Code.
 - Google Mobile Ads und UMP-Privacy-Manifests sind vor der Einreichung gegen den Privacy Report eines echten iOS-Archives geprüft.
-- Privacy-Details, Tracking-Angaben und Review Notes verweisen auf das Runbook [docs/runbooks/app-store-privacy-ads.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-privacy-ads.md).
-- App-Store-Connect-Fragebogen-Entwurf: [docs/runbooks/app-store-privacy-questionnaire.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-privacy-questionnaire.md)
+- Privacy-Details, Tracking-Angaben und Review Notes verweisen auf das Runbook [docs/runbooks/app-store-privacy-ads.md](/docs/runbooks/app-store-privacy-ads.md).
+- App-Store-Connect-Fragebogen-Entwurf: [docs/runbooks/app-store-privacy-questionnaire.md](/docs/runbooks/app-store-privacy-questionnaire.md)
 
 ## Conversion Tracking
 

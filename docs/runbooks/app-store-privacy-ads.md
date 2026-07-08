@@ -50,9 +50,9 @@ Die wichtigste Regel ist: Die Store-Antworten werden nicht nur aus unserem App-C
 - Erklären, dass Tracking erst nach ATT-Opt-in aktiviert wird.
 - Erklären, dass die App wegen Ad-SDKs relevante Privacy-Manifest-Einträge enthält.
 - Auf den Support- und Datenschutzseiten verweisen:
-  - [docs/aso/checklist.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/aso/checklist.md)
-  - [docs/runbooks/app-store-critical-path.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-critical-path.md)
-  - [docs/runbooks/app-store-privacy-questionnaire.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-privacy-questionnaire.md)
+  - [docs/aso/checklist.md](/docs/aso/checklist.md)
+  - [docs/runbooks/app-store-critical-path.md](/docs/runbooks/app-store-critical-path.md)
+  - [docs/runbooks/app-store-privacy-questionnaire.md](/docs/runbooks/app-store-privacy-questionnaire.md)
 
 ## Vor Submission prüfen
 
@@ -64,17 +64,17 @@ Die wichtigste Regel ist: Die Store-Antworten werden nicht nur aus unserem App-C
 
 Ausfüllbarer Entwurf:
 
-- [docs/runbooks/app-store-privacy-questionnaire.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-privacy-questionnaire.md)
+- [docs/runbooks/app-store-privacy-questionnaire.md](/docs/runbooks/app-store-privacy-questionnaire.md)
 
 ## Repo-Audit 2026-05-02
 
 Geprüfte Dateien:
 
-- [apps/mobile/app.json](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/app.json)
-- [apps/mobile/app.config.js](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/app.config.js)
-- [apps/mobile/ios/clearnPreview/PrivacyInfo.xcprivacy](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/ios/clearnPreview/PrivacyInfo.xcprivacy)
-- [apps/mobile/src/features/ads/trackingConsent.ts](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/src/features/ads/trackingConsent.ts)
-- [apps/mobile/src/features/ads/useRewardedAd.native.ts](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/src/features/ads/useRewardedAd.native.ts)
+- [apps/mobile/app.json](/apps/mobile/app.json)
+- [apps/mobile/app.config.js](/apps/mobile/app.config.js)
+- [apps/mobile/ios/clearnPreview/PrivacyInfo.xcprivacy](/apps/mobile/ios/clearnPreview/PrivacyInfo.xcprivacy)
+- [apps/mobile/src/features/ads/trackingConsent.ts](/apps/mobile/src/features/ads/trackingConsent.ts)
+- [apps/mobile/src/features/ads/useRewardedAd.native.ts](/apps/mobile/src/features/ads/useRewardedAd.native.ts)
 
 Ergebnis:
 
