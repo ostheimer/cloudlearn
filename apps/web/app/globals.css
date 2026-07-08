@@ -2100,6 +2100,15 @@ ul.reset {
 .source-card--url {
   background: #3b82f6;
 }
+.source-card--photo {
+  background: #6366f1;
+}
+.source-card--gallery {
+  background: #10b981;
+}
+.source-card--pdf {
+  background: #0f172a;
+}
 .source-card__ic {
   width: 44px;
   height: 44px;
@@ -2145,6 +2154,36 @@ ul.reset {
   padding: 1px 7px;
   font-size: 0.78rem;
   font-weight: 700;
+}
+
+/* Foto-Vorschau und PDF-Datei im Eingabe-Schritt */
+.file-preview {
+  display: grid;
+  gap: 10px;
+}
+.file-preview img {
+  display: block;
+  max-width: 100%;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+}
+.pdf-file {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-softer);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 12px 14px;
+}
+.pdf-file svg {
+  flex: none;
+  color: var(--ink-3);
+}
+.pdf-file__name {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  min-width: 0;
 }
 
 /* Info-Hinweis unter dem Button (wie der Hinweis-Kasten der App) */
