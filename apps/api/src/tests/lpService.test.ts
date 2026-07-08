@@ -13,6 +13,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { TIER_LIMITS, LP_EARN_RULES, lpCostForFeature, getLimitsForTier } from "../lib/featureGates";
 import {
   spendLp,
+  refundLp,
   earnLp,
   grantMonthlyLp,
   claimMilestoneReward,
@@ -410,6 +411,53 @@ describe("grantLpPurchase (atomic add_lp RPC)", () => {
     const result = await grantLpPurchase("user-1", 100, "purchase-abc");
 
     expect(result).toBe(0);
+  });
+});
+
+describe("refundLp (atomic add_lp RPC with 'refund' type)", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("credits the refund via add_lp under the dedicated 'refund' type", async () => {
+    const db = makeMockDb();
+    db.rpc.mockResolvedValue({ data: 25, error: null });
+    useMockDb(db);
+
+    const result = await refundLp("user-1", 20, "refund_pdfImport_failed");
+
+    expect(db.rpc).toHaveBeenCalledWith("add_lp", {
+      p_user: "user-1",
+      p_amount: 20,
+      p_type: "refund",
+      p_reason: "refund_pdfImport_failed",
+    });
+    expect(result).toBe(25);
+  });
+
+  it("is a no-op for non-positive amounts (never touches the DB)", async () => {
+    const db = makeMockDb();
+    useMockDb(db);
+
+    expect(await refundLp("user-1", 0, "refund_pdfImport_failed")).toBe(0);
+    expect(await refundLp("user-1", -5, "refund_pdfImport_failed")).toBe(0);
+    expect(db.rpc).not.toHaveBeenCalled();
+  });
+
+  it("returns 0 when add_lp reports no matching profile (null scalar)", async () => {
+    const db = makeMockDb();
+    db.rpc.mockResolvedValue({ data: null, error: null });
+    useMockDb(db);
+
+    expect(await refundLp("user-1", 20, "refund_pdfImport_failed")).toBe(0);
+  });
+
+  it("throws when add_lp reports an error", async () => {
+    const db = makeMockDb();
+    db.rpc.mockResolvedValue({ data: null, error: { message: "boom" } });
+    useMockDb(db);
+
+    await expect(refundLp("user-1", 20, "refund_pdfImport_failed")).rejects.toThrow(
+      "refundLp: boom"
+    );
   });
 });
 

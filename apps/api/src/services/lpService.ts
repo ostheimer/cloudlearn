@@ -76,6 +76,39 @@ export async function spendLp(
   };
 }
 
+// ─── Refund ───────────────────────────────────────────────────────────────────
+
+/**
+ * Credits LP back to a user after a charged operation failed to produce any
+ * result — e.g. a paid PDF import whose text extraction threw, or an image scan
+ * the AI couldn't turn into cards. Because spend_lp runs before processing, a
+ * failure would otherwise leave the user billed for cards that never existed.
+ *
+ * Uses the atomic add_lp credit and records the reversal under the dedicated
+ * `refund` ledger type (see 20260708120000_add_refund_lp_type.sql) so the audit
+ * trail stays honest. Amounts <= 0 are a no-op — nothing was charged, nothing to
+ * give back. Returns the new balance, or 0 if the profile no longer exists.
+ */
+export async function refundLp(
+  userId: string,
+  amount: number,
+  reason: string
+): Promise<number> {
+  if (amount <= 0) return 0;
+
+  const db = getDb();
+  const { data, error } = await db.rpc("add_lp", {
+    p_user: userId,
+    p_amount: amount,
+    p_type: "refund",
+    p_reason: reason,
+  });
+
+  if (error) throw new Error(`refundLp: ${error.message}`);
+
+  return (data as number | null) ?? 0;
+}
+
 // ─── Earn ─────────────────────────────────────────────────────────────────────
 
 export type EarnType = "session" | "dailyGoal" | "ad";

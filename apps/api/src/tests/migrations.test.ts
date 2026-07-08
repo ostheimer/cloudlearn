@@ -45,6 +45,33 @@ describe("supabase migrations", () => {
     expect(sql).toContain("grant execute on function delete_account_data(uuid, text) to service_role");
   });
 
+  it("adds 'refund' to the lp_transactions type constraint for failed-charge reversals", () => {
+    const migrationPath = join(
+      apiRoot,
+      "supabase/migrations/20260708120000_add_refund_lp_type.sql",
+    );
+    const sql = readFileSync(migrationPath, "utf-8");
+
+    // Swaps the CHECK constraint rather than leaving the old one in place
+    expect(sql).toContain("drop constraint if exists lp_transactions_type_check");
+    expect(sql).toContain("add constraint lp_transactions_type_check");
+    // Keeps every previously allowed type AND adds the new 'refund' one
+    for (const type of [
+      "abo_grant",
+      "earned",
+      "purchased",
+      "ad_reward",
+      "referral",
+      "spent",
+      "win_back",
+      "event_bonus",
+      "admin",
+      "refund",
+    ]) {
+      expect(sql).toContain(`'${type}'`);
+    }
+  });
+
   it("keeps profile deletion backed by cascading user-data references", () => {
     const migrationDir = join(apiRoot, "supabase/migrations");
     const migrationFiles = [

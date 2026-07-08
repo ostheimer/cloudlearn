@@ -7,6 +7,7 @@ import { getAuthUser } from "@/lib/auth";
 import { processScan } from "@/services/scanService";
 import { getSubscriptionStatus } from "@/services/subscriptionService";
 import { spendLp } from "@/services/lpService";
+import { refundOnFailure } from "@/lib/lpRefund";
 
 export async function POST(request: NextRequest) {
   const { requestId } = createRequestContext(request.headers);
@@ -38,7 +39,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await processScan(body, requestId, userId);
+    // LP were charged up front, but processScan can still fail — e.g. an image
+    // scan the AI can't turn into cards (no heuristic fallback on the image
+    // path). Refund the LP so a failed scan never costs the user anything.
+    let result: Awaited<ReturnType<typeof processScan>>;
+    try {
+      result = await processScan(body, requestId, userId);
+    } catch (processingError) {
+      await refundOnFailure(userId, lpResult.cost, "refund_aiScan_failed", requestId);
+      throw processingError;
+    }
+
     logInfo("scan_processed", {
       requestId,
       userId,

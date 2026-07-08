@@ -6,6 +6,7 @@ import { createRequestContext, logError, logInfo } from "@/lib/observability";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { getSubscriptionStatus } from "@/services/subscriptionService";
 import { spendLp } from "@/services/lpService";
+import { refundOnFailure } from "@/lib/lpRefund";
 import { getPdfJob, processPdfImport } from "@/services/pdfImportService";
 
 export async function GET(request: NextRequest) {
@@ -52,7 +53,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await processPdfImport(body, requestId, userId);
+    // LP were charged up front, but the actual work (text extraction + AI) can
+    // still fail — a scan-only PDF throws 422 PDF_TEXT_NOT_FOUND. In that case
+    // refund the LP so the user isn't billed for cards that never got created.
+    let result: Awaited<ReturnType<typeof processPdfImport>>;
+    try {
+      result = await processPdfImport(body, requestId, userId);
+    } catch (processingError) {
+      await refundOnFailure(userId, lpResult.cost, "refund_pdfImport_failed", requestId);
+      throw processingError;
+    }
+
     logInfo("pdf_import_processed", {
       requestId,
       userId,
