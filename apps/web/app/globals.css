@@ -316,6 +316,14 @@ p {
   cursor: not-allowed;
 }
 
+/* Symbol-Kacheln im App-Bereich flach & einfarbig wie in der App:
+   Deck-Symbol und Avatar. Das Marken-Logo (.brand__mark) behält bewusst
+   den Indigo-Violett-Verlauf. */
+.app-shell .deck-card__badge,
+.app-shell .avatar {
+  background: var(--brand);
+}
+
 .btn-ghost {
   background: var(--surface);
   color: var(--ink);
