@@ -37,10 +37,8 @@ const MAX_TEXT = 20000;
 // Vercel lehnt Anfragen über ~4,5 MB ab; base64 bläht ~33% auf → wir bleiben
 // mit Sicherheitsabstand unter 4 Mio. Zeichen.
 const MAX_BASE64 = 4_000_000;
-// PDF-Karte ist fertig, aber der PDF-Endpunkt der clearn-API wirft aktuell 500
-// (pdfjs lädt in der Serverless-Umgebung nicht). Bis das API-seitig behoben ist,
-// blenden wir die Karte aus. Danach einfach auf true stellen.
-const PDF_ENABLED = false;
+// PDF-Import ist API-seitig repariert (unpdf, PR #138) und auf Prod verifiziert.
+const PDF_ENABLED = true;
 
 export default function ImportPage() {
   const { userId } = useAuth();
