@@ -24,6 +24,7 @@ import {
   Share,
   Trash,
   AlertTriangle,
+  Sparkles,
 } from "@/components/icons";
 
 type ModalState =
@@ -87,13 +88,18 @@ export default function LibraryPage() {
             {decks.length} {decks.length === 1 ? "Deck" : "Decks"}
           </p>
         </div>
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={() => setModal({ type: "create" })}
-        >
-          + Neues Deck
-        </button>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <Link href="/dashboard/import" className="btn btn-ghost">
+            <Sparkles size={16} /> Karten per KI
+          </Link>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => setModal({ type: "create" })}
+          >
+            + Neues Deck
+          </button>
+        </div>
       </div>
 
       <div className="toolbar">
@@ -320,12 +326,17 @@ function EmptyState({
       <p>
         {hasDecks
           ? "Für deine Suche gibt es kein passendes Deck."
-          : "Lege dein erstes Deck an — oder erstelle in der App neue Karten aus deinem Lernmaterial."}
+          : "Lass die KI aus Text oder einer Webseite fertige Karten erstellen — oder leg ein leeres Deck an."}
       </p>
       {!hasDecks && (
-        <button type="button" className="btn btn-primary" onClick={onCreate}>
-          + Erstes Deck anlegen
-        </button>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+          <Link href="/dashboard/import" className="btn btn-primary">
+            <Sparkles size={16} /> Karten per KI
+          </Link>
+          <button type="button" className="btn btn-ghost" onClick={onCreate}>
+            + Leeres Deck anlegen
+          </button>
+        </div>
       )}
     </div>
   );

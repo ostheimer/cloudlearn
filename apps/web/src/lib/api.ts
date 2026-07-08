@@ -272,3 +272,83 @@ export function reviewCard(
 export function getStats(): Promise<{ stats: StatsResponse }> {
   return authed<{ stats: StatsResponse }>("/api/v1/stats");
 }
+
+// ─── KI-Import (Karten aus Text/URL erzeugen) ────────────────────────────────
+// Diese Endpunkte erzeugen die Karten UND legen serverseitig ein neues Deck an
+// (kein separater Speichern-Schritt). Die Antwort enthält keine deckId — der
+// Aufrufer findet das neue Deck über die aktualisierte Deckliste.
+
+export interface Flashcard {
+  front: string;
+  back: string;
+  type: string;
+  difficulty: string;
+  tags: string[];
+}
+
+export interface ScanResponse {
+  requestId: string;
+  model: string;
+  fallbackUsed: boolean;
+  cards: Flashcard[];
+  deckTitle?: string;
+  usage?: { lpSpent: number; lpBalance: number };
+}
+
+export interface UrlImportResponse extends ScanResponse {
+  sourceUrl: string;
+  imagesUsed: number;
+}
+
+export interface AiUsageResponse {
+  tier: "free" | "pro" | "lifetime";
+  lpBalance: number;
+  lpCostAiScan: number;
+  lpCostUrlImport: number;
+  lpCostPdfImport: number;
+}
+
+function importIdempotencyKey(prefix: string): string {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/** Erzeugt per KI Flashcards aus reinem Text. Legt serverseitig ein neues Deck an. */
+export function scanText(
+  userId: string,
+  text: string,
+  language = "de"
+): Promise<ScanResponse> {
+  return authed<ScanResponse>("/api/v1/scan/process", {
+    method: "POST",
+    body: JSON.stringify({
+      userId,
+      extractedText: text,
+      idempotencyKey: importIdempotencyKey("scan"),
+      sourceLanguage: language,
+    }),
+  });
+}
+
+/** Erzeugt per KI Flashcards aus einer Webseiten-URL. Legt serverseitig ein neues Deck an. */
+export function importFromUrl(
+  userId: string,
+  sourceUrl: string,
+  maxImages = 4,
+  language = "de"
+): Promise<UrlImportResponse> {
+  return authed<UrlImportResponse>("/api/v1/import/url", {
+    method: "POST",
+    body: JSON.stringify({
+      userId,
+      sourceUrl,
+      maxImages,
+      idempotencyKey: importIdempotencyKey("import-url"),
+      sourceLanguage: language,
+    }),
+  });
+}
+
+/** Aktueller Lernpunkte-Stand + Kosten pro KI-Aktion. */
+export function getLpBalance(): Promise<AiUsageResponse> {
+  return authed<AiUsageResponse>("/api/v1/usage");
+}
