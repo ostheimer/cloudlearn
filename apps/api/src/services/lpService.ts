@@ -111,7 +111,12 @@ export async function refundLp(
 
 // ─── Earn ─────────────────────────────────────────────────────────────────────
 
-export type EarnType = "session" | "dailyGoal" | "ad";
+// "dailyGoal" was removed: no legitimate client ever sent it, so it was pure
+// attack surface (10 free LP per call). The two real earn paths are:
+//   - "session": grant is derived from server-recorded reviews (review_logs),
+//     never from a client-supplied count — see earn_session_lp.
+//   - "ad":      still a flat 5 LP; binding it to AdMob SSV is tracked separately.
+export type EarnType = "session" | "ad";
 
 export interface EarnResult {
   granted: number;
@@ -119,58 +124,57 @@ export interface EarnResult {
   capReached: boolean;
 }
 
+// Number of reviewed cards that make up one rewardable "session" chunk.
+const CARDS_PER_SESSION_CHUNK = 5;
+const LP_PER_AD = 5;
+
+function mapEarnRow(data: unknown): EarnResult {
+  const row = Array.isArray(data) ? data[0] : data;
+  const r = row as { granted?: number; new_balance?: number; cap_reached?: boolean } | null;
+  return {
+    granted: r?.granted ?? 0,
+    newBalance: r?.new_balance ?? 0,
+    capReached: r?.cap_reached ?? false,
+  };
+}
+
 export async function earnLp(
   userId: string,
   tier: SubscriptionTier,
-  type: EarnType,
-  sessionCardCount?: number,
-  now = new Date()
+  type: EarnType
 ): Promise<EarnResult> {
   const limits = getLimitsForTier(tier);
-  const today = now.toISOString().split("T")[0]!;
+  const today = todayUTC();
+  const db = getDb();
 
-  // Business rule (kept in TS): how much this event is worth before caps.
-  let rawGrant = 0;
-  let isAd = false;
-
-  switch (type) {
-    case "session": {
-      const count = sessionCardCount ?? 0;
-      rawGrant = count >= 5 ? LP_EARN_RULES.perReviewSession : 0;
-      break;
-    }
-    case "dailyGoal":
-      rawGrant = LP_EARN_RULES.dailyGoalBonus;
-      break;
-    case "ad":
-      isAd = true;
-      rawGrant = 5;
-      break;
+  if (type === "ad") {
+    // Atomic earn under the ad/day cap. (Ad legitimacy — AdMob SSV — is a
+    // separate follow-up; today the grant is still a flat amount.)
+    const { data, error } = await db.rpc("earn_lp", {
+      p_user: userId,
+      p_raw_grant: LP_PER_AD,
+      p_is_ad: true,
+      p_earn_cap: limits.lpEarnCapPerDay,
+      p_ad_cap: limits.lpAdCapPerDay,
+      p_type: "ad",
+      p_today: today,
+    });
+    if (error) throw new Error(`earnLp(ad): ${error.message}`);
+    return mapEarnRow(data);
   }
 
-  // Atomic earn: the day-reset, per-day cap check, balance credit and ledger
-  // insert all happen under a single row lock inside earn_lp. We deliberately
-  // do NOT early-return on rawGrant<=0 — the SQL handles that and returns the
-  // correct current balance.
-  const db = getDb();
-  const { data, error } = await db.rpc("earn_lp", {
+  // session — the SQL counts the user's real, not-yet-rewarded reviews and pays
+  // only for whole chunks up to the daily cap, all atomically. The client's
+  // claimed card count is intentionally ignored.
+  const { data, error } = await db.rpc("earn_session_lp", {
     p_user: userId,
-    p_raw_grant: rawGrant,
-    p_is_ad: isAd,
+    p_lp_per_chunk: LP_EARN_RULES.perReviewSession,
+    p_cards_per_chunk: CARDS_PER_SESSION_CHUNK,
     p_earn_cap: limits.lpEarnCapPerDay,
-    p_ad_cap: limits.lpAdCapPerDay,
-    p_type: type,
     p_today: today,
   });
-
-  if (error) throw new Error(`earnLp: ${error.message}`);
-
-  const row = Array.isArray(data) ? data[0] : data;
-  return {
-    granted: row?.granted ?? 0,
-    newBalance: row?.new_balance ?? 0,
-    capReached: row?.cap_reached ?? false,
-  };
+  if (error) throw new Error(`earnLp(session): ${error.message}`);
+  return mapEarnRow(data);
 }
 
 // ─── Monthly Grant (called by cron / reset-ai-usage function) ────────────────

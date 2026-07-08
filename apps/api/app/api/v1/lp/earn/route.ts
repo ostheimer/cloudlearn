@@ -20,12 +20,9 @@ export async function POST(request: NextRequest) {
     }
 
     const subscription = await getSubscriptionStatus(auth.userId);
-    const result = await earnLp(
-      auth.userId,
-      subscription.tier,
-      parsed.data.type,
-      parsed.data.sessionCardCount
-    );
+    // Note: for "session" the grant is derived server-side from recorded reviews;
+    // parsed.data.sessionCardCount is accepted for client compatibility but ignored.
+    const result = await earnLp(auth.userId, subscription.tier, parsed.data.type);
 
     return jsonOk(requestId, {
       granted: result.granted,

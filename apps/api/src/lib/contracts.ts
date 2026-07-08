@@ -126,7 +126,10 @@ export type SubscriptionStatus = z.infer<typeof subscriptionStatusSchema>;
 export type SubscriptionTier = z.infer<typeof subscriptionTierSchema>;
 
 export const lpEarnRequestSchema = z.object({
-  type: z.enum(["session", "dailyGoal", "ad"]),
+  // "dailyGoal" removed: no legitimate client sent it, so it was pure attack surface.
+  type: z.enum(["session", "ad"]),
+  // Accepted for backward compatibility with shipped clients, but ignored server-side:
+  // the "session" grant is derived from server-recorded reviews, not this count.
   sessionCardCount: z.number().int().optional(),
 });
 export type LpEarnRequest = z.infer<typeof lpEarnRequestSchema>;
