@@ -11,6 +11,32 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { TIER_LIMITS, LP_EARN_RULES, lpCostForFeature, getLimitsForTier } from "../lib/featureGates";
+import {
+  spendLp,
+  earnLp,
+  grantMonthlyLp,
+  claimMilestoneReward,
+  grantLpPurchase,
+} from "@/services/lpService";
+import { createSupabaseAdminClient } from "@/lib/supabase";
+
+vi.mock("@/lib/supabase", () => ({
+  createSupabaseAdminClient: vi.fn(),
+}));
+
+// Mock Supabase client that exposes the atomic RPCs (spend_lp / earn_lp / add_lp)
+// plus the `from(...).insert(...)` chain still used by the rewards_claimed
+// idempotency guard in claimMilestoneReward.
+function makeMockDb() {
+  const rpc = vi.fn();
+  const insert = vi.fn().mockResolvedValue({ error: null });
+  const from = vi.fn().mockReturnValue({ insert });
+  return { rpc, from, __insert: insert };
+}
+
+function useMockDb(db: ReturnType<typeof makeMockDb>) {
+  vi.mocked(createSupabaseAdminClient).mockReturnValue(db as never);
+}
 
 // ─── featureGates unit tests (no DB required) ─────────────────────────────────
 
@@ -156,6 +182,234 @@ describe("LP earn cap logic", () => {
     const freeCap = TIER_LIMITS.free.lpEarnCapPerDay;
     const proCap = TIER_LIMITS.pro.lpEarnCapPerDay;
     expect(proCap).toBeGreaterThan(freeCap);
+  });
+});
+
+// ─── lpService against atomic RPCs (mocked Supabase client) ──────────────────
+// These exercise the real service functions and assert they call the atomic
+// Postgres functions (spend_lp / earn_lp / add_lp) with the right params and
+// correctly map the returned rows/scalars back to the public return shapes.
+
+describe("spendLp (atomic spend_lp RPC)", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("allows and returns new balance when spend_lp reports success", async () => {
+    const db = makeMockDb();
+    db.rpc.mockResolvedValue({ data: [{ allowed: true, new_balance: 5 }], error: null });
+    useMockDb(db);
+
+    const result = await spendLp("user-1", "free", "aiScan");
+
+    expect(db.rpc).toHaveBeenCalledWith("spend_lp", {
+      p_user: "user-1",
+      p_cost: TIER_LIMITS.free.lpCostAiScan, // 10
+      p_reason: "aiScan",
+    });
+    expect(result).toEqual({ allowed: true, newBalance: 5, cost: 10 });
+  });
+
+  it("rejects (allowed=false) when spend_lp reports insufficient balance", async () => {
+    const db = makeMockDb();
+    // balance 5 < cost 10 → SQL leaves balance untouched and returns allowed=false
+    db.rpc.mockResolvedValue({ data: [{ allowed: false, new_balance: 5 }], error: null });
+    useMockDb(db);
+
+    const result = await spendLp("user-1", "free", "aiScan");
+
+    expect(result).toEqual({ allowed: false, newBalance: 5, cost: 10 });
+  });
+
+  it("passes tier-specific cost to the RPC (pro is discounted)", async () => {
+    const db = makeMockDb();
+    db.rpc.mockResolvedValue({ data: [{ allowed: true, new_balance: 20 }], error: null });
+    useMockDb(db);
+
+    await spendLp("user-1", "pro", "urlImport");
+
+    expect(db.rpc).toHaveBeenCalledWith("spend_lp", {
+      p_user: "user-1",
+      p_cost: TIER_LIMITS.pro.lpCostUrlImport, // 8
+      p_reason: "urlImport",
+    });
+  });
+
+  it("throws when the RPC returns an error", async () => {
+    const db = makeMockDb();
+    db.rpc.mockResolvedValue({ data: null, error: { message: "boom" } });
+    useMockDb(db);
+
+    await expect(spendLp("user-1", "free", "aiScan")).rejects.toThrow("spendLp: boom");
+  });
+});
+
+describe("earnLp (atomic earn_lp RPC)", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("grants perReviewSession LP for a qualifying session and maps the row", async () => {
+    const db = makeMockDb();
+    db.rpc.mockResolvedValue({
+      data: [{ granted: 5, new_balance: 15, cap_reached: false }],
+      error: null,
+    });
+    useMockDb(db);
+
+    const result = await earnLp("user-1", "free", "session", 10);
+
+    expect(db.rpc).toHaveBeenCalledWith(
+      "earn_lp",
+      expect.objectContaining({
+        p_user: "user-1",
+        p_raw_grant: LP_EARN_RULES.perReviewSession, // 5
+        p_is_ad: false,
+        p_earn_cap: TIER_LIMITS.free.lpEarnCapPerDay,
+        p_ad_cap: TIER_LIMITS.free.lpAdCapPerDay,
+        p_type: "session",
+      }),
+    );
+    expect(result).toEqual({ granted: 5, newBalance: 15, capReached: false });
+  });
+
+  it("still calls the RPC with p_raw_grant=0 for a sub-threshold session (no early return)", async () => {
+    const db = makeMockDb();
+    db.rpc.mockResolvedValue({
+      data: [{ granted: 0, new_balance: 10, cap_reached: false }],
+      error: null,
+    });
+    useMockDb(db);
+
+    const result = await earnLp("user-1", "free", "session", 3);
+
+    expect(db.rpc).toHaveBeenCalledWith(
+      "earn_lp",
+      expect.objectContaining({ p_raw_grant: 0, p_is_ad: false }),
+    );
+    expect(result).toEqual({ granted: 0, newBalance: 10, capReached: false });
+  });
+
+  it("reports capReached when earn_lp returns cap_reached=true", async () => {
+    const db = makeMockDb();
+    db.rpc.mockResolvedValue({
+      data: [{ granted: 0, new_balance: 10, cap_reached: true }],
+      error: null,
+    });
+    useMockDb(db);
+
+    const result = await earnLp("user-1", "free", "session", 10);
+
+    expect(result).toEqual({ granted: 0, newBalance: 10, capReached: true });
+  });
+
+  it("marks ad rewards with p_is_ad=true and the ad cap", async () => {
+    const db = makeMockDb();
+    db.rpc.mockResolvedValue({
+      data: [{ granted: 5, new_balance: 15, cap_reached: false }],
+      error: null,
+    });
+    useMockDb(db);
+
+    await earnLp("user-1", "free", "ad");
+
+    expect(db.rpc).toHaveBeenCalledWith(
+      "earn_lp",
+      expect.objectContaining({
+        p_is_ad: true,
+        p_raw_grant: 5,
+        p_ad_cap: TIER_LIMITS.free.lpAdCapPerDay,
+      }),
+    );
+  });
+});
+
+describe("grantMonthlyLp (atomic add_lp RPC)", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("credits the monthly grant for pro and returns the grant amount", async () => {
+    const db = makeMockDb();
+    db.rpc.mockResolvedValue({ data: 400, error: null });
+    useMockDb(db);
+
+    const result = await grantMonthlyLp("user-1", "pro");
+
+    expect(db.rpc).toHaveBeenCalledWith("add_lp", {
+      p_user: "user-1",
+      p_amount: TIER_LIMITS.pro.lpGrantPerMonth, // 300
+      p_type: "abo_grant",
+      p_reason: "monthly_pro",
+    });
+    expect(result).toBe(TIER_LIMITS.pro.lpGrantPerMonth);
+  });
+
+  it("does nothing and returns 0 for free tier (no grant)", async () => {
+    const db = makeMockDb();
+    useMockDb(db);
+
+    const result = await grantMonthlyLp("user-1", "free");
+
+    expect(result).toBe(0);
+    expect(db.rpc).not.toHaveBeenCalled();
+  });
+});
+
+describe("claimMilestoneReward (idempotency guard + add_lp RPC)", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("grants the milestone LP on first claim", async () => {
+    const db = makeMockDb();
+    db.__insert.mockResolvedValue({ error: null });
+    db.rpc.mockResolvedValue({ data: 20, error: null });
+    useMockDb(db);
+
+    const result = await claimMilestoneReward("user-1", "first_deck");
+
+    expect(db.from).toHaveBeenCalledWith("rewards_claimed");
+    expect(db.rpc).toHaveBeenCalledWith("add_lp", {
+      p_user: "user-1",
+      p_amount: LP_EARN_RULES.firstDeck, // 10
+      p_type: "earned",
+      p_reason: "milestone_first_deck",
+    });
+    expect(result).toEqual({ granted: LP_EARN_RULES.firstDeck, alreadyClaimed: false });
+  });
+
+  it("is idempotent: a duplicate insert short-circuits without touching the balance", async () => {
+    const db = makeMockDb();
+    db.__insert.mockResolvedValue({ error: { message: "duplicate key" } });
+    useMockDb(db);
+
+    const result = await claimMilestoneReward("user-1", "first_deck");
+
+    expect(result).toEqual({ granted: 0, alreadyClaimed: true });
+    expect(db.rpc).not.toHaveBeenCalled();
+  });
+});
+
+describe("grantLpPurchase (atomic add_lp RPC)", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("credits the purchased LP and returns the new scalar balance", async () => {
+    const db = makeMockDb();
+    db.rpc.mockResolvedValue({ data: 110, error: null });
+    useMockDb(db);
+
+    const result = await grantLpPurchase("user-1", 100, "purchase-abc");
+
+    expect(db.rpc).toHaveBeenCalledWith("add_lp", {
+      p_user: "user-1",
+      p_amount: 100,
+      p_type: "purchased",
+      p_reason: "purchase-abc",
+    });
+    expect(result).toBe(110);
+  });
+
+  it("returns 0 when add_lp reports no matching profile (null scalar)", async () => {
+    const db = makeMockDb();
+    db.rpc.mockResolvedValue({ data: null, error: null });
+    useMockDb(db);
+
+    const result = await grantLpPurchase("user-1", 100, "purchase-abc");
+
+    expect(result).toBe(0);
   });
 });
 
