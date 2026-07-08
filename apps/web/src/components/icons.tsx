@@ -270,6 +270,34 @@ export const ArrowLeft = (p: IconProps) => (
   </Icon>
 );
 
+export const Zap = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M13 2L4 14h6l-1 8 9-12h-6z" />
+  </Icon>
+);
+
+export const Folder = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3 7a2 2 0 0 1 2-2h3.5l2 2H19a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+  </Icon>
+);
+
+export const Smartphone = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="7" y="3" width="10" height="18" rx="2.5" />
+    <path d="M11 18h2" />
+  </Icon>
+);
+
+export const Users = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M15 20v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1" />
+    <circle cx="8.5" cy="8" r="3.2" />
+    <path d="M22 20v-1a4 4 0 0 0-3-3.9" />
+    <path d="M16 4.6a3.2 3.2 0 0 1 0 6.2" />
+  </Icon>
+);
+
 export const Trophy = (p: IconProps) => (
   <Icon {...p}>
     <path d="M8 21h8M12 17v4" />

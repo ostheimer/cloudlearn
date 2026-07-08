@@ -4,7 +4,6 @@ import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { FlashcardDemo } from "@/components/marketing/flashcard-demo";
 import { ScrollReveal } from "@/components/marketing/scroll-reveal";
-import { siteConfig } from "@/lib/site";
 import { landingCtas } from "@/lib/landing";
 import {
   Camera,
@@ -12,21 +11,23 @@ import {
   TextType,
   Link as LinkIcon,
   FileText,
-  Sparkles,
   Repeat,
-  Shuffle,
-  Flame,
-  RefreshSync,
+  Target,
+  Folder,
+  Share,
+  Zap,
   Check,
   CheckCircle,
-  Target,
+  ShieldCheck,
+  MapPin,
+  Plus,
   Layers,
   ListChecks,
   Match,
   Pencil,
-  ShieldCheck,
-  MapPin,
-  Plus,
+  Flame,
+  Globe,
+  Smartphone,
   type IconProps,
 } from "@/components/icons";
 
@@ -43,7 +44,7 @@ const sources: { Icon: IconType; label: string }[] = [
 const steps = [
   {
     title: "Erfassen",
-    body: "Foto, Galerie, Text, URL oder PDF rein. Der schnellste Weg von vorhandenem Lernmaterial zu digitalen Karten.",
+    body: "Bring dein vorhandenes Lernmaterial in clearn — der schnellste Weg von deinen Unterlagen zu digitalen Karten.",
   },
   {
     title: "Strukturieren",
@@ -59,14 +60,8 @@ const features: { Icon: IconType; tint: string; title: string; body: string }[] 
   {
     Icon: Camera,
     tint: "g-indigo",
-    title: "Foto → Flashcards",
-    body: "Fotografiere Skript, Buch oder Tafel. OCR liest den Text, die KI macht daraus lernbare Karten.",
-  },
-  {
-    Icon: Sparkles,
-    tint: "g-violet",
-    title: "KI-Kartengenerator",
-    body: "Aus Foto, Text, URL oder PDF entstehen präzise Frage-Antwort-Paare — statt stundenlangem Abtippen.",
+    title: "Foto & KI-Erstellung",
+    body: "OCR liest den Inhalt deines Materials, die KI baut daraus in Sekunden fertige Frage-Antwort-Karten.",
   },
   {
     Icon: Repeat,
@@ -78,19 +73,25 @@ const features: { Icon: IconType; tint: string; title: string; body: string }[] 
     Icon: Target,
     tint: "g-pink",
     title: "Mehrere Lernmodi",
-    body: "Karteikarten, Multiple Choice, Zuordnen und Lückentext — dasselbe Deck, verschiedene Blickwinkel.",
+    body: "Karteikarten, Multiple Choice, Zuordnen und Lückentext — dasselbe Deck aus verschiedenen Blickwinkeln.",
+  },
+  {
+    Icon: Folder,
+    tint: "g-amber",
+    title: "Kurse & Ordner",
+    body: "Ordne deine Decks in Kursen und Ordnern — klare Struktur für jedes Fach statt einer langen Liste.",
+  },
+  {
+    Icon: Share,
+    tint: "g-violet",
+    title: "Teilen & übernehmen",
+    body: "Decks per Link teilen — andere übernehmen sie als eigene Kopie mit frischem Lernfortschritt.",
   },
   {
     Icon: Flame,
-    tint: "g-amber",
-    title: "Streaks & Lernpunkte",
-    body: "Tagesziele, Serien und Lernpunkte machen aus Wiederholen eine Gewohnheit, die bleibt.",
-  },
-  {
-    Icon: RefreshSync,
     tint: "g-blue",
-    title: "Sync & Teilen",
-    body: "Decks sind an dein Konto gebunden, synchron auf allen Geräten — und mit einem Link teilbar.",
+    title: "Streaks & Lernpunkte",
+    body: "Tagesziele, Serien und Statistiken — plus Lernpunkte, die du dir durchs Lernen verdienst und für KI-Funktionen einsetzt.",
   },
 ];
 
@@ -103,8 +104,12 @@ const modes: { Icon: IconType; tint: string; title: string; desc: string }[] = [
 
 const faqs = [
   {
-    q: "Was kostet clearn?",
-    a: "Du kannst kostenlos starten und Decks anlegen. Für intensives KI-Erstellen gibt es Lernpunkte und optionale Pro-Funktionen — zum Ausprobieren brauchst du nichts zu zahlen.",
+    q: "Kann ich clearn im Browser nutzen?",
+    a: "Ja! Registriere dich auf clearn-web.vercel.app und leg sofort los — ganz ohne Installation. Zusätzlich gibt es clearn als iPhone-App (aktuell über TestFlight).",
+  },
+  {
+    q: "Was kostet clearn? Was ist gratis, was Pro?",
+    a: "Starten ist kostenlos: Konto anlegen, Decks & Karten erstellen und lernen — inklusive Spaced Repetition, allen Lernmodi, Kurse & Ordner, Teilen und Statistik. Das KI-Erstellen läuft über Lernpunkte, die du dir durchs Lernen verdienst. Mit Pro gibt es mehr: mehr Decks & Karten, PDF-Import, Bild-Occlusion, Offline-Download, günstigere KI-Kosten und monatliche Lernpunkte.",
   },
   {
     q: "Woraus kann ich Karten erstellen?",
@@ -116,7 +121,7 @@ const faqs = [
   },
   {
     q: "Auf welchen Geräten läuft clearn?",
-    a: "Die App startet auf dem iPhone (aktuell über TestFlight). Deine Decks sind an dein Konto gebunden und lassen sich mit anderen Geräten synchronisieren.",
+    a: "Im Browser auf jedem Gerät und als iPhone-App. Deine Decks sind an dein Konto gebunden, synchron auf allen Geräten — und offline verfügbar.",
   },
   {
     q: "Kann ich meine Decks teilen?",
@@ -129,9 +134,9 @@ const structuredData = {
   "@type": "SoftwareApplication",
   name: "clearn",
   applicationCategory: "EducationalApplication",
-  operatingSystem: "iOS",
+  operatingSystem: "Web, iOS",
   description:
-    "clearn verwandelt Fotos, Screenshots, PDFs, Texte und Links in strukturierte Flashcards und lässt dich mit Spaced Repetition effizient lernen.",
+    "clearn verwandelt Fotos, Screenshots, PDFs, Texte und Links in strukturierte Flashcards und lässt dich mit Spaced Repetition effizient lernen — im Browser und als iPhone-App.",
   offers: { "@type": "Offer", price: "0", priceCurrency: "EUR" },
 };
 
@@ -150,7 +155,7 @@ export default function LandingPage() {
           <div className="container hero__inner">
             <div className="hero__copy">
               <span className="pill pill-dark">
-                <span className="dot" /> TestFlight · iPhone zuerst
+                <span className="dot" /> Im Browser & als iPhone-App
               </span>
               <h1 className="h-display">
                 Lernmaterial rein.
@@ -159,24 +164,24 @@ export default function LandingPage() {
               </h1>
               <p className="lead">
                 clearn verwandelt Fotos, Screenshots, PDFs, Texte und Links in klare Lernkarten.
-                Danach bringt dir Spaced Repetition genau die Karten, die heute fällig sind — und
-                dein Fortschritt bleibt sichtbar.
+                Lerne direkt im Browser oder unterwegs am iPhone — mit Spaced Repetition, die dir
+                genau die Karten bringt, die heute dran sind.
               </p>
               <div className="hero__cta">
+                <Link href="/signup" className="btn btn-primary btn-lg">
+                  Kostenlos starten
+                </Link>
                 <a
                   href={landingCtas.primary.href}
-                  className="btn btn-primary btn-lg"
+                  className="btn btn-on-dark btn-lg"
                   data-event={JSON.stringify(landingCtas.primary.event)}
                 >
-                  {landingCtas.primary.label}
-                </a>
-                <a href="#so-gehts" className="btn btn-on-dark btn-lg">
-                  So funktioniert's
+                  Als iPhone-App
                 </a>
               </div>
               <div className="hero__meta">
                 <span>
-                  <Check size={16} /> Kostenlos starten
+                  <Check size={16} /> Ohne Installation im Browser
                 </span>
                 <span>
                   <ShieldCheck size={16} /> Datenschutz-first
@@ -254,7 +259,7 @@ export default function LandingPage() {
               <span className="eyebrow-chip">So geht's</span>
               <h2 className="h2">In drei Schritten vom Material zum Wissen</h2>
               <p className="lead">
-                Kein Abtippen, kein Karten-Basteln. clearn übernimmt die Fleißarbeit — du
+                Kein stundenlanges Karten-Basteln — clearn übernimmt die Fleißarbeit, du
                 konzentrierst dich aufs Lernen.
               </p>
             </div>
@@ -272,14 +277,14 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* ---------------- Features ---------------- */}
+        {/* ---------------- Features (single overview of all capabilities) ---------------- */}
         <section id="features" className="section" style={{ background: "var(--bg-soft)" }}>
           <div className="container">
             <div className="section-head center reveal">
               <span className="eyebrow-chip">Features</span>
               <h2 className="h2">Alles, was gutes Lernen braucht</h2>
               <p className="lead">
-                Von der Erfassung bis zur letzten Wiederholung — clearn deckt den ganzen Lernweg ab.
+                Von der Erfassung bis zur Bestenliste — clearn deckt den ganzen Lernweg ab.
               </p>
             </div>
             <div className="grid grid-3">
@@ -337,15 +342,16 @@ export default function LandingPage() {
                 Dein Material wird zu Karten — in Sekunden
               </h2>
               <p className="lead">
-                Fotografiere eine Buchseite, wirf ein PDF oder einen Link hinein: OCR erkennt den
-                Text, die KI schlägt fertige Flashcards vor. Du prüfst, passt an und lernst los.
+                Fotografiere eine Buchseite, importiere ein PDF oder füge einen Link ein: OCR
+                erkennt den Text, die KI schlägt fertige Flashcards vor. Du prüfst, passt an und
+                lernst los.
               </p>
               <ul className="reset check-list">
                 <li>
                   <span className="tick">
                     <Check size={13} strokeWidth={3} />
                   </span>{" "}
-                  Kamera, Galerie, Text, URL & PDF als Quelle
+                  Foto scannen, importieren oder selbst tippen — wie du willst
                 </li>
                 <li>
                   <span className="tick">
@@ -372,7 +378,7 @@ export default function LandingPage() {
               <h2 className="h2">Ein Deck, viele Wege es zu können</h2>
               <p className="lead">
                 Wer aus mehreren Perspektiven übt, erinnert sich besser. clearn bietet den Stoff in
-                vier Modi an.
+                mehreren Modi an.
               </p>
             </div>
 
@@ -404,31 +410,101 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* ---------------- Everywhere: browser + app ---------------- */}
+        <section className="section">
+          <div className="container split">
+            <div className="split__media reveal">
+              <div
+                style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 14 }}
+                aria-hidden
+              >
+                <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#ef4444" }} />
+                <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#f59e0b" }} />
+                <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#10b981" }} />
+                <span style={{ marginLeft: 6, fontSize: "0.8rem", color: "var(--ink-3)", fontWeight: 600 }}>
+                  clearn-web.vercel.app
+                </span>
+              </div>
+              <div className="stack">
+                <div className="mini-card" style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 12 }}>
+                  <span className="ic g-indigo" style={{ width: 34, height: 34, borderRadius: 10, display: "grid", placeItems: "center", color: "#fff", flex: "none" }}>
+                    <Layers size={17} />
+                  </span>
+                  <div style={{ display: "grid", gap: 2 }}>
+                    <strong>Biologie · Zellorganellen</strong>
+                    <span>24 Karten</span>
+                  </div>
+                </div>
+                <div className="mini-card" style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 12 }}>
+                  <span className="ic g-violet" style={{ width: 34, height: 34, borderRadius: 10, display: "grid", placeItems: "center", color: "#fff", flex: "none" }}>
+                    <Layers size={17} />
+                  </span>
+                  <div style={{ display: "grid", gap: 2 }}>
+                    <strong>Geschichte · Antike</strong>
+                    <span>18 Karten</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="reveal">
+              <span className="eyebrow">Überall lernen</span>
+              <h2 className="h2" style={{ marginBlock: "14px 16px" }}>
+                Im Browser oder als App — immer synchron
+              </h2>
+              <p className="lead">
+                clearn läuft direkt im Browser: registrieren und sofort loslegen, ganz ohne
+                Installation. Oder als iPhone-App für unterwegs. Deine Decks sind auf allen Geräten
+                gleich — und offline verfügbar.
+              </p>
+              <ul className="reset check-list">
+                <li>
+                  <span className="tick">
+                    <Globe size={13} strokeWidth={2.5} />
+                  </span>{" "}
+                  Im Browser nutzen — keine Installation nötig
+                </li>
+                <li>
+                  <span className="tick">
+                    <Smartphone size={13} strokeWidth={2.5} />
+                  </span>{" "}
+                  Als iPhone-App (aktuell über TestFlight)
+                </li>
+                <li>
+                  <span className="tick">
+                    <Check size={13} strokeWidth={3} />
+                  </span>{" "}
+                  Deine Decks automatisch synchron auf allen Geräten
+                </li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
         {/* ---------------- Stats band ---------------- */}
         <section className="section-sm">
           <div className="container">
             <div className="stat-band reveal">
               <div className="stat">
-                <b>4</b>
-                <span>Lernmodi</span>
+                <b>5</b>
+                <span>Import-Quellen</span>
               </div>
               <div className="stat">
                 <b>FSRS</b>
                 <span>Modernes Spaced-Repetition-Verfahren</span>
               </div>
               <div className="stat">
-                <b>5×</b>
-                <span>Quellen: Foto, Galerie, Text, URL, PDF</span>
+                <b>4</b>
+                <span>Lernmodi</span>
               </div>
               <div className="stat">
                 <b>Sync</b>
-                <span>auf allen Geräten</span>
+                <span>synchron auf allen Geräten</span>
               </div>
             </div>
           </div>
         </section>
 
-        {/* ---------------- Retention / gamification split ---------------- */}
+        {/* ---------------- Retention / stats / friends split ---------------- */}
         <section className="section">
           <div className="container split split--reverse">
             <div className="split__media reveal">
@@ -445,8 +521,18 @@ export default function LandingPage() {
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                   <div className="mini-card center">
-                    <strong style={{ fontSize: "1.4rem" }}>128</strong>
-                    <span>Karten gemeistert</span>
+                    <strong
+                      style={{
+                        fontSize: "1.4rem",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Zap size={16} style={{ color: "var(--amber)" }} /> 240
+                    </strong>
+                    <span>Lernpunkte verdient</span>
                   </div>
                   <div className="mini-card center">
                     <strong style={{ fontSize: "1.4rem" }}>96%</strong>
@@ -470,13 +556,13 @@ export default function LandingPage() {
                   <span className="tick">
                     <Check size={13} strokeWidth={3} />
                   </span>{" "}
-                  Tägliche Serie & individuelle Tagesziele
+                  Tägliche Serie, Tagesziele & Streaks
                 </li>
                 <li>
                   <span className="tick">
-                    <Check size={13} strokeWidth={3} />
+                    <Zap size={13} strokeWidth={2.5} />
                   </span>{" "}
-                  Lernpunkte als Belohnung fürs Wiederholen
+                  Lernpunkte fürs Lernen — für KI-Funktionen einsetzbar
                 </li>
                 <li>
                   <span className="tick">
@@ -516,19 +602,19 @@ export default function LandingPage() {
         <section className="section-sm">
           <div className="container">
             <div className="cta-band reveal">
-              <span className="pill pill-dark">Bereit für TestFlight</span>
+              <span className="pill pill-dark">Kostenlos starten</span>
               <h2 className="h2">Fang heute an, klüger zu lernen</h2>
               <p className="lead" style={{ color: "rgba(255,255,255,0.9)" }}>
-                Hol dir den TestFlight-Zugang und verwandle dein erstes Lernmaterial in Flashcards —
-                in wenigen Minuten.
+                Registriere dich in Sekunden im Browser — oder hol dir die iPhone-App. Dein erstes
+                Lernmaterial wird im Nu zu Flashcards.
               </p>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center" }}>
-                <a href={landingCtas.primary.href} className="btn btn-ghost btn-lg">
-                  {landingCtas.primary.label}
-                </a>
-                <Link href={siteConfig.supportPath} className="btn btn-on-dark btn-lg">
-                  Fragen? Support
+                <Link href="/signup" className="btn btn-ghost btn-lg">
+                  Kostenlos starten
                 </Link>
+                <a href={landingCtas.primary.href} className="btn btn-on-dark btn-lg">
+                  Als iPhone-App
+                </a>
               </div>
             </div>
           </div>
