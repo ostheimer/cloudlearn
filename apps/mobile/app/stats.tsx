@@ -12,6 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import Svg, {
   Circle,
+  G,
   Line,
   Polyline,
   Rect,
@@ -299,7 +300,7 @@ export default function StatsScreen() {
   const renderBarChart = (width: number) => {
     const PAD_L = 12;
     const PAD_R = 12;
-    const PAD_T = 18;
+    const PAD_T = 26;
     const PAD_B = 22;
     const plotW = Math.max(width - PAD_L - PAD_R, 10);
     const plotH = Math.max(BAR_CHART_HEIGHT - PAD_T - PAD_B, 10);
@@ -327,16 +328,29 @@ export default function StatsScreen() {
           const y = PAD_T + plotH - drawH;
           const isMax = d.count === maxCount && d.count > 0;
           return (
-            <Rect
-              key={`bar-${i}`}
-              x={x}
-              y={y}
-              width={barW}
-              height={drawH}
-              rx={2}
-              fill={colors.primary}
-              fillOpacity={isMax ? 1 : 0.4}
-            />
+            <G key={`bar-${i}`}>
+              <Rect
+                x={x}
+                y={y}
+                width={barW}
+                height={drawH}
+                rx={2}
+                fill={colors.primary}
+                fillOpacity={isMax ? 1 : 0.4}
+              />
+              {d.count > 0 ? (
+                <SvgText
+                  x={x + barW / 2}
+                  y={y - 4}
+                  fontSize={10}
+                  fontWeight="bold"
+                  fill={colors.textSecondary}
+                  textAnchor="middle"
+                >
+                  {String(d.count)}
+                </SvgText>
+              ) : null}
+            </G>
           );
         })}
         {/* Max-value label */}
