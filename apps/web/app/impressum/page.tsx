@@ -6,7 +6,7 @@ export default function ImpressumPage() {
     <ContentPage
       eyebrow="Impressum"
       title="Impressum & Kontakt"
-      lead="Öffentliche Kontakt- und Anbieterinformationen für clearn. Diese Seite dient als Ziel für Support-, Review- und Store-Verweise."
+      lead="Öffentliche Kontakt- und Anbieterinformationen für clearn."
     >
       <PageSection title="Anbieter">
         <p style={{ margin: 0 }}>
