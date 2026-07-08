@@ -309,9 +309,14 @@ export interface PdfImportResponse extends ScanResponse {
 export interface AiUsageResponse {
   tier: "free" | "pro" | "lifetime";
   lpBalance: number;
+  lpEarnedToday: number;
+  lpAdsToday: number;
+  lpEarnCapToday: number;
+  lpAdCapToday: number;
   lpCostAiScan: number;
   lpCostUrlImport: number;
   lpCostPdfImport: number;
+  periodStart?: string | null;
 }
 
 function importIdempotencyKey(prefix: string): string {
