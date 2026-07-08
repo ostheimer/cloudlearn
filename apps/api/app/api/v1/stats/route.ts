@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
         reviewsTotal: reviewStats.reviewsTotal,
         accuracyRate: reviewStats.accuracyRate,
         reviewsByDay: reviewStats.reviewsByDay,
+        accuracyByDay: reviewStats.accuracyByDay,
       },
     });
   } catch (error) {
