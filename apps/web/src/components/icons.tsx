@@ -270,6 +270,12 @@ export const ArrowLeft = (p: IconProps) => (
   </Icon>
 );
 
+export const ChevronRight = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M9 18l6-6-6-6" />
+  </Icon>
+);
+
 export const Zap = (p: IconProps) => (
   <Icon {...p}>
     <path d="M13 2L4 14h6l-1 8 9-12h-6z" />
