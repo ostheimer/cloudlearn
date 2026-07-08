@@ -305,6 +305,7 @@ export default function MatchScreen() {
                   key={i}
                   size={28}
                   color={i < stars ? colors.warning : colors.surfaceSecondary}
+                  fill={i < stars ? colors.warning : "none"}
                 />
               ))}
             </View>
