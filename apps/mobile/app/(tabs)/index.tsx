@@ -377,7 +377,9 @@ export default function HomeScreen() {
             {/* Stats cards row */}
             <View style={{ flexDirection: "row", gap: spacing.sm }}>
               {/* Due cards */}
-              <View
+              <TouchableOpacity
+                onPress={() => router.push("/(tabs)/learn")}
+                activeOpacity={0.8}
                 style={{
                   flex: 1,
                   backgroundColor: colors.surface,
@@ -423,10 +425,12 @@ export default function HomeScreen() {
                 >
                   Fällig
                 </Text>
-              </View>
+              </TouchableOpacity>
 
               {/* Decks */}
-              <View
+              <TouchableOpacity
+                onPress={() => router.push("/(tabs)/decks")}
+                activeOpacity={0.8}
                 style={{
                   flex: 1,
                   backgroundColor: colors.surface,
@@ -469,10 +473,12 @@ export default function HomeScreen() {
                 >
                   Decks
                 </Text>
-              </View>
+              </TouchableOpacity>
 
               {/* Accuracy */}
-              <View
+              <TouchableOpacity
+                onPress={() => router.push("/stats")}
+                activeOpacity={0.8}
                 style={{
                   flex: 1,
                   backgroundColor: colors.surface,
@@ -521,7 +527,7 @@ export default function HomeScreen() {
                 >
                   Genauigkeit
                 </Text>
-              </View>
+              </TouchableOpacity>
             </View>
 
             {/* Recently used deck */}
