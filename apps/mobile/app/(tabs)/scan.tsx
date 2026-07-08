@@ -668,9 +668,10 @@ export default function ScanScreen() {
                 <Text style={{ color: colors.textInverse, fontSize: typography.lg, fontWeight: typography.bold }}>
                   {t("scan.generateBtn")}
                 </Text>
-                <View style={{ backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 2, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
+                  <Zap size={13} color={colors.textInverse} />
                   <Text style={{ color: colors.textInverse, fontSize: typography.xs, fontWeight: typography.bold }}>
-                    ⚡{lpCostAiScan}
+                    {lpCostAiScan}
                   </Text>
                 </View>
               </>
@@ -779,9 +780,10 @@ export default function ScanScreen() {
                 <Text style={{ color: colors.textInverse, fontSize: typography.lg, fontWeight: typography.bold }}>
                   {t("scan.analyzeBtn")}
                 </Text>
-                <View style={{ backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 2, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
+                  <Zap size={13} color={colors.textInverse} />
                   <Text style={{ color: colors.textInverse, fontSize: typography.xs, fontWeight: typography.bold }}>
-                    ⚡{lpCostUrlImport}
+                    {lpCostUrlImport}
                   </Text>
                 </View>
               </>
@@ -947,16 +949,15 @@ export default function ScanScreen() {
                 >
                   Foto aufnehmen
                 </Text>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
-                  <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: typography.sm }}>
-                    {t("scan.cameraHint")}
-                  </Text>
-                  <View style={{ backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 }}>
-                    <Text style={{ color: colors.textInverse, fontSize: typography.xs, fontWeight: typography.bold }}>
-                      ⚡{lpCostAiScan} LP
-                    </Text>
-                  </View>
-                </View>
+                <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: typography.sm, marginTop: 2 }}>
+                  {t("scan.cameraHint")}
+                </Text>
+              </View>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 }}>
+                <Zap size={13} color={colors.textInverse} />
+                <Text style={{ color: colors.textInverse, fontSize: typography.xs, fontWeight: typography.bold }}>
+                  {lpCostAiScan} LP
+                </Text>
               </View>
               <ChevronRight size={20} color="rgba(255,255,255,0.5)" />
             </TouchableOpacity>
@@ -997,16 +998,15 @@ export default function ScanScreen() {
                 >
                   Aus Galerie wählen
                 </Text>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
-                  <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: typography.sm }}>
-                    {t("scan.galleryHint")}
-                  </Text>
-                  <View style={{ backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 }}>
-                    <Text style={{ color: colors.textInverse, fontSize: typography.xs, fontWeight: typography.bold }}>
-                      ⚡{lpCostAiScan} LP
-                    </Text>
-                  </View>
-                </View>
+                <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: typography.sm, marginTop: 2 }}>
+                  {t("scan.galleryHint")}
+                </Text>
+              </View>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 }}>
+                <Zap size={13} color={colors.textInverse} />
+                <Text style={{ color: colors.textInverse, fontSize: typography.xs, fontWeight: typography.bold }}>
+                  {lpCostAiScan} LP
+                </Text>
               </View>
               <ChevronRight size={20} color="rgba(255,255,255,0.5)" />
             </TouchableOpacity>
@@ -1047,16 +1047,15 @@ export default function ScanScreen() {
                 >
                   Text eingeben
                 </Text>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
-                  <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: typography.sm }}>
-                    {t("scan.textHint")}
-                  </Text>
-                  <View style={{ backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 }}>
-                    <Text style={{ color: colors.textInverse, fontSize: typography.xs, fontWeight: typography.bold }}>
-                      ⚡{lpCostAiScan} LP
-                    </Text>
-                  </View>
-                </View>
+                <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: typography.sm, marginTop: 2 }}>
+                  {t("scan.textHint")}
+                </Text>
+              </View>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 }}>
+                <Zap size={13} color={colors.textInverse} />
+                <Text style={{ color: colors.textInverse, fontSize: typography.xs, fontWeight: typography.bold }}>
+                  {lpCostAiScan} LP
+                </Text>
               </View>
               <ChevronRight size={20} color="rgba(255,255,255,0.5)" />
             </TouchableOpacity>
@@ -1097,16 +1096,15 @@ export default function ScanScreen() {
                 >
                   URL importieren
                 </Text>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
-                  <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: typography.sm }}>
-                    {t("scan.urlHint")}
-                  </Text>
-                  <View style={{ backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 }}>
-                    <Text style={{ color: colors.textInverse, fontSize: typography.xs, fontWeight: typography.bold }}>
-                      ⚡{lpCostUrlImport} LP
-                    </Text>
-                  </View>
-                </View>
+                <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: typography.sm, marginTop: 2 }}>
+                  {t("scan.urlHint")}
+                </Text>
+              </View>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 }}>
+                <Zap size={13} color={colors.textInverse} />
+                <Text style={{ color: colors.textInverse, fontSize: typography.xs, fontWeight: typography.bold }}>
+                  {lpCostUrlImport} LP
+                </Text>
               </View>
               <ChevronRight size={20} color="rgba(255,255,255,0.5)" />
             </TouchableOpacity>
@@ -1147,16 +1145,15 @@ export default function ScanScreen() {
                 >
                   PDF importieren
                 </Text>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
-                  <Text style={{ color: "rgba(255,255,255,0.72)", fontSize: typography.sm }}>
-                    Text-PDF direkt in Lernkarten umwandeln
-                  </Text>
-                  <View style={{ backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 }}>
-                    <Text style={{ color: colors.textInverse, fontSize: typography.xs, fontWeight: typography.bold }}>
-                      ⚡{lpCostPdfImport} LP
-                    </Text>
-                  </View>
-                </View>
+                <Text style={{ color: "rgba(255,255,255,0.72)", fontSize: typography.sm, marginTop: 2 }}>
+                  Text-PDF direkt in Lernkarten umwandeln
+                </Text>
+              </View>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 }}>
+                <Zap size={13} color={colors.textInverse} />
+                <Text style={{ color: colors.textInverse, fontSize: typography.xs, fontWeight: typography.bold }}>
+                  {lpCostPdfImport} LP
+                </Text>
               </View>
               <ChevronRight size={20} color="rgba(255,255,255,0.5)" />
             </TouchableOpacity>
