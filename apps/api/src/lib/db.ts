@@ -1028,10 +1028,6 @@ export async function getAiUsage(userId: string): Promise<AiUsageRecord> {
   };
 }
 
-function currentMonthStart(now = new Date()): string {
-  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-01`;
-}
-
 // ─── Deck / Card Limit Checks ────────────────────────────────────────────────
 
 export async function countUserDecks(userId: string): Promise<number> {
