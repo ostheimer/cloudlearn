@@ -56,34 +56,24 @@ export async function spendLp(
   const cost = lpCostForFeature(tier, feature);
   if (cost === 0) return { allowed: true, newBalance: -1, cost: 0 };
 
+  // Atomic conditional spend: the balance check and deduction happen inside a
+  // single Postgres statement (see spend_lp), so concurrent requests cannot
+  // double-spend by both reading the same balance.
   const db = getDb();
-  const { data, error } = await db
-    .from("profiles")
-    .select("lp_balance")
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (error) throw new Error(`spendLp read: ${error.message}`);
-
-  const balance = data?.lp_balance ?? 0;
-  if (balance < cost) return { allowed: false, newBalance: balance, cost };
-
-  const newBalance = balance - cost;
-  const { error: updateError } = await db
-    .from("profiles")
-    .update({ lp_balance: newBalance, updated_at: now.toISOString() })
-    .eq("id", userId);
-
-  if (updateError) throw new Error(`spendLp update: ${updateError.message}`);
-
-  await db.from("lp_transactions").insert({
-    user_id: userId,
-    type: "spent",
-    amount: -cost,
-    reason: feature,
+  const { data, error } = await db.rpc("spend_lp", {
+    p_user: userId,
+    p_cost: cost,
+    p_reason: feature,
   });
 
-  return { allowed: true, newBalance, cost };
+  if (error) throw new Error(`spendLp: ${error.message}`);
+
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    allowed: row?.allowed ?? false,
+    newBalance: row?.new_balance ?? 0,
+    cost,
+  };
 }
 
 // ─── Earn ─────────────────────────────────────────────────────────────────────
@@ -106,22 +96,9 @@ export async function earnLp(
   const limits = getLimitsForTier(tier);
   const today = now.toISOString().split("T")[0]!;
 
-  const db = getDb();
-  const { data, error } = await db
-    .from("profiles")
-    .select("lp_balance, lp_earned_today, lp_ads_today, lp_period_start")
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (error) throw new Error(`earnLp read: ${error.message}`);
-
-  const isSameDay = data?.lp_period_start === today;
-  const currentBalance = data?.lp_balance ?? 0;
-  const earnedToday = isSameDay ? (data?.lp_earned_today ?? 0) : 0;
-  const adsToday = isSameDay ? (data?.lp_ads_today ?? 0) : 0;
-
+  // Business rule (kept in TS): how much this event is worth before caps.
   let rawGrant = 0;
-  let isAdType = false;
+  let isAd = false;
 
   switch (type) {
     case "session": {
@@ -133,50 +110,34 @@ export async function earnLp(
       rawGrant = LP_EARN_RULES.dailyGoalBonus;
       break;
     case "ad":
-      isAdType = true;
+      isAd = true;
       rawGrant = 5;
       break;
   }
 
-  if (rawGrant === 0) {
-    return { granted: 0, newBalance: currentBalance, capReached: false };
-  }
-
-  let granted = rawGrant;
-  let capReached = false;
-
-  if (isAdType) {
-    const remaining = Math.max(limits.lpAdCapPerDay - adsToday, 0);
-    granted = Math.min(rawGrant, remaining);
-    if (granted === 0) return { granted: 0, newBalance: currentBalance, capReached: true };
-  } else {
-    const remaining = Math.max(limits.lpEarnCapPerDay - earnedToday, 0);
-    granted = Math.min(rawGrant, remaining);
-    if (granted <= 0) return { granted: 0, newBalance: currentBalance, capReached: true };
-  }
-
-  const newBalance = currentBalance + granted;
-  const { error: updateError } = await db
-    .from("profiles")
-    .update({
-      lp_balance: newBalance,
-      lp_earned_today: isAdType ? earnedToday : earnedToday + granted,
-      lp_ads_today: isAdType ? adsToday + granted : adsToday,
-      lp_period_start: today,
-      updated_at: now.toISOString(),
-    })
-    .eq("id", userId);
-
-  if (updateError) throw new Error(`earnLp update: ${updateError.message}`);
-
-  await db.from("lp_transactions").insert({
-    user_id: userId,
-    type: isAdType ? "ad_reward" : "earned",
-    amount: granted,
-    reason: type,
+  // Atomic earn: the day-reset, per-day cap check, balance credit and ledger
+  // insert all happen under a single row lock inside earn_lp. We deliberately
+  // do NOT early-return on rawGrant<=0 — the SQL handles that and returns the
+  // correct current balance.
+  const db = getDb();
+  const { data, error } = await db.rpc("earn_lp", {
+    p_user: userId,
+    p_raw_grant: rawGrant,
+    p_is_ad: isAd,
+    p_earn_cap: limits.lpEarnCapPerDay,
+    p_ad_cap: limits.lpAdCapPerDay,
+    p_type: type,
+    p_today: today,
   });
 
-  return { granted, newBalance, capReached };
+  if (error) throw new Error(`earnLp: ${error.message}`);
+
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    granted: row?.granted ?? 0,
+    newBalance: row?.new_balance ?? 0,
+    capReached: row?.cap_reached ?? false,
+  };
 }
 
 // ─── Monthly Grant (called by cron / reset-ai-usage function) ────────────────
@@ -186,23 +147,14 @@ export async function grantMonthlyLp(userId: string, tier: SubscriptionTier): Pr
   if (grant <= 0) return 0;
 
   const db = getDb();
-  const { data, error } = await db
-    .from("profiles")
-    .select("lp_balance")
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (error) throw new Error(`grantMonthlyLp read: ${error.message}`);
-
-  const newBalance = (data?.lp_balance ?? 0) + grant;
-  await db.from("profiles").update({ lp_balance: newBalance }).eq("id", userId);
-
-  await db.from("lp_transactions").insert({
-    user_id: userId,
-    type: "abo_grant",
-    amount: grant,
-    reason: `monthly_${tier}`,
+  const { error } = await db.rpc("add_lp", {
+    p_user: userId,
+    p_amount: grant,
+    p_type: "abo_grant",
+    p_reason: `monthly_${tier}`,
   });
+
+  if (error) throw new Error(`grantMonthlyLp: ${error.message}`);
 
   return grant;
 }
@@ -241,22 +193,13 @@ export async function claimMilestoneReward(
     return { granted: 0, alreadyClaimed: true };
   }
 
-  const { data, error } = await db
-    .from("profiles")
-    .select("lp_balance")
-    .eq("id", userId)
-    .maybeSingle();
-  if (error) throw new Error(`claimMilestoneReward read: ${error.message}`);
-
-  const newBalance = (data?.lp_balance ?? 0) + lp;
-  await db.from("profiles").update({ lp_balance: newBalance }).eq("id", userId);
-
-  await db.from("lp_transactions").insert({
-    user_id: userId,
-    type: "earned",
-    amount: lp,
-    reason: `milestone_${milestone}`,
+  const { error } = await db.rpc("add_lp", {
+    p_user: userId,
+    p_amount: lp,
+    p_type: "earned",
+    p_reason: `milestone_${milestone}`,
   });
+  if (error) throw new Error(`claimMilestoneReward: ${error.message}`);
 
   return { granted: lp, alreadyClaimed: false };
 }
@@ -269,23 +212,14 @@ export async function grantLpPurchase(
   purchaseId: string
 ): Promise<number> {
   const db = getDb();
-  const { data, error } = await db
-    .from("profiles")
-    .select("lp_balance")
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (error) throw new Error(`grantLpPurchase read: ${error.message}`);
-
-  const newBalance = (data?.lp_balance ?? 0) + lpAmount;
-  await db.from("profiles").update({ lp_balance: newBalance }).eq("id", userId);
-
-  await db.from("lp_transactions").insert({
-    user_id: userId,
-    type: "purchased",
-    amount: lpAmount,
-    reason: purchaseId,
+  const { data, error } = await db.rpc("add_lp", {
+    p_user: userId,
+    p_amount: lpAmount,
+    p_type: "purchased",
+    p_reason: purchaseId,
   });
 
-  return newBalance;
+  if (error) throw new Error(`grantLpPurchase: ${error.message}`);
+
+  return (data as number | null) ?? 0;
 }
