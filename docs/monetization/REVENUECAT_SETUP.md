@@ -6,7 +6,7 @@ clearn.ai nutzt RevenueCat für In-App-Käufe auf iOS und Android.
 Dieses Dokument beschreibt die Einrichtung von Produkten, Entitlements und Offerings.
 
 Kanonische Produkt- und App-Identitäten:
-[docs/runbooks/product-identities.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/product-identities.md)
+[docs/runbooks/product-identities.md](/docs/runbooks/product-identities.md)
 
 ---
 

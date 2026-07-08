@@ -178,4 +178,4 @@ plutil -p apps/mobile/ios/Pods/PurchasesHybridCommon/ios/PurchasesHybridCommon/P
 - Apple User Privacy and Data Use:
   `https://developer.apple.com/app-store/user-privacy-and-data-use/`
 - Lokaler Audit:
-  [docs/runbooks/app-store-privacy-ads.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-privacy-ads.md)
+  [docs/runbooks/app-store-privacy-ads.md](/docs/runbooks/app-store-privacy-ads.md)

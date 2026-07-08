@@ -101,7 +101,7 @@ Für `eas submit --platform ios`:
 - `appleId`: `office@ostheimer.at` (bereits in `eas.json` konfiguriert)
 - `ascAppId`: App Store Connect App ID (wird bei erster Einreichung erstellt)
 - `appleTeamId`: Aus Apple Developer Account
-- Runbook mit den exakten Restwerten: [docs/runbooks/eas-submit-values.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/eas-submit-values.md)
+- Runbook mit den exakten Restwerten: [docs/runbooks/eas-submit-values.md](/docs/runbooks/eas-submit-values.md)
 
 Für `eas submit --platform android`:
 - Service Account JSON erstellen (Play Console → Setup → API access)

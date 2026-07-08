@@ -29,7 +29,7 @@ Dieses Runbook definiert, wie ein App-Review-/TestFlight-Demo-Konto vorbereitet 
 
 ## Review Notes ausfüllen
 
-In [docs/runbooks/app-store-review-notes.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/app-store-review-notes.md) vor Submission ersetzen:
+In [docs/runbooks/app-store-review-notes.md](/docs/runbooks/app-store-review-notes.md) vor Submission ersetzen:
 
 - `<REVIEW_EMAIL>` durch die echte Demo-E-Mail
 - `<REVIEW_PASSWORD>` durch das Passwort aus dem Passwortmanager

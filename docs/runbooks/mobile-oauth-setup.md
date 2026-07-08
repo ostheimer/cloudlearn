@@ -13,7 +13,7 @@ Für v1 gilt:
 - wir verlassen uns dabei auf Supabase Identity Linking / Account Linking statt auf eigene Duplikat-Logik
 
 Kanonische Identitäten:
-[docs/runbooks/product-identities.md](/Users/andreasostheimer/Documents/GitHub/cloudlearn/docs/runbooks/product-identities.md)
+[docs/runbooks/product-identities.md](/docs/runbooks/product-identities.md)
 
 ## Supabase
 

@@ -79,5 +79,5 @@ EAS-Konfiguration oder externe Dashboards voneinander abweichen.
 
 1. Diese Datei
 2. Die tatsächliche Runtime-Konfiguration in
-   [apps/mobile/app.json](/Users/andreasostheimer/Documents/GitHub/cloudlearn/apps/mobile/app.json)
+   [apps/mobile/app.json](/apps/mobile/app.json)
 3. Die produktiven Dashboard-Einstellungen in EAS, RevenueCat, App Store Connect und Play Console
