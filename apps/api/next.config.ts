@@ -2,9 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  // pdfjs-dist als externes Serverpaket lassen (nicht bündeln) — sonst bricht
-  // das Laden der .mjs/Worker-Auflösung in der Serverless-Funktion.
-  serverExternalPackages: ["pdfjs-dist"]
+  // unpdf (inkl. gebündeltem PDF.js + @napi-rs/canvas) als externes Serverpaket
+  // lassen — nicht von webpack bündeln, damit es zur Laufzeit sauber lädt.
+  serverExternalPackages: ["unpdf"]
 };
 
 export default nextConfig;

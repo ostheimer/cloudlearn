@@ -1,4 +1,4 @@
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
+import { extractText } from "unpdf";
 import { HttpError } from "./http";
 
 const MAX_EXTRACTED_CHARACTERS = 20_000;
@@ -10,49 +10,19 @@ export interface ExtractedPdfText {
   extractedCharacters: number;
 }
 
+/**
+ * Extrahiert den Text aus einem PDF (nur Text, kein Rendering). Nutzt `unpdf`
+ * — eine serverless-taugliche Kapselung von PDF.js, die ohne Browser-Globals
+ * (DOMMatrix &co.) und native Canvas-Fummelei auskommt. Reine Scan-PDFs ohne
+ * Maschinentext werden mit 422 abgelehnt.
+ */
 export async function extractPdfText(fileBase64: string): Promise<ExtractedPdfText> {
-  let loadingTask:
-    | ReturnType<typeof getDocument>
-    | undefined;
-
   try {
     const data = Uint8Array.from(Buffer.from(fileBase64, "base64"));
-    loadingTask = getDocument({
-      data,
-      useSystemFonts: true,
-      isEvalSupported: false,
-    });
+    const { totalPages, text } = await extractText(data, { mergePages: true });
 
-    const document = await loadingTask.promise;
-    let combinedText = "";
+    const extractedText = text.replace(/\s+/g, " ").trim().slice(0, MAX_EXTRACTED_CHARACTERS);
 
-    for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
-      const page = await document.getPage(pageNumber);
-      const textContent = await page.getTextContent();
-      const pageText = textContent.items
-        .map((item) => ("str" in item ? item.str : ""))
-        .join(" ")
-        .replace(/\s+/g, " ")
-        .trim();
-
-      if (!pageText) {
-        continue;
-      }
-
-      const nextChunk = combinedText.length === 0 ? pageText : `\n\n${pageText}`;
-      const remainingCharacters = MAX_EXTRACTED_CHARACTERS - combinedText.length;
-      if (remainingCharacters <= 0) {
-        break;
-      }
-
-      combinedText += nextChunk.slice(0, remainingCharacters);
-
-      if (combinedText.length >= MAX_EXTRACTED_CHARACTERS) {
-        break;
-      }
-    }
-
-    const extractedText = combinedText.trim();
     if (extractedText.length < MIN_MACHINE_TEXT_LENGTH) {
       throw new HttpError(
         "Die PDF enthält keinen ausreichend extrahierbaren Text. Reine Scan-PDFs werden im MVP noch nicht unterstützt.",
@@ -62,7 +32,7 @@ export async function extractPdfText(fileBase64: string): Promise<ExtractedPdfTe
     }
 
     return {
-      pageCount: document.numPages,
+      pageCount: totalPages,
       extractedText,
       extractedCharacters: extractedText.length,
     };
@@ -71,7 +41,5 @@ export async function extractPdfText(fileBase64: string): Promise<ExtractedPdfTe
       throw error;
     }
     throw new HttpError("PDF konnte nicht verarbeitet werden.", 422, "PDF_IMPORT_FAILED");
-  } finally {
-    loadingTask?.destroy();
   }
 }
