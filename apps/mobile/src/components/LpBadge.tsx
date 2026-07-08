@@ -55,7 +55,7 @@ export function LpBadge({ onPress }: LpBadgeProps) {
         borderColor: colors.warning ?? colors.border,
       }}
     >
-      <Zap size={14} color={colors.warning ?? colors.text} fill={colors.warning ?? colors.text} />
+      <Zap size={14} color={colors.warning ?? colors.text} />
       <Text
         style={{
           fontSize: typography.sm,

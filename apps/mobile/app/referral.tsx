@@ -170,7 +170,7 @@ export default function ReferralScreen() {
                 padding: spacing.lg, alignItems: "center", gap: spacing.xs,
                 borderWidth: 1, borderColor: colors.border,
               }}>
-                <Zap size={20} color={colors.warning} fill={colors.warning} />
+                <Zap size={20} color={colors.warning} />
                 <Text style={{ fontSize: typography.xl, fontWeight: typography.bold, color: colors.text }}>
                   {lpFromReferrals}
                 </Text>

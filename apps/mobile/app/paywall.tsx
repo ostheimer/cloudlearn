@@ -266,7 +266,7 @@ export default function PaywallScreen() {
             alignItems: "center",
             gap: spacing.md,
           }}>
-            <Zap size={22} color={colors.warning} fill={colors.warning} />
+            <Zap size={22} color={colors.warning} />
             <View style={{ flex: 1 }}>
               <Text style={{ color: colors.text, fontSize: typography.base, fontWeight: typography.bold }}>
                 {t("lp.balance", { count: usageStore.lpBalance })}

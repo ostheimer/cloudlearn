@@ -107,7 +107,7 @@ function LeaderboardRow({ entry, colors }: { entry: LeaderboardEntry; colors: Re
 
       {/* LP */}
       <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-        <Zap size={14} color={colors.warning} fill={colors.warning} />
+        <Zap size={14} color={colors.warning} />
         <Text style={{
           fontSize: typography.base, fontWeight: typography.bold,
           color: entry.isCurrentUser ? colors.primary : colors.text,
