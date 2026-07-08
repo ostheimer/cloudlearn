@@ -236,6 +236,7 @@ export interface StatsResponse {
   reviewsTotal: number;
   accuracyRate: number;
   reviewsByDay: Array<{ date: string; count: number }>;
+  accuracyByDay?: Array<{ date: string; accuracy: number; count: number }>;
 }
 
 export interface SubscriptionStatus {
