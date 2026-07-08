@@ -51,6 +51,7 @@ import { useUsageStore } from "../../src/store/usageStore";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
 import { LpInsufficientModal } from "../../src/components/LpInsufficientModal";
 import { AuthPromptCard } from "../../src/components/AuthPromptCard";
+import { LpBadge } from "../../src/components/LpBadge";
 
 type InputMode = "choose" | "camera" | "text" | "url";
 
@@ -810,30 +811,7 @@ export default function ScanScreen() {
           </Text>
 
           {/* LP balance badge */}
-          <TouchableOpacity
-            onPress={() => router.push("/lp-store")}
-            activeOpacity={0.8}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 4,
-              backgroundColor: lpBalance < lpCostAiScan ? colors.errorLight : colors.warningLight,
-              borderRadius: radius.full ?? 999,
-              paddingHorizontal: 10,
-              paddingVertical: 4,
-              borderWidth: 1,
-              borderColor: lpBalance < lpCostAiScan ? colors.error : colors.warning,
-            }}
-          >
-            <Zap size={13} color={lpBalance < lpCostAiScan ? colors.error : colors.warning} fill={lpBalance < lpCostAiScan ? colors.error : colors.warning} />
-            <Text style={{
-              fontSize: typography.xs,
-              fontWeight: typography.semibold,
-              color: lpBalance < lpCostAiScan ? colors.error : colors.warning,
-            }}>
-              {lpBalance.toLocaleString("de-DE")} LP
-            </Text>
-          </TouchableOpacity>
+          <LpBadge onPress={() => router.push("/lp-store")} />
         </View>
 
         {/* LP insufficient hint */}
