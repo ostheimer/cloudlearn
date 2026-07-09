@@ -7,24 +7,12 @@ import { mapRevenueCatEventToSubscription } from "@/services/revenueCatService";
 import { updateSubscriptionStatus } from "@/services/subscriptionService";
 import { LP_PACKS } from "@/lib/featureGates";
 import { grantLpPurchase } from "@/services/lpService";
-import { createSupabaseAdminClient } from "@/lib/supabase";
 
 // LP pack event types from RevenueCat (consumable products trigger these)
 const LP_PACK_EVENT_TYPES = new Set([
   "NON_RENEWING_PURCHASE",
   "INITIAL_PURCHASE",
 ]);
-
-async function isLpTransactionProcessed(transactionId: string): Promise<boolean> {
-  const db = createSupabaseAdminClient();
-  if (!db) return false;
-  const { data } = await db
-    .from("lp_transactions")
-    .select("id")
-    .eq("reason", `purchase_${transactionId}`)
-    .maybeSingle();
-  return Boolean(data);
-}
 
 // Webhook route — authenticates via x-revenuecat-signature, not JWT
 export async function POST(request: NextRequest) {
@@ -65,7 +53,10 @@ export async function POST(request: NextRequest) {
 
     if (isLpPackEvent && pack) {
       const transactionId = event.transaction_id ?? event.store_transaction_id ?? "";
-      if (transactionId && !(await isLpTransactionProcessed(transactionId))) {
+      if (transactionId) {
+        // grant_lp_purchase is idempotent (partial unique index on the purchase
+        // reason), so a duplicate webhook delivery for the same transaction can
+        // never double-credit — no application-side check-then-act needed.
         await grantLpPurchase(userId, pack.lp, `purchase_${transactionId}`);
       }
       // Return 200 immediately — no subscription state update needed for packs

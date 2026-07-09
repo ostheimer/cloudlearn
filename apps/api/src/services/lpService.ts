@@ -247,14 +247,19 @@ export async function grantLpPurchase(
   purchaseId: string
 ): Promise<number> {
   const db = getDb();
-  const { data, error } = await db.rpc("add_lp", {
+
+  // Idempotent by construction: grant_lp_purchase guards the ledger insert with
+  // a partial unique index on the purchase reason, so two webhook deliveries for
+  // the same transaction can never double-credit — the second is a no-op. Guard
+  // and credit run in one transaction. Returns the resulting balance.
+  const { data, error } = await db.rpc("grant_lp_purchase", {
     p_user: userId,
     p_amount: lpAmount,
-    p_type: "purchased",
     p_reason: purchaseId,
   });
 
   if (error) throw new Error(`grantLpPurchase: ${error.message}`);
 
-  return (data as number | null) ?? 0;
+  const row = Array.isArray(data) ? data[0] : data;
+  return row?.new_balance ?? 0;
 }
