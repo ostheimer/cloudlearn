@@ -48,6 +48,11 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      # Sanfter, warn-only Start (#85): zeigt ESLint-Hinweise, blockiert aber nie
+      # (alle Regeln stehen auf "warn", eslint endet mit Exit-Code 0).
+      - name: ESLint (warn-only)
+        run: pnpm run lint:eslint
+
       - name: Test
         run: pnpm test
         env:
