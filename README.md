@@ -606,7 +606,7 @@ Die initiale Migration oben ist nur das Basisschema. Spätere Production-Migrati
 │   └── GET    /             # LP-/Nutzungsstatus des Nutzers
 ├── /lp
 │   ├── GET    /balance      # LP-Guthaben und Tageslimits
-│   ├── POST   /earn         # LP verdienen (session, dailyGoal, ad)
+│   ├── POST   /earn         # LP verdienen (nur session; dailyGoal/ad entfernt, ad-LP via /ads/ssv)
 │   ├── POST   /spend        # LP für KI-Features einlösen
 │   ├── POST   /milestone    # Einmalige Streak-/First-Action-Boni
 │   └── POST   /purchase     # LP-Pack-Kauf nach RevenueCat-Flow
@@ -647,6 +647,8 @@ Die initiale Migration oben ist nur das Basisschema. Spätere Production-Migrati
 │   └── GET|POST|DELETE /:id/decks # Decks zu Ordnern zuordnen/entfernen
 ├── /community
 │   └── GET|POST /decks      # Community-Decks durchsuchen/publizieren (Scaffold)
+├── /ads
+│   └── GET    /ssv          # AdMob Server-Side-Verification Callback (Google-signiert, kein JWT) -> Werbe-LP
 └── /subscription
     ├── GET    /status       # Abo-Status prüfen
     └── POST   /webhook      # RevenueCat Webhook
