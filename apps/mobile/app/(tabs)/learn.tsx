@@ -54,6 +54,7 @@ import {
 } from "../../src/lib/api";
 import { useUsageStore } from "../../src/store/usageStore";
 import { summarizeCardMedia } from "../../src/lib/cardMedia";
+import { cleanTerm } from "../../src/lib/cardTerms";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
 import { useMilestoneToast } from "../../src/features/milestones/useMilestoneToast";
 import { MilestoneToastView } from "../../src/components/MilestoneToast";
@@ -508,8 +509,8 @@ function AuthenticatedLearnScreen({
     front: effectiveFront,
     back: effectiveBack,
   });
-  const normalizedFront = mediaSummary.plainFront || effectiveFront;
-  const normalizedBack = mediaSummary.plainBack || effectiveBack;
+  const normalizedFront = cleanTerm(mediaSummary.plainFront || effectiveFront);
+  const normalizedBack = cleanTerm(mediaSummary.plainBack || effectiveBack);
   const frontParsed = formatCloze(normalizedFront);
   const displayBack = frontParsed.clozeAnswer ?? normalizedBack;
   const frontImage = mediaSummary.frontImages[0] ?? mediaSummary.primaryImage;

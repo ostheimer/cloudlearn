@@ -1,4 +1,5 @@
 import { summarizeCardMedia } from "./cardMedia";
+import { cleanTerm } from "./cardTerms";
 
 export interface QuizCardInput {
   id: string;
@@ -64,8 +65,8 @@ export function generateQuestions(
 
   const enriched = cards.map((card) => {
     const media = summarizeCardMedia(card);
-    const normalizedFront = media.plainFront || card.front;
-    const normalizedBack = media.plainBack || card.back;
+    const normalizedFront = cleanTerm(media.plainFront || card.front);
+    const normalizedBack = cleanTerm(media.plainBack || card.back);
     const label = media.preferredLabel || normalizedBack || normalizedFront;
     return {
       card,

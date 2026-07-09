@@ -25,6 +25,7 @@ import {
 import { listCardsInDeck, type Card } from "../src/lib/api";
 import { summarizeCardMedia } from "../src/lib/cardMedia";
 import { isAnswerCorrect } from "../src/lib/answerCheck";
+import { cleanTerm } from "../src/lib/cardTerms";
 import { useColors, spacing, radius, typography, shadows } from "../src/theme";
 
 interface Prompt {
@@ -39,15 +40,18 @@ interface Prompt {
 //   - basic cards: show one side, type the other. `reverse` swaps which side.
 function buildPrompt(card: Card, reverse: boolean): Prompt {
   const media = summarizeCardMedia(card);
-  const front = (media.plainFront || card.front || "").trim();
-  const back = (media.plainBack || card.back || "").trim();
+  const rawFront = (media.plainFront || card.front || "").trim();
+  const rawBack = (media.plainBack || card.back || "").trim();
 
-  const match = front.match(/\{\{c\d+::(.+?)\}\}/);
+  const match = rawFront.match(/\{\{c\d+::(.+?)\}\}/);
   if (match) {
     const answer = (match[1] ?? "").trim();
-    const prompt = front.replace(/\{\{c\d+::.+?\}\}/g, "______");
+    const prompt = rawFront.replace(/\{\{c\d+::.+?\}\}/g, "______");
     return { prompt, answer, isCloze: true };
   }
+  // Strip a translation-question wrapper so vocab cards behave as clean pairs.
+  const front = cleanTerm(rawFront);
+  const back = cleanTerm(rawBack);
   if (reverse) {
     return { prompt: back, answer: front, isCloze: false };
   }

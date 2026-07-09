@@ -21,6 +21,7 @@ import {
   CheckCircle2,
 } from "lucide-react-native";
 import { listCardsInDeck, type Card } from "../src/lib/api";
+import { cleanTerm } from "../src/lib/cardTerms";
 import { useColors, spacing, radius, typography, shadows } from "../src/theme";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -107,13 +108,13 @@ export default function MatchScreen() {
     for (const card of selected) {
       newTiles.push({
         id: `${card.id}-front`,
-        text: card.front,
+        text: cleanTerm(card.front),
         cardId: card.id,
         side: "front",
       });
       newTiles.push({
         id: `${card.id}-back`,
-        text: card.back,
+        text: cleanTerm(card.back),
         cardId: card.id,
         side: "back",
       });
