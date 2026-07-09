@@ -32,11 +32,15 @@ const updateDeckSchema = z.object({
   tags: z.array(z.string()).optional(),
 });
 
+async function assertCanCreateDeck(userId: string): Promise<void> {
+  const { tier } = await getSubscriptionStatus(userId);
+  const existingDecks = await listDecks(userId);
+  assertDeckLimit(tier, existingDecks.length);
+}
+
 export async function createDeckForUser(input: unknown) {
   const parsed = createDeckSchema.parse(input);
-  const { tier } = await getSubscriptionStatus(parsed.userId);
-  const existingDecks = await listDecks(parsed.userId);
-  assertDeckLimit(tier, existingDecks.length);
+  await assertCanCreateDeck(parsed.userId);
   return createDeck(parsed.userId, parsed.title, parsed.tags);
 }
 
@@ -63,6 +67,7 @@ export async function listCardsInDeck(userId: string, deckId: string) {
 export async function duplicateDeckForUser(userId: string, deckId: string) {
   const sourceDeck = await getDeck(deckId, userId);
   if (!sourceDeck) throw new Error("Deck not found");
+  await assertCanCreateDeck(userId);
   const newTitle = `${sourceDeck.title} (Kopie)`;
   return dbDuplicateDeck(userId, deckId, newTitle);
 }
@@ -94,6 +99,7 @@ export async function importSharedDeck(userId: string, shareToken: string) {
   if (!source) {
     throw new HttpError("Shared deck not found or link expired", 404, "DECK_NOT_FOUND");
   }
+  await assertCanCreateDeck(userId);
   const deck = await dbDuplicateDeck(userId, source.id, source.title);
   return { deck };
 }
