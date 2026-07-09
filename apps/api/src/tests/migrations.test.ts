@@ -87,6 +87,22 @@ describe("supabase migrations", () => {
     expect(sql).toContain("grant execute on function claim_milestone_lp(uuid, text, int) to service_role");
   });
 
+  it("makes LP-pack purchase grants idempotent (partial unique index + grant fn)", () => {
+    const migrationPath = join(
+      apiRoot,
+      "supabase/migrations/20260709120000_idempotent_lp_purchase.sql",
+    );
+    const sql = readFileSync(migrationPath, "utf-8");
+
+    // Partial unique index — only 'purchased' rows, so normal spends stay free to repeat
+    expect(sql).toContain("create unique index if not exists lp_transactions_purchased_reason_uidx");
+    expect(sql).toContain("where type = 'purchased'");
+    // Idempotent grant function with the ledger insert as the guard
+    expect(sql).toContain("create or replace function grant_lp_purchase");
+    expect(sql).toContain("on conflict (reason) where type = 'purchased' do nothing");
+    expect(sql).toContain("grant execute on function grant_lp_purchase(uuid, int, text) to service_role");
+  });
+
   it("keeps profile deletion backed by cascading user-data references", () => {
     const migrationDir = join(apiRoot, "supabase/migrations");
     const migrationFiles = [

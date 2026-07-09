@@ -414,33 +414,59 @@ describe("claimMilestoneReward (atomic claim_milestone_lp RPC)", () => {
   });
 });
 
-describe("grantLpPurchase (atomic add_lp RPC)", () => {
+describe("grantLpPurchase (idempotent grant_lp_purchase RPC)", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("credits the purchased LP and returns the new scalar balance", async () => {
+  it("credits the purchased LP via the idempotent RPC and returns the balance", async () => {
     const db = makeMockDb();
-    db.rpc.mockResolvedValue({ data: 110, error: null });
+    db.rpc.mockResolvedValue({
+      data: [{ granted: 100, already_granted: false, new_balance: 110 }],
+      error: null,
+    });
     useMockDb(db);
 
     const result = await grantLpPurchase("user-1", 100, "purchase-abc");
 
-    expect(db.rpc).toHaveBeenCalledWith("add_lp", {
+    expect(db.rpc).toHaveBeenCalledWith("grant_lp_purchase", {
       p_user: "user-1",
       p_amount: 100,
-      p_type: "purchased",
       p_reason: "purchase-abc",
     });
     expect(result).toBe(110);
   });
 
-  it("returns 0 when add_lp reports no matching profile (null scalar)", async () => {
+  it("is idempotent: a duplicate delivery grants 0 and returns the unchanged balance", async () => {
     const db = makeMockDb();
-    db.rpc.mockResolvedValue({ data: null, error: null });
+    db.rpc.mockResolvedValue({
+      data: [{ granted: 0, already_granted: true, new_balance: 110 }],
+      error: null,
+    });
+    useMockDb(db);
+
+    const result = await grantLpPurchase("user-1", 100, "purchase-abc");
+
+    // Same transaction booked twice → balance stays put, no double credit.
+    expect(result).toBe(110);
+  });
+
+  it("returns 0 when the RPC reports no matching profile (null balance)", async () => {
+    const db = makeMockDb();
+    db.rpc.mockResolvedValue({ data: [{ granted: 0, already_granted: false, new_balance: null }], error: null });
     useMockDb(db);
 
     const result = await grantLpPurchase("user-1", 100, "purchase-abc");
 
     expect(result).toBe(0);
+  });
+
+  it("throws when the RPC returns an error", async () => {
+    const db = makeMockDb();
+    db.rpc.mockResolvedValue({ data: null, error: { message: "boom" } });
+    useMockDb(db);
+
+    await expect(grantLpPurchase("user-1", 100, "purchase-abc")).rejects.toThrow(
+      "grantLpPurchase: boom"
+    );
   });
 });
 
