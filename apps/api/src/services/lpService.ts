@@ -111,12 +111,15 @@ export async function refundLp(
 
 // ─── Earn ─────────────────────────────────────────────────────────────────────
 
-// "dailyGoal" was removed: no legitimate client ever sent it, so it was pure
-// attack surface (10 free LP per call). The two real earn paths are:
-//   - "session": grant is derived from server-recorded reviews (review_logs),
-//     never from a client-supplied count — see earn_session_lp.
-//   - "ad":      still a flat 5 LP; binding it to AdMob SSV is tracked separately.
-export type EarnType = "session" | "ad";
+// The client can never assert a value-creating event — earning is derived from
+// activity the server itself recorded:
+//   - "session": grant comes from review_logs (earn_session_lp), never a client count.
+//   - "dailyGoal": removed — no legitimate client ever sent it.
+//   - "ad": the JWT self-grant is retired. A client "I watched an ad" claim is not
+//     trustworthy (it minted 5 LP with no ad). Rewarded-ad LP will be granted only via
+//     AdMob Server-Side Verification (Google → our server, signature-checked), so this
+//     endpoint no longer accepts type:"ad". Tracked in #149.
+export type EarnType = "session";
 
 export interface EarnResult {
   granted: number;
@@ -126,7 +129,6 @@ export interface EarnResult {
 
 // Number of reviewed cards that make up one rewardable "session" chunk.
 const CARDS_PER_SESSION_CHUNK = 5;
-const LP_PER_AD = 5;
 
 function mapEarnRow(data: unknown): EarnResult {
   const row = Array.isArray(data) ? data[0] : data;
@@ -140,38 +142,19 @@ function mapEarnRow(data: unknown): EarnResult {
 
 export async function earnLp(
   userId: string,
-  tier: SubscriptionTier,
-  type: EarnType
+  tier: SubscriptionTier
 ): Promise<EarnResult> {
   const limits = getLimitsForTier(tier);
-  const today = todayUTC();
-  const db = getDb();
 
-  if (type === "ad") {
-    // Atomic earn under the ad/day cap. (Ad legitimacy — AdMob SSV — is a
-    // separate follow-up; today the grant is still a flat amount.)
-    const { data, error } = await db.rpc("earn_lp", {
-      p_user: userId,
-      p_raw_grant: LP_PER_AD,
-      p_is_ad: true,
-      p_earn_cap: limits.lpEarnCapPerDay,
-      p_ad_cap: limits.lpAdCapPerDay,
-      p_type: "ad",
-      p_today: today,
-    });
-    if (error) throw new Error(`earnLp(ad): ${error.message}`);
-    return mapEarnRow(data);
-  }
-
-  // session — the SQL counts the user's real, not-yet-rewarded reviews and pays
-  // only for whole chunks up to the daily cap, all atomically. The client's
-  // claimed card count is intentionally ignored.
-  const { data, error } = await db.rpc("earn_session_lp", {
+  // The SQL counts the user's real, not-yet-rewarded reviews and pays only for
+  // whole chunks up to the daily cap, all atomically. The client's claimed card
+  // count is intentionally ignored.
+  const { data, error } = await getDb().rpc("earn_session_lp", {
     p_user: userId,
     p_lp_per_chunk: LP_EARN_RULES.perReviewSession,
     p_cards_per_chunk: CARDS_PER_SESSION_CHUNK,
     p_earn_cap: limits.lpEarnCapPerDay,
-    p_today: today,
+    p_today: todayUTC(),
   });
   if (error) throw new Error(`earnLp(session): ${error.message}`);
   return mapEarnRow(data);

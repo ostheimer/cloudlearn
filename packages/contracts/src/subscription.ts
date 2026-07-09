@@ -62,8 +62,10 @@ export const lpSpendRequestSchema = z.object({
 export type LpSpendRequest = z.infer<typeof lpSpendRequestSchema>;
 
 export const lpEarnRequestSchema = z.object({
-  // "dailyGoal" removed: no legitimate client sent it, so it was pure attack surface.
-  type: z.enum(["session", "ad"]),
+  // Only "session" remains. "dailyGoal" and "ad" were retired as client-asserted
+  // self-grants: "ad" now requires AdMob Server-Side Verification (Google → server),
+  // granted via a dedicated SSV endpoint, not this JWT route (#149).
+  type: z.enum(["session"]),
   // Accepted for backward compatibility with shipped clients, but ignored server-side:
   // the "session" grant is derived from server-recorded reviews, not this count.
   sessionCardCount: z.number().int().optional(),
