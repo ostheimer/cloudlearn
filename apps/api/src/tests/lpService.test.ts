@@ -25,14 +25,12 @@ vi.mock("@/lib/supabase", () => ({
   createSupabaseAdminClient: vi.fn(),
 }));
 
-// Mock Supabase client that exposes the atomic RPCs (spend_lp / earn_lp / add_lp)
-// plus the `from(...).insert(...)` chain still used by the rewards_claimed
-// idempotency guard in claimMilestoneReward.
+// Mock Supabase client exposing the atomic RPCs (spend_lp / earn_lp / add_lp /
+// claim_milestone_lp). Every LP mutation now goes through an RPC, so the old
+// from(...).insert(...) chain (previously the rewards_claimed guard) is gone.
 function makeMockDb() {
   const rpc = vi.fn();
-  const insert = vi.fn().mockResolvedValue({ error: null });
-  const from = vi.fn().mockReturnValue({ insert });
-  return { rpc, from, __insert: insert };
+  return { rpc };
 }
 
 function useMockDb(db: ReturnType<typeof makeMockDb>) {
@@ -370,36 +368,49 @@ describe("grantMonthlyLp (atomic add_lp RPC)", () => {
   });
 });
 
-describe("claimMilestoneReward (idempotency guard + add_lp RPC)", () => {
+describe("claimMilestoneReward (atomic claim_milestone_lp RPC)", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("grants the milestone LP on first claim", async () => {
+  it("grants the milestone LP on first claim via the atomic RPC", async () => {
     const db = makeMockDb();
-    db.__insert.mockResolvedValue({ error: null });
-    db.rpc.mockResolvedValue({ data: 20, error: null });
+    db.rpc.mockResolvedValue({
+      data: [{ granted: LP_EARN_RULES.firstDeck, already_claimed: false, new_balance: 20 }],
+      error: null,
+    });
     useMockDb(db);
 
     const result = await claimMilestoneReward("user-1", "first_deck");
 
-    expect(db.from).toHaveBeenCalledWith("rewards_claimed");
-    expect(db.rpc).toHaveBeenCalledWith("add_lp", {
+    // Guard + credit are now one atomic call — not a separate from().insert() then add_lp.
+    expect(db.rpc).toHaveBeenCalledWith("claim_milestone_lp", {
       p_user: "user-1",
+      p_reward_key: "first_deck",
       p_amount: LP_EARN_RULES.firstDeck, // 10
-      p_type: "earned",
-      p_reason: "milestone_first_deck",
     });
     expect(result).toEqual({ granted: LP_EARN_RULES.firstDeck, alreadyClaimed: false });
   });
 
-  it("is idempotent: a duplicate insert short-circuits without touching the balance", async () => {
+  it("is idempotent: a repeat claim grants 0 and reports alreadyClaimed", async () => {
     const db = makeMockDb();
-    db.__insert.mockResolvedValue({ error: { message: "duplicate key" } });
+    db.rpc.mockResolvedValue({
+      data: [{ granted: 0, already_claimed: true, new_balance: 20 }],
+      error: null,
+    });
     useMockDb(db);
 
     const result = await claimMilestoneReward("user-1", "first_deck");
 
     expect(result).toEqual({ granted: 0, alreadyClaimed: true });
-    expect(db.rpc).not.toHaveBeenCalled();
+  });
+
+  it("throws when the RPC returns an error (credit never silently lost)", async () => {
+    const db = makeMockDb();
+    db.rpc.mockResolvedValue({ data: null, error: { message: "boom" } });
+    useMockDb(db);
+
+    await expect(claimMilestoneReward("user-1", "first_deck")).rejects.toThrow(
+      "claimMilestoneReward: boom"
+    );
   });
 });
 

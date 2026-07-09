@@ -72,6 +72,21 @@ describe("supabase migrations", () => {
     }
   });
 
+  it("makes milestone claim atomic (guard + credit in one claim_milestone_lp fn)", () => {
+    const migrationPath = join(
+      apiRoot,
+      "supabase/migrations/20260708150000_atomic_claim_milestone.sql",
+    );
+    const sql = readFileSync(migrationPath, "utf-8");
+
+    expect(sql).toContain("create or replace function claim_milestone_lp");
+    // Idempotency guard AND credit live in the same function body
+    expect(sql).toContain("insert into rewards_claimed");
+    expect(sql).toContain("on conflict (user_id, reward_key) do nothing");
+    expect(sql).toContain("insert into lp_transactions");
+    expect(sql).toContain("grant execute on function claim_milestone_lp(uuid, text, int) to service_role");
+  });
+
   it("keeps profile deletion backed by cascading user-data references", () => {
     const migrationDir = join(apiRoot, "supabase/migrations");
     const migrationFiles = [

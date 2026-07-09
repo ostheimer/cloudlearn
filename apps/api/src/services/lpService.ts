@@ -220,25 +220,23 @@ export async function claimMilestoneReward(
   const lp = MILESTONE_LP[milestone];
   const db = getDb();
 
-  const { error: insertError } = await db.from("rewards_claimed").insert({
-    user_id: userId,
-    reward_key: milestone,
-    lp_granted: lp,
-  });
-
-  if (insertError) {
-    return { granted: 0, alreadyClaimed: true };
-  }
-
-  const { error } = await db.rpc("add_lp", {
+  // The idempotency guard (rewards_claimed insert) and the credit run atomically
+  // inside claim_milestone_lp — one transaction, all-or-nothing. This closes the
+  // window where the old two-round-trip version could mark a reward claimed but
+  // fail to credit the LP, losing them permanently on every retry.
+  const { data, error } = await db.rpc("claim_milestone_lp", {
     p_user: userId,
+    p_reward_key: milestone,
     p_amount: lp,
-    p_type: "earned",
-    p_reason: `milestone_${milestone}`,
   });
+
   if (error) throw new Error(`claimMilestoneReward: ${error.message}`);
 
-  return { granted: lp, alreadyClaimed: false };
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    granted: row?.granted ?? 0,
+    alreadyClaimed: row?.already_claimed ?? false,
+  };
 }
 
 // ─── Grant Add-on Pack (after successful purchase) ───────────────────────────
