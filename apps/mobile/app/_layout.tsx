@@ -491,6 +491,15 @@ export default function RootLayout() {
               }}
             />
             <Stack.Screen
+              name="cloze"
+              options={{
+                headerShown: true,
+                headerBackTitle: "Zurück",
+                headerTintColor,
+                headerStyle,
+              }}
+            />
+            <Stack.Screen
               name="occlusion"
               options={{
                 headerShown: true,

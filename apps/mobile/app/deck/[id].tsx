@@ -27,6 +27,7 @@ import {
   Brain,
   Puzzle,
   ImagePlus,
+  Pencil,
   Layers,
   MoreVertical,
   Download,
@@ -818,6 +819,27 @@ export default function DeckDetailScreen() {
                   </TouchableOpacity>
                 </>
               )}
+
+              {/* Lückentext — type the missing word; works with a single card too */}
+              <TouchableOpacity
+                onPress={() =>
+                  router.push({
+                    pathname: "/cloze",
+                    params: { deckId, deckTitle },
+                  })
+                }
+                activeOpacity={0.7}
+                style={studyModeRowStyle}
+              >
+                <View style={[studyModeIconStyle, { backgroundColor: colors.warningLight }]}>
+                  <Pencil size={18} color={colors.warning} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={studyModeTitleStyle}>Lückentext</Text>
+                  <Text style={studyModeDescStyle}>Fehlendes aktiv ergänzen</Text>
+                </View>
+                <ChevronRight size={18} color={colors.textTertiary} />
+              </TouchableOpacity>
 
               {/* Occlusion — hide parts of an image and recall them */}
               <TouchableOpacity
