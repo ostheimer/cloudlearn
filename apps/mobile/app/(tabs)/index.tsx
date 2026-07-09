@@ -425,6 +425,25 @@ export default function HomeScreen() {
                 >
                   Fällig
                 </Text>
+                <View
+                  style={{
+                    marginTop: 6,
+                    backgroundColor: colors.surfaceSecondary,
+                    borderRadius: radius.full ?? 999,
+                    paddingHorizontal: 8,
+                    paddingVertical: 3,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: typography.xs,
+                      fontWeight: typography.bold,
+                      color: colors.primary,
+                    }}
+                  >
+                    Lernen  ›
+                  </Text>
+                </View>
               </TouchableOpacity>
 
               {/* Decks */}
@@ -473,6 +492,25 @@ export default function HomeScreen() {
                 >
                   Decks
                 </Text>
+                <View
+                  style={{
+                    marginTop: 6,
+                    backgroundColor: colors.surfaceSecondary,
+                    borderRadius: radius.full ?? 999,
+                    paddingHorizontal: 8,
+                    paddingVertical: 3,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: typography.xs,
+                      fontWeight: typography.bold,
+                      color: colors.primary,
+                    }}
+                  >
+                    Bibliothek  ›
+                  </Text>
+                </View>
               </TouchableOpacity>
 
               {/* Accuracy */}
@@ -527,6 +565,25 @@ export default function HomeScreen() {
                 >
                   Fortschritt
                 </Text>
+                <View
+                  style={{
+                    marginTop: 6,
+                    backgroundColor: colors.surfaceSecondary,
+                    borderRadius: radius.full ?? 999,
+                    paddingHorizontal: 8,
+                    paddingVertical: 3,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: typography.xs,
+                      fontWeight: typography.bold,
+                      color: colors.primary,
+                    }}
+                  >
+                    Details  ›
+                  </Text>
+                </View>
               </TouchableOpacity>
             </View>
 
