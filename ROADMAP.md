@@ -78,7 +78,7 @@ Letzte Aktualisierung: 2026-07-07 (Review-IDOR + Idempotenz-Fix nach #100)
 | **Match-Spiel** | Begriffe zuordnen (6 Paare), Timer, Fehler-Zähler, Sterne-Bewertung |
 | **Auto-Play** | Automatischer Karten-Durchlauf (1s/3s/5s/10s), Play/Pause, TTS-Integration |
 | **Image Occlusion** | Bild-Upload, Rechteck-Zeichnung, Bereiche benennen, Karten-Erstellung |
-| **E2E-Tests** | 14 Playwright-Tests (11 API + 3 Web), alle bestanden |
+| **E2E-Tests** | 51 Playwright-Tests (41 API + 10 Web) über 10 Spec-Dateien |
 | **Deck-Dreipunktemenü** | Bottom-Sheet mit 8 Aktionen: Download, Bearbeiten, Kurs, Ordner, Duplizieren, Teilen, Details, Löschen |
 | **Kurse** | Kurs-CRUD + Decks zu Kursen zuordnen/entfernen (DB + API + Mobile UI) |
 | **Ordner** | Ordner-CRUD + Decks zu Ordnern zuordnen/entfernen (DB + API + Mobile UI) |

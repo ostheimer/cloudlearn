@@ -549,7 +549,7 @@ CREATE INDEX scans_created_idx
 
 ### Ergänzende Migrationen
 
-Die initiale Migration oben ist nur das Basisschema. Spätere Production-Migrationen in `apps/api/supabase/migrations/` ergänzen unter anderem:
+Die initiale Migration oben ist nur das Basisschema. Die vollständige, maßgebliche Liste aller Migrationen liegt im Verzeichnis `apps/api/supabase/migrations/`; die folgende Tabelle hebt nur ausgewählte Meilenstein-Migrationen hervor:
 
 | Migration | Bereich | Ergänzung |
 |-----------|---------|-----------|
@@ -1111,7 +1111,7 @@ vercel inspect <api-preview-url>
 - Für Vercel sind `apps/web` und `apps/api` bewusst standalone lauffähig (eigene `vercel.json`, eigene `tsconfig`).
 - Deploy-Status wird mit `vercel inspect` auf `Ready` verifiziert.
 
-> **Hinweis:** Die root `vercel.json` zeigt noch auf den Mobile-Build und ist ein veraltetes Artefakt. Die eigentlichen Deployments laufen über die projektspezifischen Konfigurationen in `apps/api/vercel.json` und `apps/web/vercel.json`.
+> **Hinweis:** Es gibt drei Vercel-Projekte. `apps/api` und `apps/web` deployen über ihre eigenen `vercel.json`. Die root `vercel.json` ist die aktive Build-Config des dritten Projekts `cloudlearn`: Sie baut per `pnpm --filter @clearn/mobile build` den Expo-Web-Export der Mobile-App nach `apps/mobile/dist` und liefert ihn als Web-App aus. Diese Datei ist aktiv in Benutzung und darf nicht als Altlast entfernt werden.
 
 ### Autonome Agent-Ausführung
 

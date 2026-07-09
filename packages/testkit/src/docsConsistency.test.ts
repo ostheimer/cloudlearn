@@ -106,6 +106,13 @@ describe("documentation status consistency", () => {
     expect(concept).toContain("| Power | 2.000 LP | 9,99 € | 0,0050 € | `lp_pack_2000` |");
   });
 
+  it("describes the root vercel.json as the active cloudlearn build, not a stale artifact", () => {
+    const readme = readRepoFile("README.md");
+
+    expect(readme).not.toContain("veraltetes Artefakt");
+    expect(readme).toContain("apps/mobile/dist");
+  });
+
   it("keeps documentation table separators valid markdown", () => {
     for (const path of ["README.md", "docs/monetization/MONETIZATION_CONCEPT.md"]) {
       expect(readRepoFile(path), path).not.toContain("|>");
