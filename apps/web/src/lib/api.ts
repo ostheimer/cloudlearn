@@ -410,3 +410,26 @@ export function importPdf(
 export function getLpBalance(): Promise<AiUsageResponse> {
   return authed<AiUsageResponse>("/api/v1/usage");
 }
+
+export interface LpEarnResponse {
+  granted: number;
+  newBalance: number;
+  capReached: boolean;
+}
+
+/**
+ * Schreibt Lernpunkte fürs Lernen gut — wie die App am Ende einer Lernsitzung.
+ * Ab 5 gelernten Karten gibt es LP (Tageslimit serverseitig). Web nutzt nur
+ * "session"/"dailyGoal" (keine Werbung im Browser).
+ */
+export function earnLp(
+  type: "session" | "dailyGoal",
+  sessionCardCount?: number
+): Promise<LpEarnResponse> {
+  return authed<LpEarnResponse>("/api/v1/lp/earn", {
+    method: "POST",
+    body: JSON.stringify(
+      sessionCardCount !== undefined ? { type, sessionCardCount } : { type }
+    ),
+  });
+}
