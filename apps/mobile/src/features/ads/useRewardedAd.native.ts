@@ -1,15 +1,12 @@
 import { useState, useCallback, useRef } from "react";
 import { Alert, Linking, Platform } from "react-native";
-import { earnLp } from "../../lib/api";
 import { i18n } from "../../i18n";
-import { useUsageStore } from "../../store/usageStore";
+import { useSessionStore } from "../../store/sessionStore";
 import {
   useTrackingConsentStore,
 } from "./trackingConsent";
 import { shouldPromptForAdPersonalization } from "./trackingConsentUtils";
-
-// LP earned per rewarded ad view
-const LP_PER_AD = 5;
+import { REAL_ADS_ENABLED } from "./adsMode";
 
 const APP_VARIANT = process.env.EXPO_PUBLIC_APP_VARIANT ?? "development";
 const USE_TEST_ADS = __DEV__ || APP_VARIANT !== "production";
@@ -43,6 +40,10 @@ export interface RewardedAdResult {
   granted: number;
   newBalance: number;
   capReached: boolean;
+  // A mock ad was shown; no LP granted (real ads + SSV are not live yet, see #149).
+  mock?: boolean;
+  // A real ad was shown; LP is credited server-side via AdMob SSV, not inline.
+  pending?: boolean;
 }
 
 export interface UseRewardedAdReturn {
@@ -53,8 +54,9 @@ export interface UseRewardedAdReturn {
 
 // Loads and shows a real rewarded ad via react-native-google-mobile-ads.
 // Falls back to a short simulation if the native SDK is unavailable.
-async function loadAndShowRewardedAd(options?: {
+async function loadAndShowRewardedAd(options: {
   personalizedAds?: boolean;
+  userId: string;
 }): Promise<boolean> {
   try {
     const { RewardedAd, RewardedAdEventType } =
@@ -65,8 +67,12 @@ async function loadAndShowRewardedAd(options?: {
     }
 
     return await new Promise<boolean>((resolve) => {
+      // Server-Side Verification: tell AdMob which user this reward belongs to (via
+      // the request options), so Google signs the callback and hits our SSV endpoint,
+      // which credits the LP. No client-side grant — the server hands out LP.
       const ad = RewardedAd.createForAdRequest(ADMOB_REWARDED_ID, {
-        requestNonPersonalizedAdsOnly: !options?.personalizedAds,
+        requestNonPersonalizedAdsOnly: !options.personalizedAds,
+        serverSideVerificationOptions: { userId: options.userId },
       });
 
       const unsubscribeLoaded = ad.addAdEventListener(
@@ -219,13 +225,24 @@ async function resolveAdPersonalizationPreference(): Promise<boolean | null> {
 
 export function useRewardedAd(): UseRewardedAdReturn {
   const [state, setState] = useState<AdState>("idle");
-  const setUsage = useUsageStore((s) => s.setUsage);
+  const userId = useSessionStore((s) => s.userId);
   const activeRef = useRef(false);
 
   const watchAd = useCallback(async (): Promise<RewardedAdResult | null> => {
     if (activeRef.current) return null;
     activeRef.current = true;
     try {
+      // Real ads (Google-served + SSV) are not live yet → show a mock ad that grants
+      // no LP. This keeps the closed "self-grant LP for a fake ad" hole closed. Once
+      // REAL_ADS_ENABLED flips on, the real path below credits LP via AdMob SSV.
+      if (!REAL_ADS_ENABLED || !userId) {
+        setState("showing");
+        await new Promise<void>((resolve) => setTimeout(resolve, 1200));
+        setState("idle");
+        activeRef.current = false;
+        return { granted: 0, newBalance: 0, capReached: false, mock: true };
+      }
+
       const personalizedAds = await resolveAdPersonalizationPreference();
       if (personalizedAds === null) {
         setState("idle");
@@ -235,7 +252,7 @@ export function useRewardedAd(): UseRewardedAdReturn {
 
       setState("loading");
       setState("showing");
-      const rewarded = await loadAndShowRewardedAd({ personalizedAds });
+      const rewarded = await loadAndShowRewardedAd({ personalizedAds, userId });
 
       if (!rewarded) {
         setState("failed");
@@ -243,28 +260,17 @@ export function useRewardedAd(): UseRewardedAdReturn {
         return null;
       }
 
-      const result = await earnLp("ad");
-
-      if (result.capReached) {
-        setState("cap_reached");
-        activeRef.current = false;
-        return { granted: 0, newBalance: result.newBalance, capReached: true };
-      }
-
-      setUsage({ lpBalance: result.newBalance });
+      // The ad completed. LP is NOT granted here — AdMob's SSV callback credits it
+      // server-side (Google → /api/v1/ads/ssv); the screen refreshes the balance.
       setState("rewarded");
       activeRef.current = false;
-      return {
-        granted: result.granted,
-        newBalance: result.newBalance,
-        capReached: false,
-      };
+      return { granted: 0, newBalance: 0, capReached: false, pending: true };
     } catch {
       setState("failed");
       activeRef.current = false;
       return null;
     }
-  }, [setUsage]);
+  }, [userId]);
 
   const reset = useCallback(() => {
     activeRef.current = false;
@@ -274,4 +280,4 @@ export function useRewardedAd(): UseRewardedAdReturn {
   return { state, watchAd, reset };
 }
 
-export { LP_PER_AD, ADMOB_REWARDED_ID };
+export { ADMOB_REWARDED_ID };

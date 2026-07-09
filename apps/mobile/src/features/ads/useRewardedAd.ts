@@ -1,9 +1,4 @@
 import { useState, useCallback, useRef } from "react";
-import { earnLp } from "../../lib/api";
-import { useUsageStore } from "../../store/usageStore";
-
-// LP earned per rewarded ad view
-const LP_PER_AD = 5;
 
 export type AdState =
   | "idle"
@@ -18,6 +13,10 @@ export interface RewardedAdResult {
   granted: number;
   newBalance: number;
   capReached: boolean;
+  // A mock ad was shown; no LP granted (real ads + SSV are not live yet, see #149).
+  mock?: boolean;
+  // A real ad was shown; LP is credited server-side via AdMob SSV, not inline.
+  pending?: boolean;
 }
 
 export interface UseRewardedAdReturn {
@@ -26,54 +25,32 @@ export interface UseRewardedAdReturn {
   reset: () => void;
 }
 
-// Web and other non-native bundles must not pull in the AdMob native module.
-async function loadAndShowRewardedAd(): Promise<boolean> {
-  return new Promise<boolean>((resolve) => {
-    setTimeout(() => resolve(true), 1500);
-  });
+// Web / non-native bundles never show real ads — always a short mock simulation.
+async function showMockAd(): Promise<void> {
+  await new Promise<void>((resolve) => setTimeout(resolve, 1200));
 }
 
 export function useRewardedAd(): UseRewardedAdReturn {
   const [state, setState] = useState<AdState>("idle");
-  const setUsage = useUsageStore((s) => s.setUsage);
   const activeRef = useRef(false);
 
   const watchAd = useCallback(async (): Promise<RewardedAdResult | null> => {
     if (activeRef.current) return null;
     activeRef.current = true;
-    setState("loading");
+    setState("showing");
     try {
-      setState("showing");
-      const rewarded = await loadAndShowRewardedAd();
-
-      if (!rewarded) {
-        setState("failed");
-        activeRef.current = false;
-        return null;
-      }
-
-      const result = await earnLp("ad");
-
-      if (result.capReached) {
-        setState("cap_reached");
-        activeRef.current = false;
-        return { granted: 0, newBalance: result.newBalance, capReached: true };
-      }
-
-      setUsage({ lpBalance: result.newBalance });
-      setState("rewarded");
+      await showMockAd();
+      setState("idle");
       activeRef.current = false;
-      return {
-        granted: result.granted,
-        newBalance: result.newBalance,
-        capReached: false,
-      };
+      // Mock ad → no LP. We deliberately do NOT call the server: rewarded-ad LP is
+      // only granted via AdMob SSV once real ads are enabled (#149).
+      return { granted: 0, newBalance: 0, capReached: false, mock: true };
     } catch {
       setState("failed");
       activeRef.current = false;
       return null;
     }
-  }, [setUsage]);
+  }, []);
 
   const reset = useCallback(() => {
     activeRef.current = false;
@@ -84,4 +61,3 @@ export function useRewardedAd(): UseRewardedAdReturn {
 }
 
 export const ADMOB_REWARDED_ID: string | null = null;
-export { LP_PER_AD };
