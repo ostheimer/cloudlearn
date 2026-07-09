@@ -18,7 +18,6 @@ import {
   ChevronRight,
   BookOpen,
   FolderOpen,
-  MoreVertical,
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { useSessionStore } from "../../src/store/sessionStore";

@@ -15,9 +15,6 @@ import {
   Layers,
   ChevronRight,
   MoreVertical,
-  Trash2,
-  Edit3,
-  Plus,
   Play,
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
