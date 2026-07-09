@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import {
@@ -101,6 +101,10 @@ function AuthenticatedLearnScreen({ userId }: { userId: string }) {
   const [reviewLoading, setReviewLoading] = useState(false);
   const [showBackFirst, setShowBackFirst] = useState(false);
   const [starredMap, setStarredMap] = useState<Record<string, boolean>>({});
+
+  // Cards rated since the last LP earn call. Only a trigger for "did she learn
+  // anything?" — the actual LP amount is decided server-side from recorded reviews.
+  const reviewedSinceEarnRef = useRef(0);
 
   // ─── Flip animation (independent toggle) ─────────────────────────────────
   const flipProgress = useSharedValue(0);
@@ -235,6 +239,7 @@ function AuthenticatedLearnScreen({ userId }: { userId: string }) {
     if (!revealed) reveal();
     const result = rateCurrent(rating);
     if (!result || !userId) return;
+    reviewedSinceEarnRef.current += 1;
     const queuedReview = createReviewSyncOperation({
       userId,
       cardId: result.cardId,
@@ -308,20 +313,39 @@ function AuthenticatedLearnScreen({ userId }: { userId: string }) {
     if (completed && autoPlaying) setAutoPlaying(false);
   }, [completed, autoPlaying]);
 
-  // Grant LP and check milestone rewards at end of review session
+  // Collect earned LP when the learner leaves the review screen — not only when the
+  // whole due pile is finished (which, with a large backlog, almost never happens; see
+  // #153). The server derives the grant from the reviews it has actually recorded, in
+  // whole 5-card chunks up to the daily cap, and is replay-safe (earn_session_lp), so a
+  // single call on leave is enough and can't over-grant.
+  const collectSessionLp = useCallback(async () => {
+    if (reviewedSinceEarnRef.current === 0 || !userId) return;
+    reviewedSinceEarnRef.current = 0; // reset first so a re-entrant blur can't double-fire
+    try {
+      const result = await earnLp("session");
+      if (result.granted > 0) {
+        setUsage({ lpBalance: result.newBalance });
+      }
+    } catch {
+      // LP earn is best-effort
+    }
+  }, [userId, setUsage]);
+
+  useFocusEffect(
+    useCallback(() => {
+      // Cleanup runs on blur (leaving the tab / navigating away) — i.e. when a study
+      // session ends. That is the moment we cash in the LP earned this session.
+      return () => {
+        void collectSessionLp();
+      };
+    }, [collectSessionLp])
+  );
+
+  // Milestone + streak rewards still fire when a session is fully completed.
   useEffect(() => {
     if (!completed || cards.length === 0 || !userId) return;
 
     const handleSessionComplete = async () => {
-      try {
-        const result = await earnLp("session", cards.length);
-        if (result.granted > 0) {
-          setUsage({ lpBalance: result.newBalance });
-        }
-      } catch {
-        // LP earn is best-effort
-      }
-
       // Claim first_review milestone (idempotent – only fires once ever)
       claimOnceMilestone("first_review").catch(() => {});
 
