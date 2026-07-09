@@ -174,7 +174,6 @@ export default function LandingPage() {
                 <a
                   href={landingCtas.primary.href}
                   className="btn btn-on-dark btn-lg"
-                  data-event={JSON.stringify(landingCtas.primary.event)}
                 >
                   Als iPhone-App
                 </a>

@@ -15,4 +15,10 @@ describe("deployment configuration", () => {
 
     expect(apiVercel.installCommand).toBe("pnpm install --frozen-lockfile");
   });
+
+  it("keeps the web Vercel build on the workspace pnpm lockfile", () => {
+    const webVercel = readJson("apps/web/vercel.json");
+
+    expect(webVercel.installCommand).toBe("pnpm install --frozen-lockfile");
+  });
 });
