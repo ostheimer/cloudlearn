@@ -18,10 +18,10 @@ import {
   RotateCcw,
   Trophy,
   HelpCircle,
+  Check,
 } from "lucide-react-native";
 import { listCardsInDeck, type Card } from "../src/lib/api";
 import { summarizeCardMedia } from "../src/lib/cardMedia";
-import { isAnswerCorrect } from "../src/lib/answerCheck";
 import { useColors, spacing, radius, typography, shadows } from "../src/theme";
 
 interface Prompt {
@@ -102,7 +102,9 @@ export default function ClozeScreen() {
 
   const handleCheck = () => {
     if (revealed || !current || !parsed) return;
-    const correct = isAnswerCorrect(input, parsed.answer);
+    // Exact match — case, accents and spelling all count. If the learner
+    // judges a near-miss should still count, they override it themselves below.
+    const correct = input.trim() === parsed.answer.trim();
     setWasCorrect(correct);
     setRevealed(true);
     if (correct) {
@@ -110,6 +112,14 @@ export default function ClozeScreen() {
     } else {
       setWrong((w) => [...w, current]);
     }
+  };
+
+  // Self-graded override: the learner decides a wrong-marked answer counts.
+  const handleOverride = () => {
+    if (!current || wasCorrect) return;
+    setWasCorrect(true);
+    setCorrectCount((c) => c + 1);
+    setWrong((w) => w.filter((c) => c.id !== current.id));
   };
 
   const handleNext = () => {
@@ -427,34 +437,35 @@ export default function ClozeScreen() {
               }}
             />
 
-            {/* Feedback after checking */}
+            {/* Feedback after checking — the solution word always shows,
+                whether right or wrong. */}
             {revealed && (
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: spacing.sm,
-                  backgroundColor: wasCorrect ? colors.successLight : colors.errorLight,
-                  borderRadius: radius.md,
-                  padding: spacing.md,
-                }}
-              >
-                {wasCorrect ? (
-                  <CheckCircle2 size={22} color={colors.success} />
-                ) : (
-                  <XCircle size={22} color={colors.error} />
-                )}
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={{
-                      fontSize: typography.base,
-                      fontWeight: typography.bold,
-                      color: wasCorrect ? colors.success : colors.error,
-                    }}
-                  >
-                    {wasCorrect ? "Richtig" : "Fast!"}
-                  </Text>
-                  {!wasCorrect && (
+              <View style={{ gap: spacing.sm }}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: spacing.sm,
+                    backgroundColor: wasCorrect ? colors.successLight : colors.errorLight,
+                    borderRadius: radius.md,
+                    padding: spacing.md,
+                  }}
+                >
+                  {wasCorrect ? (
+                    <CheckCircle2 size={22} color={colors.success} />
+                  ) : (
+                    <XCircle size={22} color={colors.error} />
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{
+                        fontSize: typography.base,
+                        fontWeight: typography.bold,
+                        color: wasCorrect ? colors.success : colors.error,
+                      }}
+                    >
+                      {wasCorrect ? "Richtig" : "Falsch"}
+                    </Text>
                     <Text
                       style={{
                         fontSize: typography.base,
@@ -462,10 +473,40 @@ export default function ClozeScreen() {
                         marginTop: 2,
                       }}
                     >
-                      Richtig ist: {parsed?.answer}
+                      Lösung: {parsed?.answer}
                     </Text>
-                  )}
+                  </View>
                 </View>
+
+                {/* Let the learner overrule a strict "wrong" themselves */}
+                {!wasCorrect && (
+                  <TouchableOpacity
+                    onPress={handleOverride}
+                    activeOpacity={0.8}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: spacing.sm,
+                      paddingVertical: 12,
+                      borderRadius: radius.md,
+                      borderWidth: 1,
+                      borderColor: colors.success,
+                      backgroundColor: colors.surface,
+                    }}
+                  >
+                    <Check size={18} color={colors.success} />
+                    <Text
+                      style={{
+                        color: colors.success,
+                        fontWeight: typography.semibold,
+                        fontSize: typography.base,
+                      }}
+                    >
+                      Trotzdem als richtig zählen
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
             )}
 
