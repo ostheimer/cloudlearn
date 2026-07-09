@@ -46,7 +46,6 @@ import {
   type Deck,
 } from "../../src/lib/api";
 import { summarizeCardMedia } from "../../src/lib/cardMedia";
-import { useReviewSession } from "../../src/features/review/reviewSession";
 import { useUsageStore } from "../../src/store/usageStore";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
 import { LpInsufficientModal } from "../../src/components/LpInsufficientModal";
@@ -62,7 +61,6 @@ export default function ScanScreen() {
   const editedText = useOcrEditorState((state) => state.editedText);
   const setOriginalText = useOcrEditorState((state) => state.setOriginalText);
   const setEditedText = useOcrEditorState((state) => state.setEditedText);
-  const startReview = useReviewSession((state) => state.start);
 
   const setUsage = useUsageStore((state) => state.setUsage);
   const deductLp = useUsageStore((state) => state.deductLp);
@@ -417,17 +415,15 @@ export default function ScanScreen() {
       }
 
       setSaved(true);
-      startReview(
-        savedCards.map((c) => ({ id: c.id, front: c.front, back: c.back }))
-      );
 
       Alert.alert(
         "Gespeichert!",
         `${savedCards.length} Karten in "${title}" gespeichert.`,
         [
           {
-            text: "Jetzt lernen",
-            onPress: () => router.push("/(tabs)/learn"),
+            text: "Deck öffnen",
+            onPress: () =>
+              router.push(`/deck/${deckId}?title=${encodeURIComponent(title)}`),
           },
         ]
       );
