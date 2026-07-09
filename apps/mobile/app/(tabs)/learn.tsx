@@ -48,6 +48,7 @@ import {
   getDueCards,
   getStats,
   isApiError,
+  listCardsInDeck,
   reviewCard,
   updateCard,
 } from "../../src/lib/api";
@@ -69,7 +70,16 @@ const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.3;
 // Max rotation when card is at edge
 const MAX_ROTATION = 15; // degrees
 
-export default function LearnScreen() {
+// Props are optional: as a tab, this screen learns all globally-due cards.
+// When rendered from the /deck-review route with a deckId, it learns every
+// card of that single deck instead.
+export default function LearnScreen({
+  deckId,
+  deckTitle,
+}: {
+  deckId?: string | undefined;
+  deckTitle?: string | undefined;
+} = {}) {
   const router = useRouter();
   const c = useColors();
   const userId = useSessionStore((state) => state.userId);
@@ -88,11 +98,26 @@ export default function LearnScreen() {
     );
   }
 
-  return <AuthenticatedLearnScreen userId={userId} />;
+  return (
+    <AuthenticatedLearnScreen
+      userId={userId}
+      deckId={deckId}
+      deckTitle={deckTitle}
+    />
+  );
 }
 
-function AuthenticatedLearnScreen({ userId }: { userId: string }) {
+function AuthenticatedLearnScreen({
+  userId,
+  deckId,
+  deckTitle,
+}: {
+  userId: string;
+  deckId?: string | undefined;
+  deckTitle?: string | undefined;
+}) {
   const { t } = useTranslation();
+  const router = useRouter();
   const c = useColors();
   const { cards, index, revealed, completed, swipedLeft, swipedRight, start, reveal, rateCurrent, canGoBack, goBack } =
     useReviewSession();
@@ -209,12 +234,15 @@ function AuthenticatedLearnScreen({ userId }: { userId: string }) {
     setLoading(true);
     try {
       await syncPendingReviewOperations(userId).catch(() => null);
-      const { cards: due } = await getDueCards(userId);
-      if (due.length > 0) {
+      // Deck mode: study every card of one deck. Tab mode: study globally-due cards.
+      const { cards: loaded } = deckId
+        ? await listCardsInDeck(deckId)
+        : await getDueCards(userId);
+      if (loaded.length > 0) {
         const starMap: Record<string, boolean> = {};
-        due.forEach((card) => { starMap[card.id] = card.starred ?? false; });
+        loaded.forEach((card) => { starMap[card.id] = card.starred ?? false; });
         setStarredMap(starMap);
-        start(due.map((card) => ({ id: card.id, front: card.front, back: card.back, starred: card.starred })));
+        start(loaded.map((card) => ({ id: card.id, front: card.front, back: card.back, starred: card.starred })));
       } else {
         start([]);
       }
@@ -224,14 +252,24 @@ function AuthenticatedLearnScreen({ userId }: { userId: string }) {
     } finally {
       setLoading(false);
     }
-  }, [userId, start]);
+  }, [userId, deckId, start]);
 
+  // The review session store is module-global, so a fresh screen can inherit
+  // cards from a previous session. Reload whenever the source changes (a
+  // different deck, or global mode) so opening deck B never shows deck A.
+  const loadedKeyRef = useRef<string | null>(null);
   useFocusEffect(
     useCallback(() => {
+      const key = deckId ?? "__global__";
+      if (loadedKeyRef.current !== key) {
+        loadedKeyRef.current = key;
+        loadDueCards();
+        return;
+      }
       if (cards.length === 0 && !completed) {
         loadDueCards();
       }
-    }, [cards.length, completed, loadDueCards])
+    }, [deckId, cards.length, completed, loadDueCards])
   );
 
   // ─── Rating handlers ──────────────────────────────────────────────────────
@@ -505,10 +543,23 @@ function AuthenticatedLearnScreen({ userId }: { userId: string }) {
         <View style={{ flex: 1, padding: spacing.lg, gap: spacing.md }}>
           {/* Header */}
           <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <View style={{ width: 34 }} />
+            {deckId ? (
+              <TouchableOpacity
+                onPress={() => router.back()}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                style={{ width: 34, height: 34, justifyContent: "center", alignItems: "center" }}
+              >
+                <ArrowLeft size={22} color={c.textSecondary} />
+              </TouchableOpacity>
+            ) : (
+              <View style={{ width: 34 }} />
+            )}
 
-            <Text style={{ flex: 1, fontSize: typography.xxl, fontWeight: typography.bold, color: c.text, textAlign: "center" }}>
-              {t("reviewHeadline")}
+            <Text
+              numberOfLines={1}
+              style={{ flex: 1, fontSize: typography.xxl, fontWeight: typography.bold, color: c.text, textAlign: "center" }}
+            >
+              {deckTitle ?? t("reviewHeadline")}
             </Text>
 
             {cards.length > 0 && !completed ? (

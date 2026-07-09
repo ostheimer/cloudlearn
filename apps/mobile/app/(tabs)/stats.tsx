@@ -4,12 +4,10 @@ import {
   Dimensions,
   ScrollView,
   Text,
-  TouchableOpacity,
   View,
   type LayoutChangeEvent,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
 import Svg, {
   Circle,
   G,
@@ -18,9 +16,9 @@ import Svg, {
   Rect,
   Text as SvgText,
 } from "react-native-svg";
-import { ArrowLeft, TrendingUp, CheckCircle2 } from "lucide-react-native";
-import { useColors, spacing, radius, typography, shadows } from "../src/theme";
-import { getStats, type StatsResponse } from "../src/lib/api";
+import { TrendingUp, CheckCircle2 } from "lucide-react-native";
+import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
+import { getStats, type StatsResponse } from "../../src/lib/api";
 
 const CHART_HEIGHT = 180;
 const BAR_CHART_HEIGHT = 160;
@@ -67,7 +65,6 @@ function ResponsiveChart({
 }
 
 export default function StatsScreen() {
-  const router = useRouter();
   const colors = useColors();
 
   const [stats, setStats] = useState<StatsResponse | null>(null);
@@ -424,20 +421,8 @@ export default function StatsScreen() {
         contentContainerStyle={{ padding: spacing.xl, gap: spacing.lg }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: spacing.md,
-          }}
-        >
-          <TouchableOpacity
-            onPress={() => router.back()}
-            hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
-          >
-            <ArrowLeft size={22} color={colors.text} />
-          </TouchableOpacity>
+        {/* Header — this is a top-level tab, so no back button. */}
+        <View style={{ paddingTop: spacing.sm }}>
           <Text
             style={{
               fontSize: typography.xxl,

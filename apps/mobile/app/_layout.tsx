@@ -467,6 +467,12 @@ export default function RootLayout() {
               }}
             />
             <Stack.Screen
+              name="deck-review/[id]"
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
               name="quiz"
               options={{
                 headerShown: true,

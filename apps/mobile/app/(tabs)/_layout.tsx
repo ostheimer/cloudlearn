@@ -1,11 +1,9 @@
 import { Tabs } from "expo-router";
-import { Home, ScanLine, Brain, Library, User } from "lucide-react-native";
+import { Home, ScanLine, BarChart3, Library, User } from "lucide-react-native";
 import { useColors } from "../../src/theme";
-import { useSessionStore } from "../../src/store/sessionStore";
 
 export default function TabsLayout() {
   const c = useColors();
-  const dueCount = useSessionStore((s) => s.dueCount);
 
   return (
     <Tabs
@@ -40,14 +38,6 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="learn"
-        options={{
-          title: "Lernen",
-          tabBarIcon: ({ color, size }) => <Brain size={size} color={color} />,
-          ...(dueCount > 0 ? { tabBarBadge: dueCount } : {}),
-        }}
-      />
-      <Tabs.Screen
         name="decks"
         options={{
           title: "Bibliothek",
@@ -55,10 +45,26 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="stats"
+        options={{
+          title: "Statistik",
+          tabBarIcon: ({ color, size }) => <BarChart3 size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: "Profil",
           tabBarIcon: ({ color, size }) => <User size={size} color={color} />,
+        }}
+      />
+      {/* Parked: the global "learn all due cards" screen stays routable but is no
+          longer a tab. Deck-specific learning uses the /deck-review route instead.
+          The global daily entry point returns in a later step. */}
+      <Tabs.Screen
+        name="learn"
+        options={{
+          href: null,
         }}
       />
       <Tabs.Screen
