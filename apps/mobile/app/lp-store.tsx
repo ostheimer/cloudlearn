@@ -14,6 +14,7 @@ import { ArrowLeft, Zap, PlayCircle, ShoppingBag, TrendingUp, Star } from "lucid
 import { useColors, spacing, radius, typography, shadows } from "../src/theme";
 import { useUsageStore } from "../src/store/usageStore";
 import { useRewardedAd } from "../src/features/ads/useRewardedAd";
+import { REAL_ADS_ENABLED } from "../src/features/ads/adsMode";
 import { getLpBalance, grantLpPackPurchase } from "../src/lib/api";
 import {
   getRevenueCatAvailability,
@@ -98,6 +99,19 @@ export default function LpStoreScreen() {
     const result = await watchAd();
     if (!result) {
       setAdMessage(t("lp.adFailed"));
+      return;
+    }
+    if (result.mock) {
+      // Mock ad (real ads not live yet) — no LP, just an honest "coming soon".
+      setAdMessage(t("lp.adMockNotActive"));
+      setTimeout(() => setAdMessage(""), 4000);
+      return;
+    }
+    if (result.pending) {
+      // Real ad done; LP is credited via AdMob SSV shortly — refresh to reflect it.
+      setAdMessage(t("lp.adRewardPending"));
+      void loadBalance();
+      setTimeout(() => setAdMessage(""), 4000);
       return;
     }
     if (result.capReached) {
@@ -294,7 +308,7 @@ export default function LpStoreScreen() {
                       fontSize: typography.base,
                       fontWeight: typography.bold,
                     }}>
-                      {adCapped ? t("lp.adCapReachedShort") : adState === "showing" ? t("lp.adWatching") : t("lp.watchAdFull")}
+                      {adCapped ? t("lp.adCapReachedShort") : adState === "showing" ? t("lp.adWatching") : REAL_ADS_ENABLED ? t("lp.watchAdFull") : t("lp.watchAdMockFull")}
                     </Text>
                     <Text style={{
                       color: adCapped ? colors.textTertiary : adBusy ? colors.textSecondary : "rgba(255,255,255,0.75)",
@@ -303,10 +317,12 @@ export default function LpStoreScreen() {
                     }}>
                       {adCapped
                         ? t("lp.adCapReachedDetail", { cap: lpAdCapToday })
-                        : t("lp.watchAdSubtitle", { count: 5 })}
+                        : REAL_ADS_ENABLED
+                          ? t("lp.watchAdSubtitle", { count: 5 })
+                          : t("lp.watchAdMockSubtitle")}
                     </Text>
                   </View>
-                  {!adCapped && !adBusy && (
+                  {!adCapped && !adBusy && REAL_ADS_ENABLED && (
                     <View style={{ backgroundColor: "rgba(255,255,255,0.25)", borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: 3 }}>
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
                         <Zap size={12} color={colors.textInverse} />
