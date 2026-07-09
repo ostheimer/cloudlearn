@@ -6,4 +6,6 @@
 // Flip to true ONLY once SSV is configured end-to-end (AdMob console callback URL +
 // the grant_ad_ssv_lp migration applied + the setServerSideVerificationOptions
 // wiring verified with a test ad).
-export const REAL_ADS_ENABLED = false;
+// Typed as boolean (not the literal `false`) so flipping it later needs no other
+// edits and TypeScript doesn't treat the gated real-ad path as unreachable.
+export const REAL_ADS_ENABLED: boolean = false;

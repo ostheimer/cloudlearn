@@ -67,14 +67,13 @@ async function loadAndShowRewardedAd(options: {
     }
 
     return await new Promise<boolean>((resolve) => {
+      // Server-Side Verification: tell AdMob which user this reward belongs to (via
+      // the request options), so Google signs the callback and hits our SSV endpoint,
+      // which credits the LP. No client-side grant — the server hands out LP.
       const ad = RewardedAd.createForAdRequest(ADMOB_REWARDED_ID, {
         requestNonPersonalizedAdsOnly: !options.personalizedAds,
+        serverSideVerificationOptions: { userId: options.userId },
       });
-
-      // Server-Side Verification: tell AdMob which user this reward belongs to, so
-      // Google signs the callback and hits our SSV endpoint (which credits the LP).
-      // No client-side grant — the server is the only thing that hands out LP.
-      ad.setServerSideVerificationOptions({ userId: options.userId });
 
       const unsubscribeLoaded = ad.addAdEventListener(
         RewardedAdEventType.LOADED,
