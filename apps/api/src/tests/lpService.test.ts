@@ -256,10 +256,10 @@ describe("spendLp (atomic spend_lp RPC)", () => {
   });
 });
 
-describe("earnLp — session via earn_session_lp, ad via earn_lp", () => {
+describe("earnLp — session only, via earn_session_lp", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("session routes to earn_session_lp with the chunk config and maps the row", async () => {
+  it("routes to earn_session_lp with the chunk config and maps the row", async () => {
     const db = makeMockDb();
     db.rpc.mockResolvedValue({
       data: [{ granted: 5, new_balance: 15, cap_reached: false }],
@@ -267,7 +267,7 @@ describe("earnLp — session via earn_session_lp, ad via earn_lp", () => {
     });
     useMockDb(db);
 
-    const result = await earnLp("user-1", "free", "session");
+    const result = await earnLp("user-1", "free");
 
     expect(db.rpc).toHaveBeenCalledWith(
       "earn_session_lp",
@@ -281,7 +281,7 @@ describe("earnLp — session via earn_session_lp, ad via earn_lp", () => {
     expect(result).toEqual({ granted: 5, newBalance: 15, capReached: false });
   });
 
-  it("session's chunk size is a fixed server constant, not a client-supplied count", async () => {
+  it("the chunk size is a fixed server constant, not a client-supplied count", async () => {
     const db = makeMockDb();
     db.rpc.mockResolvedValue({
       data: [{ granted: 0, new_balance: 10, cap_reached: false }],
@@ -289,14 +289,14 @@ describe("earnLp — session via earn_session_lp, ad via earn_lp", () => {
     });
     useMockDb(db);
 
-    await earnLp("user-1", "free", "session");
+    await earnLp("user-1", "free");
 
     const params = db.rpc.mock.calls[0]![1] as Record<string, unknown>;
     expect(params).not.toHaveProperty("p_raw_grant"); // old client-derived grant is gone
     expect(params.p_cards_per_chunk).toBe(5); // fixed, server-owned — never from the client
   });
 
-  it("session reports capReached when earn_session_lp returns cap_reached=true", async () => {
+  it("reports capReached when earn_session_lp returns cap_reached=true", async () => {
     const db = makeMockDb();
     db.rpc.mockResolvedValue({
       data: [{ granted: 0, new_balance: 10, cap_reached: true }],
@@ -304,12 +304,12 @@ describe("earnLp — session via earn_session_lp, ad via earn_lp", () => {
     });
     useMockDb(db);
 
-    const result = await earnLp("user-1", "free", "session");
+    const result = await earnLp("user-1", "free");
 
     expect(result).toEqual({ granted: 0, newBalance: 10, capReached: true });
   });
 
-  it("ad rewards go through earn_lp with p_is_ad=true and the ad cap", async () => {
+  it("never touches the ad path (no earn_lp / p_is_ad) — ad self-grant is retired", async () => {
     const db = makeMockDb();
     db.rpc.mockResolvedValue({
       data: [{ granted: 5, new_balance: 15, cap_reached: false }],
@@ -317,16 +317,12 @@ describe("earnLp — session via earn_session_lp, ad via earn_lp", () => {
     });
     useMockDb(db);
 
-    await earnLp("user-1", "free", "ad");
+    await earnLp("user-1", "free");
 
-    expect(db.rpc).toHaveBeenCalledWith(
-      "earn_lp",
-      expect.objectContaining({
-        p_is_ad: true,
-        p_raw_grant: 5,
-        p_ad_cap: TIER_LIMITS.free.lpAdCapPerDay,
-      }),
-    );
+    expect(db.rpc).toHaveBeenCalledTimes(1);
+    expect(db.rpc).toHaveBeenCalledWith("earn_session_lp", expect.anything());
+    const params = db.rpc.mock.calls[0]![1] as Record<string, unknown>;
+    expect(params).not.toHaveProperty("p_is_ad");
   });
 
   it("throws with the failing earn path when the RPC returns an error", async () => {
@@ -334,7 +330,7 @@ describe("earnLp — session via earn_session_lp, ad via earn_lp", () => {
     db.rpc.mockResolvedValue({ data: null, error: { message: "boom" } });
     useMockDb(db);
 
-    await expect(earnLp("user-1", "free", "session")).rejects.toThrow("earnLp(session): boom");
+    await expect(earnLp("user-1", "free")).rejects.toThrow("earnLp(session): boom");
   });
 });
 
