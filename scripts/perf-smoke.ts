@@ -1,7 +1,12 @@
-import { processScan } from "../apps/api/src/services/scanService";
-import { createDeckForUser } from "../apps/api/src/services/deckService";
-import { listCardsForDeck, resetStore } from "../apps/api/src/lib/inMemoryStore";
-import { storeReview } from "../apps/api/src/services/reviewService";
+import { generateWithModelFallback } from "../apps/api/src/lib/llm";
+import {
+  createCard,
+  createDeck,
+  createReview,
+  listCardsForDeck,
+  resetStore,
+  updateCardFsrs,
+} from "../apps/api/src/lib/inMemoryStore";
 import { resetIdempotencyStore } from "../apps/api/src/lib/idempotencyStore";
 
 // In-process sanity bounds (in-memory store, single call) — deliberately generous.
@@ -10,31 +15,26 @@ import { resetIdempotencyStore } from "../apps/api/src/lib/idempotencyStore";
 const IN_PROCESS_BUDGET_MS = { scan: 2000, review: 200 };
 
 const userId = "6e5db9e4-7e48-4e11-8d8c-6ca90c18d42a";
+const extractedText =
+  "Die Photosynthese beschreibt den Prozess, bei dem Pflanzen Lichtenergie in chemische Energie umwandeln.";
 
-function measureMs(fn: () => void): number {
+async function measureMs(fn: () => void | Promise<void>): Promise<number> {
   const start = performance.now();
-  fn();
+  await fn();
   return performance.now() - start;
 }
 
-function run() {
+export async function run() {
   resetStore();
   resetIdempotencyStore();
 
-  const deck = createDeckForUser({ userId, title: "Perf", tags: ["perf"] });
+  const deck = createDeck(userId, "Perf", ["perf"]);
 
-  const scanLatency = measureMs(() => {
-    processScan(
-      {
-        userId,
-        extractedText:
-          "Die Photosynthese beschreibt den Prozess, bei dem Pflanzen Lichtenergie in chemische Energie umwandeln.",
-        sourceLanguage: "de",
-        idempotencyKey: "perf-scan-0001",
-        deckId: deck.id
-      },
-      "req-perf-scan"
-    );
+  const scanLatency = await measureMs(() => {
+    const generated = generateWithModelFallback(extractedText, "de");
+    for (const card of generated.cards) {
+      createCard(userId, deck.id, card);
+    }
   });
 
   const card = listCardsForDeck(userId, deck.id)[0];
@@ -42,17 +42,21 @@ function run() {
     throw new Error("No card generated in perf smoke run");
   }
 
-  const reviewLatency = measureMs(() => {
-    storeReview(
-      {
-        userId,
-        cardId: card.id,
-        rating: "good",
-        reviewedAt: new Date().toISOString(),
-        idempotencyKey: "perf-review-0001"
-      },
-      "req-perf-review"
-    );
+  const reviewLatency = await measureMs(() => {
+    const reviewedAt = new Date();
+    createReview({
+      userId,
+      cardId: card.id,
+      rating: "good",
+      reviewedAt: reviewedAt.toISOString(),
+      idempotencyKey: "perf-review-0001"
+    });
+    updateCardFsrs(card.id, {
+      fsrsDue: new Date(reviewedAt.getTime() + 24 * 60 * 60 * 1000).toISOString(),
+      fsrsStability: 1,
+      fsrsDifficulty: 1,
+      fsrsState: "learning"
+    });
   });
 
   console.log(
@@ -87,4 +91,9 @@ function run() {
   console.log("[perf-smoke] in-process sanity check passed (NOT a real perf gate).");
 }
 
-run();
+if (process.argv[1]?.endsWith("perf-smoke.ts")) {
+  run().catch((error: unknown) => {
+    console.error(error);
+    process.exit(1);
+  });
+}
