@@ -376,10 +376,10 @@ export default function HomeScreen() {
 
             {/* Stats cards row */}
             <View style={{ flexDirection: "row", gap: spacing.sm }}>
-              {/* Due cards */}
-              <TouchableOpacity
-                onPress={() => router.push("/(tabs)/learn")}
-                activeOpacity={0.8}
+              {/* Due cards — parked for now: the global "learn all due cards"
+                  entry is temporarily disabled (greyed, not tappable). Deck-based
+                  learning replaces it; the global daily entry returns later. */}
+              <View
                 style={{
                   flex: 1,
                   backgroundColor: colors.surface,
@@ -388,6 +388,7 @@ export default function HomeScreen() {
                   alignItems: "center",
                   borderWidth: 1,
                   borderColor: colors.border,
+                  opacity: 0.5,
                   ...shadows.sm,
                 }}
               >
@@ -396,16 +397,13 @@ export default function HomeScreen() {
                     width: 36,
                     height: 36,
                     borderRadius: radius.sm,
-                    backgroundColor: dueCount > 0 ? colors.primaryLight : colors.surfaceSecondary,
+                    backgroundColor: colors.surfaceSecondary,
                     justifyContent: "center",
                     alignItems: "center",
                     marginBottom: spacing.sm,
                   }}
                 >
-                  <BookOpen
-                    size={18}
-                    color={dueCount > 0 ? colors.primary : colors.textTertiary}
-                  />
+                  <BookOpen size={18} color={colors.textTertiary} />
                 </View>
                 <Text
                   style={{
@@ -438,13 +436,13 @@ export default function HomeScreen() {
                     style={{
                       fontSize: typography.xs,
                       fontWeight: typography.bold,
-                      color: colors.primary,
+                      color: colors.textTertiary,
                     }}
                   >
-                    Lernen  ›
+                    bald
                   </Text>
                 </View>
-              </TouchableOpacity>
+              </View>
 
               {/* Decks */}
               <TouchableOpacity
@@ -587,11 +585,9 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Recently used deck */}
+            {/* Recently used deck — parked alongside the global learn entry. */}
             {recentDeck && (
-              <TouchableOpacity
-                onPress={() => router.push("/(tabs)/learn")}
-                activeOpacity={0.8}
+              <View
                 style={{
                   backgroundColor: colors.surface,
                   borderRadius: radius.lg,
@@ -601,6 +597,7 @@ export default function HomeScreen() {
                   gap: spacing.md,
                   borderWidth: 1,
                   borderColor: colors.border,
+                  opacity: 0.5,
                   ...shadows.sm,
                 }}
               >
@@ -638,38 +635,35 @@ export default function HomeScreen() {
                   </Text>
                 </View>
                 <ChevronRight size={18} color={colors.textTertiary} />
-              </TouchableOpacity>
+              </View>
             )}
 
             {/* Action buttons */}
             <View style={{ gap: spacing.md }}>
               {dueCount > 0 && (
-                <TouchableOpacity
-                  onPress={() => router.push("/(tabs)/learn")}
-                  activeOpacity={0.8}
+                <View
                   style={{
-                    backgroundColor: colors.primary,
+                    backgroundColor: colors.surfaceSecondary,
                     borderRadius: radius.lg,
                     padding: spacing.lg,
                     flexDirection: "row",
                     alignItems: "center",
                     justifyContent: "center",
                     gap: spacing.sm,
-                    ...shadows.md,
+                    opacity: 0.6,
                   }}
                 >
-                  <BookOpen size={20} color={colors.textInverse} />
+                  <BookOpen size={20} color={colors.textTertiary} />
                   <Text
                     style={{
-                      color: colors.textInverse,
+                      color: colors.textTertiary,
                       fontSize: typography.lg,
                       fontWeight: typography.bold,
                     }}
                   >
-                    {dueCount} Karten lernen
+                    {dueCount} Karten lernen (bald)
                   </Text>
-                  <ChevronRight size={18} color={colors.textInverse} />
-                </TouchableOpacity>
+                </View>
               )}
 
               <TouchableOpacity

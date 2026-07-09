@@ -27,6 +27,7 @@ import {
   Brain,
   Puzzle,
   ImagePlus,
+  Layers,
   MoreVertical,
   Download,
 } from "lucide-react-native";
@@ -622,6 +623,36 @@ export default function DeckDetailScreen() {
     hard: { color: colors.error, label: "Schwer" },
   };
 
+  // Shared styling for the "pick a study mode" rows shown above the card list.
+  const studyModeRowStyle = {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.sm,
+  } as const;
+  const studyModeIconStyle = {
+    width: 40,
+    height: 40,
+    borderRadius: radius.sm,
+    alignItems: "center",
+    justifyContent: "center",
+  } as const;
+  const studyModeTitleStyle = {
+    fontSize: typography.base,
+    fontWeight: typography.semibold,
+    color: colors.text,
+  } as const;
+  const studyModeDescStyle = {
+    fontSize: typography.xs,
+    color: colors.textSecondary,
+    marginTop: 1,
+  } as const;
+
   return (
     <>
       <Stack.Screen
@@ -716,69 +747,79 @@ export default function DeckDetailScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Study mode buttons */}
-          {!loading && cards.length >= 2 && (
-            <View style={{ flexDirection: "row", gap: spacing.sm }}>
+          {/* Study mode selection — pick how to learn this deck. Shown above the
+              card list, Quizlet-style. Multiple Choice and Zuordnen need at least
+              two cards to build questions / pairs. */}
+          {!loading && cards.length >= 1 && (
+            <View style={{ gap: spacing.sm }}>
+              {/* Karteikarten — flip & rate; learns every card of this deck */}
               <TouchableOpacity
                 onPress={() =>
                   router.push({
-                    pathname: "/quiz",
-                    params: { deckId, deckTitle },
+                    pathname: "/deck-review/[id]",
+                    params: { id: deckId, title: deckTitle },
                   })
                 }
                 activeOpacity={0.7}
-                style={{
-                  flex: 1,
-                  backgroundColor: colors.primaryLight,
-                  borderRadius: radius.md,
-                  paddingVertical: spacing.md,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: spacing.sm,
-                }}
+                style={studyModeRowStyle}
               >
-                <Brain size={16} color={colors.primary} />
-                <Text
-                  style={{
-                    fontSize: typography.sm,
-                    fontWeight: typography.semibold,
-                    color: colors.primary,
-                  }}
-                >
-                  Test
-                </Text>
+                <View style={[studyModeIconStyle, { backgroundColor: colors.primaryLight }]}>
+                  <Layers size={18} color={colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={studyModeTitleStyle}>Karteikarten</Text>
+                  <Text style={studyModeDescStyle}>Klassisch umdrehen & bewerten</Text>
+                </View>
+                <ChevronRight size={18} color={colors.textTertiary} />
               </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() =>
-                  router.push({
-                    pathname: "/match",
-                    params: { deckId, deckTitle },
-                  })
-                }
-                activeOpacity={0.7}
-                style={{
-                  flex: 1,
-                  backgroundColor: colors.accentLight,
-                  borderRadius: radius.md,
-                  paddingVertical: spacing.md,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: spacing.sm,
-                }}
-              >
-                <Puzzle size={16} color={colors.accent} />
-                <Text
-                  style={{
-                    fontSize: typography.sm,
-                    fontWeight: typography.semibold,
-                    color: colors.accent,
-                  }}
-                >
-                  Match
-                </Text>
-              </TouchableOpacity>
+
+              {cards.length >= 2 && (
+                <>
+                  {/* Multiple Choice — formerly labelled "Test" */}
+                  <TouchableOpacity
+                    onPress={() =>
+                      router.push({
+                        pathname: "/quiz",
+                        params: { deckId, deckTitle },
+                      })
+                    }
+                    activeOpacity={0.7}
+                    style={studyModeRowStyle}
+                  >
+                    <View style={[studyModeIconStyle, { backgroundColor: colors.accentLight }]}>
+                      <Brain size={18} color={colors.accent} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={studyModeTitleStyle}>Multiple Choice</Text>
+                      <Text style={studyModeDescStyle}>Antwort aus Optionen wählen</Text>
+                    </View>
+                    <ChevronRight size={18} color={colors.textTertiary} />
+                  </TouchableOpacity>
+
+                  {/* Zuordnen — formerly labelled "Match" */}
+                  <TouchableOpacity
+                    onPress={() =>
+                      router.push({
+                        pathname: "/match",
+                        params: { deckId, deckTitle },
+                      })
+                    }
+                    activeOpacity={0.7}
+                    style={studyModeRowStyle}
+                  >
+                    <View style={[studyModeIconStyle, { backgroundColor: colors.infoLight }]}>
+                      <Puzzle size={18} color={colors.info} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={studyModeTitleStyle}>Zuordnen</Text>
+                      <Text style={studyModeDescStyle}>Begriffe & Definitionen paaren</Text>
+                    </View>
+                    <ChevronRight size={18} color={colors.textTertiary} />
+                  </TouchableOpacity>
+                </>
+              )}
+
+              {/* Occlusion — hide parts of an image and recall them */}
               <TouchableOpacity
                 onPress={() =>
                   router.push({
@@ -787,27 +828,16 @@ export default function DeckDetailScreen() {
                   })
                 }
                 activeOpacity={0.7}
-                style={{
-                  flex: 1,
-                  backgroundColor: colors.infoLight,
-                  borderRadius: radius.md,
-                  paddingVertical: spacing.md,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: spacing.sm,
-                }}
+                style={studyModeRowStyle}
               >
-                <ImagePlus size={16} color={colors.info} />
-                <Text
-                  style={{
-                    fontSize: typography.sm,
-                    fontWeight: typography.semibold,
-                    color: colors.info,
-                  }}
-                >
-                  Occlusion
-                </Text>
+                <View style={[studyModeIconStyle, { backgroundColor: colors.successLight }]}>
+                  <ImagePlus size={18} color={colors.success} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={studyModeTitleStyle}>Occlusion</Text>
+                  <Text style={studyModeDescStyle}>Bildteile verdecken & abfragen</Text>
+                </View>
+                <ChevronRight size={18} color={colors.textTertiary} />
               </TouchableOpacity>
             </View>
           )}
