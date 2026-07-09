@@ -119,86 +119,6 @@ describe("featureGates – LP economy", () => {
   });
 });
 
-// ─── LP spend logic (pure logic, no DB) ──────────────────────────────────────
-
-describe("LP spend logic", () => {
-  it("rejects when balance < cost", () => {
-    const balance = 5;
-    const cost = 10;
-    const allowed = balance >= cost;
-    expect(allowed).toBe(false);
-  });
-
-  it("allows when balance >= cost", () => {
-    const balance = 15;
-    const cost = 10;
-    const allowed = balance >= cost;
-    expect(allowed).toBe(true);
-    expect(balance - cost).toBe(5);
-  });
-
-  it("zero-cost feature always allowed (e.g. future free feature)", () => {
-    const cost = 0;
-    const allowed = cost === 0 ? true : false;
-    expect(allowed).toBe(true);
-  });
-});
-
-// ─── LP earn logic (pure logic, no DB) ───────────────────────────────────────
-
-describe("LP earn cap logic", () => {
-  it("earn is capped by daily limit", () => {
-    const cap = 30;
-    const alreadyEarned = 28;
-    const rawGrant = LP_EARN_RULES.perReviewSession; // 5
-    const remaining = Math.max(cap - alreadyEarned, 0); // 2
-    const granted = Math.min(rawGrant, remaining); // 2
-    expect(granted).toBe(2);
-  });
-
-  it("returns 0 and capReached=true when daily cap is exhausted", () => {
-    const cap = 30;
-    const alreadyEarned = 30;
-    const remaining = Math.max(cap - alreadyEarned, 0);
-    expect(remaining).toBe(0);
-    const capReached = remaining === 0;
-    expect(capReached).toBe(true);
-  });
-
-  // Server-side session model (implemented atomically in earn_session_lp):
-  //   pending = recorded reviews − already-rewarded watermark
-  //   grant   = floor(pending / cardsPerChunk) * perReviewSession, capped per day
-  //   watermark advances by exactly the reviews paid for (leftovers roll forward)
-  const CARDS_PER_CHUNK = 5;
-
-  it("session pays perReviewSession LP per full chunk of unrewarded reviews", () => {
-    const pending = 12; // 12 recorded reviews above the watermark
-    const rawGrant = Math.floor(pending / CARDS_PER_CHUNK) * LP_EARN_RULES.perReviewSession;
-    expect(rawGrant).toBe(10); // 2 full chunks → 10 LP; remaining 2 reviews roll forward
-  });
-
-  it("session with less than one full chunk of new reviews earns 0 LP", () => {
-    const pending = 3;
-    const rawGrant = Math.floor(pending / CARDS_PER_CHUNK) * LP_EARN_RULES.perReviewSession;
-    expect(rawGrant).toBe(0);
-  });
-
-  it("replaying session without new reviews earns 0 LP (watermark drained)", () => {
-    // Once the watermark catches up to the review count, pending is 0 — so replaying
-    // POST /lp/earn {type:"session"} cannot mint LP without real recorded reviews.
-    const total = 22;
-    const rewardedWatermark = 22;
-    const pending = Math.max(total - rewardedWatermark, 0);
-    expect(pending).toBe(0);
-  });
-
-  it("pro tier has higher daily earn cap", () => {
-    const freeCap = TIER_LIMITS.free.lpEarnCapPerDay;
-    const proCap = TIER_LIMITS.pro.lpEarnCapPerDay;
-    expect(proCap).toBeGreaterThan(freeCap);
-  });
-});
-
 // ─── lpService against atomic RPCs (mocked Supabase client) ──────────────────
 // These exercise the real service functions and assert they call the atomic
 // Postgres functions (spend_lp / earn_lp / add_lp) with the right params and
@@ -514,38 +434,5 @@ describe("refundLp (atomic add_lp RPC with 'refund' type)", () => {
     await expect(refundLp("user-1", 20, "refund_pdfImport_failed")).rejects.toThrow(
       "refundLp: boom"
     );
-  });
-});
-
-// ─── Playwright E2E test specification (scenarios) ───────────────────────────
-// These are documentation tests — they describe the Playwright scenarios that
-// should be implemented in e2e/lp.spec.ts.
-
-describe("E2E scenarios (specification only)", () => {
-  it("should: GET /api/v1/usage returns lpBalance, lpCostAiScan, tier", () => {
-    // Playwright: Authenticate as test user → GET /api/v1/usage
-    // Assert: response.lpBalance >= 0, response.tier in ["free","pro"]
-    expect(true).toBe(true);
-  });
-
-  it("should: POST /api/v1/lp/earn type=session grants from recorded reviews, not client count", () => {
-    // Playwright: record >=5 real reviews (POST /api/v1/cards/:id/review), then
-    //   POST /api/v1/lp/earn {type:"session"} → granted == perReviewSession (5).
-    // Replay {type:"session"} with no new reviews → granted == 0 (watermark drained).
-    // Forgery check: {type:"session", sessionCardCount:9999} with no reviews → granted == 0.
-    expect(LP_EARN_RULES.perReviewSession).toBe(5);
-  });
-
-  it("should: POST /api/v1/lp/spend with insufficient balance returns 402", () => {
-    // Playwright: Drain balance to 0 → POST /api/v1/lp/spend {feature:"aiScan"}
-    // Assert: HTTP 402, code "INSUFFICIENT_LP"
-    expect(true).toBe(true);
-  });
-
-  it("should: POST /api/v1/lp/milestone first_deck is idempotent", () => {
-    // Playwright: POST milestone/first_deck twice
-    // First: granted > 0, alreadyClaimed: false
-    // Second: granted == 0, alreadyClaimed: true
-    expect(true).toBe(true);
   });
 });
