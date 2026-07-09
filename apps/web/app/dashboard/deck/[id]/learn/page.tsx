@@ -13,6 +13,10 @@ import {
   type ReviewRating,
 } from "@/lib/api";
 import { X, Trophy, Layers, AlertTriangle, Zap } from "@/components/icons";
+import {
+  isSessionEarnFinalized,
+  LP_SESSION_MIN_CARDS,
+} from "@/lib/learn-session-lp";
 
 const RATINGS: { key: ReviewRating; label: string; cls: string }[] = [
   { key: "again", label: "Nochmal", cls: "rating--again" },
@@ -20,9 +24,6 @@ const RATINGS: { key: ReviewRating; label: string; cls: string }[] = [
   { key: "good", label: "Gut", cls: "rating--good" },
   { key: "easy", label: "Leicht", cls: "rating--easy" },
 ];
-
-// Ab so vielen gelernten Karten schreibt der Server LP gut (siehe featureGates).
-const LP_SESSION_MIN = 5;
 
 export default function LearnPage() {
   const params = useParams<{ id: string }>();
@@ -39,6 +40,8 @@ export default function LearnPage() {
   const [earned, setEarned] = useState<number | null>(null);
   const [earnCapReached, setEarnCapReached] = useState(false);
   const awardedRef = useRef(false);
+  const awardingRef = useRef(false);
+  const pendingReviewsRef = useRef<Promise<unknown>[]>([]);
 
   const load = useCallback(async () => {
     if (!deckId) return;
@@ -61,16 +64,39 @@ export default function LearnPage() {
   const current = cards[index];
   const done = !loading && total > 0 && index >= total;
 
-  // LP fürs Lernen gutschreiben — wie die App. Genau einmal pro Sitzung.
+  // LP fürs Lernen gutschreiben — wie die App. Der Server zählt review_logs;
+  // wir warten auf laufende Review-Requests, bevor earnLp aufgerufen wird.
   const awardSession = useCallback(async (count: number) => {
-    if (awardedRef.current || count < LP_SESSION_MIN) return;
-    awardedRef.current = true;
+    if (awardedRef.current || awardingRef.current || count < LP_SESSION_MIN_CARDS) {
+      return;
+    }
+
+    awardingRef.current = true;
     try {
-      const res = await earnLp("session", count);
-      setEarned(res.granted);
-      setEarnCapReached(res.capReached);
+      const maxAttempts = 3;
+      const retryDelayMs = 250;
+
+      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        if (attempt > 0) {
+          await new Promise((resolve) => window.setTimeout(resolve, retryDelayMs));
+        }
+
+        await Promise.allSettled(pendingReviewsRef.current);
+        pendingReviewsRef.current = [];
+
+        const res = await earnLp("session", count);
+        setEarned(res.granted);
+        setEarnCapReached(res.capReached);
+
+        if (isSessionEarnFinalized(res, count)) {
+          awardedRef.current = true;
+          break;
+        }
+      }
     } catch {
       /* LP-Gutschrift ist best-effort */
+    } finally {
+      awardingRef.current = false;
     }
   }, []);
 
@@ -82,16 +108,18 @@ export default function LearnPage() {
     const card = cards[index];
     if (!card || !userId) return;
     if (rating === "good" || rating === "easy") setCorrect((n) => n + 1);
-    // Fire-and-forget so the session stays snappy; FSRS updates server-side.
-    reviewCard(userId, card.id, rating).catch(() => {
+    const reviewPromise = reviewCard(userId, card.id, rating).catch(() => {
       /* review sync best-effort; scheduling will catch up on next load */
     });
+    pendingReviewsRef.current.push(reviewPromise);
     setFlipped(false);
     window.setTimeout(() => setIndex((i) => i + 1), 160);
   }
 
   function restart() {
     awardedRef.current = false;
+    awardingRef.current = false;
+    pendingReviewsRef.current = [];
     setEarned(null);
     setEarnCapReached(false);
     setIndex(0);
@@ -99,9 +127,9 @@ export default function LearnPage() {
     setCorrect(0);
   }
 
-  function quit() {
+  async function quit() {
     // Beim frühen Beenden noch die LP der bisher gelernten Karten sichern.
-    void awardSession(index);
+    await awardSession(index);
     router.push(`/dashboard/deck/${deckId}`);
   }
 
