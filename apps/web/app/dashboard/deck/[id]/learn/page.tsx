@@ -1,17 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
 import {
   listCardsInDeck,
   reviewCard,
+  earnLp,
   isApiError,
   type Card,
   type ReviewRating,
 } from "@/lib/api";
-import { X, Trophy, Layers, AlertTriangle } from "@/components/icons";
+import { X, Trophy, Layers, AlertTriangle, Zap } from "@/components/icons";
 
 const RATINGS: { key: ReviewRating; label: string; cls: string }[] = [
   { key: "again", label: "Nochmal", cls: "rating--again" },
@@ -20,9 +21,13 @@ const RATINGS: { key: ReviewRating; label: string; cls: string }[] = [
   { key: "easy", label: "Leicht", cls: "rating--easy" },
 ];
 
+// Ab so vielen gelernten Karten schreibt der Server LP gut (siehe featureGates).
+const LP_SESSION_MIN = 5;
+
 export default function LearnPage() {
   const params = useParams<{ id: string }>();
   const deckId = params.id;
+  const router = useRouter();
   const { userId } = useAuth();
 
   const [cards, setCards] = useState<Card[]>([]);
@@ -31,6 +36,9 @@ export default function LearnPage() {
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [correct, setCorrect] = useState(0);
+  const [earned, setEarned] = useState<number | null>(null);
+  const [earnCapReached, setEarnCapReached] = useState(false);
+  const awardedRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!deckId) return;
@@ -53,6 +61,23 @@ export default function LearnPage() {
   const current = cards[index];
   const done = !loading && total > 0 && index >= total;
 
+  // LP fürs Lernen gutschreiben — wie die App. Genau einmal pro Sitzung.
+  const awardSession = useCallback(async (count: number) => {
+    if (awardedRef.current || count < LP_SESSION_MIN) return;
+    awardedRef.current = true;
+    try {
+      const res = await earnLp("session", count);
+      setEarned(res.granted);
+      setEarnCapReached(res.capReached);
+    } catch {
+      /* LP-Gutschrift ist best-effort */
+    }
+  }, []);
+
+  useEffect(() => {
+    if (done) void awardSession(total);
+  }, [done, total, awardSession]);
+
   function rate(rating: ReviewRating) {
     const card = cards[index];
     if (!card || !userId) return;
@@ -63,6 +88,21 @@ export default function LearnPage() {
     });
     setFlipped(false);
     window.setTimeout(() => setIndex((i) => i + 1), 160);
+  }
+
+  function restart() {
+    awardedRef.current = false;
+    setEarned(null);
+    setEarnCapReached(false);
+    setIndex(0);
+    setFlipped(false);
+    setCorrect(0);
+  }
+
+  function quit() {
+    // Beim frühen Beenden noch die LP der bisher gelernten Karten sichern.
+    void awardSession(index);
+    router.push(`/dashboard/deck/${deckId}`);
   }
 
   if (loading) return <div className="spinner" />;
@@ -109,16 +149,18 @@ export default function LearnPage() {
             Du hast {total} {total === 1 ? "Karte" : "Karten"} wiederholt — {correct} davon sicher
             gewusst.
           </p>
+          {earned !== null && earned > 0 && (
+            <span className="lp-pill">
+              <Zap size={15} /> +{earned} Lernpunkte
+            </span>
+          )}
+          {earned === 0 && earnCapReached && (
+            <p className="muted" style={{ fontSize: "0.9rem" }}>
+              Heutiges Lernpunkte-Limit erreicht — morgen gibt es wieder welche.
+            </p>
+          )}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => {
-                setIndex(0);
-                setFlipped(false);
-                setCorrect(0);
-              }}
-            >
+            <button type="button" className="btn btn-primary" onClick={restart}>
               Nochmal lernen
             </button>
             <Link href={`/dashboard/deck/${deckId}`} className="btn btn-ghost">
@@ -133,9 +175,14 @@ export default function LearnPage() {
   return (
     <div className="study-wrap">
       <div className="study-top">
-        <Link href={`/dashboard/deck/${deckId}`} className="crumb" style={{ margin: 0 }}>
+        <button
+          type="button"
+          className="crumb"
+          style={{ margin: 0, background: "none", border: "none", cursor: "pointer" }}
+          onClick={quit}
+        >
           <X size={16} /> Beenden
-        </Link>
+        </button>
         <div className="progress">
           <i style={{ width: `${(index / total) * 100}%` }} />
         </div>
