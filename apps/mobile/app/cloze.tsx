@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { useLocalSearchParams, useRouter, Stack } from "expo-router";
+import { useLocalSearchParams, Stack } from "expo-router";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -19,9 +20,11 @@ import {
   Trophy,
   HelpCircle,
   Check,
+  Pencil,
 } from "lucide-react-native";
 import { listCardsInDeck, type Card } from "../src/lib/api";
 import { summarizeCardMedia } from "../src/lib/cardMedia";
+import { isAnswerCorrect } from "../src/lib/answerCheck";
 import { useColors, spacing, radius, typography, shadows } from "../src/theme";
 
 interface Prompt {
@@ -32,8 +35,9 @@ interface Prompt {
 
 // Build the "gap to fill" from a card:
 //   - cloze cards ({{cN::x}}): show the sentence with a blank, answer is x
-//   - basic cards: show the front, the answer is the back
-function buildPrompt(card: Card): Prompt {
+//     (the blank is fixed in the text, so direction has no effect)
+//   - basic cards: show one side, type the other. `reverse` swaps which side.
+function buildPrompt(card: Card, reverse: boolean): Prompt {
   const media = summarizeCardMedia(card);
   const front = (media.plainFront || card.front || "").trim();
   const back = (media.plainBack || card.back || "").trim();
@@ -44,10 +48,23 @@ function buildPrompt(card: Card): Prompt {
     const prompt = front.replace(/\{\{c\d+::.+?\}\}/g, "______");
     return { prompt, answer, isCloze: true };
   }
+  if (reverse) {
+    return { prompt: back, answer: front, isCloze: false };
+  }
   return { prompt: front, answer: back, isCloze: false };
 }
 
-type Phase = "play" | "summary";
+// A card is usable if it has something to type in whichever direction is chosen.
+function hasTypeable(card: Card): boolean {
+  const parsed = buildPrompt(card, false);
+  if (parsed.isCloze) return parsed.answer.length > 0;
+  const media = summarizeCardMedia(card);
+  const front = (media.plainFront || card.front || "").trim();
+  const back = (media.plainBack || card.back || "").trim();
+  return front.length > 0 && back.length > 0;
+}
+
+type Phase = "setup" | "play" | "summary";
 
 export default function ClozeScreen() {
   const colors = useColors();
@@ -55,11 +72,15 @@ export default function ClozeScreen() {
     deckId: string;
     deckTitle: string;
   }>();
-  const router = useRouter();
 
   const [allCards, setAllCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Settings chosen on the setup screen
+  const [strict, setStrict] = useState(true);
+  const [reverse, setReverse] = useState(false);
+
+  const [phase, setPhase] = useState<Phase>("setup");
   const [round, setRound] = useState<Card[]>([]);
   const [idx, setIdx] = useState(0);
   const [input, setInput] = useState("");
@@ -67,7 +88,6 @@ export default function ClozeScreen() {
   const [wasCorrect, setWasCorrect] = useState(false);
   const [wrong, setWrong] = useState<Card[]>([]);
   const [correctCount, setCorrectCount] = useState(0);
-  const [phase, setPhase] = useState<Phase>("play");
 
   const startRound = (cardsForRound: Card[]) => {
     setRound(cardsForRound);
@@ -85,10 +105,8 @@ export default function ClozeScreen() {
     (async () => {
       try {
         const { cards: fetched } = await listCardsInDeck(deckId);
-        // Only cards that actually have something to type.
-        const usable = fetched.filter((c) => buildPrompt(c).answer.length > 0);
+        const usable = fetched.filter(hasTypeable);
         setAllCards(usable);
-        setRound(usable);
       } catch {
         // Error — falls through to the "no cards" state below.
       } finally {
@@ -98,13 +116,13 @@ export default function ClozeScreen() {
   }, [deckId]);
 
   const current = round[idx];
-  const parsed = current ? buildPrompt(current) : null;
+  const parsed = current ? buildPrompt(current, reverse) : null;
 
   const handleCheck = () => {
     if (revealed || !current || !parsed) return;
-    // Exact match — case, accents and spelling all count. If the learner
-    // judges a near-miss should still count, they override it themselves below.
-    const correct = input.trim() === parsed.answer.trim();
+    const correct = strict
+      ? input.trim() === parsed.answer.trim()
+      : isAnswerCorrect(input, parsed.answer);
     setWasCorrect(correct);
     setRevealed(true);
     if (correct) {
@@ -112,6 +130,14 @@ export default function ClozeScreen() {
     } else {
       setWrong((w) => [...w, current]);
     }
+  };
+
+  // "Weiß ich nicht": reveal the answer, count it wrong (goes to the retry pile).
+  const handleDontKnow = () => {
+    if (revealed || !current) return;
+    setWasCorrect(false);
+    setRevealed(true);
+    setWrong((w) => [...w, current]);
   };
 
   // Self-graded override: the learner decides a wrong-marked answer counts.
@@ -186,6 +212,194 @@ export default function ClozeScreen() {
           >
             Dieses Deck hat keine Karten, bei denen man etwas eintippen kann.
           </Text>
+        </SafeAreaView>
+      </>
+    );
+  }
+
+  // Setup — choose strict checking and which side is asked
+  if (phase === "setup") {
+    const leftSide = reverse ? "Rückseite" : "Vorderseite";
+    const rightSide = reverse ? "Vorderseite" : "Rückseite";
+
+    return (
+      <>
+        {screenHeader(deckTitle ?? "Lückentext")}
+        <SafeAreaView
+          edges={["bottom"]}
+          style={{ flex: 1, backgroundColor: colors.background }}
+        >
+          <ScrollView
+            contentContainerStyle={{
+              flexGrow: 1,
+              padding: spacing.xl,
+              gap: spacing.xl,
+            }}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Intro */}
+            <View style={{ alignItems: "center", gap: spacing.sm, marginTop: spacing.lg }}>
+              <View
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 18,
+                  backgroundColor: colors.warningLight,
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <Pencil size={32} color={colors.warning} />
+              </View>
+              <Text
+                style={{
+                  fontSize: typography.xl,
+                  fontWeight: typography.bold,
+                  color: colors.text,
+                  textAlign: "center",
+                }}
+                numberOfLines={2}
+              >
+                {deckTitle ?? "Lückentext"}
+              </Text>
+              <Text style={{ fontSize: typography.base, color: colors.textSecondary }}>
+                Antwort eintippen
+              </Text>
+            </View>
+
+            <View style={{ gap: spacing.md }}>
+              {/* Genau prüfen toggle */}
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  backgroundColor: colors.surface,
+                  borderRadius: radius.lg,
+                  padding: spacing.lg,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  ...shadows.sm,
+                }}
+              >
+                <View style={{ flex: 1, paddingRight: spacing.md }}>
+                  <Text
+                    style={{
+                      fontSize: typography.base,
+                      fontWeight: typography.semibold,
+                      color: colors.text,
+                    }}
+                  >
+                    Genau prüfen
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: typography.sm,
+                      color: colors.textSecondary,
+                      marginTop: 2,
+                    }}
+                  >
+                    {strict
+                      ? "Groß/klein und Akzente zählen"
+                      : "Verzeiht Groß/klein, Akzente, kleine Tippfehler"}
+                  </Text>
+                </View>
+                <Switch
+                  value={strict}
+                  onValueChange={setStrict}
+                  trackColor={{ false: colors.surfaceSecondary, true: colors.primary }}
+                  thumbColor="#ffffff"
+                  ios_backgroundColor={colors.surfaceSecondary}
+                />
+              </View>
+
+              {/* Direction — one arrow in the middle, tap to swap */}
+              <TouchableOpacity
+                onPress={() => setReverse((r) => !r)}
+                activeOpacity={0.8}
+                style={{
+                  backgroundColor: colors.surface,
+                  borderRadius: radius.lg,
+                  padding: spacing.lg,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  ...shadows.sm,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: typography.sm,
+                    color: colors.textSecondary,
+                    marginBottom: spacing.md,
+                  }}
+                >
+                  Abgefragte Richtung
+                </Text>
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <Text
+                    style={{
+                      flex: 1,
+                      textAlign: "right",
+                      fontSize: typography.base,
+                      fontWeight: typography.semibold,
+                      color: colors.text,
+                    }}
+                  >
+                    {leftSide}
+                  </Text>
+                  <View style={{ width: 44, alignItems: "center" }}>
+                    <ArrowRight size={22} color={colors.primary} />
+                  </View>
+                  <Text
+                    style={{
+                      flex: 1,
+                      textAlign: "left",
+                      fontSize: typography.base,
+                      fontWeight: typography.semibold,
+                      color: colors.text,
+                    }}
+                  >
+                    {rightSide}
+                  </Text>
+                </View>
+                <Text
+                  style={{
+                    fontSize: typography.xs,
+                    color: colors.textTertiary,
+                    textAlign: "center",
+                    marginTop: spacing.md,
+                  }}
+                >
+                  Tippen zum Tauschen
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={{ flex: 1 }} />
+
+            {/* Start */}
+            <TouchableOpacity
+              onPress={() => startRound(allCards)}
+              activeOpacity={0.85}
+              style={{
+                backgroundColor: colors.primary,
+                paddingVertical: 16,
+                borderRadius: radius.lg,
+                alignItems: "center",
+                ...shadows.md,
+              }}
+            >
+              <Text
+                style={{
+                  color: colors.textInverse,
+                  fontWeight: typography.bold,
+                  fontSize: typography.lg,
+                }}
+              >
+                Starten
+              </Text>
+            </TouchableOpacity>
+          </ScrollView>
         </SafeAreaView>
       </>
     );
@@ -314,6 +528,26 @@ export default function ClozeScreen() {
                   }}
                 >
                   Von vorne (alle {allCards.length})
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => setPhase("setup")}
+                activeOpacity={0.85}
+                style={{
+                  paddingVertical: 12,
+                  borderRadius: radius.md,
+                  alignItems: "center",
+                }}
+              >
+                <Text
+                  style={{
+                    color: colors.textSecondary,
+                    fontWeight: typography.semibold,
+                    fontSize: typography.base,
+                  }}
+                >
+                  Einstellungen
                 </Text>
               </TouchableOpacity>
             </View>
@@ -512,30 +746,56 @@ export default function ClozeScreen() {
 
             {/* Action */}
             {!revealed ? (
-              <TouchableOpacity
-                onPress={handleCheck}
-                disabled={input.trim().length === 0}
-                activeOpacity={0.85}
-                style={{
-                  backgroundColor:
-                    input.trim().length === 0 ? colors.surfaceSecondary : colors.primary,
-                  paddingVertical: 15,
-                  borderRadius: radius.md,
-                  alignItems: "center",
-                  ...shadows.sm,
-                }}
-              >
-                <Text
+              <View style={{ flexDirection: "row", gap: spacing.sm }}>
+                <TouchableOpacity
+                  onPress={handleCheck}
+                  disabled={input.trim().length === 0}
+                  activeOpacity={0.85}
                   style={{
-                    color:
-                      input.trim().length === 0 ? colors.textTertiary : colors.textInverse,
-                    fontWeight: typography.bold,
-                    fontSize: typography.base,
+                    flex: 1,
+                    backgroundColor:
+                      input.trim().length === 0 ? colors.surfaceSecondary : colors.primary,
+                    paddingVertical: 15,
+                    borderRadius: radius.md,
+                    alignItems: "center",
+                    ...shadows.sm,
                   }}
                 >
-                  Prüfen
-                </Text>
-              </TouchableOpacity>
+                  <Text
+                    style={{
+                      color:
+                        input.trim().length === 0 ? colors.textTertiary : colors.textInverse,
+                      fontWeight: typography.bold,
+                      fontSize: typography.base,
+                    }}
+                  >
+                    Prüfen
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleDontKnow}
+                  activeOpacity={0.85}
+                  style={{
+                    flex: 1,
+                    backgroundColor: colors.surface,
+                    paddingVertical: 15,
+                    borderRadius: radius.md,
+                    alignItems: "center",
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: colors.textSecondary,
+                      fontWeight: typography.bold,
+                      fontSize: typography.base,
+                    }}
+                  >
+                    Weiß ich nicht
+                  </Text>
+                </TouchableOpacity>
+              </View>
             ) : (
               <TouchableOpacity
                 onPress={handleNext}
