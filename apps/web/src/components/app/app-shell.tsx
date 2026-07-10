@@ -18,7 +18,7 @@ type NavItem = {
 // gibt es im Web nicht). Die ersten vier stehen oben; alle fünf unten am Handy.
 const NAV: NavItem[] = [
   { href: "/dashboard", label: "Bibliothek", Icon: Layers, exact: true },
-  { href: "/dashboard/import", label: "Karten per KI", tabLabel: "KI-Import", Icon: Sparkles, exact: false },
+  { href: "/dashboard/import", label: "Scan", Icon: Sparkles, exact: false },
   { href: "/dashboard/lp", label: "Lernpunkte", Icon: Zap, exact: false },
   { href: "/dashboard/stats", label: "Statistik", Icon: BarChart, exact: false },
   { href: "/dashboard/profile", label: "Profil", Icon: User, exact: false },

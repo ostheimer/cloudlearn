@@ -59,7 +59,7 @@ export default function LpPage() {
         <div>
           <h1>Lernpunkte</h1>
           <p className="muted" style={{ marginTop: 4 }}>
-            Womit du Karten per KI erstellst — und wie du sie verdienst.
+            Womit du neue Karten erstellst — und wie du sie verdienst.
           </p>
         </div>
       </div>
@@ -119,7 +119,7 @@ export default function LpPage() {
 
         {/* Kosten pro Aktion */}
         <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--ink-2)", margin: "22px 0 8px" }}>
-          Was kostet ein KI-Import?
+          Was kostet ein Scan?
         </div>
         <div className="lp-costs">
           <div className="lp-cost">

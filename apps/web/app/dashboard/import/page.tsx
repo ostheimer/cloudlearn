@@ -239,7 +239,7 @@ export default function ImportPage() {
 
       <div className="lib-head">
         <div>
-          <h1>Karten per KI erstellen</h1>
+          <h1>Scan</h1>
           <p className="muted" style={{ marginTop: 4 }}>
             Aus Foto, Text, Webseite oder PDF macht die KI in Sekunden fertige Lernkarten.
           </p>
@@ -274,7 +274,7 @@ export default function ImportPage() {
               <div className="lp-warn" role="status">
                 <Zap size={16} />
                 <span>
-                  Du hast {usage.lpBalance} LP. Ein KI-Import kostet ab {usage.lpCostAiScan} LP.
+                  Du hast {usage.lpBalance} LP. Ein Scan kostet ab {usage.lpCostAiScan} LP.
                   Neue Lernpunkte bekommst du durchs Lernen.
                 </span>
               </div>
