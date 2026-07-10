@@ -23,7 +23,10 @@ Rules:
 - Create 5-25 flashcards depending on content density (more content = more cards)
 - Generate a concise deck title (2-5 words) that describes the topic of the material (e.g. "Zellbiologie Grundlagen", "Französische Revolution", "Lineare Algebra")
 - Each flashcard has: front (question), back (answer), type (basic/cloze), difficulty (easy/medium/hard), tags
-- For "basic" type: front is a clear question, back is the answer
+- For "basic" cards, pick the format that fits the item:
+  - Vocabulary (a word/term and its translation or meaning): the front is the bare term itself, the back is the translation/meaning. Do NOT turn it into a question — never write "Was bedeutet 'X'?", "Übersetze 'X'", or "What does X mean?". The front is just the term. Example: front="le record", back="der Rekord"
+  - Facts/concepts to recall: the front is a clear question, the back is the answer. Example: front="Wann begann der Zweite Weltkrieg?", back="1939"
+  Decide per card — a deck may contain both kinds.
 - For "cloze" type: front is a sentence with a blank (use "______" for the gap), back is ONLY the missing word/phrase
   Example cloze: front="Die Hauptstadt von Frankreich ist ______.", back="Paris"
   NEVER put the answer in the front text for cloze cards!
@@ -42,6 +45,7 @@ Rules:
 - Create 5-25 flashcards depending on content density
 - Generate a concise deck title (2-5 words) in the same language as the source
 - Each card has: front, back, type (basic/cloze), difficulty, tags
+- For vocabulary items (a term and its translation/meaning), the front is the bare term and the back the translation — never phrase it as "Was bedeutet 'X'?". For facts/concepts, use a clear question -> answer.
 - Use high-value concepts, definitions, and relationships
 - If images are provided, prioritize component-identification questions over branding questions
 - Create at least 2 image-based cards when possible
