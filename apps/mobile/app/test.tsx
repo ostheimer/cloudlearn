@@ -75,6 +75,7 @@ export default function TestScreen() {
   const [typeMC, setTypeMC] = useState(true);
   const [typeWritten, setTypeWritten] = useState(true);
   const [strict, setStrict] = useState(true);
+  const [reverse, setReverse] = useState(false);
   const [timed, setTimed] = useState(false);
 
   const [phase, setPhase] = useState<Phase>("setup");
@@ -138,7 +139,11 @@ export default function TestScreen() {
     if (typeWritten) types.push("written");
     if (types.length === 0) return;
 
-    const qs = buildTestQuestions(allCards, { count: count || usableCount, types });
+    const qs = buildTestQuestions(allCards, {
+      count: count || usableCount,
+      types,
+      reverse,
+    });
     if (qs.length === 0) return;
 
     setQuestions(qs);
@@ -310,6 +315,19 @@ export default function TestScreen() {
                 <Text style={{ fontSize: typography.xs, color: colors.error, marginTop: spacing.xs }}>Mindestens ein Typ muss an sein.</Text>
               )}
             </View>
+
+            {/* Richtung — one arrow in the middle, tap to swap */}
+            <TouchableOpacity onPress={() => setReverse((r) => !r)} activeOpacity={0.8} style={cardStyle}>
+              <Text style={{ fontSize: typography.sm, color: colors.textSecondary, marginBottom: spacing.sm }}>Abgefragte Richtung</Text>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Text style={{ flex: 1, textAlign: "right", fontSize: typography.base, fontWeight: typography.semibold, color: colors.text }}>{reverse ? "Rückseite" : "Vorderseite"}</Text>
+                <View style={{ width: 44, alignItems: "center" }}>
+                  <ArrowRight size={22} color={colors.primary} />
+                </View>
+                <Text style={{ flex: 1, textAlign: "left", fontSize: typography.base, fontWeight: typography.semibold, color: colors.text }}>{reverse ? "Vorderseite" : "Rückseite"}</Text>
+              </View>
+              <Text style={{ fontSize: typography.xs, color: colors.textTertiary, textAlign: "center", marginTop: spacing.sm }}>Tippen zum Tauschen</Text>
+            </TouchableOpacity>
 
             {/* Genau prüfen */}
             <View style={{ ...cardStyle, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
