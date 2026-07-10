@@ -56,4 +56,51 @@ describe("quizQuestions", () => {
     expect(tfQuestion?.questionText).toBe("Is this pair correct?");
     expect(tfQuestion?.options).toEqual(["True", "False"]);
   });
+
+  it("never offers fill-in words as options for normal cards (and vice versa)", () => {
+    const cards = [
+      { id: "1", front: "sonore", back: "schallend, klangvoll" },
+      { id: "2", front: "le record", back: "der Rekord" },
+      { id: "3", front: "indispensable", back: "unverzichtbar" },
+      { id: "4", front: "Ein Ereignis ohne Vorbild ist: sans ______.", back: "précédent" },
+      { id: "5", front: "Das Verb für 'etwas wegwerfen' lautet: ______ qc.", back: "jeter" },
+      { id: "6", front: "Einen Rekord schlagen heißt: ______ un record.", back: "battre" },
+    ];
+    const fillInBacks = ["précédent", "jeter", "battre"];
+    const normalBacks = ["schallend, klangvoll", "der Rekord", "unverzichtbar"];
+
+    // Run with several PRNGs so mc and trueFalse paths both get exercised.
+    for (const seedStep of [0.05, 0.2, 0.45, 0.7, 0.95]) {
+      let state = seedStep;
+      const prng = () => {
+        state = (state + seedStep) % 1;
+        return state;
+      };
+      const questions = generateQuestions(cards, 12, undefined, prng);
+      for (const q of questions) {
+        const isFillInCard = ["4", "5", "6"].includes(q.cardId);
+        const forbidden = isFillInCard ? normalBacks : fillInBacks;
+        for (const opt of q.options) {
+          expect(forbidden).not.toContain(opt);
+        }
+        if (q.tfPairing) {
+          expect(forbidden).not.toContain(q.tfPairing.back);
+        }
+      }
+    }
+  });
+
+  it("drops duplicate cards before generating questions", () => {
+    const cards = [
+      { id: "a1", front: "le soleil", back: "die Sonne" },
+      { id: "a2", front: "le soleil", back: "die Sonne" },
+      { id: "b", front: "la lune", back: "der Mond" },
+      { id: "c", front: "l'arbre", back: "der Baum" },
+    ];
+    const questions = generateQuestions(cards, 10, undefined, () => 0.99);
+    const usedIds = new Set(questions.map((q) => q.cardId));
+    // The duplicate pair must yield at most one question.
+    expect(usedIds.has("a1") && usedIds.has("a2")).toBe(false);
+    expect(questions.length).toBeLessThanOrEqual(3);
+  });
 });
