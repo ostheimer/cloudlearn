@@ -90,7 +90,7 @@ export default function LibraryPage() {
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <Link href="/dashboard/import" className="btn btn-ghost">
-            <Sparkles size={16} /> Karten per KI
+            <Sparkles size={16} /> Scan
           </Link>
           <button
             type="button"
@@ -331,7 +331,7 @@ function EmptyState({
       {!hasDecks && (
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
           <Link href="/dashboard/import" className="btn btn-primary">
-            <Sparkles size={16} /> Karten per KI
+            <Sparkles size={16} /> Scan
           </Link>
           <button type="button" className="btn btn-ghost" onClick={onCreate}>
             + Leeres Deck anlegen
