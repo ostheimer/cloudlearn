@@ -441,8 +441,6 @@ CREATE TABLE profiles (
   avatar_url TEXT,
   subscription_tier TEXT DEFAULT 'free', -- free | pro | lifetime
   subscription_expires_at TIMESTAMPTZ,
-  monthly_scan_count INT DEFAULT 0,
-  scan_count_reset_at TIMESTAMPTZ,
   preferred_language TEXT DEFAULT 'de',
   locale TEXT DEFAULT 'de-DE',
   timezone TEXT DEFAULT 'Europe/Berlin',

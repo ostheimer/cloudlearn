@@ -64,7 +64,6 @@ export async function POST(request: NextRequest) {
       usage: {
         lpSpent: lpResult.cost,
         lpBalance: lpResult.newBalance,
-        aiScansLimit: plan === "free" ? env.FREE_SCAN_LIMIT_PER_MONTH : null,
       },
     });
   } catch (error) {

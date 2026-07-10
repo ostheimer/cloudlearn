@@ -136,6 +136,24 @@ describe("supabase migrations", () => {
     expect(sql).toContain("grant execute on function consume_mathpix_cost(uuid, numeric) to service_role");
   });
 
+  it("decommissions the dead monthly-quota infra (cron + profiles columns)", () => {
+    const migrationPath = join(
+      apiRoot,
+      "supabase/migrations/20260710160000_decommission_ai_usage.sql",
+    );
+    const sql = readFileSync(migrationPath, "utf-8");
+
+    // Stops the caller first — guarded so it works with or without pg_cron
+    expect(sql).toContain("cron.unschedule('reset-ai-usage-monthly')");
+    expect(sql).toContain("IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron')");
+
+    // Then drops the dead quota columns + index, idempotently
+    expect(sql).toContain("DROP INDEX IF EXISTS profiles_usage_period_start_idx");
+    expect(sql).toContain("DROP COLUMN IF EXISTS ai_scans_used");
+    expect(sql).toContain("DROP COLUMN IF EXISTS ai_url_imports_used");
+    expect(sql).toContain("DROP COLUMN IF EXISTS usage_period_start");
+  });
+
   it("keeps profile deletion backed by cascading user-data references", () => {
     const migrationDir = join(apiRoot, "supabase/migrations");
     const migrationFiles = [

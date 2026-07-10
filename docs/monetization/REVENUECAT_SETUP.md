@@ -120,8 +120,6 @@ Production-Builds brechen ohne iOS- und Android-API-Key ab. Vor EAS Submit muss
 ### Backend (Vercel Environment Variables)
 ```
 REVENUECAT_WEBHOOK_SECRET=whsec_xxxxxxxxxxxx
-FREE_SCAN_LIMIT_PER_MONTH=5
-FREE_URL_IMPORT_LIMIT_PER_MONTH=2
 FREE_DECK_LIMIT=10
 FREE_CARD_LIMIT=100
 ```
