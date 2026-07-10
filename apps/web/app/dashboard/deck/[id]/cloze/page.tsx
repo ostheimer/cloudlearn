@@ -7,6 +7,12 @@ import { useAuth } from "@/components/app/auth-context";
 import { listCardsInDeck, reviewCard, earnLp, isApiError, type Card } from "@/lib/api";
 import { isAnswerCorrect } from "@/lib/answerCheck";
 import {
+  beginSessionAward,
+  getSessionReviewedCount,
+  isSessionEarnFinalized,
+  type SessionAwardState,
+} from "@/lib/learn-session-lp";
+import {
   ArrowLeft,
   X,
   Check,
@@ -16,9 +22,6 @@ import {
   Zap,
   AlertTriangle,
 } from "@/components/icons";
-
-// Ab so vielen beantworteten Karten schreibt der Server LP gut (wie learn/quiz).
-const LP_SESSION_MIN = 5;
 
 type Parsed = { prompt: string; answer: string; isCloze: boolean };
 type Result = { input: string; correct: boolean; overridden: boolean };
@@ -75,7 +78,9 @@ export default function ClozePage() {
   const [results, setResults] = useState<(Result | null)[]>([]);
 
   const [earned, setEarned] = useState<number | null>(null);
-  const awardedRef = useRef(false);
+  const [earnCapReached, setEarnCapReached] = useState(false);
+  const awardStateRef = useRef<SessionAwardState>({ finalized: false, inFlight: null });
+  const pendingReviewsRef = useRef<Promise<unknown>[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -106,18 +111,42 @@ export default function ClozePage() {
     if (phase === "play" && !revealed) inputRef.current?.focus();
   }, [phase, idx, revealed]);
 
-  const awardSession = useCallback(async (count: number) => {
-    if (awardedRef.current || count < LP_SESSION_MIN) return;
-    awardedRef.current = true;
-    try {
-      const r = await earnLp("session", count);
-      setEarned(r.granted);
-    } catch {
-      /* LP-Gutschrift best-effort */
-    }
+  const awardSession = useCallback((count: number) => {
+    const state = awardStateRef.current;
+    return beginSessionAward(state, count, async () => {
+      try {
+        const maxAttempts = 3;
+        const retryDelayMs = 250;
+
+        for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+          if (attempt > 0) {
+            await new Promise((resolve) => window.setTimeout(resolve, retryDelayMs));
+          }
+
+          const pendingReviews = pendingReviewsRef.current;
+          pendingReviewsRef.current = [];
+          await Promise.allSettled(pendingReviews);
+
+          const res = await earnLp("session", count);
+          setEarned(res.granted);
+          setEarnCapReached(res.capReached);
+
+          if (isSessionEarnFinalized(res, count)) {
+            state.finalized = true;
+            break;
+          }
+        }
+      } catch {
+        /* LP-Gutschrift ist best-effort */
+      }
+    });
   }, []);
 
   const startRound = useCallback((cards: Card[]) => {
+    awardStateRef.current = { finalized: false, inFlight: null };
+    pendingReviewsRef.current = [];
+    setEarned(null);
+    setEarnCapReached(false);
     setRound(cards);
     setResults(new Array(cards.length).fill(null));
     setIdx(0);
@@ -129,7 +158,9 @@ export default function ClozePage() {
     setResults((prev) => prev.map((r, j) => (j === i ? v : r)));
 
   function review(cardId: string, rating: "good" | "again") {
-    if (userId) reviewCard(userId, cardId, rating).catch(() => {});
+    if (!userId) return;
+    const reviewPromise = reviewCard(userId, cardId, rating).catch(() => {});
+    pendingReviewsRef.current.push(reviewPromise);
   }
 
   function check() {
@@ -155,7 +186,11 @@ export default function ClozePage() {
 
   function next() {
     if (idx + 1 >= round.length) {
-      void awardSession(round.length);
+      const reviewedCount = getSessionReviewedCount(
+        round.length,
+        pendingReviewsRef.current.length,
+      );
+      void awardSession(reviewedCount);
       setPhase("summary");
       return;
     }
@@ -169,9 +204,13 @@ export default function ClozePage() {
     setInput("");
   }
 
-  function quit() {
+  async function quit() {
     const answered = results.filter(Boolean).length;
-    void awardSession(answered);
+    const reviewedCount = getSessionReviewedCount(
+      answered,
+      pendingReviewsRef.current.length,
+    );
+    await awardSession(reviewedCount);
     router.push(`/dashboard/deck/${deckId}`);
   }
 
@@ -310,6 +349,11 @@ export default function ClozePage() {
             <span className="lp-pill">
               <Zap size={15} /> +{earned} Lernpunkte
             </span>
+          )}
+          {earned === 0 && earnCapReached && (
+            <p className="muted" style={{ fontSize: "0.9rem" }}>
+              Heutiges Lernpunkte-Limit erreicht — morgen gibt es wieder welche.
+            </p>
           )}
           <div style={{ display: "grid", gap: 8, width: "100%", maxWidth: 320 }}>
             {!allRight && (
