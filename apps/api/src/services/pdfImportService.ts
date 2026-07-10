@@ -1,3 +1,7 @@
+// SCAFFOLD (issue #80): the in-memory `jobs` Map + enqueue/mark/complete/fail/getPdfJob functions
+// are a NON-PERSISTENT async-job-queue scaffold. PDF import actually runs SYNCHRONOUSLY via
+// `processPdfImport` (see app/api/v1/import/pdf/route.ts), so this queue is currently vestigial and
+// would not survive a serverless cold start. Do not rely on it for real async processing.
 import { randomUUID } from "node:crypto";
 import {
   flashcardListSchema,

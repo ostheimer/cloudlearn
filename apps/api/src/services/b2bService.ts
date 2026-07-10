@@ -1,3 +1,4 @@
+// SCAFFOLD (issue #80): in-memory only, resets on serverless cold start — not persistent, not production-ready.
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 

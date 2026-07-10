@@ -1,3 +1,4 @@
+// SCAFFOLD (issue #80): in-memory only, resets on serverless cold start — not persistent, not production-ready.
 import { z } from "zod";
 
 const publishSchema = z.object({

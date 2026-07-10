@@ -1,3 +1,4 @@
+// SCAFFOLD (issue #80): backed by in-memory communityDeckService — resets on serverless cold start, not persistent, not production-ready.
 import { type NextRequest } from "next/server";
 import { jsonError, jsonOk, normalizeError } from "@/lib/http";
 import { createRequestContext } from "@/lib/observability";

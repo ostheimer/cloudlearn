@@ -1,3 +1,4 @@
+// SCAFFOLD (issue #80): backed by in-memory b2bService — resets on serverless cold start, not persistent, not production-ready.
 import { type NextRequest } from "next/server";
 import { z } from "zod";
 import { jsonError, jsonOk, normalizeError } from "@/lib/http";
