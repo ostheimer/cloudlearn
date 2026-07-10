@@ -55,6 +55,13 @@ function unique(items: string[]): string[] {
   return result;
 }
 
+// A fill-in card is a sentence with a gap ("______" or a {{cN::…}} cloze). Its
+// back is the missing word — usually in the deck's *front* language — so its
+// back must never be offered as an option for a normal card, and vice versa.
+function isFillIn(text: string): boolean {
+  return /_{2,}/.test(text) || /\{\{c\d+::/.test(text);
+}
+
 export function generateQuestions(
   cards: QuizCardInput[],
   count = 10,
@@ -63,18 +70,26 @@ export function generateQuestions(
 ): QuizQuestion[] {
   if (cards.length < 2) return [];
 
-  const enriched = cards.map((card) => {
+  const seenPairs = new Set<string>();
+  const enriched = cards.flatMap((card) => {
     const media = summarizeCardMedia(card);
     const normalizedFront = cleanTerm(media.plainFront || card.front);
     const normalizedBack = cleanTerm(media.plainBack || card.back);
+    // Decks sometimes hold each card twice (double scans) — drop duplicates.
+    const key = `${normalizedFront}|${normalizedBack}`.toLowerCase();
+    if (seenPairs.has(key)) return [];
+    seenPairs.add(key);
     const label = media.preferredLabel || normalizedBack || normalizedFront;
-    return {
-      card,
-      media,
-      normalizedFront,
-      normalizedBack,
-      label,
-    };
+    return [
+      {
+        card,
+        media,
+        normalizedFront,
+        normalizedBack,
+        label,
+        fillIn: isFillIn(normalizedFront),
+      },
+    ];
   });
 
   const questions: QuizQuestion[] = [];
@@ -91,7 +106,11 @@ export function generateQuestions(
       const distractors = unique(
         shuffle(
           enriched
-            .filter((entry) => entry.card.id !== current.card.id)
+            .filter(
+              (entry) =>
+                entry.card.id !== current.card.id &&
+                entry.fillIn === current.fillIn
+            )
             .map((entry) => entry.label),
           randomFn
         )
@@ -120,23 +139,32 @@ export function generateQuestions(
       const isCorrect = randomFn() < 0.5;
       const wrongBackPool = unique(
         enriched
-          .filter((entry) => entry.card.id !== current.card.id)
+          .filter(
+            (entry) =>
+              entry.card.id !== current.card.id &&
+              entry.fillIn === current.fillIn
+          )
           .map((entry) => entry.normalizedBack || entry.label)
       );
       const wrongBack = wrongBackPool[Math.floor(randomFn() * wrongBackPool.length)];
+      // Without a same-kind wrong candidate the shown pairing is inevitably the
+      // correct one — grade it as such instead of demanding "Falsch".
+      const effectiveIsCorrect = isCorrect || !wrongBack;
       const displayBack =
-        !isCorrect && wrongBack ? wrongBack : current.normalizedBack || current.label;
+        !effectiveIsCorrect && wrongBack
+          ? wrongBack
+          : current.normalizedBack || current.label;
       const trueFalseQuestion: QuizQuestion = {
         type: "trueFalse",
         cardId: current.card.id,
         questionText: copy.trueFalsePrompt,
-        correctAnswer: isCorrect ? copy.trueLabel : copy.falseLabel,
+        correctAnswer: effectiveIsCorrect ? copy.trueLabel : copy.falseLabel,
         options: [copy.trueLabel, copy.falseLabel],
-        correctIndex: isCorrect ? 0 : 1,
+        correctIndex: effectiveIsCorrect ? 0 : 1,
         tfPairing: {
           front: current.normalizedFront || current.label,
           back: displayBack,
-          isCorrect,
+          isCorrect: effectiveIsCorrect,
         },
       };
       if (current.media.primaryImage) {
@@ -152,11 +180,19 @@ export function generateQuestions(
     const wrongBacks = unique(
       shuffle(
         enriched
-          .filter((entry) => entry.card.id !== current.card.id)
+          .filter(
+            (entry) =>
+              entry.card.id !== current.card.id &&
+              entry.fillIn === current.fillIn
+          )
           .map((entry) => entry.normalizedBack || entry.label),
         randomFn
       )
     ).slice(0, 3);
+
+    // Without at least one same-kind distractor a choice question is
+    // meaningless — skip the card rather than mixing sides/languages.
+    if (wrongBacks.length === 0) continue;
 
     const correctAnswer = current.normalizedBack || current.label;
     const options = shuffle([correctAnswer, ...wrongBacks], randomFn);
