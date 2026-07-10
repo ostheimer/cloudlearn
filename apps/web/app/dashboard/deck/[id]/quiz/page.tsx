@@ -5,36 +5,20 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
 import { listCardsInDeck, reviewCard, earnLp, isApiError, type Card } from "@/lib/api";
-import { X, Trophy, Layers, AlertTriangle, Check, Zap } from "@/components/icons";
+import { generateQuestions, type QuizQuestion } from "@/lib/quizQuestions";
+import {
+  ArrowLeft,
+  X,
+  Check,
+  CheckCircle,
+  Trophy,
+  Zap,
+  AlertTriangle,
+  ListChecks,
+} from "@/components/icons";
 
-type Question = { cardId: string; prompt: string; correct: string; options: string[] };
-
-// Ab so vielen beantworteten Karten schreibt der Server LP gut (featureGates).
+// Ab so vielen beantworteten Fragen schreibt der Server LP gut (wie learn/cloze).
 const LP_SESSION_MIN = 5;
-
-function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j]!, a[i]!];
-  }
-  return a;
-}
-
-// Baut pro Karte eine Frage mit der richtigen Antwort + bis zu 3 zufälligen
-// falschen Antworten aus den anderen Karten des Decks.
-function buildQuestions(cards: Card[]): Question[] {
-  return shuffle(cards).map((card) => {
-    const pool = [...new Set(cards.map((c) => c.back))].filter((b) => b !== card.back);
-    const distractors = shuffle(pool).slice(0, 3);
-    return {
-      cardId: card.id,
-      prompt: card.front,
-      correct: card.back,
-      options: shuffle([card.back, ...distractors]),
-    };
-  });
-}
 
 export default function QuizPage() {
   const params = useParams<{ id: string }>();
@@ -43,13 +27,20 @@ export default function QuizPage() {
   const { userId } = useAuth();
 
   const [cards, setCards] = useState<Card[]>([]);
-  const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Im Setup-Menü gewählte Einstellungen
+  const [reverse, setReverse] = useState(false);
+  const [allowMc, setAllowMc] = useState(true);
+  const [allowTrueFalse, setAllowTrueFalse] = useState(true);
+
+  const [phase, setPhase] = useState<"setup" | "play" | "result">("setup");
+  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [index, setIndex] = useState(0);
-  const [picked, setPicked] = useState<string | null>(null);
-  const [score, setScore] = useState(0);
-  const [answeredCount, setAnsweredCount] = useState(0);
+  const [picked, setPicked] = useState<number | null>(null);
+  const [answers, setAnswers] = useState<boolean[]>([]);
+
   const [earned, setEarned] = useState<number | null>(null);
   const awardedRef = useRef(false);
 
@@ -58,7 +49,6 @@ export default function QuizPage() {
     try {
       const { cards: c } = await listCardsInDeck(deckId);
       setCards(c);
-      setQuestions(buildQuestions(c));
       setError(null);
     } catch (e) {
       setError(isApiError(e) ? e.message : "Karten konnten nicht geladen werden.");
@@ -71,9 +61,10 @@ export default function QuizPage() {
     load();
   }, [load]);
 
+  const anyType = allowMc || allowTrueFalse;
   const total = questions.length;
   const q = questions[index];
-  const done = !loading && total > 0 && index >= total;
+  const answered = picked !== null;
 
   const awardSession = useCallback(async (count: number) => {
     if (awardedRef.current || count < LP_SESSION_MIN) return;
@@ -86,39 +77,39 @@ export default function QuizPage() {
     }
   }, []);
 
-  useEffect(() => {
-    if (done) void awardSession(answeredCount);
-  }, [done, answeredCount, awardSession]);
+  const startQuiz = useCallback(() => {
+    const qs = generateQuestions(cards, { reverse, allowMc, allowTrueFalse });
+    setQuestions(qs);
+    setIndex(0);
+    setPicked(null);
+    setAnswers([]);
+    setPhase("play");
+  }, [cards, reverse, allowMc, allowTrueFalse]);
 
-  function pick(opt: string) {
+  function pick(i: number) {
     if (picked !== null || !q) return;
-    setPicked(opt);
-    setAnsweredCount((n) => n + 1);
-    const correct = opt === q.correct;
-    if (correct) setScore((s) => s + 1);
-    if (userId) {
-      reviewCard(userId, q.cardId, correct ? "good" : "again").catch(() => {
-        /* Wiederholung best-effort; FSRS holt beim nächsten Laden auf */
-      });
-    }
+    setPicked(i);
+    const correct = i === q.correctIndex;
+    setAnswers((prev) => {
+      const next = [...prev];
+      next[index] = correct;
+      return next;
+    });
+    if (userId) reviewCard(userId, q.cardId, correct ? "good" : "again").catch(() => {});
   }
 
   function next() {
+    if (index + 1 >= total) {
+      void awardSession(total);
+      setPhase("result");
+      return;
+    }
     setPicked(null);
     setIndex((i) => i + 1);
   }
 
-  function restart() {
-    awardedRef.current = false;
-    setEarned(null);
-    setIndex(0);
-    setPicked(null);
-    setScore(0);
-    setAnsweredCount(0);
-    setQuestions(buildQuestions(cards));
-  }
-
   function quit() {
+    const answeredCount = answers.filter((a) => a !== undefined).length;
     void awardSession(answeredCount);
     router.push(`/dashboard/deck/${deckId}`);
   }
@@ -144,10 +135,10 @@ export default function QuizPage() {
     return (
       <div className="empty-state">
         <div className="ic" aria-hidden>
-          <Layers size={30} />
+          <ListChecks size={30} />
         </div>
         <h3>Zu wenige Karten</h3>
-        <p>Für Multiple Choice braucht das Deck mindestens 2 Karten (für die Antwortoptionen).</p>
+        <p>Für Multiple Choice braucht das Deck mindestens 2 Karten.</p>
         <Link href={`/dashboard/deck/${deckId}`} className="btn btn-primary">
           Zurück zum Deck
         </Link>
@@ -155,37 +146,177 @@ export default function QuizPage() {
     );
   }
 
-  if (done) {
-    const pct = total > 0 ? Math.round((score / total) * 100) : 0;
+  // ---------- Setup ----------
+  if (phase === "setup") {
+    const leftSide = reverse ? "Rückseite" : "Vorderseite";
+    const rightSide = reverse ? "Vorderseite" : "Rückseite";
+    return (
+      <div className="study-wrap">
+        <Link href={`/dashboard/deck/${deckId}`} className="crumb">
+          <ArrowLeft size={16} /> Zurück zum Deck
+        </Link>
+
+        <div className="cl-intro">
+          <span
+            className="cl-intro__ic"
+            aria-hidden
+            style={{ background: "rgba(139,92,246,0.14)", color: "var(--violet)" }}
+          >
+            <ListChecks size={30} />
+          </span>
+          <h1 className="h2">Multiple Choice</h1>
+          <p className="muted">Antwort aus Optionen wählen</p>
+        </div>
+
+        <button type="button" className="cl-dir" onClick={() => setReverse((r) => !r)}>
+          <div className="cl-dir__lbl">Abgefragte Richtung</div>
+          <div className="cl-dir__row">
+            <b>{leftSide}</b>
+            <span className="cl-dir__arrow" aria-hidden>
+              <ArrowLeft size={20} style={{ transform: "rotate(180deg)" }} />
+            </span>
+            <b>{rightSide}</b>
+          </div>
+          <div className="cl-dir__hint">Tippen zum Tauschen</div>
+        </button>
+
+        <div className="cl-optcard">
+          <div className="cl-dir__lbl">Fragetypen</div>
+          <div className="quiz-typerow">
+            <span>Multiple Choice</span>
+            <button
+              type="button"
+              className={`cl-switch${allowMc ? " on" : ""}`}
+              role="switch"
+              aria-checked={allowMc}
+              aria-label="Multiple Choice"
+              onClick={() => setAllowMc((v) => !v)}
+            >
+              <i />
+            </button>
+          </div>
+          <div className="quiz-typerow">
+            <span>Wahr / Falsch</span>
+            <button
+              type="button"
+              className={`cl-switch${allowTrueFalse ? " on" : ""}`}
+              role="switch"
+              aria-checked={allowTrueFalse}
+              aria-label="Wahr / Falsch"
+              onClick={() => setAllowTrueFalse((v) => !v)}
+            >
+              <i />
+            </button>
+          </div>
+          {!anyType && (
+            <div style={{ fontSize: "0.75rem", color: "#ef4444", marginTop: 6 }}>
+              Mindestens ein Typ muss an sein.
+            </div>
+          )}
+        </div>
+
+        <button
+          type="button"
+          className="btn btn-primary btn-lg btn-block"
+          disabled={!anyType}
+          onClick={startQuiz}
+        >
+          Starten
+        </button>
+      </div>
+    );
+  }
+
+  // ---------- Ergebnis ----------
+  if (phase === "result") {
+    const correct = answers.filter(Boolean).length;
+    const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
+    const msg =
+      pct >= 80
+        ? "Hervorragend! Du beherrschst den Stoff."
+        : pct >= 50
+          ? "Gut! Etwas mehr Übung und du hast es drauf."
+          : "Weiter üben! Wiederholung ist der Schlüssel.";
+    const allRight = correct === total;
     return (
       <div className="study-wrap">
         <div className="study-done">
-          <div className="big" aria-hidden style={{ color: "var(--amber)" }}>
-            <Trophy size={56} />
+          <div
+            className="big"
+            aria-hidden
+            style={{ color: allRight ? "var(--amber)" : "var(--brand)" }}
+          >
+            {allRight ? <Trophy size={54} /> : <CheckCircle size={54} />}
           </div>
-          <h2 className="h2">Quiz geschafft!</h2>
-          <p className="lead">
-            {score} von {total} richtig — {pct}&nbsp;%.
+          <div style={{ fontSize: "2.6rem", fontWeight: 800, letterSpacing: "-0.02em" }}>
+            {pct}%
+          </div>
+          <p className="lead" style={{ margin: 0 }}>
+            {correct} von {total} richtig
+          </p>
+          <p className="muted" style={{ margin: 0 }}>
+            {msg}
           </p>
           {earned !== null && earned > 0 && (
             <span className="lp-pill">
               <Zap size={15} /> +{earned} Lernpunkte
             </span>
           )}
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
-            <button type="button" className="btn btn-primary" onClick={restart}>
+
+          <div className="quiz-sum">
+            {questions.map((qq, i) => {
+              const ok = answers[i];
+              const label = qq.type === "trueFalse" ? qq.tfPairing?.front : qq.questionText;
+              return (
+                <div key={i} className={`quiz-sum__row ${ok ? "ok" : "no"}`}>
+                  <span
+                    aria-hidden
+                    style={{ color: ok ? "var(--green)" : "#ef4444", flex: "none" }}
+                  >
+                    {ok ? <CheckCircle size={18} /> : <X size={18} />}
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="quiz-sum__q">{label}</div>
+                    {!ok && <div className="quiz-sum__fix">Richtig: {qq.correctAnswer}</div>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{ display: "grid", gap: 8, width: "100%", maxWidth: 320 }}>
+            <button type="button" className="btn btn-primary btn-block" onClick={startQuiz}>
               Nochmal
             </button>
-            <Link href={`/dashboard/deck/${deckId}`} className="btn btn-ghost">
-              Zurück zum Deck
-            </Link>
+            <button
+              type="button"
+              className="btn btn-ghost btn-block"
+              style={{ border: "none", boxShadow: "none" }}
+              onClick={() => setPhase("setup")}
+            >
+              Einstellungen
+            </button>
           </div>
         </div>
       </div>
     );
   }
 
-  const answered = picked !== null;
+  // ---------- Spielen ----------
+  if (total === 0) {
+    return (
+      <div className="empty-state">
+        <div className="ic" aria-hidden>
+          <ListChecks size={30} />
+        </div>
+        <h3>Keine Fragen</h3>
+        <p>Für diese Auswahl lassen sich keine Fragen bilden. Ändere die Einstellungen.</p>
+        <button type="button" className="btn btn-primary" onClick={() => setPhase("setup")}>
+          Zu den Einstellungen
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="study-wrap">
@@ -199,29 +330,45 @@ export default function QuizPage() {
           <X size={16} /> Beenden
         </button>
         <div className="progress">
-          <i style={{ width: `${(index / total) * 100}%` }} />
+          <i style={{ width: `${((index + (answered ? 1 : 0)) / total) * 100}%` }} />
         </div>
         <span className="muted" style={{ fontWeight: 700, fontSize: "0.9rem" }}>
           {index + 1} / {total}
         </span>
       </div>
 
-      <div className="quiz-q">{q?.prompt}</div>
+      <div className="cl-prompt">
+        <div className="quiz-eyebrow">
+          {q?.type === "trueFalse" ? "Wahr / Falsch" : "Multiple Choice"}
+        </div>
+        {q?.type === "trueFalse" && q.tfPairing ? (
+          <>
+            <div className="quiz-sub">{q.questionText}</div>
+            <div className="tf-pair">
+              <div className="tf-pair__front">{q.tfPairing.front}</div>
+              <div className="tf-pair__hr" />
+              <div className="tf-pair__back">= {q.tfPairing.back}</div>
+            </div>
+          </>
+        ) : (
+          <div className="cl-q">{q?.questionText}</div>
+        )}
+      </div>
 
       <div className="quiz-options">
-        {q?.options.map((opt) => {
-          const isCorrect = opt === q.correct;
-          const isPicked = opt === picked;
+        {q?.options.map((opt, i) => {
+          const isCorrect = i === q.correctIndex;
+          const isPicked = i === picked;
           let cls = "quiz-opt";
           if (answered && isCorrect) cls += " quiz-opt--correct";
           else if (answered && isPicked) cls += " quiz-opt--wrong";
           return (
             <button
-              key={opt}
+              key={`${opt}-${i}`}
               type="button"
               className={cls}
               disabled={answered}
-              onClick={() => pick(opt)}
+              onClick={() => pick(i)}
             >
               <span>{opt}</span>
               {answered && isCorrect && <Check size={18} className="quiz-opt__mark" />}
