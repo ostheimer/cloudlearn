@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { isSessionEarnFinalized, LP_SESSION_MIN_CARDS } from "./learn-session-lp";
+import {
+  beginSessionAward,
+  getSessionReviewedCount,
+  isSessionEarnFinalized,
+  LP_SESSION_MIN_CARDS,
+  type SessionAwardState,
+} from "./learn-session-lp";
 
 describe("isSessionEarnFinalized", () => {
   it("does not finalize below the minimum reviewed cards", () => {
@@ -24,5 +30,38 @@ describe("isSessionEarnFinalized", () => {
     expect(
       isSessionEarnFinalized({ granted: 0, capReached: false }, LP_SESSION_MIN_CARDS),
     ).toBe(false);
+  });
+});
+
+describe("getSessionReviewedCount", () => {
+  it("counts the just-submitted review before the delayed index update", () => {
+    expect(getSessionReviewedCount(4, 5)).toBe(LP_SESSION_MIN_CARDS);
+  });
+});
+
+describe("beginSessionAward", () => {
+  it("lets navigation await an award that is already in flight", async () => {
+    const state: SessionAwardState = { finalized: false, inFlight: null };
+    let release: (() => void) | undefined;
+    const run = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let starts = 0;
+
+    const first = beginSessionAward(state, LP_SESSION_MIN_CARDS, () => {
+      starts += 1;
+      return run;
+    });
+    const second = beginSessionAward(state, LP_SESSION_MIN_CARDS - 1, () => {
+      starts += 1;
+      return Promise.resolve();
+    });
+
+    expect(second).toBe(first);
+    expect(starts).toBe(1);
+
+    release?.();
+    await second;
+    expect(state.inFlight).toBeNull();
   });
 });
