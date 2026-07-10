@@ -304,6 +304,13 @@ export const Users = (p: IconProps) => (
   </Icon>
 );
 
+export const User = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M19 21v-1a5 5 0 0 0-5-5h-4a5 5 0 0 0-5 5v1" />
+    <circle cx="12" cy="8" r="4" />
+  </Icon>
+);
+
 export const Trophy = (p: IconProps) => (
   <Icon {...p}>
     <path d="M8 21h8M12 17v4" />

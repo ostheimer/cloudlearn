@@ -2,21 +2,32 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { useAuth } from "./auth-context";
-import { GraduationCap, Zap, BarChart, Globe, LogOut } from "@/components/icons";
+import { GraduationCap, Layers, Sparkles, Zap, BarChart, User } from "@/components/icons";
 
-const NAV = [
-  { href: "/dashboard", label: "Bibliothek", exact: true },
-  { href: "/dashboard/stats", label: "Statistik", exact: false },
+type NavItem = {
+  href: string;
+  label: string;
+  tabLabel?: string; // kürzeres Label für die untere Handy-Leiste
+  Icon: typeof Layers;
+  exact: boolean;
+};
+
+// App-Reihenfolge, an die Web-Bereiche angepasst (kein „Home"/„Lernen" — die
+// gibt es im Web nicht). Die ersten vier stehen oben; alle fünf unten am Handy.
+const NAV: NavItem[] = [
+  { href: "/dashboard", label: "Bibliothek", Icon: Layers, exact: true },
+  { href: "/dashboard/import", label: "Karten per KI", tabLabel: "KI-Import", Icon: Sparkles, exact: false },
+  { href: "/dashboard/lp", label: "Lernpunkte", Icon: Zap, exact: false },
+  { href: "/dashboard/stats", label: "Statistik", Icon: BarChart, exact: false },
+  { href: "/dashboard/profile", label: "Profil", Icon: User, exact: false },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { status, email, signOut } = useAuth();
+  const { status } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
 
   // Guard: bounce unauthenticated visitors to the login page.
   useEffect(() => {
@@ -24,17 +35,6 @@ export function AppShell({ children }: { children: ReactNode }) {
       router.replace("/login");
     }
   }, [status, router]);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    const onClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
-  }, [menuOpen]);
 
   if (status !== "authenticated") {
     return (
@@ -44,13 +44,10 @@ export function AppShell({ children }: { children: ReactNode }) {
     );
   }
 
-  const initial = (email?.[0] ?? "?").toUpperCase();
+  const isActive = (item: NavItem) =>
+    item.exact ? pathname === item.href : pathname.startsWith(item.href);
 
-  async function handleSignOut() {
-    setMenuOpen(false);
-    await signOut();
-    router.replace("/login");
-  }
+  const profile = NAV[NAV.length - 1]!;
 
   return (
     <div className="app-shell">
@@ -63,66 +60,39 @@ export function AppShell({ children }: { children: ReactNode }) {
             clearn.ai
           </Link>
 
-          <nav className="app-nav" aria-label="App-Navigation">
-            {NAV.map((item) => {
-              const active = item.exact
-                ? pathname === item.href
-                : pathname.startsWith(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={active ? "active" : ""}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
+          {/* Obere Navigation — nur am Desktop */}
+          <nav className="app-nav" aria-label="Navigation">
+            {NAV.slice(0, 4).map((item) => (
+              <Link key={item.href} href={item.href} className={isActive(item) ? "active" : ""}>
+                <item.Icon size={17} /> {item.label}
+              </Link>
+            ))}
           </nav>
 
-          <div className="pop" ref={menuRef}>
-            <button
-              type="button"
-              className="avatar"
-              aria-label="Kontomenü"
-              aria-expanded={menuOpen}
-              onClick={() => setMenuOpen((v) => !v)}
-            >
-              {initial}
-            </button>
-            {menuOpen && (
-              <div className="menu" role="menu">
-                <div
-                  style={{
-                    padding: "8px 12px",
-                    fontSize: "0.82rem",
-                    color: "var(--ink-3)",
-                    overflowWrap: "anywhere",
-                  }}
-                >
-                  {email}
-                </div>
-                <Link href="/dashboard/lp" role="menuitem" onClick={() => setMenuOpen(false)}>
-                  <Zap size={16} /> Lernpunkte
-                </Link>
-                <Link href="/dashboard/stats" role="menuitem" onClick={() => setMenuOpen(false)}>
-                  <BarChart size={16} /> Statistik
-                </Link>
-                <a href="/" role="menuitem">
-                  <Globe size={16} /> Zur Website
-                </a>
-                <button type="button" className="danger" role="menuitem" onClick={handleSignOut}>
-                  <LogOut size={16} /> Abmelden
-                </button>
-              </div>
-            )}
-          </div>
+          {/* Konto — am Desktop das Personen-Symbol oben rechts */}
+          <Link
+            href={profile.href}
+            className={`avatar${isActive(profile) ? " active" : ""}`}
+            aria-label="Profil"
+          >
+            <User size={20} />
+          </Link>
         </div>
       </header>
 
       <main className="app-main">
         <div className="container">{children}</div>
       </main>
+
+      {/* Untere Tab-Leiste — nur am Handy (wie die App) */}
+      <nav className="app-tabbar" aria-label="Navigation">
+        {NAV.map((item) => (
+          <Link key={item.href} href={item.href} className={isActive(item) ? "active" : ""}>
+            <item.Icon size={22} />
+            <span>{item.tabLabel ?? item.label}</span>
+          </Link>
+        ))}
+      </nav>
     </div>
   );
 }
