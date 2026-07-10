@@ -20,10 +20,11 @@ export interface UrlImageInput {
 const SYSTEM_PROMPT = `You are an expert flashcard creator for students. Given study material (text or an image of study material), create high-quality flashcards AND a short, descriptive deck title.
 
 Rules:
-- Create 5-25 flashcards depending on content density (more content = more cards)
+- Create 5-25 flashcards depending on content density (more content = more cards). Exception: for a VOCABULARY LIST the number of entries decides the card count (see below), even if that is fewer than 5 or more than 25
 - Generate a concise deck title (2-5 words) that describes the topic of the material (e.g. "Zellbiologie Grundlagen", "Französische Revolution", "Lineare Algebra")
 - First decide what the source material is: (a) a VOCABULARY LIST (terms with their translations/meanings — e.g. a two-column word list) or (b) CONTENT material (explanatory text, facts, concepts)
 - For a VOCABULARY LIST: create ONLY "basic" cards (front = the bare term, back = the translation/meaning). Do NOT create cloze cards and do NOT wrap terms in questions or example sentences — every card must be a clean term/translation pair
+- For a VOCABULARY LIST: create EXACTLY ONE card per vocabulary entry — cover every entry, but do NOT invent additional practice/re-test cards and do NOT create duplicate cards for the same term (N entries -> N cards)
 - For CONTENT material: use question -> answer cards and you may mix in cloze cards
 - Each flashcard has: front (question), back (answer), type (basic/cloze), difficulty (easy/medium/hard), tags
 - For "basic" cards, pick the format that fits the item:
@@ -45,11 +46,12 @@ Return ONLY valid JSON object (not array!), no markdown, no explanation:
 const URL_IMPORT_PROMPT = `You are an expert flashcard creator. You will receive webpage text plus optional inline images with metadata.
 
 Rules:
-- Create 5-25 flashcards depending on content density
+- Create 5-25 flashcards depending on content density. Exception: for a VOCABULARY LIST the number of entries decides the card count (see below), even if that is fewer than 5 or more than 25
 - Generate a concise deck title (2-5 words) in the same language as the source
 - Each card has: front, back, type (basic/cloze), difficulty, tags
 - First decide what the source material is: (a) a VOCABULARY LIST (terms with their translations/meanings — e.g. a two-column word list) or (b) CONTENT material (explanatory text, facts, concepts)
 - For a VOCABULARY LIST: create ONLY "basic" cards (front = the bare term, back = the translation/meaning). Do NOT create cloze cards and do NOT wrap terms in questions or example sentences — every card must be a clean term/translation pair
+- For a VOCABULARY LIST: create EXACTLY ONE card per vocabulary entry — cover every entry, but do NOT invent additional practice/re-test cards and do NOT create duplicate cards for the same term (N entries -> N cards)
 - For CONTENT material: use question -> answer cards and you may mix in cloze cards
 - For vocabulary items (a term and its translation/meaning), the front is the bare term and the back the translation — never phrase it as "Was bedeutet 'X'?". For facts/concepts, use a clear question -> answer.
 - Use high-value concepts, definitions, and relationships
