@@ -14,6 +14,7 @@ import { useTranslation } from "react-i18next";
 import {
   CheckCircle2,
   XCircle,
+  ArrowLeft,
   ArrowRight,
   Trophy,
   RotateCcw,
@@ -54,8 +55,9 @@ export default function QuizScreen() {
   const [loading, setLoading] = useState(true);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
-  const [selected, setSelected] = useState<number | null>(null);
-  const [answers, setAnswers] = useState<boolean[]>([]);
+  // One slot per question (null = unanswered, -1 = timeout) so going back to a
+  // previous question shows it in its answered state.
+  const [selections, setSelections] = useState<(number | null)[]>([]);
   const [finished, setFinished] = useState(false);
   const [timerEnabled] = useState(false);
   const [timeLeft, setTimeLeft] = useState(15);
@@ -93,11 +95,14 @@ export default function QuizScreen() {
     if (q.length === 0) return;
     setQuestions(q);
     setCurrentIdx(0);
-    setSelected(null);
-    setAnswers([]);
+    setSelections(new Array<number | null>(q.length).fill(null));
     setFinished(false);
     setInSetup(false);
   };
+
+  // Selection of the question currently on screen (derived, not own state,
+  // so navigating back shows the stored answer).
+  const selected = selections[currentIdx] ?? null;
 
   // Timer
   useEffect(() => {
@@ -108,8 +113,9 @@ export default function QuizScreen() {
         if (prev <= 1) {
           // Time's up — treat as wrong
           if (timerRef.current) clearInterval(timerRef.current);
-          setAnswers((a) => [...a, false]);
-          setSelected(-1); // -1 = timeout
+          setSelections((s) =>
+            s.map((v, i) => (i === currentIdx ? -1 : v)) // -1 = timeout
+          );
           return 0;
         }
         return prev - 1;
@@ -127,9 +133,7 @@ export default function QuizScreen() {
   const handleSelect = (optionIdx: number) => {
     if (selected !== null) return; // Already answered
     if (timerRef.current) clearInterval(timerRef.current);
-    setSelected(optionIdx);
-    const isCorrect = optionIdx === question!.correctIndex;
-    setAnswers((a) => [...a, isCorrect]);
+    setSelections((s) => s.map((v, i) => (i === currentIdx ? optionIdx : v)));
   };
 
   const handleNext = () => {
@@ -137,17 +141,25 @@ export default function QuizScreen() {
       setFinished(true);
     } else {
       setCurrentIdx((i) => i + 1);
-      setSelected(null);
     }
+  };
+
+  const handleBack = () => {
+    setCurrentIdx((i) => Math.max(0, i - 1));
   };
 
   const handleRestart = () => {
     startQuiz();
   };
 
+  // Grading derived from the per-question selections.
+  const answers = questions.map(
+    (q, i) => selections[i] !== null && selections[i] === q.correctIndex
+  );
+  const answeredCount = selections.filter((s) => s !== null).length;
   const correctCount = answers.filter(Boolean).length;
   const scorePercent =
-    answers.length > 0 ? Math.round((correctCount / answers.length) * 100) : 0;
+    answeredCount > 0 ? Math.round((correctCount / answeredCount) * 100) : 0;
 
   if (loading) {
     return (
@@ -910,33 +922,53 @@ export default function QuizScreen() {
             })}
           </View>
 
-          {/* Next button (after answering) */}
-          {selected !== null && (
+          {/* Bottom row: back to the previous (answered) question + next.
+              Past questions show their locked answer; Weiter moves forward. */}
+          <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
             <TouchableOpacity
-              onPress={handleNext}
-              activeOpacity={0.8}
+              onPress={handleBack}
+              disabled={currentIdx === 0}
+              activeOpacity={0.7}
               style={{
-                backgroundColor: colors.primary,
-                borderRadius: radius.md,
-                paddingVertical: 16,
-                flexDirection: "row",
-                alignItems: "center",
+                width: 50,
+                height: 50,
+                borderRadius: radius.full ?? 999,
+                backgroundColor: colors.surfaceSecondary,
                 justifyContent: "center",
-                gap: spacing.sm,
+                alignItems: "center",
+                opacity: currentIdx === 0 ? 0.3 : 1,
               }}
             >
-              <Text
+              <ArrowLeft size={22} color={colors.textSecondary} />
+            </TouchableOpacity>
+            {selected !== null && (
+              <TouchableOpacity
+                onPress={handleNext}
+                activeOpacity={0.8}
                 style={{
-                  color: colors.textInverse,
-                  fontSize: typography.lg,
-                  fontWeight: typography.bold,
+                  flex: 1,
+                  backgroundColor: colors.primary,
+                  borderRadius: radius.md,
+                  paddingVertical: 16,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: spacing.sm,
                 }}
               >
-                {currentIdx + 1 >= questions.length ? "Ergebnis" : "Weiter"}
-              </Text>
-              <ArrowRight size={18} color={colors.textInverse} />
-            </TouchableOpacity>
-          )}
+                <Text
+                  style={{
+                    color: colors.textInverse,
+                    fontSize: typography.lg,
+                    fontWeight: typography.bold,
+                  }}
+                >
+                  {currentIdx + 1 >= questions.length ? "Ergebnis" : "Weiter"}
+                </Text>
+                <ArrowRight size={18} color={colors.textInverse} />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </SafeAreaView>
     </>
