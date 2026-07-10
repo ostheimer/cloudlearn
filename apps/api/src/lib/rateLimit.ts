@@ -1,25 +1,41 @@
-interface RateLimitEntry {
-  count: number;
-  expiresAt: number;
-}
+import { createSupabaseAdminClient } from "./supabase";
 
-const store = new Map<string, RateLimitEntry>();
+/**
+ * Persistent, cross-instance rate limiting backed by Supabase Postgres.
+ *
+ * The check-and-increment happens inside a single `check_rate_limit` SQL
+ * statement (INSERT ... ON CONFLICT ... RETURNING), so it survives serverless
+ * cold starts, is shared across instances, and has no read-modify-write race.
+ *
+ * Fails OPEN: if the DB client is missing or the RPC errors we return `true`
+ * so a transient DB hiccup never locks out real users.
+ */
+export async function checkRateLimit(
+  key: string,
+  limitPerMinute: number,
+  windowSeconds = 60
+): Promise<boolean> {
+  const db = createSupabaseAdminClient();
+  if (!db) return true;
 
-export function checkRateLimit(key: string, limitPerMinute: number, now = Date.now()): boolean {
-  const current = store.get(key);
-  if (!current || current.expiresAt <= now) {
-    store.set(key, { count: 1, expiresAt: now + 60_000 });
+  const { data, error } = await db.rpc("check_rate_limit", {
+    p_key: key,
+    p_limit: limitPerMinute,
+    p_window_seconds: windowSeconds,
+  });
+
+  if (error) {
+    console.error("[rateLimit] check_rate_limit error:", error.message);
     return true;
   }
 
-  if (current.count >= limitPerMinute) {
-    return false;
-  }
-
-  store.set(key, { count: current.count + 1, expiresAt: current.expiresAt });
-  return true;
+  return data === true;
 }
 
+/**
+ * No-op retained for backwards compatibility. Rate-limit state now lives in
+ * Postgres (`rate_limits` table), so there is no in-process store to clear.
+ */
 export function resetRateLimitStore(): void {
-  store.clear();
+  // intentionally empty
 }

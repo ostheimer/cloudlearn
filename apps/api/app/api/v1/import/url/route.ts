@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     const env = getEnv();
 
     const rateLimit = plan === "pro" ? env.RATE_LIMIT_PRO_PER_MINUTE : env.RATE_LIMIT_FREE_PER_MINUTE;
-    if (!checkRateLimit(`${userId}:${plan}`, rateLimit)) {
+    if (!(await checkRateLimit(`${userId}:${plan}`, rateLimit))) {
       return jsonError(requestId, "RATE_LIMITED", "Rate limit exceeded", 429);
     }
 

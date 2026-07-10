@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createSignedUploadUrl, isSignedUrlExpired } from "@/lib/r2";
-import { checkRateLimit, resetRateLimitStore } from "@/lib/rateLimit";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 // NOTE: Service tests that depend on Supabase are now integration tests.
 // They require NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to be set.
@@ -18,13 +18,14 @@ describe("api services — unit tests (no DB required)", () => {
     expect(isSignedUrlExpired(expires - 10, expires)).toBe(true);
   });
 
-  it("applies per-minute rate limits", () => {
-    resetRateLimitStore();
+  it("fails open on rate limiting when Supabase is unavailable", async () => {
+    // Rate-limit state now lives in Postgres (the check_rate_limit RPC), so this
+    // is no longer an in-memory unit. With no DB client configured — or on any
+    // RPC error — checkRateLimit fails OPEN (returns true) so a transient DB
+    // issue never locks out real users. Real per-window enforcement is exercised
+    // by the SQL migration tests against a live Postgres.
     const key = `${userId}:free`;
-    const now = Date.now();
-    expect(checkRateLimit(key, 2, now)).toBe(true);
-    expect(checkRateLimit(key, 2, now + 1)).toBe(true);
-    expect(checkRateLimit(key, 2, now + 2)).toBe(false);
+    expect(await checkRateLimit(key, 2)).toBe(true);
   });
 });
 
