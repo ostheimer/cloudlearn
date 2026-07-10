@@ -77,9 +77,12 @@ const MAX_ROTATION = 15; // degrees
 export default function LearnScreen({
   deckId,
   deckTitle,
+  initialShowBackFirst,
 }: {
   deckId?: string | undefined;
   deckTitle?: string | undefined;
+  // Deck mode: ask back → front from the start (chosen on the setup screen).
+  initialShowBackFirst?: boolean | undefined;
 } = {}) {
   const router = useRouter();
   const c = useColors();
@@ -104,6 +107,7 @@ export default function LearnScreen({
       userId={userId}
       deckId={deckId}
       deckTitle={deckTitle}
+      initialShowBackFirst={initialShowBackFirst}
     />
   );
 }
@@ -112,10 +116,12 @@ function AuthenticatedLearnScreen({
   userId,
   deckId,
   deckTitle,
+  initialShowBackFirst,
 }: {
   userId: string;
   deckId?: string | undefined;
   deckTitle?: string | undefined;
+  initialShowBackFirst?: boolean | undefined;
 }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -125,7 +131,7 @@ function AuthenticatedLearnScreen({
   const enqueueOfflineReview = useOfflineQueueStore((state) => state.enqueue);
   const [loading, setLoading] = useState(false);
   const [reviewLoading, setReviewLoading] = useState(false);
-  const [showBackFirst, setShowBackFirst] = useState(false);
+  const [showBackFirst, setShowBackFirst] = useState(initialShowBackFirst ?? false);
   const [starredMap, setStarredMap] = useState<Record<string, boolean>>({});
 
   // Cards rated since the last LP earn call. Only a trigger for "did she learn
