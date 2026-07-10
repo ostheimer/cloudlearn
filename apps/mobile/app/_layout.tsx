@@ -458,15 +458,6 @@ export default function RootLayout() {
             <Stack.Screen name="reset-password" options={{ headerShown: false }} />
             <Stack.Screen name="onboarding" options={{ headerShown: false }} />
             <Stack.Screen
-              name="deck/[id]"
-              options={{
-                headerShown: true,
-                headerBackTitle: "Decks",
-                headerTintColor,
-                headerStyle,
-              }}
-            />
-            <Stack.Screen
               name="deck-review/[id]"
               options={{
                 headerShown: false,
