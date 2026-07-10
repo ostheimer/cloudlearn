@@ -103,6 +103,23 @@ describe("supabase migrations", () => {
     expect(sql).toContain("grant execute on function grant_lp_purchase(uuid, int, text) to service_role");
   });
 
+  it("persists rate-limit + idempotency state with an atomic, race-safe check", () => {
+    const migrationPath = join(
+      apiRoot,
+      "supabase/migrations/20260710120000_persistent_rate_limit_idempotency.sql",
+    );
+    const sql = readFileSync(migrationPath, "utf-8");
+
+    // Persistent, cross-instance stores (survive serverless cold starts)
+    expect(sql).toContain("create table if not exists rate_limits");
+    expect(sql).toContain("create table if not exists idempotency_keys");
+
+    // Check-and-increment in a single statement → no read-modify-write count race
+    expect(sql).toContain("create or replace function check_rate_limit");
+    expect(sql).toContain("on conflict (key) do update set");
+    expect(sql).toContain("grant execute on function check_rate_limit(text, int, int) to service_role");
+  });
+
   it("keeps profile deletion backed by cascading user-data references", () => {
     const migrationDir = join(apiRoot, "supabase/migrations");
     const migrationFiles = [

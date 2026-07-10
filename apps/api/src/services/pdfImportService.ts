@@ -73,7 +73,7 @@ export async function processPdfImport(
   userId: string
 ): Promise<PdfImportResponse> {
   const parsed = pdfImportRequestSchema.parse(input);
-  const existing = getIdempotentResult<PdfImportResponse>(parsed.idempotencyKey);
+  const existing = await getIdempotentResult<PdfImportResponse>(parsed.idempotencyKey);
   if (existing) {
     return existing;
   }
@@ -113,6 +113,6 @@ export async function processPdfImport(
     extractedCharacters: extracted.extractedCharacters,
   };
 
-  storeIdempotentResult(parsed.idempotencyKey, response);
+  await storeIdempotentResult(parsed.idempotencyKey, response);
   return response;
 }

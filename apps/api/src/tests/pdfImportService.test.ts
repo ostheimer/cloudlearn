@@ -38,7 +38,7 @@ const mockedStoreIdempotentResult = vi.mocked(storeIdempotentResult);
 describe("pdfImportService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockedGetIdempotentResult.mockReturnValue(null);
+    mockedGetIdempotentResult.mockResolvedValue(null);
     mockedGetDeck.mockResolvedValue(null);
     mockedCreateDeck.mockResolvedValue({
       id: "deck-1",
@@ -75,7 +75,7 @@ describe("pdfImportService", () => {
   });
 
   it("returns idempotent result when available", async () => {
-    mockedGetIdempotentResult.mockReturnValue({
+    mockedGetIdempotentResult.mockResolvedValue({
       requestId: "req-idempotent",
       model: "gemini-3-flash",
       fallbackUsed: false,

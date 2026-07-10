@@ -52,7 +52,7 @@ vi.mock("@/lib/http", () => {
 });
 
 vi.mock("@/lib/auth", () => ({ getAuthUser: vi.fn() }));
-vi.mock("@/lib/rateLimit", () => ({ checkRateLimit: vi.fn(() => true) }));
+vi.mock("@/lib/rateLimit", () => ({ checkRateLimit: vi.fn().mockResolvedValue(true) }));
 vi.mock("@/lib/env", () => ({
   getEnv: () => ({ RATE_LIMIT_FREE_PER_MINUTE: 20, RATE_LIMIT_PRO_PER_MINUTE: 60 }),
 }));
@@ -110,7 +110,7 @@ describe("POST /api/v1/import/pdf – LP refund on failure", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedGetAuthUser.mockResolvedValue({ userId: USER_ID, email: "lara@example.com" });
-    mockedCheckRateLimit.mockReturnValue(true);
+    mockedCheckRateLimit.mockResolvedValue(true);
     mockedGetSubscription.mockResolvedValue({ tier: "free" } as never);
   });
 

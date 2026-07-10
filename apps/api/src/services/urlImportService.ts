@@ -17,7 +17,7 @@ export async function processUrlImport(
   userId: string
 ): Promise<UrlImportResponse> {
   const parsed = urlImportRequestSchema.parse(input);
-  const existing = getIdempotentResult<UrlImportResponse>(parsed.idempotencyKey);
+  const existing = await getIdempotentResult<UrlImportResponse>(parsed.idempotencyKey);
   if (existing) {
     return existing;
   }
@@ -74,6 +74,6 @@ export async function processUrlImport(
     imagesUsed: extracted.images.length,
   };
 
-  storeIdempotentResult(parsed.idempotencyKey, response);
+  await storeIdempotentResult(parsed.idempotencyKey, response);
   return response;
 }

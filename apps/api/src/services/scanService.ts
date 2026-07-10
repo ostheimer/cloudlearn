@@ -17,7 +17,7 @@ export async function processScan(
   userId: string
 ): Promise<ScanProcessResponse> {
   const parsed = scanProcessRequestSchema.parse(input);
-  const existing = getIdempotentResult<ScanProcessResponse>(
+  const existing = await getIdempotentResult<ScanProcessResponse>(
     parsed.idempotencyKey
   );
   if (existing) {
@@ -75,6 +75,6 @@ export async function processScan(
     deckTitle: generated.title,
   };
 
-  storeIdempotentResult(parsed.idempotencyKey, response);
+  await storeIdempotentResult(parsed.idempotencyKey, response);
   return response;
 }
