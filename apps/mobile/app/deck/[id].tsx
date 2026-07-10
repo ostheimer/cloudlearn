@@ -28,6 +28,7 @@ import {
   Puzzle,
   ImagePlus,
   Pencil,
+  FileText,
   Layers,
   MoreVertical,
   Download,
@@ -837,6 +838,27 @@ export default function DeckDetailScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={studyModeTitleStyle}>Lückentext</Text>
                   <Text style={studyModeDescStyle}>Fehlendes aktiv ergänzen</Text>
+                </View>
+                <ChevronRight size={18} color={colors.textTertiary} />
+              </TouchableOpacity>
+
+              {/* Test — exam-style: mixed questions, graded at the end */}
+              <TouchableOpacity
+                onPress={() =>
+                  router.push({
+                    pathname: "/test",
+                    params: { deckId, deckTitle },
+                  })
+                }
+                activeOpacity={0.7}
+                style={studyModeRowStyle}
+              >
+                <View style={[studyModeIconStyle, { backgroundColor: colors.errorLight }]}>
+                  <FileText size={18} color={colors.error} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={studyModeTitleStyle}>Test</Text>
+                  <Text style={studyModeDescStyle}>Klausur mit Prozent-Ergebnis</Text>
                 </View>
                 <ChevronRight size={18} color={colors.textTertiary} />
               </TouchableOpacity>
