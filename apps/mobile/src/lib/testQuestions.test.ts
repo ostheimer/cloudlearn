@@ -96,4 +96,33 @@ describe("buildTestQuestions", () => {
     const qs = buildTestQuestions(dupes, { count: 99, types: ["written"], randomFn: seeded(1) });
     expect(qs).toHaveLength(2);
   });
+
+  it("reverses non-fill-in cards: question is the back, answer is the front", () => {
+    const qs = buildTestQuestions(cards, {
+      count: 4,
+      types: ["written"],
+      reverse: true,
+      randomFn: seeded(3),
+    });
+    for (const q of qs) {
+      const card = cards.find((c) => c.id === q.cardId)!;
+      expect(q.prompt).toBe(card.back);
+      expect(q.expected).toBe(card.front);
+    }
+  });
+
+  it("draws reverse options from the fronts (same side as the answer)", () => {
+    const qs = buildTestQuestions(cards, {
+      count: 4,
+      types: ["mc"],
+      reverse: true,
+      randomFn: seeded(7),
+    });
+    const fronts = cards.map((c) => c.front);
+    for (const q of qs) {
+      expect(q.type).toBe("mc");
+      expect(q.options[q.correctIndex]).toBe(q.expected);
+      for (const opt of q.options) expect(fronts).toContain(opt);
+    }
+  });
 });

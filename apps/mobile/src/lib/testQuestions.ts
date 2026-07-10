@@ -14,8 +14,8 @@ export interface TestCardInput {
 export interface TestQuestion {
   type: TestQuestionType;
   cardId: string;
-  prompt: string; // the question (front)
-  expected: string; // the correct answer (back) — for "written", what to type
+  prompt: string; // the question
+  expected: string; // the correct answer — for "written", what to type
   options: string[]; // "mc" only
   correctIndex: number; // "mc" only, else -1
   tfShownBack: string; // "trueFalse" only — the answer shown (may be wrong)
@@ -51,8 +51,8 @@ interface EnrichedCard {
 }
 
 // A fill-in card is a sentence with a gap ("______" or a {{cN::…}} cloze). Its
-// answer is the missing word (often in the deck's *front* language), so it must
-// never become a Multiple-Choice option or a True/False statement.
+// answer is the missing word, so it is always a "type the gap" question and
+// never contributes options — regardless of direction.
 function isFillIn(text: string): boolean {
   return /_{2,}/.test(text) || /\{\{c\d+::/.test(text);
 }
@@ -65,12 +65,16 @@ function termsOf(card: TestCardInput): EnrichedCard {
   return { id: card.id, front, back, fillIn: isFillIn(rawFront) };
 }
 
-function writtenQuestion(card: EnrichedCard): TestQuestion {
+function writtenQuestion(
+  cardId: string,
+  prompt: string,
+  expected: string
+): TestQuestion {
   return {
     type: "written",
-    cardId: card.id,
-    prompt: card.front,
-    expected: card.back,
+    cardId,
+    prompt,
+    expected,
     options: [],
     correctIndex: -1,
     tfShownBack: "",
@@ -81,6 +85,9 @@ function writtenQuestion(card: EnrichedCard): TestQuestion {
 export interface BuildTestOptions {
   count: number;
   types: TestQuestionType[];
+  // When true, non-fill-in cards are asked back → front (options come from the
+  // fronts). Fill-in cards stay "fill the gap" either way.
+  reverse?: boolean;
   randomFn?: () => number;
 }
 
@@ -89,6 +96,7 @@ export function buildTestQuestions(
   options: BuildTestOptions
 ): TestQuestion[] {
   const randomFn = options.randomFn ?? Math.random;
+  const reverse = options.reverse ?? false;
   const enabled: TestQuestionType[] =
     options.types.length > 0 ? options.types : ["written"];
   const writtenEnabled = enabled.includes("written");
@@ -107,18 +115,20 @@ export function buildTestQuestions(
   }
   if (enriched.length === 0) return [];
 
-  // Options for MC / True-False come only from non-fill-in cards, whose backs
-  // are the real translations/definitions — so a fill-in word never appears as
-  // an option for another question.
-  const choiceBacks = unique(
-    enriched.filter((e) => !e.fillIn).map((e) => e.back)
-  );
-  const canChoose = choiceBacks.length >= 2 && choiceTypes.length > 0;
+  // The answer side (and therefore the option pool) follows the direction:
+  // forward → back, reverse → front. Options only ever come from the same side
+  // as the correct answer, and never from fill-in cards.
+  const answerOf = (e: EnrichedCard) => (reverse ? e.front : e.back);
+  const questionOf = (e: EnrichedCard) => (reverse ? e.back : e.front);
 
-  // Spread distractors so the same wrong answer doesn't keep coming up.
+  const choiceAnswers = unique(
+    enriched.filter((e) => !e.fillIn).map(answerOf)
+  );
+  const canChoose = choiceAnswers.length >= 2 && choiceTypes.length > 0;
+
   const usage = new Map<string, number>();
   const pickDistractors = (correct: string, n: number): string[] => {
-    const pool = choiceBacks.filter(
+    const pool = choiceAnswers.filter(
       (b) => b.toLowerCase() !== correct.toLowerCase()
     );
     const ordered = shuffle(pool, randomFn).sort(
@@ -139,53 +149,62 @@ export function buildTestQuestions(
   for (let i = 0; i < limit; i++) {
     const current = shuffled[i]!;
 
-    const possible: TestQuestionType[] = [];
+    // Fill-in cards are always "fill the gap" (front sentence → missing word).
     if (current.fillIn) {
-      if (writtenEnabled) possible.push("written");
-    } else {
-      if (writtenEnabled) possible.push("written");
-      if (canChoose) possible.push(...choiceTypes);
+      if (writtenEnabled) {
+        questions.push(writtenQuestion(current.id, current.front, current.back));
+      }
+      continue;
     }
+
+    const qText = questionOf(current);
+    const aText = answerOf(current);
+
+    const possible: TestQuestionType[] = [];
+    if (writtenEnabled) possible.push("written");
+    if (canChoose) possible.push(...choiceTypes);
     if (possible.length === 0) continue;
 
     const type = possible[Math.floor(randomFn() * possible.length)]!;
 
     if (type === "mc") {
-      const distractors = pickDistractors(current.back, 3);
+      const distractors = pickDistractors(aText, 3);
       if (distractors.length === 0) {
-        if (writtenEnabled) questions.push(writtenQuestion(current));
+        if (writtenEnabled) {
+          questions.push(writtenQuestion(current.id, qText, aText));
+        }
         continue;
       }
-      const opts = shuffle([current.back, ...distractors], randomFn);
+      const opts = shuffle([aText, ...distractors], randomFn);
       questions.push({
         type: "mc",
         cardId: current.id,
-        prompt: current.front,
-        expected: current.back,
+        prompt: qText,
+        expected: aText,
         options: opts,
-        correctIndex: opts.indexOf(current.back),
+        correctIndex: opts.indexOf(aText),
         tfShownBack: "",
         tfIsCorrect: false,
       });
     } else if (type === "trueFalse") {
       const showWrong = randomFn() < 0.5;
-      let shownBack = current.back;
+      let shown = aText;
       if (showWrong) {
-        const wrong = pickDistractors(current.back, 1);
-        if (wrong.length > 0) shownBack = wrong[0]!;
+        const wrong = pickDistractors(aText, 1);
+        if (wrong.length > 0) shown = wrong[0]!;
       }
       questions.push({
         type: "trueFalse",
         cardId: current.id,
-        prompt: current.front,
-        expected: current.back,
+        prompt: qText,
+        expected: aText,
         options: [],
         correctIndex: -1,
-        tfShownBack: shownBack,
-        tfIsCorrect: shownBack.toLowerCase() === current.back.toLowerCase(),
+        tfShownBack: shown,
+        tfIsCorrect: shown.toLowerCase() === aText.toLowerCase(),
       });
     } else {
-      questions.push(writtenQuestion(current));
+      questions.push(writtenQuestion(current.id, qText, aText));
     }
   }
 
