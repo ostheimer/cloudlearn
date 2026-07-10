@@ -16,6 +16,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   CheckCircle2,
   XCircle,
+  ArrowLeft,
   ArrowRight,
   RotateCcw,
   Trophy,
@@ -523,15 +524,34 @@ export default function TestScreen() {
               </View>
             )}
 
-            {/* Next / submit */}
-            <TouchableOpacity
-              onPress={() => (isLast ? submit() : setIdx((i) => i + 1))}
-              activeOpacity={0.85}
-              style={{ backgroundColor: colors.primary, paddingVertical: 15, borderRadius: radius.md, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, ...shadows.sm }}
-            >
-              <Text style={{ color: colors.textInverse, fontWeight: typography.bold, fontSize: typography.base }}>{isLast ? "Abgeben" : "Weiter"}</Text>
-              {!isLast && <ArrowRight size={18} color={colors.textInverse} />}
-            </TouchableOpacity>
+            {/* Back to the previous question (answers stay editable until
+                Abgeben — like flipping pages in a real exam) + next/submit */}
+            <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+              <TouchableOpacity
+                onPress={() => setIdx((i) => Math.max(0, i - 1))}
+                disabled={idx === 0}
+                activeOpacity={0.7}
+                style={{
+                  width: 50,
+                  height: 50,
+                  borderRadius: radius.full ?? 999,
+                  backgroundColor: colors.surfaceSecondary,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  opacity: idx === 0 ? 0.3 : 1,
+                }}
+              >
+                <ArrowLeft size={22} color={colors.textSecondary} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => (isLast ? submit() : setIdx((i) => i + 1))}
+                activeOpacity={0.85}
+                style={{ flex: 1, backgroundColor: colors.primary, paddingVertical: 15, borderRadius: radius.md, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, ...shadows.sm }}
+              >
+                <Text style={{ color: colors.textInverse, fontWeight: typography.bold, fontSize: typography.base }}>{isLast ? "Abgeben" : "Weiter"}</Text>
+                {!isLast && <ArrowRight size={18} color={colors.textInverse} />}
+              </TouchableOpacity>
+            </View>
           </ScrollView>
         </SafeAreaView>
       </KeyboardAvoidingView>

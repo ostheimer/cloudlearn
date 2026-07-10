@@ -15,6 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import {
   CheckCircle2,
   XCircle,
+  ArrowLeft,
   ArrowRight,
   RotateCcw,
   Trophy,
@@ -88,19 +89,17 @@ export default function ClozeScreen() {
   const [round, setRound] = useState<Card[]>([]);
   const [idx, setIdx] = useState(0);
   const [input, setInput] = useState("");
-  const [revealed, setRevealed] = useState(false);
-  const [wasCorrect, setWasCorrect] = useState(false);
-  const [wrong, setWrong] = useState<Card[]>([]);
-  const [correctCount, setCorrectCount] = useState(0);
+  // One result slot per card in the round (null = not answered yet), so the
+  // back button can show an earlier card in its answered state.
+  const [results, setResults] = useState<
+    ({ input: string; correct: boolean; overridden: boolean } | null)[]
+  >([]);
 
   const startRound = (cardsForRound: Card[]) => {
     setRound(cardsForRound);
+    setResults(new Array(cardsForRound.length).fill(null));
     setIdx(0);
     setInput("");
-    setRevealed(false);
-    setWasCorrect(false);
-    setWrong([]);
-    setCorrectCount(0);
     setPhase("play");
   };
 
@@ -122,32 +121,38 @@ export default function ClozeScreen() {
   const current = round[idx];
   const parsed = current ? buildPrompt(current, reverse) : null;
 
+  // Derived view state of the card on screen.
+  const currentResult = results[idx] ?? null;
+  const revealed = currentResult !== null;
+  const wasCorrect = currentResult
+    ? currentResult.correct || currentResult.overridden
+    : false;
+  const displayedInput = currentResult ? currentResult.input : input;
+
+  const setResultAt = (
+    i: number,
+    value: { input: string; correct: boolean; overridden: boolean } | null
+  ) => {
+    setResults((prev) => prev.map((r, j) => (j === i ? value : r)));
+  };
+
   const handleCheck = () => {
     if (revealed || !current || !parsed) return;
     const correct = isAnswerCorrect(input, parsed.answer, { strict });
-    setWasCorrect(correct);
-    setRevealed(true);
-    if (correct) {
-      setCorrectCount((c) => c + 1);
-    } else {
-      setWrong((w) => [...w, current]);
-    }
+    setResultAt(idx, { input, correct, overridden: false });
   };
 
   // "Weiß ich nicht": reveal the answer, count it wrong (goes to the retry pile).
   const handleDontKnow = () => {
     if (revealed || !current) return;
-    setWasCorrect(false);
-    setRevealed(true);
-    setWrong((w) => [...w, current]);
+    setResultAt(idx, { input, correct: false, overridden: false });
   };
 
-  // Self-graded override: the learner decides a wrong-marked answer counts.
+  // Self-graded override: the learner decides a wrong-marked answer counts —
+  // also retroactively when navigating back to an earlier card.
   const handleOverride = () => {
-    if (!current || wasCorrect) return;
-    setWasCorrect(true);
-    setCorrectCount((c) => c + 1);
-    setWrong((w) => w.filter((c) => c.id !== current.id));
+    if (!currentResult || wasCorrect) return;
+    setResultAt(idx, { ...currentResult, overridden: true });
   };
 
   const handleNext = () => {
@@ -157,9 +162,22 @@ export default function ClozeScreen() {
     }
     setIdx((i) => i + 1);
     setInput("");
-    setRevealed(false);
-    setWasCorrect(false);
   };
+
+  const handleBack = () => {
+    if (idx === 0) return;
+    setIdx((i) => i - 1);
+    setInput("");
+  };
+
+  // Round outcome, derived from the per-card results.
+  const correctCount = results.filter(
+    (r) => r && (r.correct || r.overridden)
+  ).length;
+  const wrong = round.filter((card, i) => {
+    const r = results[i];
+    return r != null && !(r.correct || r.overridden);
+  });
 
   const screenHeader = (title: string) => (
     <Stack.Screen
@@ -646,7 +664,7 @@ export default function ClozeScreen() {
             {/* Answer input */}
             <TextInput
               key={idx}
-              value={input}
+              value={displayedInput}
               onChangeText={setInput}
               editable={!revealed}
               autoFocus
@@ -746,85 +764,105 @@ export default function ClozeScreen() {
               </View>
             )}
 
-            {/* Action */}
-            {!revealed ? (
-              <View style={{ flexDirection: "row", gap: spacing.sm }}>
+            {/* Action row: back to the previous card + check/next. Earlier
+                cards show their stored answer; the override stays available. */}
+            <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+              <TouchableOpacity
+                onPress={handleBack}
+                disabled={idx === 0}
+                activeOpacity={0.7}
+                style={{
+                  width: 50,
+                  height: 50,
+                  borderRadius: radius.full ?? 999,
+                  backgroundColor: colors.surfaceSecondary,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  opacity: idx === 0 ? 0.3 : 1,
+                }}
+              >
+                <ArrowLeft size={22} color={colors.textSecondary} />
+              </TouchableOpacity>
+              {!revealed ? (
+                <>
+                  <TouchableOpacity
+                    onPress={handleCheck}
+                    disabled={input.trim().length === 0}
+                    activeOpacity={0.85}
+                    style={{
+                      flex: 1,
+                      backgroundColor:
+                        input.trim().length === 0 ? colors.surfaceSecondary : colors.primary,
+                      paddingVertical: 15,
+                      borderRadius: radius.md,
+                      alignItems: "center",
+                      ...shadows.sm,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color:
+                          input.trim().length === 0 ? colors.textTertiary : colors.textInverse,
+                        fontWeight: typography.bold,
+                        fontSize: typography.base,
+                      }}
+                    >
+                      Prüfen
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={handleDontKnow}
+                    activeOpacity={0.85}
+                    style={{
+                      flex: 1,
+                      backgroundColor: colors.surface,
+                      paddingVertical: 15,
+                      borderRadius: radius.md,
+                      alignItems: "center",
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: colors.textSecondary,
+                        fontWeight: typography.bold,
+                        fontSize: typography.base,
+                      }}
+                    >
+                      Weiß ich nicht
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
                 <TouchableOpacity
-                  onPress={handleCheck}
-                  disabled={input.trim().length === 0}
+                  onPress={handleNext}
                   activeOpacity={0.85}
                   style={{
                     flex: 1,
-                    backgroundColor:
-                      input.trim().length === 0 ? colors.surfaceSecondary : colors.primary,
+                    backgroundColor: colors.primary,
                     paddingVertical: 15,
                     borderRadius: radius.md,
+                    flexDirection: "row",
                     alignItems: "center",
+                    justifyContent: "center",
+                    gap: spacing.sm,
                     ...shadows.sm,
                   }}
                 >
                   <Text
                     style={{
-                      color:
-                        input.trim().length === 0 ? colors.textTertiary : colors.textInverse,
+                      color: colors.textInverse,
                       fontWeight: typography.bold,
                       fontSize: typography.base,
                     }}
                   >
-                    Prüfen
+                    {idx + 1 >= round.length ? "Zur Auswertung" : "Weiter"}
                   </Text>
+                  <ArrowRight size={18} color={colors.textInverse} />
                 </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={handleDontKnow}
-                  activeOpacity={0.85}
-                  style={{
-                    flex: 1,
-                    backgroundColor: colors.surface,
-                    paddingVertical: 15,
-                    borderRadius: radius.md,
-                    alignItems: "center",
-                    borderWidth: 1,
-                    borderColor: colors.border,
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: colors.textSecondary,
-                      fontWeight: typography.bold,
-                      fontSize: typography.base,
-                    }}
-                  >
-                    Weiß ich nicht
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <TouchableOpacity
-                onPress={handleNext}
-                activeOpacity={0.85}
-                style={{
-                  backgroundColor: colors.primary,
-                  paddingVertical: 15,
-                  borderRadius: radius.md,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: spacing.sm,
-                  ...shadows.sm,
-                }}
-              >
-                <Text
-                  style={{
-                    color: colors.textInverse,
-                    fontWeight: typography.bold,
-                    fontSize: typography.base,
-                  }}
-                >
-                  {idx + 1 >= round.length ? "Zur Auswertung" : "Weiter"}
-                </Text>
-                <ArrowRight size={18} color={colors.textInverse} />
-              </TouchableOpacity>
-            )}
+              )}
+            </View>
           </ScrollView>
         </SafeAreaView>
       </KeyboardAvoidingView>
