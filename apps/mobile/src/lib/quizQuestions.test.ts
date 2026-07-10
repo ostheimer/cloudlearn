@@ -90,6 +90,55 @@ describe("quizQuestions", () => {
     }
   });
 
+  it("respects the enabled question kinds", () => {
+    const cards = [
+      { id: "1", front: "le soleil", back: "die Sonne" },
+      { id: "2", front: "la lune", back: "der Mond" },
+      { id: "3", front: "l'arbre", back: "der Baum" },
+    ];
+    const tfOnly = generateQuestions(cards, 10, undefined, () => 0.9, {
+      allowMc: false,
+      allowTrueFalse: true,
+    });
+    expect(tfOnly.length).toBeGreaterThan(0);
+    expect(tfOnly.every((q) => q.type === "trueFalse")).toBe(true);
+
+    const mcOnly = generateQuestions(cards, 10, undefined, () => 0.1, {
+      allowMc: true,
+      allowTrueFalse: false,
+    });
+    expect(mcOnly.length).toBeGreaterThan(0);
+    expect(mcOnly.every((q) => q.type !== "trueFalse")).toBe(true);
+
+    expect(
+      generateQuestions(cards, 10, undefined, () => 0.5, {
+        allowMc: false,
+        allowTrueFalse: false,
+      })
+    ).toEqual([]);
+  });
+
+  it("reverses direction: question is the back, options come from the fronts", () => {
+    const cards = [
+      { id: "1", front: "le soleil", back: "die Sonne" },
+      { id: "2", front: "la lune", back: "der Mond" },
+      { id: "3", front: "l'arbre", back: "der Baum" },
+    ];
+    const fronts = cards.map((c) => c.front);
+    const questions = generateQuestions(cards, 10, undefined, () => 0.9, {
+      reverse: true,
+      allowMc: true,
+      allowTrueFalse: false,
+    });
+    expect(questions.length).toBeGreaterThan(0);
+    for (const q of questions) {
+      const card = cards.find((c) => c.id === q.cardId)!;
+      expect(q.questionText).toBe(card.back);
+      expect(q.correctAnswer).toBe(card.front);
+      for (const opt of q.options) expect(fronts).toContain(opt);
+    }
+  });
+
   it("drops duplicate cards before generating questions", () => {
     const cards = [
       { id: "a1", front: "le soleil", back: "die Sonne" },

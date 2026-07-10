@@ -62,13 +62,26 @@ function isFillIn(text: string): boolean {
   return /_{2,}/.test(text) || /\{\{c\d+::/.test(text);
 }
 
+export interface GenerateOptions {
+  // Ask back → front for normal cards (fill-in cards keep their gap sentence).
+  reverse?: boolean;
+  // Question kinds the learner enabled — at least one should be true.
+  allowMc?: boolean;
+  allowTrueFalse?: boolean;
+}
+
 export function generateQuestions(
   cards: QuizCardInput[],
   count = 10,
   copy: QuizCopy = defaultQuizCopyDe,
-  randomFn: () => number = Math.random
+  randomFn: () => number = Math.random,
+  opts: GenerateOptions = {}
 ): QuizQuestion[] {
   if (cards.length < 2) return [];
+  const reverse = opts.reverse ?? false;
+  const allowMc = opts.allowMc ?? true;
+  const allowTrueFalse = opts.allowTrueFalse ?? true;
+  if (!allowMc && !allowTrueFalse) return [];
 
   const seenPairs = new Set<string>();
   const enriched = cards.flatMap((card) => {
@@ -80,6 +93,12 @@ export function generateQuestions(
     if (seenPairs.has(key)) return [];
     seenPairs.add(key);
     const label = media.preferredLabel || normalizedBack || normalizedFront;
+    const fillIn = isFillIn(normalizedFront);
+    // Question/answer side follows the direction; fill-in cards always show
+    // their gap sentence and expect the missing word.
+    const questionSide =
+      fillIn || !reverse ? normalizedFront : normalizedBack;
+    const answerSide = fillIn || !reverse ? normalizedBack : normalizedFront;
     return [
       {
         card,
@@ -87,7 +106,9 @@ export function generateQuestions(
         normalizedFront,
         normalizedBack,
         label,
-        fillIn: isFillIn(normalizedFront),
+        fillIn,
+        questionSide,
+        answerSide,
       },
     ];
   });
@@ -99,7 +120,8 @@ export function generateQuestions(
   for (let i = 0; i < limit; i++) {
     const current = shuffledCards[i]!;
     const hasImage = Boolean(current.media.primaryImage);
-    const shouldUseImageQuestion = hasImage && cards.length >= 4 && randomFn() < 0.35;
+    const shouldUseImageQuestion =
+      allowMc && hasImage && cards.length >= 4 && randomFn() < 0.35;
 
     if (shouldUseImageQuestion) {
       const correctLabel = current.label;
@@ -134,26 +156,29 @@ export function generateQuestions(
       }
     }
 
-    const isTF = randomFn() < 0.3 && cards.length >= 3;
+    const isTF =
+      allowTrueFalse && (!allowMc || (randomFn() < 0.3 && cards.length >= 3));
     if (isTF) {
       const isCorrect = randomFn() < 0.5;
-      const wrongBackPool = unique(
+      const ownAnswer = (current.answerSide || current.label).toLowerCase();
+      const wrongAnswerPool = unique(
         enriched
           .filter(
             (entry) =>
               entry.card.id !== current.card.id &&
               entry.fillIn === current.fillIn
           )
-          .map((entry) => entry.normalizedBack || entry.label)
-      );
-      const wrongBack = wrongBackPool[Math.floor(randomFn() * wrongBackPool.length)];
+          .map((entry) => entry.answerSide || entry.label)
+      ).filter((a) => a.toLowerCase() !== ownAnswer);
+      const wrongAnswer =
+        wrongAnswerPool[Math.floor(randomFn() * wrongAnswerPool.length)];
       // Without a same-kind wrong candidate the shown pairing is inevitably the
       // correct one — grade it as such instead of demanding "Falsch".
-      const effectiveIsCorrect = isCorrect || !wrongBack;
-      const displayBack =
-        !effectiveIsCorrect && wrongBack
-          ? wrongBack
-          : current.normalizedBack || current.label;
+      const effectiveIsCorrect = isCorrect || !wrongAnswer;
+      const displayAnswer =
+        !effectiveIsCorrect && wrongAnswer
+          ? wrongAnswer
+          : current.answerSide || current.label;
       const trueFalseQuestion: QuizQuestion = {
         type: "trueFalse",
         cardId: current.card.id,
@@ -162,8 +187,8 @@ export function generateQuestions(
         options: [copy.trueLabel, copy.falseLabel],
         correctIndex: effectiveIsCorrect ? 0 : 1,
         tfPairing: {
-          front: current.normalizedFront || current.label,
-          back: displayBack,
+          front: current.questionSide || current.label,
+          back: displayAnswer,
           isCorrect: effectiveIsCorrect,
         },
       };
@@ -177,7 +202,9 @@ export function generateQuestions(
       continue;
     }
 
-    const wrongBacks = unique(
+    // Only reachable when MC is enabled (isTF is forced when MC is off).
+    const ownAnswer = (current.answerSide || current.label).toLowerCase();
+    const wrongAnswers = unique(
       shuffle(
         enriched
           .filter(
@@ -185,21 +212,23 @@ export function generateQuestions(
               entry.card.id !== current.card.id &&
               entry.fillIn === current.fillIn
           )
-          .map((entry) => entry.normalizedBack || entry.label),
+          .map((entry) => entry.answerSide || entry.label),
         randomFn
       )
-    ).slice(0, 3);
+    )
+      .filter((a) => a.toLowerCase() !== ownAnswer)
+      .slice(0, 3);
 
     // Without at least one same-kind distractor a choice question is
     // meaningless — skip the card rather than mixing sides/languages.
-    if (wrongBacks.length === 0) continue;
+    if (wrongAnswers.length === 0) continue;
 
-    const correctAnswer = current.normalizedBack || current.label;
-    const options = shuffle([correctAnswer, ...wrongBacks], randomFn);
+    const correctAnswer = current.answerSide || current.label;
+    const options = shuffle([correctAnswer, ...wrongAnswers], randomFn);
     const multipleChoiceQuestion: QuizQuestion = {
       type: "mc",
       cardId: current.card.id,
-      questionText: current.normalizedFront || copy.imagePrompt,
+      questionText: current.questionSide || copy.imagePrompt,
       correctAnswer,
       options,
       correctIndex: options.indexOf(correctAnswer),
