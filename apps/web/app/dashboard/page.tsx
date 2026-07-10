@@ -288,7 +288,7 @@ function DeckCard({
         </button>
         {menuOpen && (
           <div className="menu" role="menu" onClick={(e) => e.stopPropagation()}>
-            <Link href={`/dashboard/deck/${deck.id}/learn`} role="menuitem">
+            <Link href={`/dashboard/deck/${deck.id}`} role="menuitem">
               <Play size={15} /> Lernen
             </Link>
             <button type="button" onClick={onRename}>

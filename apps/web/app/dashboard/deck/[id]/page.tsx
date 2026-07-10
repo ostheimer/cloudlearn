@@ -17,14 +17,37 @@ import {
 } from "@/lib/api";
 import {
   ArrowLeft,
-  Play,
+  ChevronRight,
   Pencil,
   Trash,
   Star,
   StarFilled,
   Layers,
+  ListChecks,
+  Match,
+  FileText,
+  ImageIcon,
   AlertTriangle,
 } from "@/components/icons";
+
+// Lern-Modi wie im App-Deck-Screen. „active" gibt es im Web schon; der Rest
+// ist (noch) nur in der App und wird ausgegraut gezeigt.
+type Mode = {
+  key: string;
+  title: string;
+  sub: string;
+  Icon: typeof Layers;
+  color: string;
+  path?: string; // Unterpfad relativ zum Deck, wenn im Web verfügbar
+};
+const MODES: Mode[] = [
+  { key: "flip", title: "Karteikarten", sub: "Klassisch umdrehen & bewerten", Icon: Layers, color: "#6366f1", path: "learn" },
+  { key: "mcq", title: "Multiple Choice", sub: "Antwort aus Optionen wählen", Icon: ListChecks, color: "#8b5cf6", path: "quiz" },
+  { key: "match", title: "Zuordnen", sub: "Begriffe & Definitionen paaren", Icon: Match, color: "#3b82f6" },
+  { key: "cloze", title: "Lückentext", sub: "Fehlendes aktiv ergänzen", Icon: Pencil, color: "#d97706" },
+  { key: "test", title: "Test", sub: "Klausur mit Prozent-Ergebnis", Icon: FileText, color: "#dc2626" },
+  { key: "occ", title: "Occlusion", sub: "Bildteile verdecken & abfragen", Icon: ImageIcon, color: "#059669" },
+];
 
 type CardModal =
   | { type: "add" }
@@ -96,7 +119,7 @@ export default function DeckDetailPage() {
   }
 
   return (
-    <>
+    <div className="deck-detail">
       <Link href="/dashboard" className="crumb">
         <ArrowLeft size={16} /> Bibliothek
       </Link>
@@ -110,20 +133,13 @@ export default function DeckDetailPage() {
             {cards.length} {cards.length === 1 ? "Karte" : "Karten"}
           </p>
         </div>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          {cards.length > 0 && (
-            <Link href={`/dashboard/deck/${deckId}/learn`} className="btn btn-ghost">
-              <Play size={16} /> Lernen
-            </Link>
-          )}
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => setModal({ type: "add" })}
-          >
-            + Karte
-          </button>
-        </div>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() => setModal({ type: "add" })}
+        >
+          + Karte
+        </button>
       </div>
 
       {error && (
@@ -131,6 +147,51 @@ export default function DeckDetailPage() {
           <AlertTriangle size={16} />
           <span>{error}</span>
         </div>
+      )}
+
+      {cards.length > 0 && (
+        <>
+          <h2 className="h3" style={{ marginBottom: 10 }}>
+            Wie möchtest du lernen?
+          </h2>
+          <div className="mode-list">
+            {MODES.map((m) => {
+              const inner = (
+                <>
+                  <span
+                    className="mode-card__ic"
+                    style={{ background: `${m.color}22`, color: m.color }}
+                    aria-hidden
+                  >
+                    <m.Icon size={20} />
+                  </span>
+                  <span className="mode-card__body">
+                    <span className="mode-card__title">{m.title}</span>
+                    <span className="mode-card__sub">{m.sub}</span>
+                  </span>
+                  {m.path ? (
+                    <ChevronRight size={20} className="mode-card__chevron" />
+                  ) : (
+                    <span className="mode-card__badge">in der App</span>
+                  )}
+                </>
+              );
+              return m.path ? (
+                <Link
+                  key={m.key}
+                  href={`/dashboard/deck/${deckId}/${m.path}`}
+                  className="mode-card"
+                >
+                  {inner}
+                </Link>
+              ) : (
+                <div key={m.key} className="mode-card mode-card--soon" aria-disabled="true">
+                  {inner}
+                </div>
+              );
+            })}
+          </div>
+        </>
       )}
 
       {cards.length === 0 ? (
@@ -149,8 +210,12 @@ export default function DeckDetailPage() {
           </button>
         </div>
       ) : (
-        <div className="card-list">
-          {cards.map((card, i) => (
+        <>
+          <h2 className="h3" style={{ margin: "0 0 10px" }}>
+            Karten
+          </h2>
+          <div className="card-list">
+            {cards.map((card, i) => (
             <div key={card.id} className="card-row">
               <span className="card-row__num">{i + 1}</span>
               <div className="card-row__faces">
@@ -186,7 +251,8 @@ export default function DeckDetailPage() {
               </div>
             </div>
           ))}
-        </div>
+          </div>
+        </>
       )}
 
       {(modal?.type === "add" || modal?.type === "edit") && (
@@ -234,7 +300,7 @@ export default function DeckDetailPage() {
           </div>
         </Modal>
       )}
-    </>
+    </div>
   );
 }
 
