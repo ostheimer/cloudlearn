@@ -8,12 +8,6 @@ import {
   resetPdfJobs,
 } from "@/services/pdfImportService";
 import {
-  canProcessMathpix,
-  consumeMathpixCost,
-  getMathpixSpend,
-  resetMathpixCosts,
-} from "@/services/mathpixService";
-import {
   listCommunityDecks,
   publishCommunityDeck,
   resetCommunityDeckStore,
@@ -24,7 +18,6 @@ const userId = "6e5db9e4-7e48-4e11-8d8c-6ca90c18d42a";
 describe("growth services — unit tests (in-memory, no DB)", () => {
   beforeEach(() => {
     resetPdfJobs();
-    resetMathpixCosts();
     resetCommunityDeckStore();
     resetB2bStore();
   });
@@ -34,14 +27,6 @@ describe("growth services — unit tests (in-memory, no DB)", () => {
     expect(markPdfJobProcessing(job.jobId)?.status).toBe("processing");
     expect(failPdfJob(job.jobId)?.status).toBe("queued");
     expect(completePdfJob(job.jobId)?.status).toBe("completed");
-  });
-
-  it("tracks Mathpix spend and budget", () => {
-    for (let i = 0; i < 3; i += 1) {
-      consumeMathpixCost(userId);
-    }
-    expect(getMathpixSpend(userId)).toBeCloseTo(0.006, 5);
-    expect(canProcessMathpix(userId, 0.001)).toBe(false);
   });
 
   it("flags abusive community decks", () => {

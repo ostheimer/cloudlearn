@@ -13,18 +13,18 @@ export async function POST(request: NextRequest) {
   const { requestId } = createRequestContext(request.headers);
   try {
     const parsed = requestSchema.parse(await request.json());
-    if (!canProcessMathpix(parsed.userId)) {
+    if (!(await canProcessMathpix(parsed.userId))) {
       return jsonError(requestId, "MATHPIX_BUDGET_EXCEEDED", "Mathpix budget exceeded", 402);
     }
 
-    const spentUsd = consumeMathpixCost(parsed.userId);
+    const spentUsd = await consumeMathpixCost(parsed.userId);
     return jsonOk(
       requestId,
       {
         requestId,
         latex: "\\\\text{mock-formula}",
         spentUsd,
-        totalSpendUsd: getMathpixSpend(parsed.userId)
+        totalSpendUsd: await getMathpixSpend(parsed.userId)
       },
       201
     );

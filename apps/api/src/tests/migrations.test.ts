@@ -120,6 +120,22 @@ describe("supabase migrations", () => {
     expect(sql).toContain("grant execute on function check_rate_limit(text, int, int) to service_role");
   });
 
+  it("persists the per-user Mathpix budget with an atomic consume function", () => {
+    const migrationPath = join(
+      apiRoot,
+      "supabase/migrations/20260710140000_persistent_mathpix_budget.sql",
+    );
+    const sql = readFileSync(migrationPath, "utf-8");
+
+    // Persistent, cross-instance store (survives serverless cold starts)
+    expect(sql).toContain("create table if not exists mathpix_usage");
+
+    // Add-and-return in a single statement → race-safe consume, no read-modify-write
+    expect(sql).toContain("create or replace function consume_mathpix_cost");
+    expect(sql).toContain("on conflict (user_id) do update set");
+    expect(sql).toContain("grant execute on function consume_mathpix_cost(uuid, numeric) to service_role");
+  });
+
   it("keeps profile deletion backed by cascading user-data references", () => {
     const migrationDir = join(apiRoot, "supabase/migrations");
     const migrationFiles = [
