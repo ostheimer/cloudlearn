@@ -1748,6 +1748,240 @@ a.mode-card:hover {
   }
 }
 
+/* ---------- Lückentext-Modus ---------- */
+.cl-intro {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  text-align: center;
+  margin: 4px 0 6px;
+}
+.cl-intro__ic {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  background: var(--amber-50);
+  color: var(--amber);
+  display: grid;
+  place-items: center;
+  margin-bottom: 4px;
+}
+.cl-intro h1 {
+  margin: 0;
+}
+.cl-intro p {
+  margin: 0;
+}
+.cl-optcard {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+}
+.cl-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.cl-row__t {
+  font-weight: 700;
+}
+.cl-row__s {
+  font-size: 0.82rem;
+  color: var(--ink-3);
+  margin-top: 2px;
+}
+.cl-switch {
+  width: 46px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--bg-softer);
+  border: none;
+  position: relative;
+  cursor: pointer;
+  flex: none;
+  transition: background 0.15s ease;
+}
+.cl-switch.on {
+  background: var(--brand);
+}
+.cl-switch i {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.3);
+  transition: left 0.15s ease;
+}
+.cl-switch.on i {
+  left: 21px;
+}
+.cl-dir {
+  width: 100%;
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+}
+.cl-dir__lbl {
+  font-size: 0.82rem;
+  color: var(--ink-3);
+  margin-bottom: 10px;
+}
+.cl-dir__row {
+  display: flex;
+  align-items: center;
+}
+.cl-dir__row > b {
+  flex: 1;
+  font-weight: 700;
+}
+.cl-dir__row > b:first-child {
+  text-align: right;
+}
+.cl-dir__arrow {
+  width: 44px;
+  display: grid;
+  place-items: center;
+  color: var(--brand);
+}
+.cl-dir__hint {
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--ink-3);
+  margin-top: 10px;
+}
+.cl-prompt {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-sm);
+  padding: 22px;
+}
+.cl-eyebrow {
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: 8px;
+}
+.cl-q {
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--ink);
+}
+.cl-input {
+  width: 100%;
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 14px 16px;
+  font: inherit;
+  font-size: 1.1rem;
+  background: var(--surface);
+  color: var(--ink);
+}
+.cl-input:focus {
+  outline: none;
+  border-color: var(--brand);
+}
+.cl-input.ok {
+  border-color: var(--green);
+}
+.cl-input.no {
+  border-color: #ef4444;
+}
+.cl-fb {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  border-radius: var(--r-sm);
+  padding: 14px;
+}
+.cl-fb.ok {
+  background: rgba(16, 185, 129, 0.12);
+}
+.cl-fb.no {
+  background: rgba(239, 68, 68, 0.12);
+}
+.cl-fb__ic {
+  flex: none;
+}
+.cl-fb.ok .cl-fb__ic {
+  color: var(--green);
+}
+.cl-fb.no .cl-fb__ic {
+  color: #ef4444;
+}
+.cl-fb b {
+  display: block;
+}
+.cl-fb.ok b {
+  color: #047857;
+}
+.cl-fb.no b {
+  color: #b91c1c;
+}
+.cl-fb__sol {
+  color: var(--ink);
+  margin-top: 2px;
+  font-size: 0.95rem;
+}
+.cl-override {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--green);
+  background: var(--surface);
+  color: var(--green);
+  font-weight: 700;
+  cursor: pointer;
+}
+.cl-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cl-actions .btn {
+  flex: 1;
+}
+.cl-back {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: var(--bg-softer);
+  color: var(--ink-3);
+  border: none;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex: none;
+}
+.cl-back:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+@media (prefers-color-scheme: dark) {
+  .cl-fb.ok b {
+    color: #6ee7b7;
+  }
+  .cl-fb.no b {
+    color: #fca5a5;
+  }
+}
+
 /* ---------- Menus & modals ---------- */
 .pop {
   position: relative;
