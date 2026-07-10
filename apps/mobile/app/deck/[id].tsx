@@ -662,7 +662,11 @@ export default function DeckDetailScreen() {
           title: deckTitle,
           headerBackTitle: "Decks",
           headerTintColor: colors.primary,
-          headerStyle: { backgroundColor: colors.background },
+          // Solid bar instead of the iOS glass default: content scrolls cleanly
+          // underneath, bounded by the native hairline (#192).
+          headerStyle: { backgroundColor: colors.surface },
+          headerTransparent: false,
+          headerShadowVisible: true,
           ...(router.canGoBack()
             ? {}
             : {
