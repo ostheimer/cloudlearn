@@ -9,8 +9,7 @@
     "start": "next start",
     "lint": "tsc -p tsconfig.json --noEmit",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run",
-    "supabase:cron-setup": "bash scripts/setup-reset-ai-usage-cron.sh"
+    "test": "vitest run"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",

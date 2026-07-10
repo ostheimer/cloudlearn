@@ -160,7 +160,7 @@ export async function earnLp(
   return mapEarnRow(data);
 }
 
-// ─── Monthly Grant (called by cron / reset-ai-usage function) ────────────────
+// ─── Monthly Grant (no automatic caller yet — invoked manually/by future billing flow) ───
 
 export async function grantMonthlyLp(userId: string, tier: SubscriptionTier): Promise<number> {
   const grant = getLimitsForTier(tier).lpGrantPerMonth;

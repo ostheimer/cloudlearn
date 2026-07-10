@@ -43,7 +43,6 @@ vi.mock("@/lib/env", () => ({
   getEnv: () => ({
     RATE_LIMIT_FREE_PER_MINUTE: 20,
     RATE_LIMIT_PRO_PER_MINUTE: 60,
-    FREE_SCAN_LIMIT_PER_MONTH: 30,
   }),
 }));
 vi.mock("@/services/subscriptionService", () => ({ getSubscriptionStatus: vi.fn() }));

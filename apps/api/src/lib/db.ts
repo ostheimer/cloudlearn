@@ -1020,29 +1020,6 @@ export async function duplicateDeck(
   return mapDeckRow(deckData);
 }
 
-export interface AiUsageRecord {
-  aiScansUsed: number;
-  aiUrlImportsUsed: number;
-  usagePeriodStart: string;
-}
-
-export async function getAiUsage(userId: string): Promise<AiUsageRecord> {
-  const db = getDb();
-  const { data, error } = await db
-    .from("profiles")
-    .select("ai_scans_used, ai_url_imports_used, usage_period_start")
-    .eq("id", userId)
-    .maybeSingle();
-  if (error || !data) {
-    return { aiScansUsed: 0, aiUrlImportsUsed: 0, usagePeriodStart: new Date().toISOString().split("T")[0] ?? "" };
-  }
-  return {
-    aiScansUsed: data.ai_scans_used ?? 0,
-    aiUrlImportsUsed: data.ai_url_imports_used ?? 0,
-    usagePeriodStart: data.usage_period_start ?? new Date().toISOString().split("T")[0] ?? "",
-  };
-}
-
 // ─── Deck / Card Limit Checks ────────────────────────────────────────────────
 
 export async function countUserDecks(userId: string): Promise<number> {
