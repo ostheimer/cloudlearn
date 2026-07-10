@@ -68,4 +68,32 @@ describe("buildTestQuestions", () => {
     expect(prompts).toContain("le record");
     expect(prompts).toContain("la moitié");
   });
+
+  it("keeps fill-in cards as written and never uses their word as an option", () => {
+    const mixed: TestCardInput[] = [
+      { id: "f", front: "Le ______ est indispensable.", back: "nucléaire" },
+      { id: "1", front: "le soleil", back: "die Sonne" },
+      { id: "2", front: "la lune", back: "der Mond" },
+      { id: "3", front: "l'arbre", back: "der Baum" },
+    ];
+    const qs = buildTestQuestions(mixed, { count: 99, types: ["mc", "written"], randomFn: seeded(5) });
+    const fillInQ = qs.find((q) => q.cardId === "f");
+    expect(fillInQ?.type).toBe("written");
+    for (const q of qs) {
+      if (q.type === "mc") {
+        expect(q.options).not.toContain("nucléaire");
+        expect(q.tfShownBack).not.toBe("nucléaire");
+      }
+    }
+  });
+
+  it("removes duplicate cards before building questions", () => {
+    const dupes: TestCardInput[] = [
+      { id: "a1", front: "le soleil", back: "die Sonne" },
+      { id: "a2", front: "le soleil", back: "die Sonne" },
+      { id: "b", front: "la lune", back: "der Mond" },
+    ];
+    const qs = buildTestQuestions(dupes, { count: 99, types: ["written"], randomFn: seeded(1) });
+    expect(qs).toHaveLength(2);
+  });
 });
