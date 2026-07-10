@@ -1,6 +1,6 @@
 # ROADMAP
 
-Letzte Aktualisierung: 2026-07-07 (Review-IDOR + Idempotenz-Fix nach #100)
+Letzte Aktualisierung: 2026-07-09 (Web-LP-Race nach #179)
 
 ## Gesamtstatus
 
