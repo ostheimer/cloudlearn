@@ -13,6 +13,13 @@ import {
   type ReviewRating,
 } from "@/lib/api";
 import { X, Trophy, Layers, AlertTriangle, Zap } from "@/components/icons";
+import {
+  beginSessionAward,
+  getSessionReviewedCount,
+  isSessionEarnFinalized,
+  LP_SESSION_MIN_CARDS,
+  type SessionAwardState,
+} from "@/lib/learn-session-lp";
 
 const RATINGS: { key: ReviewRating; label: string; cls: string }[] = [
   { key: "again", label: "Nochmal", cls: "rating--again" },
@@ -20,9 +27,6 @@ const RATINGS: { key: ReviewRating; label: string; cls: string }[] = [
   { key: "good", label: "Gut", cls: "rating--good" },
   { key: "easy", label: "Leicht", cls: "rating--easy" },
 ];
-
-// Ab so vielen gelernten Karten schreibt der Server LP gut (siehe featureGates).
-const LP_SESSION_MIN = 5;
 
 export default function LearnPage() {
   const params = useParams<{ id: string }>();
@@ -38,7 +42,8 @@ export default function LearnPage() {
   const [correct, setCorrect] = useState(0);
   const [earned, setEarned] = useState<number | null>(null);
   const [earnCapReached, setEarnCapReached] = useState(false);
-  const awardedRef = useRef(false);
+  const awardStateRef = useRef<SessionAwardState>({ finalized: false, inFlight: null });
+  const pendingReviewsRef = useRef<Promise<unknown>[]>([]);
 
   const load = useCallback(async () => {
     if (!deckId) return;
@@ -61,17 +66,37 @@ export default function LearnPage() {
   const current = cards[index];
   const done = !loading && total > 0 && index >= total;
 
-  // LP fürs Lernen gutschreiben — wie die App. Genau einmal pro Sitzung.
-  const awardSession = useCallback(async (count: number) => {
-    if (awardedRef.current || count < LP_SESSION_MIN) return;
-    awardedRef.current = true;
-    try {
-      const res = await earnLp("session", count);
-      setEarned(res.granted);
-      setEarnCapReached(res.capReached);
-    } catch {
-      /* LP-Gutschrift ist best-effort */
-    }
+  // LP fürs Lernen gutschreiben — wie die App. Der Server zählt review_logs;
+  // wir warten auf laufende Review-Requests, bevor earnLp aufgerufen wird.
+  const awardSession = useCallback((count: number) => {
+    const state = awardStateRef.current;
+    return beginSessionAward(state, count, async () => {
+      try {
+        const maxAttempts = 3;
+        const retryDelayMs = 250;
+
+        for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+          if (attempt > 0) {
+            await new Promise((resolve) => window.setTimeout(resolve, retryDelayMs));
+          }
+
+          const pendingReviews = pendingReviewsRef.current;
+          pendingReviewsRef.current = [];
+          await Promise.allSettled(pendingReviews);
+
+          const res = await earnLp("session", count);
+          setEarned(res.granted);
+          setEarnCapReached(res.capReached);
+
+          if (isSessionEarnFinalized(res, count)) {
+            state.finalized = true;
+            break;
+          }
+        }
+      } catch {
+        /* LP-Gutschrift ist best-effort */
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -82,16 +107,18 @@ export default function LearnPage() {
     const card = cards[index];
     if (!card || !userId) return;
     if (rating === "good" || rating === "easy") setCorrect((n) => n + 1);
-    // Fire-and-forget so the session stays snappy; FSRS updates server-side.
-    reviewCard(userId, card.id, rating).catch(() => {
+    const reviewPromise = reviewCard(userId, card.id, rating).catch(() => {
       /* review sync best-effort; scheduling will catch up on next load */
     });
+    pendingReviewsRef.current.push(reviewPromise);
     setFlipped(false);
     window.setTimeout(() => setIndex((i) => i + 1), 160);
   }
 
-  function restart() {
-    awardedRef.current = false;
+  async function restart() {
+    await awardSession(total);
+    awardStateRef.current.finalized = false;
+    pendingReviewsRef.current = [];
     setEarned(null);
     setEarnCapReached(false);
     setIndex(0);
@@ -99,9 +126,10 @@ export default function LearnPage() {
     setCorrect(0);
   }
 
-  function quit() {
+  async function quit() {
     // Beim frühen Beenden noch die LP der bisher gelernten Karten sichern.
-    void awardSession(index);
+    const reviewedCount = getSessionReviewedCount(index, pendingReviewsRef.current.length);
+    await awardSession(reviewedCount);
     router.push(`/dashboard/deck/${deckId}`);
   }
 
@@ -163,9 +191,9 @@ export default function LearnPage() {
             <button type="button" className="btn btn-primary" onClick={restart}>
               Nochmal lernen
             </button>
-            <Link href={`/dashboard/deck/${deckId}`} className="btn btn-ghost">
+            <button type="button" className="btn btn-ghost" onClick={quit}>
               Zurück zum Deck
-            </Link>
+            </button>
           </div>
         </div>
       </div>
