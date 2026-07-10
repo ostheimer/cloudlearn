@@ -67,6 +67,14 @@ export default function TabsLayout() {
           href: null,
         }}
       />
+      {/* Deck detail lives inside the tab group so the bottom bar stays
+          visible while browsing a deck (like course/folder details). */}
+      <Tabs.Screen
+        name="deck/[id]"
+        options={{
+          href: null,
+        }}
+      />
       <Tabs.Screen
         name="library-course/[id]"
         options={{
