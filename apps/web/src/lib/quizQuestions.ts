@@ -1,0 +1,146 @@
+// Fragen-Erzeugung für den Multiple-Choice-Modus (Port von
+// apps/mobile/src/lib/quizQuestions.ts, ohne Bild-/Medienfragen). Erzeugt
+// Multiple-Choice- und Wahr/Falsch-Fragen aus den Karten eines Decks, gesteuert
+// über die im Setup gewählten Optionen (Richtung + Fragetypen).
+
+export interface QuizCardInput {
+  id: string;
+  front: string;
+  back: string;
+}
+
+export type QuizType = "mc" | "trueFalse";
+
+export interface QuizQuestion {
+  type: QuizType;
+  cardId: string;
+  questionText: string; // mc: die Frageseite; tf: die Aufforderung
+  options: string[];
+  correctIndex: number;
+  correctAnswer: string;
+  tfPairing?: { front: string; back: string };
+}
+
+export interface GenerateOptions {
+  // back -> front für normale Karten (Lücken-Karten behalten ihren Lückensatz).
+  reverse?: boolean;
+  // Vom Lernenden aktivierte Fragetypen — mindestens einer sollte true sein.
+  allowMc?: boolean;
+  allowTrueFalse?: boolean;
+}
+
+const TF_PROMPT = "Stimmt diese Zuordnung?";
+const TRUE_LABEL = "Richtig";
+const FALSE_LABEL = "Falsch";
+
+function shuffle<T>(arr: T[], randomFn: () => number): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(randomFn() * (i + 1));
+    [a[i], a[j]] = [a[j]!, a[i]!];
+  }
+  return a;
+}
+
+function unique(items: string[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const item of items) {
+    const normalized = item.trim();
+    if (!normalized || seen.has(normalized.toLowerCase())) continue;
+    seen.add(normalized.toLowerCase());
+    result.push(normalized);
+  }
+  return result;
+}
+
+// Eine Lücken-Karte ist ein Satz mit Lücke ("______" oder {{cN::…}}). Ihre
+// Antwort ist das fehlende Wort — meist in der Frontsprache des Decks — und darf
+// daher nie als Option für eine normale Karte auftauchen (und umgekehrt).
+function isFillIn(text: string): boolean {
+  return /_{2,}/.test(text) || /\{\{c\d+::/.test(text);
+}
+
+export function generateQuestions(
+  cards: QuizCardInput[],
+  opts: GenerateOptions = {},
+  randomFn: () => number = Math.random
+): QuizQuestion[] {
+  const reverse = opts.reverse ?? false;
+  const allowMc = opts.allowMc ?? true;
+  const allowTrueFalse = opts.allowTrueFalse ?? true;
+  if (cards.length < 2 || (!allowMc && !allowTrueFalse)) return [];
+
+  const seenPairs = new Set<string>();
+  const enriched = cards.flatMap((card) => {
+    const front = (card.front || "").trim();
+    const back = (card.back || "").trim();
+    if (!front || !back) return [];
+    // Decks enthalten Karten manchmal doppelt (Doppel-Scans) — Duplikate raus.
+    const key = `${front}|${back}`.toLowerCase();
+    if (seenPairs.has(key)) return [];
+    seenPairs.add(key);
+    const fillIn = isFillIn(front);
+    // Frage-/Antwortseite folgt der Richtung; Lücken-Karten zeigen immer ihren
+    // Lückensatz und erwarten das fehlende Wort.
+    const questionSide = fillIn || !reverse ? front : back;
+    const answerSide = fillIn || !reverse ? back : front;
+    return [{ card, fillIn, questionSide, answerSide, label: back || front }];
+  });
+
+  const questions: QuizQuestion[] = [];
+  for (const current of shuffle(enriched, randomFn)) {
+    const sameKind = enriched.filter(
+      (e) => e.card.id !== current.card.id && e.fillIn === current.fillIn
+    );
+    const isTF =
+      allowTrueFalse && (!allowMc || (randomFn() < 0.3 && cards.length >= 3));
+
+    if (isTF) {
+      const isCorrect = randomFn() < 0.5;
+      const ownAnswer = (current.answerSide || current.label).toLowerCase();
+      const wrongPool = unique(sameKind.map((e) => e.answerSide || e.label)).filter(
+        (a) => a.toLowerCase() !== ownAnswer
+      );
+      const wrongAnswer = wrongPool[Math.floor(randomFn() * wrongPool.length)];
+      // Ohne gleichartige Falsch-Antwort ist die gezeigte Paarung zwangsläufig
+      // korrekt — dann als "Richtig" werten statt "Falsch" zu verlangen.
+      const effectiveIsCorrect = isCorrect || !wrongAnswer;
+      const shownAnswer =
+        !effectiveIsCorrect && wrongAnswer ? wrongAnswer : current.answerSide || current.label;
+      questions.push({
+        type: "trueFalse",
+        cardId: current.card.id,
+        questionText: TF_PROMPT,
+        options: [TRUE_LABEL, FALSE_LABEL],
+        correctIndex: effectiveIsCorrect ? 0 : 1,
+        correctAnswer: effectiveIsCorrect ? TRUE_LABEL : FALSE_LABEL,
+        tfPairing: { front: current.questionSide || current.label, back: shownAnswer },
+      });
+      continue;
+    }
+
+    // Nur erreichbar, wenn MC aktiv ist (isTF ist erzwungen, wenn MC aus ist).
+    const ownAnswer = (current.answerSide || current.label).toLowerCase();
+    const wrongAnswers = unique(
+      shuffle(sameKind.map((e) => e.answerSide || e.label), randomFn)
+    )
+      .filter((a) => a.toLowerCase() !== ownAnswer)
+      .slice(0, 3);
+    // Ohne mindestens einen gleichartigen Ablenker ist eine Auswahlfrage
+    // sinnlos — Karte überspringen statt Seiten/Sprachen zu mischen.
+    if (wrongAnswers.length === 0) continue;
+
+    const correctAnswer = current.answerSide || current.label;
+    const options = shuffle([correctAnswer, ...wrongAnswers], randomFn);
+    questions.push({
+      type: "mc",
+      cardId: current.card.id,
+      questionText: current.questionSide,
+      options,
+      correctIndex: options.indexOf(correctAnswer),
+      correctAnswer,
+    });
+  }
+  return questions;
+}
