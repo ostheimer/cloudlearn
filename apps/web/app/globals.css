@@ -1622,6 +1622,132 @@ ul.reset {
   }
 }
 
+/* ---------- Lern-Modi (Deck-Seite, wie im App-Deck-Screen) ---------- */
+.mode-list {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+.mode-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 14px;
+  text-decoration: none;
+  color: inherit;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.2s ease;
+}
+a.mode-card:hover {
+  border-color: rgba(99, 102, 241, 0.4);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+.mode-card__ic {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.mode-card__body {
+  flex: 1;
+  min-width: 0;
+}
+.mode-card__title {
+  display: block;
+  font-weight: 700;
+  color: var(--ink);
+}
+.mode-card__sub {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--ink-3);
+}
+.mode-card__chevron {
+  color: var(--brand);
+  flex: none;
+}
+.mode-card--soon {
+  opacity: 0.6;
+}
+.mode-card__badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--ink-3);
+  background: var(--bg-softer);
+  border-radius: 999px;
+  padding: 3px 9px;
+  white-space: nowrap;
+  flex: none;
+}
+
+/* ---------- Multiple-Choice-Modus ---------- */
+.quiz-q {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-sm);
+  padding: clamp(20px, 5vw, 32px);
+  text-align: center;
+  font-size: clamp(1.1rem, 3vw, 1.4rem);
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 16px;
+}
+.quiz-options {
+  display: grid;
+  gap: 10px;
+}
+.quiz-opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 14px 16px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.quiz-opt:hover:not(:disabled) {
+  border-color: var(--brand);
+}
+.quiz-opt:disabled {
+  cursor: default;
+}
+.quiz-opt--correct {
+  border-color: var(--green);
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+}
+.quiz-opt--wrong {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.12);
+  color: #b91c1c;
+}
+.quiz-opt__mark {
+  margin-left: auto;
+  flex: none;
+}
+@media (prefers-color-scheme: dark) {
+  .quiz-opt--correct {
+    color: #6ee7b7;
+  }
+  .quiz-opt--wrong {
+    color: #fca5a5;
+  }
+}
+
 /* ---------- Menus & modals ---------- */
 .pop {
   position: relative;
@@ -1913,6 +2039,14 @@ ul.reset {
 }
 
 /* ---------- Deck detail / card rows ---------- */
+/* Am Desktop schmaler & mittig halten (wie in der App) — sonst ziehen sich
+   Lern-Modi und Kartenliste über die volle Container-Breite. Am Handy ohne
+   Wirkung, da dort ohnehin schmaler als 760px. */
+.deck-detail {
+  max-width: 760px;
+  margin-inline: auto;
+}
+
 .detail-head {
   display: flex;
   flex-wrap: wrap;
