@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Image,
   ScrollView,
+  Switch,
   Text,
   TouchableOpacity,
   View,
@@ -18,6 +19,7 @@ import {
   RotateCcw,
   Timer,
   HelpCircle,
+  Brain,
 } from "lucide-react-native";
 import { listCardsInDeck, type Card } from "../src/lib/api";
 import {
@@ -59,6 +61,13 @@ export default function QuizScreen() {
   const [timeLeft, setTimeLeft] = useState(15);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Setup choices (picked before the quiz starts)
+  const [inSetup, setInSetup] = useState(true);
+  const [reverse, setReverse] = useState(false);
+  const [typeMC, setTypeMC] = useState(true);
+  const [typeTF, setTypeTF] = useState(true);
+  const anyType = typeMC || typeTF;
+
   // Load cards
   useEffect(() => {
     if (!deckId) return;
@@ -66,15 +75,29 @@ export default function QuizScreen() {
       try {
         const { cards: fetched } = await listCardsInDeck(deckId);
         setCards(fetched);
-        const q = generateQuestions(fetched, 10, quizCopy);
-        setQuestions(q);
       } catch {
         // Error loading
       } finally {
         setLoading(false);
       }
     })();
-  }, [deckId, quizCopy]);
+  }, [deckId]);
+
+  const startQuiz = () => {
+    if (!anyType) return;
+    const q = generateQuestions(cards, 10, quizCopy, Math.random, {
+      reverse,
+      allowMc: typeMC,
+      allowTrueFalse: typeTF,
+    });
+    if (q.length === 0) return;
+    setQuestions(q);
+    setCurrentIdx(0);
+    setSelected(null);
+    setAnswers([]);
+    setFinished(false);
+    setInSetup(false);
+  };
 
   // Timer
   useEffect(() => {
@@ -119,12 +142,7 @@ export default function QuizScreen() {
   };
 
   const handleRestart = () => {
-    const q = generateQuestions(cards, 10, quizCopy);
-    setQuestions(q);
-    setCurrentIdx(0);
-    setSelected(null);
-    setAnswers([]);
-    setFinished(false);
+    startQuiz();
   };
 
   const correctCount = answers.filter(Boolean).length;
@@ -136,7 +154,7 @@ export default function QuizScreen() {
       <>
         <Stack.Screen
           options={{
-            title: "Test",
+            title: "Multiple Choice",
             headerBackTitle: "Zurück",
             headerTintColor: colors.primary,
             headerStyle: { backgroundColor: colors.background },
@@ -156,12 +174,12 @@ export default function QuizScreen() {
     );
   }
 
-  if (questions.length < 2) {
+  if (cards.length < 2) {
     return (
       <>
         <Stack.Screen
           options={{
-            title: "Test",
+            title: "Multiple Choice",
             headerBackTitle: "Zurück",
             headerTintColor: colors.primary,
             headerStyle: { backgroundColor: colors.background },
@@ -185,8 +203,205 @@ export default function QuizScreen() {
               textAlign: "center",
             }}
           >
-            Mindestens 3 Karten nötig für den Test-Modus.
+            Mindestens 2 Karten nötig für Multiple Choice.
           </Text>
+        </SafeAreaView>
+      </>
+    );
+  }
+
+  // Setup — direction + question kinds, before the quiz starts
+  if (inSetup) {
+    const typeRow = (
+      label: string,
+      value: boolean,
+      onChange: (v: boolean) => void,
+      border = true
+    ) => (
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          paddingVertical: spacing.sm,
+          borderBottomWidth: border ? 1 : 0,
+          borderBottomColor: colors.borderLight,
+        }}
+      >
+        <Text style={{ fontSize: typography.base, color: colors.text }}>{label}</Text>
+        <Switch
+          value={value}
+          onValueChange={onChange}
+          trackColor={{ false: colors.surfaceSecondary, true: colors.primary }}
+          thumbColor="#ffffff"
+          ios_backgroundColor={colors.surfaceSecondary}
+        />
+      </View>
+    );
+
+    const setupCardStyle = {
+      backgroundColor: colors.surface,
+      borderRadius: radius.lg,
+      padding: spacing.lg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      ...shadows.sm,
+    } as const;
+
+    return (
+      <>
+        <Stack.Screen
+          options={{
+            title: deckTitle ?? "Multiple Choice",
+            headerBackTitle: "Zurück",
+            headerTintColor: colors.primary,
+            headerStyle: { backgroundColor: colors.background },
+          }}
+        />
+        <SafeAreaView
+          edges={["bottom"]}
+          style={{ flex: 1, backgroundColor: colors.background }}
+        >
+          <ScrollView
+            contentContainerStyle={{ flexGrow: 1, padding: spacing.xl, gap: spacing.lg }}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Intro */}
+            <View style={{ alignItems: "center", gap: spacing.sm, marginTop: spacing.sm }}>
+              <View
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 18,
+                  backgroundColor: colors.accentLight,
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <Brain size={32} color={colors.accent} />
+              </View>
+              <Text
+                style={{
+                  fontSize: typography.xl,
+                  fontWeight: typography.bold,
+                  color: colors.text,
+                  textAlign: "center",
+                }}
+                numberOfLines={2}
+              >
+                {deckTitle ?? "Multiple Choice"}
+              </Text>
+              <Text style={{ fontSize: typography.base, color: colors.textSecondary }}>
+                Antwort aus Optionen wählen
+              </Text>
+            </View>
+
+            {/* Richtung — one arrow in the middle, tap to swap */}
+            <TouchableOpacity
+              onPress={() => setReverse((r) => !r)}
+              activeOpacity={0.8}
+              style={setupCardStyle}
+            >
+              <Text
+                style={{
+                  fontSize: typography.sm,
+                  color: colors.textSecondary,
+                  marginBottom: spacing.md,
+                }}
+              >
+                Abgefragte Richtung
+              </Text>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Text
+                  style={{
+                    flex: 1,
+                    textAlign: "right",
+                    fontSize: typography.base,
+                    fontWeight: typography.semibold,
+                    color: colors.text,
+                  }}
+                >
+                  {reverse ? "Rückseite" : "Vorderseite"}
+                </Text>
+                <View style={{ width: 44, alignItems: "center" }}>
+                  <ArrowRight size={22} color={colors.primary} />
+                </View>
+                <Text
+                  style={{
+                    flex: 1,
+                    textAlign: "left",
+                    fontSize: typography.base,
+                    fontWeight: typography.semibold,
+                    color: colors.text,
+                  }}
+                >
+                  {reverse ? "Vorderseite" : "Rückseite"}
+                </Text>
+              </View>
+              <Text
+                style={{
+                  fontSize: typography.xs,
+                  color: colors.textTertiary,
+                  textAlign: "center",
+                  marginTop: spacing.md,
+                }}
+              >
+                Tippen zum Tauschen
+              </Text>
+            </TouchableOpacity>
+
+            {/* Fragetypen */}
+            <View style={setupCardStyle}>
+              <Text
+                style={{
+                  fontSize: typography.sm,
+                  color: colors.textSecondary,
+                  marginBottom: spacing.xs,
+                }}
+              >
+                Fragetypen
+              </Text>
+              {typeRow("Multiple Choice", typeMC, setTypeMC)}
+              {typeRow("Wahr / Falsch", typeTF, setTypeTF, false)}
+              {!anyType && (
+                <Text
+                  style={{
+                    fontSize: typography.xs,
+                    color: colors.error,
+                    marginTop: spacing.xs,
+                  }}
+                >
+                  Mindestens ein Typ muss an sein.
+                </Text>
+              )}
+            </View>
+
+            <View style={{ flex: 1 }} />
+
+            {/* Start */}
+            <TouchableOpacity
+              onPress={startQuiz}
+              disabled={!anyType}
+              activeOpacity={0.85}
+              style={{
+                backgroundColor: anyType ? colors.primary : colors.surfaceSecondary,
+                paddingVertical: 16,
+                borderRadius: radius.lg,
+                alignItems: "center",
+                ...shadows.md,
+              }}
+            >
+              <Text
+                style={{
+                  color: anyType ? colors.textInverse : colors.textTertiary,
+                  fontWeight: typography.bold,
+                  fontSize: typography.lg,
+                }}
+              >
+                Starten
+              </Text>
+            </TouchableOpacity>
+          </ScrollView>
         </SafeAreaView>
       </>
     );
@@ -334,7 +549,7 @@ export default function QuizScreen() {
             </View>
 
             {/* Actions */}
-            <View style={{ width: "100%" }}>
+            <View style={{ width: "100%", gap: spacing.sm }}>
               <TouchableOpacity
                 onPress={handleRestart}
                 style={{
@@ -357,6 +572,24 @@ export default function QuizScreen() {
                   Nochmal
                 </Text>
               </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setInSetup(true)}
+                style={{
+                  paddingVertical: 12,
+                  borderRadius: radius.md,
+                  alignItems: "center",
+                }}
+              >
+                <Text
+                  style={{
+                    color: colors.textSecondary,
+                    fontWeight: typography.semibold,
+                    fontSize: typography.base,
+                  }}
+                >
+                  Einstellungen
+                </Text>
+              </TouchableOpacity>
             </View>
           </ScrollView>
         </SafeAreaView>
@@ -369,7 +602,7 @@ export default function QuizScreen() {
     <>
       <Stack.Screen
         options={{
-          title: deckTitle ?? "Test",
+          title: deckTitle ?? "Multiple Choice",
           headerBackTitle: "Abbrechen",
           headerTintColor: colors.primary,
           headerStyle: { backgroundColor: colors.background },
