@@ -22,6 +22,9 @@ const SYSTEM_PROMPT = `You are an expert flashcard creator for students. Given s
 Rules:
 - Create 5-25 flashcards depending on content density (more content = more cards)
 - Generate a concise deck title (2-5 words) that describes the topic of the material (e.g. "Zellbiologie Grundlagen", "Französische Revolution", "Lineare Algebra")
+- First decide what the source material is: (a) a VOCABULARY LIST (terms with their translations/meanings — e.g. a two-column word list) or (b) CONTENT material (explanatory text, facts, concepts)
+- For a VOCABULARY LIST: create ONLY "basic" cards (front = the bare term, back = the translation/meaning). Do NOT create cloze cards and do NOT wrap terms in questions or example sentences — every card must be a clean term/translation pair
+- For CONTENT material: use question -> answer cards and you may mix in cloze cards
 - Each flashcard has: front (question), back (answer), type (basic/cloze), difficulty (easy/medium/hard), tags
 - For "basic" cards, pick the format that fits the item:
   - Vocabulary (a word/term and its translation or meaning): the front is the bare term itself, the back is the translation/meaning. Do NOT turn it into a question — never write "Was bedeutet 'X'?", "Übersetze 'X'", or "What does X mean?". The front is just the term. Example: front="le record", back="der Rekord"
@@ -34,7 +37,7 @@ Rules:
 - Tags: relevant topic keywords, max 3 per card
 - Match the language of the input material (title too!)
 - Focus on key concepts, definitions, relationships, and processes
-- Vary difficulty levels, mix basic and cloze types
+- Vary difficulty levels; mix basic and cloze types only for CONTENT material — never for vocabulary lists
 
 Return ONLY valid JSON object (not array!), no markdown, no explanation:
 {"title":"Short Topic Title","cards":[{"front":"...","back":"...","type":"basic","difficulty":"medium","tags":["topic1"]}]}`;
@@ -45,6 +48,9 @@ Rules:
 - Create 5-25 flashcards depending on content density
 - Generate a concise deck title (2-5 words) in the same language as the source
 - Each card has: front, back, type (basic/cloze), difficulty, tags
+- First decide what the source material is: (a) a VOCABULARY LIST (terms with their translations/meanings — e.g. a two-column word list) or (b) CONTENT material (explanatory text, facts, concepts)
+- For a VOCABULARY LIST: create ONLY "basic" cards (front = the bare term, back = the translation/meaning). Do NOT create cloze cards and do NOT wrap terms in questions or example sentences — every card must be a clean term/translation pair
+- For CONTENT material: use question -> answer cards and you may mix in cloze cards
 - For vocabulary items (a term and its translation/meaning), the front is the bare term and the back the translation — never phrase it as "Was bedeutet 'X'?". For facts/concepts, use a clear question -> answer.
 - Use high-value concepts, definitions, and relationships
 - If images are provided, prioritize component-identification questions over branding questions
@@ -293,7 +299,9 @@ function heuristicFlashcards(text: string, language: string): FlashcardGeneratio
     return {
       front: `${prefix} ${index + 1}?`,
       back: line,
-      type: (index % 3 === 0 ? "cloze" : "basic") as "basic" | "cloze",
+      // Always "basic": the front is a plain question without a blank, so a
+      // "cloze" label would be wrong (and vocab-like lines must stay pairs).
+      type: "basic" as const,
       difficulty: "medium" as const,
       tags: ["auto-generated", language],
     };
