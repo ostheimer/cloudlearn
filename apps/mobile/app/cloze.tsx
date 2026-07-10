@@ -124,9 +124,7 @@ export default function ClozeScreen() {
 
   const handleCheck = () => {
     if (revealed || !current || !parsed) return;
-    const correct = strict
-      ? input.trim() === parsed.answer.trim()
-      : isAnswerCorrect(input, parsed.answer);
+    const correct = isAnswerCorrect(input, parsed.answer, { strict });
     setWasCorrect(correct);
     setRevealed(true);
     if (correct) {

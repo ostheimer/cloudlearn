@@ -4,9 +4,10 @@
 //   - upper/lower case ("Waerme" case)
 //   - accents / diacritics ("cafe" vs "café", umlauts)
 //   - surrounding whitespace and common punctuation
-//   - a single-character typo (one insertion/deletion/substitution)
-// Expected answers may list alternatives separated by "/" or ";" — typing any
-// one of them counts as correct.
+//   - small typos (edit distance scaled to the answer's length)
+// Expected answers may list alternatives separated by "/", ";" or "," — typing
+// any one of them counts. Pass { strict: true } for exact matching (case,
+// accents and spelling all count), which still accepts any one alternative.
 
 const DIACRITICS = /[̀-ͯ]/g;
 
@@ -45,20 +46,43 @@ export function levenshtein(a: string, b: string): number {
   return prev[n]!;
 }
 
-export function isAnswerCorrect(input: string, expected: string): boolean {
+// Answers may list several accepted variants separated by "/", ";" or "," —
+// e.g. "beispiellos, ohnegleichen". Typing any one of them counts.
+function splitAlternatives(expected: string): string[] {
+  return [expected, ...expected.split(/[/;,]/)]
+    .map((candidate) => candidate.trim())
+    .filter((candidate) => candidate.length > 0);
+}
+
+export function isAnswerCorrect(
+  input: string,
+  expected: string,
+  options?: { strict?: boolean }
+): boolean {
+  const candidates = splitAlternatives(expected);
+  if (candidates.length === 0) return false;
+
+  // Strict ("genau prüfen"): case, accents and spelling all count — but any one
+  // of the listed alternatives, matched exactly, is still accepted.
+  if (options?.strict) {
+    const answer = input.trim();
+    if (!answer) return false;
+    return candidates.some((candidate) => candidate === answer);
+  }
+
+  // Forgiving: ignore case/accents/punctuation and tolerate small typos. The
+  // number of allowed typos grows with length, so a single missing letter in a
+  // longer answer ("Johan(n) Peter Salomon") always passes.
   const answer = normalizeAnswer(input);
   if (!answer) return false;
-
-  // Split alternatives first (before punctuation is stripped), then normalize.
-  const candidates = [expected, ...expected.split(/[/;]/)]
+  return candidates
     .map(normalizeAnswer)
-    .filter((c) => c.length > 0);
-
-  return candidates.some(
-    (candidate) =>
-      candidate === answer ||
-      // Tolerate a single typo, but only for words long enough that one edit
-      // doesn't collapse two genuinely different short answers into a match.
-      (candidate.length >= 4 && levenshtein(answer, candidate) <= 1)
-  );
+    .filter((candidate) => candidate.length > 0)
+    .some(
+      (candidate) =>
+        candidate === answer ||
+        (candidate.length >= 4 &&
+          levenshtein(answer, candidate) <=
+            Math.max(1, Math.floor(candidate.length / 8)))
+    );
 }

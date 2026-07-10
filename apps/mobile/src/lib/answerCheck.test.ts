@@ -56,4 +56,30 @@ describe("isAnswerCorrect", () => {
     expect(isAnswerCorrect("", "die Wärme")).toBe(false);
     expect(isAnswerCorrect("   ", "die Wärme")).toBe(false);
   });
+
+  it("accepts one of comma-separated answers", () => {
+    expect(isAnswerCorrect("ohnegleichen", "beispiellos, ohnegleichen")).toBe(true);
+    expect(isAnswerCorrect("beispiellos", "beispiellos, ohnegleichen")).toBe(true);
+  });
+
+  it("forgives a single missing letter in a longer answer", () => {
+    // "Johan Peter Salomon" -> "Johann Peter Salomon" (one missing n)
+    expect(isAnswerCorrect("johan peter salomon", "Johann Peter Salomon")).toBe(true);
+  });
+});
+
+describe("isAnswerCorrect (strict)", () => {
+  it("requires an exact match", () => {
+    expect(isAnswerCorrect("der Rekord", "der Rekord", { strict: true })).toBe(true);
+    expect(isAnswerCorrect("der rekord", "der Rekord", { strict: true })).toBe(false);
+    expect(isAnswerCorrect("johan peter salomon", "Johann Peter Salomon", { strict: true })).toBe(
+      false
+    );
+  });
+
+  it("still accepts any one exact alternative", () => {
+    expect(
+      isAnswerCorrect("ohnegleichen", "beispiellos, ohnegleichen", { strict: true })
+    ).toBe(true);
+  });
 });
