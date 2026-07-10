@@ -703,7 +703,23 @@ export default function DeckDetailScreen() {
         edges={["bottom"]}
         style={{ flex: 1, backgroundColor: colors.background }}
       >
-        <View style={{ flex: 1, padding: spacing.lg, gap: spacing.md }}>
+        {/* One page-level ScrollView: deck info, study modes and the card list
+            scroll together as a single page, Quizlet-style (#192). */}
+        <ScrollView
+          style={{ flex: 1 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+            />
+          }
+          contentContainerStyle={{
+            flexGrow: 1,
+            padding: spacing.lg,
+            gap: spacing.md,
+            paddingBottom: spacing.xxl,
+          }}
+        >
           {/* Header with card count + add button */}
           <View
             style={{
@@ -901,20 +917,7 @@ export default function DeckDetailScreen() {
             >
               <ActivityIndicator size="large" color={colors.primary} />
             </View>
-          ) : (
-            <ScrollView
-              refreshControl={
-                <RefreshControl
-                  refreshing={refreshing}
-                  onRefresh={onRefresh}
-                />
-              }
-              contentContainerStyle={{
-                gap: spacing.sm + 2,
-                paddingBottom: spacing.xxl,
-              }}
-            >
-              {cards.length === 0 ? (
+          ) : cards.length === 0 ? (
                 <View
                   style={{
                     alignItems: "center",
@@ -946,8 +949,9 @@ export default function DeckDetailScreen() {
                     oder scanne neuen Inhalt.
                   </Text>
                 </View>
-              ) : (
-                cards.map((card, idx) => {
+          ) : (
+            <View style={{ gap: spacing.sm + 2 }}>
+              {cards.map((card, idx) => {
                   const meta = difficultyMeta[card.difficulty] ?? {
                     color: colors.textSecondary,
                     label: card.difficulty,
@@ -1063,8 +1067,7 @@ export default function DeckDetailScreen() {
                       </Text>
                     </TouchableOpacity>
                   );
-                })
-              )}
+                })}
 
               {cards.length > 0 && (
                 <Text
@@ -1079,9 +1082,9 @@ export default function DeckDetailScreen() {
                   für mehr Optionen
                 </Text>
               )}
-            </ScrollView>
+            </View>
           )}
-        </View>
+        </ScrollView>
 
         {/* Card editor modal */}
         <CardEditor
