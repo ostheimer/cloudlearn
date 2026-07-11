@@ -136,6 +136,19 @@ describe("supabase migrations", () => {
     expect(sql).toContain("grant execute on function consume_mathpix_cost(uuid, numeric) to service_role");
   });
 
+  it("enables RLS on server-only persistence tables", () => {
+    const migrationPath = join(
+      apiRoot,
+      "supabase/migrations/20260710150000_enable_rls_persistent_tables.sql",
+    );
+    const sql = readFileSync(migrationPath, "utf-8").toLowerCase().replace(/\s+/g, " ");
+
+    for (const table of ["rate_limits", "idempotency_keys", "mathpix_usage"]) {
+      expect(sql).toContain(`alter table public.${table}`);
+      expect(sql).toContain(`public.${table} enable row level security`);
+    }
+  });
+
   it("decommissions the dead monthly-quota infra (cron + profiles columns)", () => {
     const migrationPath = join(
       apiRoot,
