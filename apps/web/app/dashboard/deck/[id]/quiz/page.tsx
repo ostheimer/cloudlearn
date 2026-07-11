@@ -7,6 +7,12 @@ import { useAuth } from "@/components/app/auth-context";
 import { listCardsInDeck, reviewCard, earnLp, isApiError, type Card } from "@/lib/api";
 import { generateQuestions, type QuizQuestion } from "@/lib/quizQuestions";
 import {
+  beginSessionAward,
+  getSessionReviewedCount,
+  isSessionEarnFinalized,
+  type SessionAwardState,
+} from "@/lib/learn-session-lp";
+import {
   ArrowLeft,
   X,
   Check,
@@ -16,9 +22,6 @@ import {
   AlertTriangle,
   ListChecks,
 } from "@/components/icons";
-
-// Ab so vielen beantworteten Fragen schreibt der Server LP gut (wie learn/cloze).
-const LP_SESSION_MIN = 5;
 
 export default function QuizPage() {
   const params = useParams<{ id: string }>();
@@ -42,7 +45,9 @@ export default function QuizPage() {
   const [answers, setAnswers] = useState<boolean[]>([]);
 
   const [earned, setEarned] = useState<number | null>(null);
-  const awardedRef = useRef(false);
+  const [earnCapReached, setEarnCapReached] = useState(false);
+  const awardStateRef = useRef<SessionAwardState>({ finalized: false, inFlight: null });
+  const pendingReviewsRef = useRef<Promise<unknown>[]>([]);
 
   const load = useCallback(async () => {
     if (!deckId) return;
@@ -66,25 +71,50 @@ export default function QuizPage() {
   const q = questions[index];
   const answered = picked !== null;
 
-  const awardSession = useCallback(async (count: number) => {
-    if (awardedRef.current || count < LP_SESSION_MIN) return;
-    awardedRef.current = true;
-    try {
-      const r = await earnLp("session", count);
-      setEarned(r.granted);
-    } catch {
-      /* LP-Gutschrift best-effort */
-    }
+  const awardSession = useCallback((count: number) => {
+    const state = awardStateRef.current;
+    return beginSessionAward(state, count, async () => {
+      try {
+        const maxAttempts = 3;
+        const retryDelayMs = 250;
+
+        for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+          if (attempt > 0) {
+            await new Promise((resolve) => window.setTimeout(resolve, retryDelayMs));
+          }
+
+          const pendingReviews = pendingReviewsRef.current;
+          pendingReviewsRef.current = [];
+          await Promise.allSettled(pendingReviews);
+
+          const res = await earnLp("session", count);
+          setEarned(res.granted);
+          setEarnCapReached(res.capReached);
+
+          if (isSessionEarnFinalized(res, count)) {
+            state.finalized = true;
+            break;
+          }
+        }
+      } catch {
+        /* LP-Gutschrift ist best-effort */
+      }
+    });
   }, []);
 
-  const startQuiz = useCallback(() => {
+  const startQuiz = useCallback(async () => {
+    await awardSession(total);
     const qs = generateQuestions(cards, { reverse, allowMc, allowTrueFalse });
+    awardStateRef.current = { finalized: false, inFlight: null };
+    pendingReviewsRef.current = [];
+    setEarned(null);
+    setEarnCapReached(false);
     setQuestions(qs);
     setIndex(0);
     setPicked(null);
     setAnswers([]);
     setPhase("play");
-  }, [cards, reverse, allowMc, allowTrueFalse]);
+  }, [cards, reverse, allowMc, allowTrueFalse, awardSession, total]);
 
   function pick(i: number) {
     if (picked !== null || !q) return;
@@ -95,12 +125,16 @@ export default function QuizPage() {
       next[index] = correct;
       return next;
     });
-    if (userId) reviewCard(userId, q.cardId, correct ? "good" : "again").catch(() => {});
+    if (userId) {
+      const reviewPromise = reviewCard(userId, q.cardId, correct ? "good" : "again").catch(() => {});
+      pendingReviewsRef.current.push(reviewPromise);
+    }
   }
 
   function next() {
     if (index + 1 >= total) {
-      void awardSession(total);
+      const reviewedCount = getSessionReviewedCount(total, pendingReviewsRef.current.length);
+      void awardSession(reviewedCount);
       setPhase("result");
       return;
     }
@@ -108,9 +142,13 @@ export default function QuizPage() {
     setIndex((i) => i + 1);
   }
 
-  function quit() {
+  async function quit() {
     const answeredCount = answers.filter((a) => a !== undefined).length;
-    void awardSession(answeredCount);
+    const reviewedCount = getSessionReviewedCount(
+      answeredCount,
+      pendingReviewsRef.current.length,
+    );
+    await awardSession(reviewedCount);
     router.push(`/dashboard/deck/${deckId}`);
   }
 
@@ -261,6 +299,11 @@ export default function QuizPage() {
             <span className="lp-pill">
               <Zap size={15} /> +{earned} Lernpunkte
             </span>
+          )}
+          {earned === 0 && earnCapReached && (
+            <p className="muted" style={{ fontSize: "0.9rem" }}>
+              Heutiges Lernpunkte-Limit erreicht — morgen gibt es wieder welche.
+            </p>
           )}
 
           <div className="quiz-sum">
