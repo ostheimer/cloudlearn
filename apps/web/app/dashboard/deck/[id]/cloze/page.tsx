@@ -142,7 +142,8 @@ export default function ClozePage() {
     });
   }, []);
 
-  const startRound = useCallback((cards: Card[]) => {
+  const startRound = useCallback(async (cards: Card[]) => {
+    await awardSession(round.length);
     awardStateRef.current = { finalized: false, inFlight: null };
     pendingReviewsRef.current = [];
     setEarned(null);
@@ -152,7 +153,7 @@ export default function ClozePage() {
     setIdx(0);
     setInput("");
     setPhase("play");
-  }, []);
+  }, [awardSession, round.length]);
 
   const setResultAt = (i: number, v: Result | null) =>
     setResults((prev) => prev.map((r, j) => (j === i ? v : r)));

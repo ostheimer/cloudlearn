@@ -102,7 +102,8 @@ export default function QuizPage() {
     });
   }, []);
 
-  const startQuiz = useCallback(() => {
+  const startQuiz = useCallback(async () => {
+    await awardSession(total);
     const qs = generateQuestions(cards, { reverse, allowMc, allowTrueFalse });
     awardStateRef.current = { finalized: false, inFlight: null };
     pendingReviewsRef.current = [];
@@ -113,7 +114,7 @@ export default function QuizPage() {
     setPicked(null);
     setAnswers([]);
     setPhase("play");
-  }, [cards, reverse, allowMc, allowTrueFalse]);
+  }, [cards, reverse, allowMc, allowTrueFalse, awardSession, total]);
 
   function pick(i: number) {
     if (picked !== null || !q) return;
