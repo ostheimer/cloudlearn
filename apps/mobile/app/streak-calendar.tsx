@@ -88,7 +88,7 @@ export default function StreakCalendarScreen() {
 
   const [y, m] = month.split("-").map(Number);
   const monthLabel = new Date(y ?? 0, (m ?? 1) - 1, 1).toLocaleDateString(
-    i18n.language === "de" ? "de-DE" : "en-US",
+    i18n.language?.startsWith("de") ? "de-DE" : "en-US",
     { month: "long", year: "numeric" }
   );
   const weekdays = t("streakCal.weekdays").split(",");
