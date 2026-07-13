@@ -87,7 +87,8 @@ export default function ClozePage() {
     if (!deckId) return;
     try {
       const { cards } = await listCardsInDeck(deckId);
-      setAllCards(cards.filter(hasTypeable));
+      // Bild-Occlusion-Karten gehören nur in den Occlusion-Modus (kein Bild hier).
+      setAllCards(cards.filter((c) => c.type !== "occlusion" && hasTypeable(c)));
       setError(null);
     } catch (e) {
       setError(isApiError(e) ? e.message : "Karten konnten nicht geladen werden.");

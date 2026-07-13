@@ -46,7 +46,7 @@ const MODES: Mode[] = [
   { key: "match", title: "Zuordnen", sub: "Begriffe & Definitionen paaren", Icon: Match, color: "#3b82f6", path: "match" },
   { key: "cloze", title: "Lückentext", sub: "Fehlendes aktiv ergänzen", Icon: Pencil, color: "#d97706", path: "cloze" },
   { key: "test", title: "Test", sub: "Klausur mit Prozent-Ergebnis", Icon: FileText, color: "#dc2626", path: "test" },
-  { key: "occ", title: "Occlusion", sub: "Bildteile verdecken & abfragen", Icon: ImageIcon, color: "#059669", path: "occlusion" },
+  // Occlusion wird separat als eigene Kachel gerendert (bedingt: aktiv nur mit Bild-Karten).
 ];
 
 type CardModal =
@@ -118,6 +118,11 @@ export default function DeckDetailPage() {
     );
   }
 
+  // Bild-Occlusion-Karten sind ein eigener Typ: sie gehören nur in den
+  // Occlusion-Modus, nicht in die normale Kartenliste oder die Textmodi.
+  const textCards = cards.filter((c) => c.type !== "occlusion");
+  const hasOcclusion = cards.some((c) => c.type === "occlusion");
+
   return (
     <div className="deck-detail">
       <Link href="/dashboard" className="crumb">
@@ -130,7 +135,7 @@ export default function DeckDetailPage() {
             {details?.title}
           </h1>
           <p className="muted" style={{ marginTop: 4 }}>
-            {cards.length} {cards.length === 1 ? "Karte" : "Karten"}
+            {textCards.length} {textCards.length === 1 ? "Karte" : "Karten"}
           </p>
         </div>
         <button
@@ -190,6 +195,33 @@ export default function DeckDetailPage() {
                 </div>
               );
             })}
+            {/* Occlusion-Kachel: aktiv (grün) → lernen, wenn das Deck Bild-Karten hat;
+                sonst ausgegraut → Editor, um erst ein Bild hinzuzufügen. */}
+            <Link
+              href={`/dashboard/deck/${deckId}/${hasOcclusion ? "occlusion" : "occlusion/new"}`}
+              className={`mode-card${hasOcclusion ? "" : " mode-card--soon"}`}
+            >
+              <span
+                className="mode-card__ic"
+                style={
+                  hasOcclusion
+                    ? { background: "#05966922", color: "#059669" }
+                    : { background: "var(--bg-softer)", color: "var(--ink-3)" }
+                }
+                aria-hidden
+              >
+                <ImageIcon size={20} />
+              </span>
+              <span className="mode-card__body">
+                <span className="mode-card__title">Occlusion</span>
+                <span className="mode-card__sub">
+                  {hasOcclusion
+                    ? "Bildteile verdecken & abfragen"
+                    : "Noch kein Bild — tippen zum Erstellen"}
+                </span>
+              </span>
+              <ChevronRight size={20} className="mode-card__chevron" />
+            </Link>
           </div>
         </>
       )}
@@ -210,12 +242,13 @@ export default function DeckDetailPage() {
           </button>
         </div>
       ) : (
+        textCards.length > 0 && (
         <>
           <h2 className="h3" style={{ margin: "0 0 10px" }}>
             Karten
           </h2>
           <div className="card-list">
-            {cards.map((card, i) => (
+            {textCards.map((card, i) => (
             <div key={card.id} className="card-row">
               <span className="card-row__num">{i + 1}</span>
               <div className="card-row__faces">
@@ -253,6 +286,7 @@ export default function DeckDetailPage() {
           ))}
           </div>
         </>
+        )
       )}
 
       {(modal?.type === "add" || modal?.type === "edit") && (
