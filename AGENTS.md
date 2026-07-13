@@ -34,6 +34,21 @@ pnpm --filter @clearn/mobile dev
 - Production/TestFlight builds are currently blocked: the required
   `EXPO_PUBLIC_REVENUECAT_*` keys are not set in the EAS environment.
 
+### Build frugality (builds cost money — mandatory)
+
+EAS builds burn paid cloud minutes / plan quota (22 iOS builds in July 2026,
+8 on a single day — that is the anti-pattern). Every agent must:
+
+1. **Only build when the user wants to test.** Never auto-build after each
+   merge — collect finished work and ship ONE build at the end.
+2. **Check for a running build first**: `eas build:list --platform ios
+   --limit 3` — if a build for the same commit is NEW/IN_PROGRESS, use its
+   build page instead of starting another. Cancel accidental duplicates
+   (`eas build:cancel <id>`).
+3. **Tell the user before spending.** Lara is a student and does not know
+   cloud pricing models — anything that costs money or quota (builds, paid
+   APIs) must be flagged to her *before* doing it, unprompted.
+
 ## featureGates.ts sync
 
 `packages/contracts/src/featureGates.ts` is the canonical source for tier limits, LP costs, LP earn rules, and LP pack prices.
