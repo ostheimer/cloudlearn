@@ -21,6 +21,7 @@ import {
 } from "lucide-react-native";
 import { useSessionStore } from "../../src/store/sessionStore";
 import { getStats, listDecks, type StatsResponse, type Deck } from "../../src/lib/api";
+import { getLastUsedDeck, type LastUsedDeck } from "../../src/lib/lastUsedDeck";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
 import { LpBadge } from "../../src/components/LpBadge";
 import { AuthPromptCard } from "../../src/components/AuthPromptCard";
@@ -32,6 +33,7 @@ export default function HomeScreen() {
   const setDueCount = useSessionStore((state) => state.setDueCount);
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [recentDeck, setRecentDeck] = useState<Deck | null>(null);
+  const [lastUsed, setLastUsed] = useState<LastUsedDeck | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -45,13 +47,17 @@ export default function HomeScreen() {
         setStats(res.stats);
         setDueCount(res.stats.dueCards ?? 0);
       }),
-      listDecks(userId).then((res) => {
+      Promise.all([listDecks(userId), getLastUsedDeck()]).then(([res, stored]) => {
         if (res.decks.length > 0) {
           const sorted = [...res.decks].sort(
             (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
           );
           setRecentDeck(sorted[0] ?? null);
         }
+        // Only trust the on-device marker while that deck still exists.
+        setLastUsed(
+          stored && res.decks.some((d) => d.id === stored.id) ? stored : null
+        );
       }),
     ])
       .catch((e) => setError(String(e)))
@@ -79,12 +85,19 @@ export default function HomeScreen() {
   const today = new Date().toLocaleDateString("sv-SE");
   const reviewedToday = stats?.lastReviewDate === today;
 
-  // "Zuletzt gelernt": the deck of the most recent review (server-derived).
-  // Falls back to the most recently edited deck for accounts without reviews.
+  // "Zuletzt genutzt": prefer the deck last opened on this device — practice
+  // modes leave no review_logs, so the server only sees Karteikarten sessions.
+  // Fall back to the server's last-reviewed deck, then to the last-edited one.
   const lastStudied = stats?.lastStudiedDeck ?? null;
   const shownDeck =
-    lastStudied ?? (recentDeck ? { id: recentDeck.id, title: recentDeck.title } : null);
-  const shownDeckLabel = lastStudied ? "Zuletzt gelernt" : "Zuletzt geändert";
+    lastUsed ??
+    lastStudied ??
+    (recentDeck ? { id: recentDeck.id, title: recentDeck.title } : null);
+  const shownDeckLabel = lastUsed
+    ? "Zuletzt genutzt"
+    : lastStudied
+      ? "Zuletzt gelernt"
+      : "Zuletzt geändert";
 
   if (!userId) {
     return (

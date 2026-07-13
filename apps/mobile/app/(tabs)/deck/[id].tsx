@@ -49,6 +49,7 @@ import {
   cardsFromOfflineDeckCache,
   offlineDeckStorageKey,
 } from "../../../src/lib/offlineDeckCache";
+import { setLastUsedDeck } from "../../../src/lib/lastUsedDeck";
 import { useSessionStore } from "../../../src/store/sessionStore";
 import { useColors, spacing, radius, typography, shadows } from "../../../src/theme";
 import { useTranslation } from "react-i18next";
@@ -403,6 +404,15 @@ export default function DeckDetailScreen() {
 
   const deckId = id ?? "";
   const deckTitle = currentDeckTitle;
+
+  // Remember this as the last-used deck for the Home row — opening the deck
+  // is the mode-independent "benutzt" signal (practice modes leave no
+  // review_logs, so the server can't see them).
+  useEffect(() => {
+    if (deckId) {
+      void setLastUsedDeck({ id: deckId, title: deckTitle });
+    }
+  }, [deckId, deckTitle]);
 
   // Header via the Tabs navigator (this screen lives inside the tab group so
   // the bottom bar stays visible). Solid bar + hairline per #192; the back
