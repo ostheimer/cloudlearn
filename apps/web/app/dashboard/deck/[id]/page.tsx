@@ -46,7 +46,7 @@ const MODES: Mode[] = [
   { key: "match", title: "Zuordnen", sub: "Begriffe & Definitionen paaren", Icon: Match, color: "#3b82f6", path: "match" },
   { key: "cloze", title: "Lückentext", sub: "Fehlendes aktiv ergänzen", Icon: Pencil, color: "#d97706", path: "cloze" },
   { key: "test", title: "Test", sub: "Klausur mit Prozent-Ergebnis", Icon: FileText, color: "#dc2626", path: "test" },
-  { key: "occ", title: "Occlusion", sub: "Bild hochladen & Bereiche verdecken", Icon: ImageIcon, color: "#059669", path: "occlusion/new" },
+  { key: "occ", title: "Occlusion", sub: "Bildteile verdecken & abfragen", Icon: ImageIcon, color: "#059669", path: "occlusion" },
 ];
 
 type CardModal =
