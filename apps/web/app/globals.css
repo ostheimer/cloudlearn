@@ -1824,6 +1824,134 @@ a.mode-card:hover {
   margin-top: 2px;
 }
 
+/* ---------- Occlusion-Editor ---------- */
+.occ-tools {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.occ-drop {
+  border: 2px dashed var(--line);
+  border-radius: var(--r-md);
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--ink-3);
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+}
+.occ-drop p {
+  margin: 0;
+  font-size: 0.92rem;
+}
+.occ-stage {
+  position: relative;
+  width: 100%;
+  background: var(--bg-softer);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  cursor: crosshair;
+}
+.occ-stage img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 60vh;
+  object-fit: contain;
+  pointer-events: none;
+}
+.occ-rg {
+  position: absolute;
+  /* Im Editor bewusst leicht durchscheinend, damit man sieht, was man zudeckt. */
+  background: rgba(99, 102, 241, 0.55);
+  border: 2px solid var(--brand-600);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.occ-rg > span {
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0 4px;
+  text-align: center;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+.occ-rg__del {
+  position: absolute;
+  top: -9px;
+  right: -9px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: #fff;
+  border: 2px solid var(--surface);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+}
+.occ-draw {
+  position: absolute;
+  background: rgba(99, 102, 241, 0.28);
+  border: 2px dashed var(--brand-600);
+  border-radius: 6px;
+  pointer-events: none;
+}
+.occ-hint {
+  text-align: center;
+  color: var(--ink-3);
+  font-size: 0.82rem;
+  margin: 10px 0 0;
+}
+.occ-list {
+  margin-top: 14px;
+  display: grid;
+  gap: 8px;
+}
+.occ-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-softer);
+  border-radius: var(--r-md);
+  padding: 8px 10px;
+}
+.occ-item__n {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--brand);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.occ-item__in {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 0.9rem;
+  background: var(--surface);
+  color: var(--ink);
+}
+.occ-item__in:focus {
+  outline: none;
+  border-color: var(--brand);
+}
+
 /* ---------- Test / Klausur-Modus ---------- */
 .test-tap {
   display: flex;
