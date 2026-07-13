@@ -1824,6 +1824,113 @@ a.mode-card:hover {
   margin-top: 2px;
 }
 
+/* ---------- Zuordnen-Modus ---------- */
+.zu-statbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.zu-statbar__l {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 800;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.zu-statbar__l.mut {
+  color: var(--ink-3);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.zu-statbar__m {
+  font-size: 0.85rem;
+  color: var(--ink-3);
+}
+.zu-statbar__e {
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+.zu-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.zu-tile {
+  position: relative;
+  min-height: 66px;
+  border: 2px solid var(--line);
+  background: var(--surface);
+  border-radius: var(--r-md);
+  padding: 12px 10px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.1s ease, background 0.1s ease;
+}
+.zu-tile:disabled {
+  cursor: default;
+}
+.zu-tile--sel {
+  background: var(--brand-50);
+  border-color: var(--brand);
+  color: var(--brand);
+  font-weight: 800;
+}
+.zu-tile--matched {
+  background: rgba(16, 185, 129, 0.14);
+  border-color: rgba(16, 185, 129, 0.5);
+  color: #047857;
+  opacity: 0.55;
+}
+.zu-tile--wrong {
+  background: rgba(239, 68, 68, 0.14);
+  border-color: #ef4444;
+  color: #b91c1c;
+}
+.zu-dot {
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.zu-dot--front {
+  background: rgba(99, 102, 241, 0.4);
+}
+.zu-dot--back {
+  background: rgba(139, 92, 246, 0.4);
+}
+.zu-stars {
+  display: flex;
+  gap: 8px;
+}
+.zu-best {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.zu-best__t {
+  flex: 1;
+  color: var(--ink-3);
+}
+@media (prefers-color-scheme: dark) {
+  .zu-tile--matched {
+    color: #6ee7b7;
+  }
+  .zu-tile--wrong {
+    color: #fca5a5;
+  }
+}
+
 /* ---------- Lückentext-Modus ---------- */
 .cl-intro {
   display: grid;
