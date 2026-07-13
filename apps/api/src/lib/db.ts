@@ -416,6 +416,51 @@ export async function listDueCards(
   return (data ?? []).map(mapCardRow);
 }
 
+export interface CardSearchResult {
+  cardId: string;
+  deckId: string;
+  deckTitle: string;
+  front: string;
+  back: string;
+}
+
+/**
+ * Case-insensitive search across the user's own card fronts/backs (the
+ * Bibliothek card search). Characters with meaning in PostgREST or-filters
+ * and LIKE patterns are stripped so user input cannot alter the query.
+ */
+export async function searchCardsForUser(
+  userId: string,
+  query: string,
+  limit = 20
+): Promise<CardSearchResult[]> {
+  const term = query.replace(/[%_,()\\]/g, " ").trim();
+  if (term.length < 2) return [];
+
+  const db = getDb();
+  const pattern = `%${term}%`;
+  const { data, error } = await db
+    .from("cards")
+    .select("id, deck_id, front, back, decks(title)")
+    .eq("user_id", userId)
+    .is("deleted_at", null)
+    .or(`front.ilike.${pattern},back.ilike.${pattern}`)
+    .limit(limit);
+  if (error) throw new Error(`searchCardsForUser: ${error.message}`);
+
+  return (data ?? []).map((row) => {
+    const deck = row.decks as { title?: string } | { title?: string }[] | null;
+    const deckTitle = Array.isArray(deck) ? deck[0]?.title : deck?.title;
+    return {
+      cardId: row.id as string,
+      deckId: row.deck_id as string,
+      deckTitle: deckTitle ?? "",
+      front: (row.front as string) ?? "",
+      back: (row.back as string) ?? "",
+    };
+  });
+}
+
 // ─── Streaks & Stats ────────────────────────────────────────────────────────
 
 export interface StreakInfo {
