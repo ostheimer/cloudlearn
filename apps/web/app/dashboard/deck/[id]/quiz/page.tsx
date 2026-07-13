@@ -126,7 +126,15 @@ export default function QuizPage() {
       return next;
     });
     if (userId) {
-      const reviewPromise = reviewCard(userId, q.cardId, correct ? "good" : "again").catch(() => {});
+      // #210: Guessing on a Multiple-Choice quiz shouldn't advance FSRS — a correct
+      // answer may just be a lucky guess, so only wrong answers submit a review
+      // ("again", which resurfaces the card sooner). Correct answers leave the card's
+      // schedule untouched. We still push a resolved promise so the pending-review
+      // count (used for LP earning) and the awaited Promise.allSettled flow are
+      // unchanged.
+      const reviewPromise = correct
+        ? Promise.resolve()
+        : reviewCard(userId, q.cardId, "again").catch(() => {});
       pendingReviewsRef.current.push(reviewPromise);
     }
   }
