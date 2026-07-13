@@ -1,5 +1,6 @@
 import { createSupabaseAdminClient } from "@/lib/supabase";
 import { getLimitsForTier, LP_EARN_RULES, lpCostForFeature } from "@/lib/featureGates";
+import { todayLocal } from "@/lib/localDay";
 import type { SubscriptionTier } from "@/lib/contracts";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -12,8 +13,9 @@ function getDb() {
   return client;
 }
 
-function todayUTC(): string {
-  return new Date().toISOString().split("T")[0]!;
+// Daily earn/ad limits reset at the user's local midnight, not UTC (#211).
+function todayLocalDate(): string {
+  return todayLocal();
 }
 
 // ─── Balance ─────────────────────────────────────────────────────────────────
@@ -35,7 +37,7 @@ export async function getLpProfile(userId: string): Promise<LpProfile> {
 
   if (error) throw new Error(`getLpProfile: ${error.message}`);
 
-  const today = todayUTC();
+  const today = todayLocalDate();
   const isSameDay = data?.lp_period_start === today;
   return {
     balance: data?.lp_balance ?? 10,
@@ -154,7 +156,7 @@ export async function earnLp(
     p_lp_per_chunk: LP_EARN_RULES.perReviewSession,
     p_cards_per_chunk: CARDS_PER_SESSION_CHUNK,
     p_earn_cap: limits.lpEarnCapPerDay,
-    p_today: todayUTC(),
+    p_today: todayLocalDate(),
   });
   if (error) throw new Error(`earnLp(session): ${error.message}`);
   return mapEarnRow(data);

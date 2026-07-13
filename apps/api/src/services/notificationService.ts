@@ -1,4 +1,5 @@
 import { createSupabaseAdminClient } from "@/lib/supabase";
+import { todayLocal } from "@/lib/localDay";
 
 // Sends Expo push notifications using the Expo Push API.
 // No SDK needed — plain HTTP to https://exp.host/--/api/v2/push/send.
@@ -57,7 +58,8 @@ export async function sendStreakAlertNotifications(): Promise<{ sent: number }> 
   const db = createSupabaseAdminClient();
   if (!db) return { sent: 0 };
 
-  const today = new Date().toISOString().split("T")[0]!;
+  // Streak days follow the user's local day, not UTC (#211).
+  const today = todayLocal();
 
   // Find users who have a streak > 0 but haven't reviewed today
   const { data: atRiskUsers } = await db
