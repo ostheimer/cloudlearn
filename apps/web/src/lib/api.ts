@@ -100,6 +100,10 @@ export interface Card {
   starred: boolean;
   fsrsDue: string;
   fsrsState: string;
+  // Bild-Karten (Occlusion): Speicherpfad des Bildes + freie Zusatzdaten
+  // (für Occlusion: { regions, hideIndex }).
+  sourceImageUrl?: string;
+  extraData?: Record<string, unknown>;
 }
 
 export type ReviewRating = "again" | "hard" | "good" | "easy";
@@ -197,6 +201,8 @@ export function createCard(
     type?: string;
     difficulty?: string;
     tags?: string[];
+    sourceImageUrl?: string;
+    extraData?: Record<string, unknown>;
   }
 ): Promise<{ card: Card }> {
   return authed<{ card: Card }>("/api/v1/cards", {
@@ -207,10 +213,12 @@ export function createCard(
       card: {
         front: card.front,
         back: card.back,
-        // API card types: basic | cloze | mcq | matching (see cardService flashcardSchema)
+        // API card types: basic | cloze | mcq | matching | occlusion (see cardService flashcardSchema)
         type: card.type ?? "basic",
         difficulty: card.difficulty ?? "medium",
         tags: card.tags ?? [],
+        ...(card.sourceImageUrl ? { sourceImageUrl: card.sourceImageUrl } : {}),
+        ...(card.extraData ? { extraData: card.extraData } : {}),
       },
     }),
   });
