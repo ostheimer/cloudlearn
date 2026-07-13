@@ -1,14 +1,27 @@
 import { z } from "zod";
 
-export const cardTypeSchema = z.enum(["basic", "cloze", "mcq", "matching"]);
+export const cardTypeSchema = z.enum(["basic", "cloze", "mcq", "matching", "occlusion"]);
 export const difficultySchema = z.enum(["easy", "medium", "hard"]);
+
+// One rectangular occlusion region on the card image (percent 0-1).
+export const occlusionRegionSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+  w: z.number(),
+  h: z.number(),
+  label: z.string().max(200),
+});
 
 export const flashcardSchema = z.object({
   front: z.string().min(1).max(500),
   back: z.string().min(1).max(1000),
   type: cardTypeSchema.default("basic"),
   difficulty: difficultySchema.default("medium"),
-  tags: z.array(z.string().min(1).max(40)).max(10).default([])
+  tags: z.array(z.string().min(1).max(40)).max(10).default([]),
+  // Storage path of the card image (Occlusion & future image cards).
+  sourceImageUrl: z.string().max(1000).optional(),
+  // Free-form per-card data. For Occlusion: { regions: OcclusionRegion[], hideIndex: number }.
+  extraData: z.record(z.unknown()).optional(),
 });
 
 export type Flashcard = z.infer<typeof flashcardSchema>;
