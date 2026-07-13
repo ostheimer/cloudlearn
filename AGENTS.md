@@ -23,6 +23,17 @@ pnpm --filter @clearn/mobile test
 pnpm --filter @clearn/mobile dev
 ```
 
+## Mobile shipping reality (no OTA)
+
+- `expo-updates` is **not installed**: production OTA does not work despite the
+  `updates.url` in `app.json`. **Every app change reaches devices only via a new
+  `eas build`** — code merged to main is invisible on phones until then.
+- The current dev machine is Windows (no Xcode/simulators). On-device testing
+  runs via `eas build --platform ios --profile preview` from `apps/mobile`
+  (internal distribution; the registered iPhones install from the build page).
+- Production/TestFlight builds are currently blocked: the required
+  `EXPO_PUBLIC_REVENUECAT_*` keys are not set in the EAS environment.
+
 ## featureGates.ts sync
 
 `packages/contracts/src/featureGates.ts` is the canonical source for tier limits, LP costs, LP earn rules, and LP pack prices.
