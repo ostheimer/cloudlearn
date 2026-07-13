@@ -134,24 +134,34 @@ export default function TestPage() {
     }
   }, []);
 
-  const startTest = useCallback(() => {
-    const types: TestQuestionType[] = [];
-    if (typeTF) types.push("trueFalse");
-    if (typeMC) types.push("mc");
-    if (typeWritten) types.push("written");
-    const qs = buildTestQuestions(cards, { count: count || usableCount, types, reverse });
-    setQuestions(qs);
-    setAnswers(qs.map(() => ({ mc: null, tf: null, text: "" })));
-    setGraded([]);
-    setIdx(0);
-    // Zeitbudget aus den TATSÄCHLICH gebauten Fragen (nicht der angeforderten
-    // Anzahl) — buildTestQuestions kann weniger liefern (z. B. Lücken-Karten bei
-    // ausgeschaltetem „Schriftlich"). Nur im Zeit-Modus relevant.
-    setRemaining(timed ? qs.length * SECONDS_PER_QUESTION : 0);
-    awardedRef.current = false;
-    setEarned(null);
-    setPhase("play");
-  }, [cards, count, usableCount, typeTF, typeMC, typeWritten, reverse, timed]);
+  // Baut den Test aus den übergebenen Karten und geht direkt ins Spiel — die
+  // gemeinsame Basis für „Nochmal" (alle Karten) und „Nur nicht gewusste"
+  // (Teilmenge, überspringt das Setup). Der LP-Zustand wird genauso
+  // zurückgesetzt wie zuvor: die abgeschlossene Sitzung wurde bereits in submit
+  // gutgeschrieben, hier startet nur die neue Sitzung frisch.
+  const buildAndStart = useCallback(
+    (sourceCards: Card[]) => {
+      const types: TestQuestionType[] = [];
+      if (typeTF) types.push("trueFalse");
+      if (typeMC) types.push("mc");
+      if (typeWritten) types.push("written");
+      const qs = buildTestQuestions(sourceCards, { count: count || usableCount, types, reverse });
+      setQuestions(qs);
+      setAnswers(qs.map(() => ({ mc: null, tf: null, text: "" })));
+      setGraded([]);
+      setIdx(0);
+      // Zeitbudget aus den TATSÄCHLICH gebauten Fragen (nicht der angeforderten
+      // Anzahl) — buildTestQuestions kann weniger liefern (z. B. Lücken-Karten bei
+      // ausgeschaltetem „Schriftlich"). Nur im Zeit-Modus relevant.
+      setRemaining(timed ? qs.length * SECONDS_PER_QUESTION : 0);
+      awardedRef.current = false;
+      setEarned(null);
+      setPhase("play");
+    },
+    [count, usableCount, typeTF, typeMC, typeWritten, reverse, timed]
+  );
+
+  const startTest = useCallback(() => buildAndStart(cards), [buildAndStart, cards]);
 
   const submit = useCallback(() => {
     const result: Graded[] = questions.map((q, i) => {
@@ -379,6 +389,14 @@ export default function TestPage() {
   // ---------- Ergebnis ----------
   if (phase === "result") {
     const pass = percent >= 50;
+    // „Nicht gewusst" = als falsch gewertet UND nicht per Selbstbewertung
+    // nachträglich als richtig gezählt. Auf die zugehörigen Karten abbilden,
+    // damit ein Neustart genau diese wiederholt (eine Frage = eine Karte).
+    const wrongCards = questions
+      .map((qq, i) => ({ qq, g: graded[i] }))
+      .filter(({ g }) => g != null && !g.correct && !g.overridden)
+      .map(({ qq }) => cards.find((c) => c.id === qq.cardId))
+      .filter((c): c is Card => Boolean(c));
     return (
       <div className="study-wrap">
         <div className="test-reshead">
@@ -442,9 +460,24 @@ export default function TestPage() {
           );
         })}
 
-        <button type="button" className="btn btn-primary btn-block" onClick={startTest}>
-          <RotateCw size={18} /> Nochmal
-        </button>
+        {wrongCards.length > 0 ? (
+          <>
+            <button
+              type="button"
+              className="btn btn-primary btn-block"
+              onClick={() => buildAndStart(wrongCards)}
+            >
+              Nur nicht gewusste ({wrongCards.length})
+            </button>
+            <button type="button" className="btn btn-ghost btn-block" onClick={startTest}>
+              <RotateCw size={18} /> Nochmal alle
+            </button>
+          </>
+        ) : (
+          <button type="button" className="btn btn-primary btn-block" onClick={startTest}>
+            <RotateCw size={18} /> Nochmal
+          </button>
+        )}
         <button
           type="button"
           className="btn btn-ghost btn-block"
