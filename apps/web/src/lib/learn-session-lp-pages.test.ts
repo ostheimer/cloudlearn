@@ -9,7 +9,8 @@ const lpModePages = [
   {
     name: "quiz",
     path: "app/dashboard/deck/[id]/quiz/page.tsx",
-    restartGuard: "const startQuiz = useCallback(async () => {\n    await awardSession(total);",
+    restartGuard:
+      "const startQuizWith = useCallback(async (cardsForRound: Card[]) => {\n    await awardSession(total);",
   },
   {
     name: "cloze",
@@ -23,7 +24,8 @@ describe("web session LP mode pages", () => {
   it.each(lpModePages)(
     "waits for persisted reviews before awarding LP in $name mode",
     ({ path, restartGuard }) => {
-      const source = readFileSync(join(webRoot, path), "utf-8");
+      // \r\n normalisieren, damit der Test auch auf Windows-Checkouts (CRLF) läuft
+      const source = readFileSync(join(webRoot, path), "utf-8").replace(/\r\n/g, "\n");
 
       expect(source).toContain("beginSessionAward");
       expect(source).toContain("getSessionReviewedCount");
