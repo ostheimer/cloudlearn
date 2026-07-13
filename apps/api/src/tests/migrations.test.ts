@@ -167,6 +167,24 @@ describe("supabase migrations", () => {
     expect(sql).toContain("DROP COLUMN IF EXISTS usage_period_start");
   });
 
+  it("makes referral claim atomic + idempotent with a per-referrer cap (#203)", () => {
+    const migrationPath = join(
+      apiRoot,
+      "supabase/migrations/20260713100000_atomic_referral_claim.sql",
+    );
+    const sql = readFileSync(migrationPath, "utf-8");
+
+    expect(sql).toContain("create or replace function claim_referral");
+    // Row-locks close the TOCTOU / lost-update races on both parties
+    expect(sql).toContain("from profiles where id = p_claimer for update");
+    expect(sql).toContain("from profiles where id = v_referrer for update");
+    // Idempotency guard: a second claim by the same claimer short-circuits
+    expect(sql).toContain("if v_claimer_referred is not null then return jsonb_build_object('status','already_referred'); end if;");
+    // Per-referrer cap gates ONLY the sender bonus (claimer is always paid)
+    expect(sql).toContain("if v_referrer_count < p_referrer_cap then");
+    expect(sql).toContain("grant execute on function claim_referral(uuid, text, int, int, int) to service_role");
+  });
+
   it("keeps profile deletion backed by cascading user-data references", () => {
     const migrationDir = join(apiRoot, "supabase/migrations");
     const migrationFiles = [

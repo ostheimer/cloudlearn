@@ -76,6 +76,11 @@ export const LP_EARN_RULES = {
   firstReview: 5,
 } as const;
 
+// Max number of paid referrals a single referrer can earn the sender bonus for.
+// Caps referral farming (#203): beyond this the claimer still gets their bonus,
+// but the referrer no longer receives the referralSender payout.
+export const REFERRAL_SENDER_CAP = 10;
+
 // LP pack product IDs as sold via RevenueCat (consumable one-time purchases)
 export const LP_PACKS: Record<string, { lp: number; priceEur: number }> = {
   "lp_pack_100":  { lp: 100,  priceEur: 0.99 },
