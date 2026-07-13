@@ -70,15 +70,20 @@ export default function OcclusionLearnPage() {
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
   const [correct, setCorrect] = useState(0);
+  // Items, die der Nutzer mit „Nochmal" bewertet hat — für die Wiederholung.
+  const [wrong, setWrong] = useState<OccItem[]>([]);
   const [earned, setEarned] = useState<number | null>(null);
   const [earnCapReached, setEarnCapReached] = useState(false);
   const awardedRef = useRef(false);
+  // Volle geladene Liste, damit „Nochmal alle" nach einer Teil-Runde wieder alles nimmt.
+  const allItemsRef = useRef<OccItem[]>([]);
 
   const load = useCallback(async () => {
     if (!deckId) return;
     try {
       const { cards } = await listCardsInDeck(deckId);
       const occ = cards.map(parseOcc).filter((o): o is OccItem => o !== null);
+      allItemsRef.current = occ;
       setItems(occ);
       if (occ.length > 0) {
         // Bild liegt privat im Bucket — pro Bild eine signierte URL holen.
@@ -128,6 +133,7 @@ export default function OcclusionLearnPage() {
     const item = items[index];
     if (!item || !userId) return;
     if (known) setCorrect((n) => n + 1);
+    else setWrong((w) => [...w, item]);
     // Fire-and-forget — FSRS-Planung passiert serverseitig.
     reviewCard(userId, item.id, known ? "good" : "again").catch(() => {});
     setRevealed(false);
@@ -138,10 +144,27 @@ export default function OcclusionLearnPage() {
     awardedRef.current = false;
     setEarned(null);
     setEarnCapReached(false);
+    // Zurück auf die volle Liste, falls zuvor eine Teil-Runde lief.
+    setItems(allItemsRef.current);
     setIndex(0);
     setRevealed(false);
     setCorrect(0);
+    setWrong([]);
     setPhase("setup");
+  }
+
+  // Nur die „nicht gewussten" Items erneut lernen — maskOthers bleibt, direkt ins Lernen.
+  function restartWrong() {
+    const subset = wrong;
+    awardedRef.current = false;
+    setEarned(null);
+    setEarnCapReached(false);
+    setItems(subset);
+    setIndex(0);
+    setRevealed(false);
+    setCorrect(0);
+    setWrong([]);
+    setPhase("study");
   }
 
   function quit() {
@@ -206,8 +229,17 @@ export default function OcclusionLearnPage() {
             </p>
           )}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
-            <button type="button" className="btn btn-primary" onClick={restart}>
-              Nochmal lernen
+            {wrong.length > 0 && (
+              <button type="button" className="btn btn-primary" onClick={restartWrong}>
+                Nur nicht gewusste ({wrong.length})
+              </button>
+            )}
+            <button
+              type="button"
+              className={`btn ${wrong.length > 0 ? "btn-ghost" : "btn-primary"}`}
+              onClick={restart}
+            >
+              {wrong.length > 0 ? "Nochmal alle" : "Nochmal lernen"}
             </button>
             <Link href={`/dashboard/deck/${deckId}`} className="btn btn-ghost">
               Zurück zum Deck

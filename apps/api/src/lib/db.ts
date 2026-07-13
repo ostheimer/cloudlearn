@@ -591,7 +591,9 @@ export async function getStreakCalendar(userId: string, month: string): Promise<
  */
 export async function getReviewStats(
   userId: string,
-  days: 7 | 30 = 7
+  // Default 30 = the historic pre-`days`-param window (backward compatibility
+  // for callers that don't pass it; the route always passes explicitly).
+  days: 7 | 30 = 30
 ): Promise<{
   reviewsToday: number;
   reviewsThisWeek: number;

@@ -103,9 +103,12 @@ export default function QuizPage() {
     });
   }, []);
 
-  const startQuiz = useCallback(async () => {
+  // Startet eine Runde mit den übergebenen Karten (alle Karten oder nur die
+  // nicht gewussten). Schreibt zuerst die LP der eben beendeten Runde gut und
+  // setzt danach den Award-Zustand + offene Reviews zurück.
+  const startQuizWith = useCallback(async (cardsForRound: Card[]) => {
     await awardSession(total);
-    const qs = generateQuestions(cards, { reverse, allowMc, allowTrueFalse });
+    const qs = generateQuestions(cardsForRound, { reverse, allowMc, allowTrueFalse });
     awardStateRef.current = { finalized: false, inFlight: null };
     pendingReviewsRef.current = [];
     setEarned(null);
@@ -115,7 +118,9 @@ export default function QuizPage() {
     setPicked(null);
     setAnswers([]);
     setPhase("play");
-  }, [cards, reverse, allowMc, allowTrueFalse, awardSession, total]);
+  }, [reverse, allowMc, allowTrueFalse, awardSession, total]);
+
+  const startQuiz = useCallback(() => startQuizWith(cards), [startQuizWith, cards]);
 
   function pick(i: number) {
     if (picked !== null || !q) return;
@@ -278,6 +283,15 @@ export default function QuizPage() {
   if (phase === "result") {
     const correct = answers.filter(Boolean).length;
     const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
+    // Nicht gewusst = Karten hinter falsch beantworteten Fragen (per cardId
+    // dedupliziert; eine Karte kann mehrere Fragen tragen).
+    const wrongCardIds = Array.from(
+      new Set(questions.filter((_, i) => answers[i] === false).map((qq) => qq.cardId)),
+    );
+    const wrongCards = cards.filter((c) => wrongCardIds.includes(c.id));
+    // Multiple Choice braucht mind. 2 Karten für Ablenker — bei weniger würde
+    // generateQuestions keine Fragen liefern, dann Knopf ausblenden.
+    const canRetryWrong = wrongCards.length >= 2;
     const msg =
       pct >= 80
         ? "Hervorragend! Du beherrschst den Stoff."
@@ -337,8 +351,21 @@ export default function QuizPage() {
           </div>
 
           <div style={{ display: "grid", gap: 8, width: "100%", maxWidth: 320 }}>
-            <button type="button" className="btn btn-primary btn-block" onClick={startQuiz}>
-              Nochmal
+            {canRetryWrong && (
+              <button
+                type="button"
+                className="btn btn-primary btn-block"
+                onClick={() => startQuizWith(wrongCards)}
+              >
+                Nur nicht gewusste ({wrongCards.length})
+              </button>
+            )}
+            <button
+              type="button"
+              className={canRetryWrong ? "btn btn-ghost btn-block" : "btn btn-primary btn-block"}
+              onClick={startQuiz}
+            >
+              {canRetryWrong ? "Nochmal alle" : "Nochmal"}
             </button>
             <button
               type="button"

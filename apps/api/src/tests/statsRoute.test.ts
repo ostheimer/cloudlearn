@@ -2,9 +2,11 @@
  * Route-level tests for GET /api/v1/stats (Statistik-Ausbau C+D).
  *
  * The `days` query parameter is whitelisted to exactly 7 or 30 — anything
- * else (missing, 999, garbage) falls back to 7. The response must stay
- * backward-compatible: every pre-existing field is still present, and the
- * new `durationMsByDay` rides along for the per-day "Lernzeit" detail.
+ * else (missing, 999, garbage) falls back to 30, the historic window from
+ * before the param existed, so old clients without `?days=` keep their full
+ * 30-day series. The response must stay backward-compatible: every
+ * pre-existing field is still present, and the new `durationMsByDay` rides
+ * along for the per-day "Lernzeit" detail.
  *
  * `@/lib/http` is mocked with light Response-shaped fakes so the test never
  * has to load `next/server`.
@@ -91,8 +93,15 @@ describe("GET /api/v1/stats – days whitelist + durationMsByDay", () => {
     mockedGetLastStudiedDeck.mockResolvedValue({ id: "deck-1", title: "Bio" });
   });
 
-  it("defaults to a 7-day window without a days param", async () => {
+  it("defaults to the historic 30-day window without a days param (old clients)", async () => {
     const response = await GET(getRequest());
+
+    expect(response.status).toBe(200);
+    expect(mockedGetReviewStats).toHaveBeenCalledWith(AUTH_USER_ID, 30);
+  });
+
+  it("passes days=7 through to getReviewStats", async () => {
+    const response = await GET(getRequest("7"));
 
     expect(response.status).toBe(200);
     expect(mockedGetReviewStats).toHaveBeenCalledWith(AUTH_USER_ID, 7);
@@ -105,16 +114,16 @@ describe("GET /api/v1/stats – days whitelist + durationMsByDay", () => {
     expect(mockedGetReviewStats).toHaveBeenCalledWith(AUTH_USER_ID, 30);
   });
 
-  it("treats a non-whitelisted value (?days=999) like 7", async () => {
+  it("treats a non-whitelisted value (?days=999) like 30", async () => {
     await GET(getRequest("999"));
 
-    expect(mockedGetReviewStats).toHaveBeenCalledWith(AUTH_USER_ID, 7);
+    expect(mockedGetReviewStats).toHaveBeenCalledWith(AUTH_USER_ID, 30);
   });
 
-  it("treats a garbage value (?days=abc) like 7", async () => {
+  it("treats a garbage value (?days=abc) like 30", async () => {
     await GET(getRequest("abc"));
 
-    expect(mockedGetReviewStats).toHaveBeenCalledWith(AUTH_USER_ID, 7);
+    expect(mockedGetReviewStats).toHaveBeenCalledWith(AUTH_USER_ID, 30);
   });
 
   it("keeps all existing fields and adds durationMsByDay to the response", async () => {

@@ -34,12 +34,19 @@ export default function LearnPage() {
   const router = useRouter();
   const { userId } = useAuth();
 
+  // `cards` ist die aktuell gelernte Warteschlange (kann eine Teilmenge sein).
+  // `poolRef` hält den vollen geladenen Kartenstapel, damit „Nochmal alle" wieder
+  // alles lernt, auch nachdem eine Teilmenge (nur nicht gewusste) gelernt wurde.
   const [cards, setCards] = useState<Card[]>([]);
+  const poolRef = useRef<Card[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [correct, setCorrect] = useState(0);
+  // Nicht gewusste Karten dieser Runde (Bewertung „again"/„hard") — als State,
+  // damit die Zahl auf dem Ergebnis-Screen reaktiv ist und wir sie neu lernen können.
+  const [notKnown, setNotKnown] = useState<Card[]>([]);
   const [earned, setEarned] = useState<number | null>(null);
   const [earnCapReached, setEarnCapReached] = useState(false);
   const awardStateRef = useRef<SessionAwardState>({ finalized: false, inFlight: null });
@@ -50,7 +57,9 @@ export default function LearnPage() {
     try {
       const { cards: c } = await listCardsInDeck(deckId);
       // Bild-Occlusion-Karten gehören nur in den Occlusion-Modus (kein Bild hier).
-      setCards(c.filter((x) => x.type !== "occlusion"));
+      const studyable = c.filter((x) => x.type !== "occlusion");
+      poolRef.current = studyable;
+      setCards(studyable);
       setError(null);
     } catch (e) {
       setError(isApiError(e) ? e.message : "Karten konnten nicht geladen werden.");
@@ -108,6 +117,7 @@ export default function LearnPage() {
     const card = cards[index];
     if (!card || !userId) return;
     if (rating === "good" || rating === "easy") setCorrect((n) => n + 1);
+    else setNotKnown((prev) => [...prev, card]);
     const reviewPromise = reviewCard(userId, card.id, rating).catch(() => {
       /* review sync best-effort; scheduling will catch up on next load */
     });
@@ -122,6 +132,24 @@ export default function LearnPage() {
     pendingReviewsRef.current = [];
     setEarned(null);
     setEarnCapReached(false);
+    setCards(poolRef.current);
+    setNotKnown([]);
+    setIndex(0);
+    setFlipped(false);
+    setCorrect(0);
+  }
+
+  // Wie restart(), aber die neue Runde enthält nur die nicht gewussten Karten.
+  // LP-Behandlung identisch zu restart(): erst die fertige Session gutschreiben.
+  async function restartNotKnown() {
+    const subset = notKnown;
+    await awardSession(total);
+    awardStateRef.current.finalized = false;
+    pendingReviewsRef.current = [];
+    setEarned(null);
+    setEarnCapReached(false);
+    setCards(subset);
+    setNotKnown([]);
     setIndex(0);
     setFlipped(false);
     setCorrect(0);
@@ -189,8 +217,17 @@ export default function LearnPage() {
             </p>
           )}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
-            <button type="button" className="btn btn-primary" onClick={restart}>
-              Nochmal lernen
+            {notKnown.length > 0 && (
+              <button type="button" className="btn btn-primary" onClick={restartNotKnown}>
+                Nur nicht gewusste ({notKnown.length})
+              </button>
+            )}
+            <button
+              type="button"
+              className={notKnown.length > 0 ? "btn btn-ghost" : "btn btn-primary"}
+              onClick={restart}
+            >
+              {notKnown.length > 0 ? "Nochmal alle" : "Nochmal lernen"}
             </button>
             <button type="button" className="btn btn-ghost" onClick={quit}>
               Zurück zum Deck
