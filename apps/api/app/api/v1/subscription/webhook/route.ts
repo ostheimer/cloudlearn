@@ -3,6 +3,7 @@ import { revenueCatWebhookSchema } from "@/lib/contracts";
 import { getEnv } from "@/lib/env";
 import { jsonError, jsonOk, normalizeError } from "@/lib/http";
 import { createRequestContext } from "@/lib/observability";
+import { secureCompare } from "@/lib/secureCompare";
 import { mapRevenueCatEventToSubscription } from "@/services/revenueCatService";
 import { updateSubscriptionStatus } from "@/services/subscriptionService";
 import { LP_PACKS } from "@/lib/featureGates";
@@ -20,9 +21,10 @@ export async function POST(request: NextRequest) {
   try {
     const secret = request.headers.get("x-revenuecat-signature");
     const env = getEnv();
-    const runtimeEnv =
-      process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "development";
-    if (!env.REVENUECAT_WEBHOOK_SECRET && runtimeEnv === "production") {
+    // No configured secret → the webhook is unusable in EVERY environment.
+    // (Previously only production 503'd, so preview/dev accepted unauthenticated
+    // subscription/LP events.)
+    if (!env.REVENUECAT_WEBHOOK_SECRET) {
       return jsonError(
         requestId,
         "WEBHOOK_NOT_CONFIGURED",
@@ -30,10 +32,7 @@ export async function POST(request: NextRequest) {
         503
       );
     }
-    if (
-      env.REVENUECAT_WEBHOOK_SECRET &&
-      secret !== env.REVENUECAT_WEBHOOK_SECRET
-    ) {
+    if (!secureCompare(secret, env.REVENUECAT_WEBHOOK_SECRET)) {
       return jsonError(
         requestId,
         "UNAUTHORIZED",

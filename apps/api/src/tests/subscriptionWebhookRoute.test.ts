@@ -25,7 +25,12 @@ vi.mock("@/lib/http", () => ({
   }),
 }));
 vi.mock("@/lib/contracts", () => ({ revenueCatWebhookSchema: { parse: (x: unknown) => x } }));
-vi.mock("@/lib/env", () => ({ getEnv: () => ({ REVENUECAT_WEBHOOK_SECRET: "secret" }) }));
+// Configurable so individual tests can simulate a missing secret (#205: the
+// secret is now required in EVERY environment, not just production).
+const envState = vi.hoisted(() => ({ secret: "secret" as string | undefined }));
+vi.mock("@/lib/env", () => ({
+  getEnv: () => ({ REVENUECAT_WEBHOOK_SECRET: envState.secret }),
+}));
 vi.mock("@/services/lpService", () => ({ grantLpPurchase: vi.fn() }));
 vi.mock("@/services/subscriptionService", () => ({ updateSubscriptionStatus: vi.fn() }));
 vi.mock("@/services/revenueCatService", () => ({ mapRevenueCatEventToSubscription: vi.fn() }));
@@ -45,7 +50,10 @@ function webhookRequest(event: Record<string, unknown>, signature = "secret") {
 }
 
 describe("POST /api/v1/subscription/webhook – LP pack idempotent grant", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    envState.secret = "secret";
+  });
 
   it("credits an LP pack directly on a purchase event (reason derived from txid)", async () => {
     const response = await POST(
@@ -72,6 +80,39 @@ describe("POST /api/v1/subscription/webhook – LP pack idempotent grant", () =>
         "wrong-secret"
       )
     );
+
+    expect(response.status).toBe(401);
+    expect(mockedGrant).not.toHaveBeenCalled();
+  });
+
+  it("returns 503 WEBHOOK_NOT_CONFIGURED when no secret is configured — in every environment (#205)", async () => {
+    envState.secret = undefined;
+
+    const response = await POST(
+      webhookRequest({
+        app_user_id: "user-9",
+        type: "NON_RENEWING_PURCHASE",
+        product_id: "lp_pack_300",
+        transaction_id: "tx-123",
+      })
+    );
+    const body = (await response.json()) as { code: string };
+
+    expect(response.status).toBe(503);
+    expect(body.code).toBe("WEBHOOK_NOT_CONFIGURED");
+    expect(mockedGrant).not.toHaveBeenCalled();
+  });
+
+  it("rejects a missing signature header with 401", async () => {
+    const request = new Request("http://localhost/api/v1/subscription/webhook", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        event: { app_user_id: "user-9", type: "NON_RENEWING_PURCHASE", product_id: "lp_pack_300", transaction_id: "tx-123" },
+      }),
+    }) as never;
+
+    const response = await POST(request);
 
     expect(response.status).toBe(401);
     expect(mockedGrant).not.toHaveBeenCalled();

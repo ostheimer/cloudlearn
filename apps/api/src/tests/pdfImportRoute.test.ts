@@ -69,13 +69,13 @@ vi.mock("@/lib/observability", () => ({
   logError: vi.fn(),
 }));
 
-import { POST } from "../../app/api/v1/import/pdf/route";
+import { GET, POST } from "../../app/api/v1/import/pdf/route";
 import { getAuthUser } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { getSubscriptionStatus } from "@/services/subscriptionService";
 import { spendLp } from "@/services/lpService";
 import { refundOnFailure } from "@/lib/lpRefund";
-import { processPdfImport } from "@/services/pdfImportService";
+import { getPdfJob, processPdfImport } from "@/services/pdfImportService";
 import { HttpError } from "@/lib/http";
 
 const mockedGetAuthUser = vi.mocked(getAuthUser);
@@ -84,8 +84,10 @@ const mockedGetSubscription = vi.mocked(getSubscriptionStatus);
 const mockedSpendLp = vi.mocked(spendLp);
 const mockedRefundOnFailure = vi.mocked(refundOnFailure);
 const mockedProcessPdfImport = vi.mocked(processPdfImport);
+const mockedGetPdfJob = vi.mocked(getPdfJob);
 
 const USER_ID = "11111111-1111-4111-8111-111111111111";
+const OTHER_USER_ID = "99999999-9999-4999-8999-999999999999";
 
 function makeRequest() {
   return new Request("http://localhost/api/v1/import/pdf", {
@@ -167,5 +169,72 @@ describe("POST /api/v1/import/pdf – LP refund on failure", () => {
     expect(response.status).toBe(401);
     expect(mockedSpendLp).not.toHaveBeenCalled();
     expect(mockedRefundOnFailure).not.toHaveBeenCalled();
+  });
+});
+
+function makeStatusRequest(jobId?: string) {
+  const url = `http://localhost/api/v1/import/pdf${jobId ? `?jobId=${jobId}` : ""}`;
+  const request = new Request(url) as Request & { nextUrl: URL };
+  request.nextUrl = new URL(url);
+  return request as never;
+}
+
+describe("GET /api/v1/import/pdf – job status requires auth + ownership (#205)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedGetAuthUser.mockResolvedValue({ userId: USER_ID, email: "lara@example.com" });
+  });
+
+  it("returns 401 without a valid token and never looks up the job", async () => {
+    mockedGetAuthUser.mockResolvedValue(null);
+
+    const response = await GET(makeStatusRequest("job-1"));
+
+    expect(response.status).toBe(401);
+    expect(mockedGetPdfJob).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when jobId is missing", async () => {
+    const response = await GET(makeStatusRequest());
+    const body = (await response.json()) as { code: string };
+
+    expect(response.status).toBe(400);
+    expect(body.code).toBe("MISSING_JOB_ID");
+  });
+
+  it("returns the job when it belongs to the caller", async () => {
+    mockedGetPdfJob.mockReturnValue({ id: "job-1", userId: USER_ID, status: "completed" } as never);
+
+    const response = await GET(makeStatusRequest("job-1"));
+    const body = (await response.json()) as { job: { id: string } };
+
+    expect(response.status).toBe(200);
+    expect(body.job.id).toBe("job-1");
+  });
+
+  it("returns 404 for a missing job", async () => {
+    mockedGetPdfJob.mockReturnValue(null);
+
+    const response = await GET(makeStatusRequest("job-x"));
+    const body = (await response.json()) as { code: string };
+
+    expect(response.status).toBe(404);
+    expect(body.code).toBe("JOB_NOT_FOUND");
+  });
+
+  it("returns the SAME 404 for someone else's job (no existence leak)", async () => {
+    mockedGetPdfJob.mockReturnValue({ id: "job-2", userId: OTHER_USER_ID, status: "completed" } as never);
+
+    const response = await GET(makeStatusRequest("job-2"));
+    const foreignBody = (await response.json()) as { code: string; message: string };
+
+    mockedGetPdfJob.mockReturnValue(null);
+    const missingResponse = await GET(makeStatusRequest("job-2"));
+    const missingBody = (await missingResponse.json()) as { code: string; message: string };
+
+    expect(response.status).toBe(404);
+    expect(missingResponse.status).toBe(404);
+    // Indistinguishable responses: same code and message either way.
+    expect(foreignBody).toEqual(missingBody);
   });
 });

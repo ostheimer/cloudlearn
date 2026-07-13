@@ -11,13 +11,18 @@ import { getPdfJob, processPdfImport } from "@/services/pdfImportService";
 
 export async function GET(request: NextRequest) {
   const { requestId } = createRequestContext(request.headers);
+  const auth = await getAuthUser(request);
+  if (!auth) return jsonError(requestId, "UNAUTHORIZED", "Authentication required", 401);
+
   const jobId = request.nextUrl.searchParams.get("jobId");
   if (!jobId) {
     return jsonError(requestId, "MISSING_JOB_ID", "jobId is required", 400);
   }
 
   const job = getPdfJob(jobId);
-  if (!job) {
+  // Same 404 for "does not exist" and "belongs to someone else" — a foreign
+  // caller must not be able to probe whether a job id exists.
+  if (!job || job.userId !== auth.userId) {
     return jsonError(requestId, "JOB_NOT_FOUND", "PDF import job not found", 404);
   }
 
