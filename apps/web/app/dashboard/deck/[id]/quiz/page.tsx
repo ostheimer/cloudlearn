@@ -53,7 +53,8 @@ export default function QuizPage() {
     if (!deckId) return;
     try {
       const { cards: c } = await listCardsInDeck(deckId);
-      setCards(c);
+      // Bild-Occlusion-Karten gehören nur in den Occlusion-Modus (kein Bild hier).
+      setCards(c.filter((x) => x.type !== "occlusion"));
       setError(null);
     } catch (e) {
       setError(isApiError(e) ? e.message : "Karten konnten nicht geladen werden.");
