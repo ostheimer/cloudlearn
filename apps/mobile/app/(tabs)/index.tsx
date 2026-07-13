@@ -583,7 +583,7 @@ export default function HomeScreen() {
                     marginTop: 2,
                   }}
                 >
-                  Fortschritt
+                  Genauigkeit
                 </Text>
                 <View
                   style={{
@@ -601,7 +601,7 @@ export default function HomeScreen() {
                       color: colors.primary,
                     }}
                   >
-                    Details  ›
+                    Statistik  ›
                   </Text>
                 </View>
               </TouchableOpacity>
