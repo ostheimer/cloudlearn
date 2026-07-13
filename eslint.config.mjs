@@ -1,12 +1,16 @@
-// ESLint-Flat-Config fürs gesamte Monorepo.
+// ESLint-Flat-Config fürs gesamte Monorepo — der ECHTE Linter für `pnpm lint`.
 //
-// Sanfter, "warn-only"-Start (Issue #85): Es ist bewusst nur eine kleine Auswahl
-// nützlicher Regeln aktiv, und alle stehen auf "warn" (Hinweis) statt "error".
-// Dadurch zeigt ESLint Hinweise an, blockiert aber nie einen Merge — `eslint .`
-// endet auch mit Warnungen mit Exit-Code 0.
+// Kalibriert (Issue #85, Teil 2): Basis sind die offiziellen Empfehlungen von
+// @eslint/js und typescript-eslint. Regeln, die der bestehende Code bereits
+// sauber besteht, bleiben auf "error" (echte Absicherung ab jetzt). Jede Regel,
+// die auf vorhandenem Code (noch) anschlägt, ist bewusst auf "warn" (oder "off")
+// herabgestuft. Dadurch endet `eslint .` mit Exit-Code 0 (nur Hinweise, keine
+// Fehler) und CI bleibt grün — ganz ohne Änderungen am Quellcode.
 //
-// Später einzeln verschärfbar: eine Regel von "warn" auf "error" setzen, dann
-// blockiert sie, bis der Verstoß behoben ist.
+// Bewusst NICHT gesetzt: `--max-warnings`. Warnungen sind Hinweise, kein Fehler.
+// Später einzeln verschärfbar: eine Regel von "warn" auf "error" heben, den dann
+// gemeldeten Verstoß beheben, fertig.
+import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 import reactHooks from "eslint-plugin-react-hooks";
 import nextPlugin from "@next/eslint-plugin-next";
@@ -14,40 +18,70 @@ import nextPlugin from "@next/eslint-plugin-next";
 export default tseslint.config(
   {
     ignores: [
+      "**/node_modules/**",
       "**/dist/**",
+      "**/build/**",
       "**/.next/**",
       "**/.expo/**",
       "**/coverage/**",
       "**/playwright-report/**",
       "**/test-results/**",
+      "**/*.min.js",
+      // Von Next.js generiert — nicht lintbar/nicht unser Code.
+      "**/next-env.d.ts",
     ],
   },
+
+  // Basis-Empfehlungen: Kern-Regeln (alle Dateien) + TypeScript (ts/tsx/…).
+  // Alles, was hier NICHT weiter unten herabgestuft wird, gilt als "error"
+  // und ist damit echte Absicherung, weil der Code es bereits sauber besteht.
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
+
+  // Globale Kalibrierung für Kern-Regeln, die auf vorhandenem Code anschlagen.
   {
-    files: ["**/*.{ts,tsx}"],
-    // base = nur Parser + Plugin registrieren, KEINE Regeln aktivieren.
-    // Wir wählen die Regeln unten selbst aus, damit der Start wirklich sanft ist.
-    extends: [tseslint.configs.base],
+    rules: {
+      // In einem TypeScript-Projekt redundant (TS prüft undefinierte Namen selbst)
+      // und in Node-Skripten/Configs sonst laut (process/module/require).
+      "no-undef": "off",
+      // Schlagen aktuell an → auf Hinweis herabgestuft:
+      "no-useless-assignment": "warn",
+      "prefer-const": "warn",
+      // Zusätzliche, hilfreiche Hinweise (nicht Teil von "recommended"):
+      eqeqeq: ["warn", "always", { null: "ignore" }],
+      "no-var": "warn",
+    },
+  },
+
+  // TypeScript/React: Plugins registrieren + TS-spezifische Kalibrierung.
+  {
+    files: ["**/*.{ts,tsx,mts,cts}"],
     plugins: {
-      // Nur registriert, damit die im Code bereits vorhandenen
-      // eslint-disable-Kommentare für diese Standard-Plugins aufgelöst werden.
-      // Ihre (lauteren) Regeln sind bewusst noch NICHT scharf geschaltet.
       "react-hooks": reactHooks,
+      // Nur registriert, damit vorhandene `eslint-disable @next/next/…`-Kommentare
+      // aufgelöst werden; die Next-Regeln selbst bleiben hier bewusst aus.
       "@next/next": nextPlugin,
     },
     linterOptions: {
-      // Sanfter Start: vorhandene eslint-disable-Kommentare (u. a. für die oben
-      // noch nicht aktiven React-/Next-Regeln) nicht als "ungenutzt" melden.
+      // Vorhandene eslint-disable-Kommentare nicht als "ungenutzt" anmeckern.
       reportUnusedDisableDirectives: "off",
     },
     rules: {
+      // React Hooks: die klassische, stabile Regel wird scharf geschaltet — der
+      // Code besteht sie sauber. Der Abhängigkeits-Check bleibt ein Hinweis.
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
+      // typescript-eslint-Regeln, die auf vorhandenem Code anschlagen → Hinweis:
       "@typescript-eslint/no-unused-vars": [
         "warn",
-        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
       ],
-      eqeqeq: ["warn", "always", { null: "ignore" }],
-      "no-var": "warn",
-      "prefer-const": "warn",
-      "no-debugger": "warn",
+      "@typescript-eslint/no-require-imports": "warn",
+      "@typescript-eslint/triple-slash-reference": "warn",
     },
   }
 );
