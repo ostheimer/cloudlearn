@@ -28,6 +28,7 @@ export const resources = {
       "review.cardsLearned": "{{count}} Karten gelernt.",
       "review.reload": "Neu laden",
       "review.lpEarned": "+{{count}} LP verdient!",
+      "review.saveError": "Antwort konnte nicht gespeichert werden.",
 
       // LP (Lernpunkte)
       "lp.balance": "{{count}} LP",
@@ -162,6 +163,8 @@ export const resources = {
       "common.success": "Erfolg",
       "common.delete": "Löschen",
       "common.confirm": "Bestätigen",
+      "common.retry": "Erneut versuchen",
+      "common.loadError": "Konnte nicht laden — bist du offline?",
 
       // Deck action menu
       "deckMenu.download": "Offline speichern",
@@ -437,6 +440,7 @@ export const resources = {
       "review.cardsLearned": "{{count}} cards studied.",
       "review.reload": "Reload",
       "review.lpEarned": "+{{count}} LP earned!",
+      "review.saveError": "Answer couldn't be saved.",
 
       // LP (Lernpunkte)
       "lp.balance": "{{count}} LP",
@@ -571,6 +575,8 @@ export const resources = {
       "common.success": "Success",
       "common.delete": "Delete",
       "common.confirm": "Confirm",
+      "common.retry": "Try again",
+      "common.loadError": "Couldn't load — are you offline?",
 
       // Deck action menu
       "deckMenu.download": "Save offline",

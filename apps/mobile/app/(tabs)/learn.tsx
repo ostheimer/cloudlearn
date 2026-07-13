@@ -3,7 +3,6 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
-  Alert,
   Dimensions,
   Image,
   Text,
@@ -130,7 +129,11 @@ function AuthenticatedLearnScreen({
     useReviewSession();
   const enqueueOfflineReview = useOfflineQueueStore((state) => state.enqueue);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [reviewLoading, setReviewLoading] = useState(false);
+  // A review the server rejected (4xx) that we did NOT re-queue — surfaced so the
+  // learner knows their answer wasn't saved instead of it vanishing silently.
+  const [reviewError, setReviewError] = useState(false);
   const [showBackFirst, setShowBackFirst] = useState(initialShowBackFirst ?? false);
   const [starredMap, setStarredMap] = useState<Record<string, boolean>>({});
 
@@ -239,6 +242,8 @@ function AuthenticatedLearnScreen({
   const loadDueCards = useCallback(async () => {
     if (!userId) return;
     setLoading(true);
+    setLoadError(false);
+    setReviewError(false);
     try {
       await syncPendingReviewOperations(userId).catch(() => null);
       // Deck mode: study every card of one deck. Tab mode: study globally-due cards.
@@ -253,9 +258,10 @@ function AuthenticatedLearnScreen({
       } else {
         start([]);
       }
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Fehler";
-      Alert.alert("Fehler", msg);
+    } catch {
+      // Distinguish a load failure (offline / server error) from a genuinely
+      // empty due pile, so we show a retry instead of "keine fälligen Karten".
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -291,11 +297,18 @@ function AuthenticatedLearnScreen({
       rating,
     });
     setReviewLoading(true);
+    setReviewError(false);
     try {
       await reviewCard(userId, result.cardId, rating, queuedReview.payload);
     } catch (error) {
       if (!isApiError(error) || error.status >= 500) {
+        // Offline / server error: keep the review for a later retry via the queue.
         enqueueOfflineReview(queuedReview);
+      } else {
+        // 4xx: the server rejected this review outright. Re-queuing it would just
+        // be rejected again, so surface it instead of dropping it silently.
+        // TODO(#208): re-queue/repair rejected reviews instead of only surfacing.
+        setReviewError(true);
       }
     } finally {
       setReviewLoading(false);
@@ -628,6 +641,26 @@ function AuthenticatedLearnScreen({
                 {t("review.loadingCards")}
               </Text>
             </View>
+          ) : loadError ? (
+            <View style={{ flex: 1, justifyContent: "center", alignItems: "center", gap: spacing.lg, padding: spacing.xl }}>
+              <Text style={{ fontSize: typography.lg, color: c.textSecondary, textAlign: "center", lineHeight: 24 }}>
+                {t("common.loadError")}
+              </Text>
+              <TouchableOpacity
+                onPress={loadDueCards}
+                activeOpacity={0.8}
+                style={{
+                  backgroundColor: c.primary, borderRadius: radius.md,
+                  paddingHorizontal: spacing.xxl, paddingVertical: 14,
+                  flexDirection: "row", gap: spacing.sm, alignItems: "center",
+                }}
+              >
+                <RotateCcw size={18} color="#fff" />
+                <Text style={{ color: "#fff", fontWeight: typography.semibold, fontSize: typography.base }}>
+                  {t("common.retry")}
+                </Text>
+              </TouchableOpacity>
+            </View>
           ) : completed || cards.length === 0 ? (
             <View style={{ flex: 1, justifyContent: "center", alignItems: "center", gap: spacing.lg }}>
               <View style={{
@@ -819,6 +852,33 @@ function AuthenticatedLearnScreen({
                   </Animated.View>
                 </GestureDetector>
               </View>
+
+              {/* Non-blocking notice when a review couldn't be saved (server rejected it) */}
+              {reviewError && (
+                <TouchableOpacity
+                  onPress={() => setReviewError(false)}
+                  activeOpacity={0.8}
+                  style={{
+                    backgroundColor: c.errorLight,
+                    borderRadius: radius.md,
+                    borderWidth: 1,
+                    borderColor: c.error,
+                    paddingVertical: spacing.sm,
+                    paddingHorizontal: spacing.md,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: spacing.sm,
+                  }}
+                >
+                  <Text style={{ flex: 1, color: c.error, fontSize: typography.sm, fontWeight: typography.medium }}>
+                    {t("review.saveError")}
+                  </Text>
+                  <Text style={{ color: c.error, fontSize: typography.xs, fontWeight: typography.semibold }}>
+                    {t("common.close")}
+                  </Text>
+                </TouchableOpacity>
+              )}
 
               {/* Rating buttons */}
               <View style={{ flexDirection: "row", gap: spacing.sm }}>

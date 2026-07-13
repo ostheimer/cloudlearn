@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import {
   ActivityIndicator,
@@ -53,6 +53,7 @@ export default function QuizScreen() {
 
   const [cards, setCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   // One slot per question (null = unanswered, -1 = timeout) so going back to a
@@ -71,19 +72,25 @@ export default function QuizScreen() {
   const anyType = typeMC || typeTF;
 
   // Load cards
-  useEffect(() => {
+  const loadCards = useCallback(async () => {
     if (!deckId) return;
-    (async () => {
-      try {
-        const { cards: fetched } = await listCardsInDeck(deckId);
-        setCards(fetched);
-      } catch {
-        // Error loading
-      } finally {
-        setLoading(false);
-      }
-    })();
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const { cards: fetched } = await listCardsInDeck(deckId);
+      setCards(fetched);
+    } catch {
+      // Distinguish a load failure (offline / server error) from a deck that
+      // genuinely has too few cards, so we can offer a retry instead.
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
   }, [deckId]);
+
+  useEffect(() => {
+    loadCards();
+  }, [loadCards]);
 
   const startQuiz = () => {
     if (!anyType) return;
@@ -181,6 +188,57 @@ export default function QuizScreen() {
           }}
         >
           <ActivityIndicator size="large" color={colors.primary} />
+        </SafeAreaView>
+      </>
+    );
+  }
+
+  // Load failed (offline / server error) — distinct from "too few cards".
+  if (loadError) {
+    return (
+      <>
+        <Stack.Screen
+          options={{
+            title: "Multiple Choice",
+            headerBackTitle: "Zurück",
+            headerTintColor: colors.primary,
+            headerStyle: { backgroundColor: colors.background },
+          }}
+        />
+        <SafeAreaView
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: colors.background,
+            padding: spacing.xxl,
+            gap: spacing.lg,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: typography.lg,
+              color: colors.textSecondary,
+              textAlign: "center",
+              lineHeight: 24,
+            }}
+          >
+            {t("common.loadError")}
+          </Text>
+          <TouchableOpacity
+            onPress={loadCards}
+            activeOpacity={0.8}
+            style={{
+              paddingVertical: spacing.md,
+              paddingHorizontal: spacing.xl,
+              borderRadius: radius.md,
+              backgroundColor: colors.surfaceSecondary,
+            }}
+          >
+            <Text style={{ color: colors.text, fontWeight: typography.semibold }}>
+              {t("common.retry")}
+            </Text>
+          </TouchableOpacity>
         </SafeAreaView>
       </>
     );

@@ -79,16 +79,19 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
   const [decks, setDecks] = useState<Deck[]>([]);
   const [decksLoading, setDecksLoading] = useState(true);
   const [decksRefreshing, setDecksRefreshing] = useState(false);
+  const [decksError, setDecksError] = useState(false);
 
   // Courses state
   const [courses, setCourses] = useState<Course[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(true);
   const [coursesRefreshing, setCoursesRefreshing] = useState(false);
+  const [coursesError, setCoursesError] = useState(false);
 
   // Folders state
   const [folders, setFolders] = useState<Folder[]>([]);
   const [foldersLoading, setFoldersLoading] = useState(true);
   const [foldersRefreshing, setFoldersRefreshing] = useState(false);
+  const [foldersError, setFoldersError] = useState(false);
 
   // --- Load data ---
 
@@ -99,11 +102,14 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
       setDecksRefreshing(false);
       return;
     }
+    setDecksError(false);
     try {
       const { decks: fetched } = await listDecks(userId);
       setDecks(fetched);
     } catch {
-      // Silently fail
+      // Distinguish a load failure (offline / server error) from a genuinely
+      // empty library so we can offer a retry instead of "noch keine Decks".
+      setDecksError(true);
     } finally {
       setDecksLoading(false);
       setDecksRefreshing(false);
@@ -118,11 +124,12 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
       return;
     }
 
+    setCoursesError(false);
     try {
       const { courses: fetched } = await listCourses();
       setCourses(fetched);
     } catch {
-      // Silently fail
+      setCoursesError(true);
     } finally {
       setCoursesLoading(false);
       setCoursesRefreshing(false);
@@ -137,11 +144,12 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
       return;
     }
 
+    setFoldersError(false);
     try {
       const { folders: fetched } = await listFolders();
       setFolders(fetched);
     } catch {
-      // Silently fail
+      setFoldersError(true);
     } finally {
       setFoldersLoading(false);
       setFoldersRefreshing(false);
@@ -447,6 +455,7 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
 
   const isLoading = activeTab === "decks" ? decksLoading : activeTab === "courses" ? coursesLoading : foldersLoading;
   const isRefreshing = activeTab === "decks" ? decksRefreshing : activeTab === "courses" ? coursesRefreshing : foldersRefreshing;
+  const isError = activeTab === "decks" ? decksError : activeTab === "courses" ? coursesError : foldersError;
 
   const onRefresh = () => {
     if (activeTab === "decks") {
@@ -457,6 +466,20 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
       loadCourses();
     } else {
       setFoldersRefreshing(true);
+      loadFolders();
+    }
+  };
+
+  // Re-run the active tab's load after a load failure, showing the spinner.
+  const retryActive = () => {
+    if (activeTab === "decks") {
+      setDecksLoading(true);
+      loadDecks();
+    } else if (activeTab === "courses") {
+      setCoursesLoading(true);
+      loadCourses();
+    } else {
+      setFoldersLoading(true);
       loadFolders();
     }
   };
@@ -635,6 +658,28 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
     </View>
   );
 
+  const renderError = () => (
+    <View style={{ alignItems: "center", paddingTop: 40, gap: spacing.lg, paddingHorizontal: spacing.xl }}>
+      <Text style={{ fontSize: typography.base, color: colors.textSecondary, textAlign: "center", lineHeight: 22 }}>
+        {t("common.loadError")}
+      </Text>
+      <TouchableOpacity
+        onPress={retryActive}
+        activeOpacity={0.8}
+        style={{
+          paddingVertical: spacing.md,
+          paddingHorizontal: spacing.xl,
+          borderRadius: radius.md,
+          backgroundColor: colors.surfaceSecondary,
+        }}
+      >
+        <Text style={{ color: colors.text, fontWeight: typography.semibold }}>
+          {t("common.retry")}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+
   const renderList = () => {
     if (activeTab === "decks") {
       if (filteredDecks.length === 0) {
@@ -760,6 +805,13 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
           <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
             <ActivityIndicator size="large" color={colors.primary} />
           </View>
+        ) : isError ? (
+          <ScrollView
+            refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}
+            contentContainerStyle={{ gap: spacing.sm + 2, paddingBottom: spacing.xxl }}
+          >
+            {renderError()}
+          </ScrollView>
         ) : (
           <ScrollView
             refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}
