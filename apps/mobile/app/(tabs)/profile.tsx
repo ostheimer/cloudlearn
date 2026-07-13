@@ -7,7 +7,6 @@ import {
   Mail,
   Crown,
   Gift,
-  Globe,
   LogOut,
   Bell,
   Clock,
@@ -21,7 +20,6 @@ import {
   Trash2,
   ChevronRight,
 } from "lucide-react-native";
-import { i18n } from "../../src/i18n";
 import { useSessionStore } from "../../src/store/sessionStore";
 import { deleteAccount, getSubscriptionStatus } from "../../src/lib/api";
 import { APP_PROFILE_LABEL } from "../../src/lib/appInfo";
@@ -604,34 +602,9 @@ export default function ProfileScreen() {
           )}
         </View>
 
-        {/* Language */}
-        <View style={{ gap: spacing.sm }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.xs }}>
-            <Globe size={16} color={c.textSecondary} />
-            <Text style={{ fontSize: typography.base, fontWeight: typography.semibold, color: c.text }}>
-              Sprache
-            </Text>
-          </View>
-          <View style={{ flexDirection: "row", gap: spacing.sm + 2 }}>
-            {(["de", "en"] as const).map((lang) => {
-              const isActive = i18n.language === lang;
-              return (
-                <TouchableOpacity key={lang} onPress={() => void i18n.changeLanguage(lang)} activeOpacity={0.8}
-                  style={{
-                    flex: 1, backgroundColor: isActive ? c.primary : c.surface, borderRadius: radius.md,
-                    paddingVertical: 14, alignItems: "center", borderWidth: isActive ? 0 : 1, borderColor: c.border,
-                  }}
-                >
-                  <Text style={{
-                    color: isActive ? "#fff" : c.text, fontWeight: typography.semibold, fontSize: typography.base,
-                  }}>
-                    {lang === "de" ? "Deutsch" : "English"}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
+        {/* Language switcher intentionally hidden: many screens are still
+            hard-wired German (#213), so an English toggle would only deliver
+            a half-translated app. Bring it back once i18n is complete. */}
 
         <View
           style={{

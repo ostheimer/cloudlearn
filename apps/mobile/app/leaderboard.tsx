@@ -29,7 +29,6 @@ import { useSessionStore } from "../src/store/sessionStore";
 
 type Tab = "global" | "friends";
 
-const RANK_ICONS: Record<number, React.ReactNode> = {};
 
 function RankBadge({ rank, isCurrentUser, colors }: { rank: number; isCurrentUser: boolean; colors: ReturnType<typeof useColors> }) {
   if (rank === 1) return <Trophy size={22} color="#FFD700" fill="#FFD700" />;
@@ -256,7 +255,7 @@ export default function LeaderboardScreen() {
       ) : (
         <FlatList
           data={entries}
-          keyExtractor={(item) => item.userId}
+          keyExtractor={(item) => String(item.rank)}
           renderItem={({ item }) => <LeaderboardRow entry={item} colors={colors} />}
           contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingBottom: spacing.xl }}
           showsVerticalScrollIndicator={false}
@@ -271,7 +270,7 @@ export default function LeaderboardScreen() {
                 const heights = [80, 100, 70];
                 const podiumColors = ["#C0C0C0", "#FFD700", "#CD7F32"];
                 return (
-                  <View key={entry.userId} style={{ alignItems: "center", gap: spacing.xs }}>
+                  <View key={entry.rank} style={{ alignItems: "center", gap: spacing.xs }}>
                     <View style={{
                       width: 44, height: 44, borderRadius: 22,
                       backgroundColor: entry.isCurrentUser ? colors.primary : colors.surfaceSecondary,

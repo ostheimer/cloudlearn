@@ -751,7 +751,6 @@ export async function getReferralInfo(): Promise<ReferralInfoResponse> {
 
 export interface LeaderboardEntry {
   rank: number;
-  userId: string;
   displayName: string;
   avatarUrl: string | null;
   lpBalance: number;

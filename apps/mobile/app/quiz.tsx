@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import {
   ActivityIndicator,
@@ -18,7 +18,6 @@ import {
   ArrowRight,
   Trophy,
   RotateCcw,
-  Timer,
   HelpCircle,
   Brain,
 } from "lucide-react-native";
@@ -56,13 +55,10 @@ export default function QuizScreen() {
   const [loadError, setLoadError] = useState(false);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
-  // One slot per question (null = unanswered, -1 = timeout) so going back to a
-  // previous question shows it in its answered state.
+  // One slot per question (null = unanswered) so going back to a previous
+  // question shows it in its answered state.
   const [selections, setSelections] = useState<(number | null)[]>([]);
   const [finished, setFinished] = useState(false);
-  const [timerEnabled] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(15);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Setup choices (picked before the quiz starts)
   const [inSetup, setInSetup] = useState(true);
@@ -117,35 +113,12 @@ export default function QuizScreen() {
   // so navigating back shows the stored answer).
   const selected = selections[currentIdx] ?? null;
 
-  // Timer
-  useEffect(() => {
-    if (!timerEnabled || finished || selected !== null) return;
-    setTimeLeft(15);
-    timerRef.current = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          // Time's up — treat as wrong
-          if (timerRef.current) clearInterval(timerRef.current);
-          setSelections((s) =>
-            s.map((v, i) => (i === currentIdx ? -1 : v)) // -1 = timeout
-          );
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [currentIdx, timerEnabled, finished, selected]);
-
   const question = questions[currentIdx];
   const progress =
     questions.length > 0 ? (currentIdx + 1) / questions.length : 0;
 
   const handleSelect = (optionIdx: number) => {
     if (selected !== null) return; // Already answered
-    if (timerRef.current) clearInterval(timerRef.current);
     setSelections((s) => s.map((v, i) => (i === currentIdx ? optionIdx : v)));
   };
 
@@ -753,40 +726,15 @@ export default function QuizScreen() {
               >
                 Frage {currentIdx + 1} / {questions.length}
               </Text>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.md }}>
-                {timerEnabled && selected === null && (
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: spacing.xs,
-                    }}
-                  >
-                    <Timer
-                      size={14}
-                      color={timeLeft <= 5 ? colors.error : colors.textSecondary}
-                    />
-                    <Text
-                      style={{
-                        fontSize: typography.sm,
-                        fontWeight: typography.bold,
-                        color: timeLeft <= 5 ? colors.error : colors.textSecondary,
-                      }}
-                    >
-                      {timeLeft}s
-                    </Text>
-                  </View>
-                )}
-                <Text
-                  style={{
-                    fontSize: typography.sm,
-                    color: colors.success,
-                    fontWeight: typography.semibold,
-                  }}
-                >
-                  {correctCount} richtig
-                </Text>
-              </View>
+              <Text
+                style={{
+                  fontSize: typography.sm,
+                  color: colors.success,
+                  fontWeight: typography.semibold,
+                }}
+              >
+                {correctCount} richtig
+              </Text>
             </View>
             <View
               style={{

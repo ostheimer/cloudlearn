@@ -30,9 +30,10 @@ export async function GET(request: NextRequest) {
       .select("id", { count: "exact", head: true })
       .gt("lp_balance", topUsers?.find((u) => u.id === auth.userId)?.lp_balance ?? 0);
 
+    // Data minimisation: the client gets no raw user ids — "is this me?" is
+    // decided server-side (isCurrentUser), everything else is display data.
     const entries = (topUsers ?? []).map((u, index) => ({
       rank: index + 1,
-      userId: u.id,
       displayName: u.display_name ?? "Lernender",
       avatarUrl: u.avatar_url ?? null,
       lpBalance: u.lp_balance ?? 0,
