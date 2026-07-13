@@ -67,8 +67,13 @@ export default function MatchScreen() {
   // Mode + progression
   const [phase, setPhase] = useState<Phase>("setup");
   const [timed, setTimed] = useState(false);
+  const [starredOnly, setStarredOnly] = useState(false);
   const [bestTime, setBestTime] = useState<number | null>(null);
   const [isNewBest, setIsNewBest] = useState(false);
+
+  // Optional starred-only pool; matching needs at least two cards.
+  const starredCount = cards.filter((c) => c.starred).length;
+  const pool = starredOnly ? cards.filter((c) => c.starred) : cards;
 
   // Game state
   const [tiles, setTiles] = useState<Tile[]>([]);
@@ -219,7 +224,7 @@ export default function MatchScreen() {
   };
 
   const tileWidth = (SCREEN_WIDTH - spacing.lg * 2 - spacing.sm) / 2;
-  const pairCount = Math.min(MAX_PAIRS, cards.length);
+  const pairCount = Math.min(MAX_PAIRS, pool.length);
 
   const screenHeader = (title: string, backTitle: string) => (
     <Stack.Screen
@@ -452,16 +457,68 @@ export default function MatchScreen() {
                   </Text>
                 </View>
               )}
+
+              {/* Nur markierte Karten */}
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  backgroundColor: colors.surface,
+                  borderRadius: radius.lg,
+                  padding: spacing.lg,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  ...shadows.sm,
+                }}
+              >
+                <View style={{ flex: 1, paddingRight: spacing.md }}>
+                  <Text
+                    style={{
+                      fontSize: typography.base,
+                      fontWeight: typography.semibold,
+                      color: colors.text,
+                    }}
+                  >
+                    Nur markierte Karten
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: typography.sm,
+                      color: colors.textSecondary,
+                      marginTop: 2,
+                    }}
+                  >
+                    {starredCount === 0
+                      ? "Keine Karten markiert"
+                      : `${starredCount} markiert`}
+                  </Text>
+                </View>
+                <Switch
+                  value={starredOnly}
+                  onValueChange={setStarredOnly}
+                  disabled={starredCount === 0}
+                  trackColor={{ false: colors.surfaceSecondary, true: colors.primary }}
+                  thumbColor="#ffffff"
+                  ios_backgroundColor={colors.surfaceSecondary}
+                />
+              </View>
+              {starredOnly && pool.length < 2 && (
+                <Text style={{ fontSize: typography.xs, color: colors.error }}>
+                  Mindestens 2 markierte Karten nötig.
+                </Text>
+              )}
             </View>
 
             <View style={{ flex: 1 }} />
 
             {/* Start */}
             <TouchableOpacity
-              onPress={() => startGame(cards, timed)}
+              onPress={() => startGame(pool, timed)}
+              disabled={pool.length < 2}
               activeOpacity={0.85}
               style={{
-                backgroundColor: colors.primary,
+                backgroundColor: pool.length < 2 ? colors.surfaceSecondary : colors.primary,
                 paddingVertical: 16,
                 borderRadius: radius.lg,
                 alignItems: "center",
@@ -470,7 +527,7 @@ export default function MatchScreen() {
             >
               <Text
                 style={{
-                  color: colors.textInverse,
+                  color: pool.length < 2 ? colors.textTertiary : colors.textInverse,
                   fontWeight: typography.bold,
                   fontSize: typography.lg,
                 }}
@@ -596,7 +653,7 @@ export default function MatchScreen() {
 
             <View style={{ width: "100%", gap: spacing.sm }}>
               <TouchableOpacity
-                onPress={() => startGame(cards, timed)}
+                onPress={() => startGame(pool, timed)}
                 style={{
                   backgroundColor: colors.primary,
                   paddingVertical: 14,

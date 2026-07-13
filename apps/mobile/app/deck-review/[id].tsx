@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocalSearchParams, Stack } from "expo-router";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { ScrollView, Switch, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ArrowRight, Layers } from "lucide-react-native";
 import LearnScreen from "../(tabs)/learn";
@@ -15,12 +15,18 @@ export default function DeckReviewScreen() {
 
   const [phase, setPhase] = useState<"setup" | "play">("setup");
   const [reverse, setReverse] = useState(false);
+  const [starredOnly, setStarredOnly] = useState(false);
 
   if (phase === "play") {
     return (
       <>
         <Stack.Screen options={{ headerShown: false }} />
-        <LearnScreen deckId={id} deckTitle={title} initialShowBackFirst={reverse} />
+        <LearnScreen
+          deckId={id}
+          deckTitle={title}
+          initialShowBackFirst={reverse}
+          starredOnly={starredOnly}
+        />
       </>
     );
   }
@@ -136,6 +142,44 @@ export default function DeckReviewScreen() {
               Tippen zum Tauschen
             </Text>
           </TouchableOpacity>
+
+          {/* Nur markierte Karten */}
+          <View
+            style={{
+              ...setupCardStyle,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <View style={{ flex: 1, paddingRight: spacing.md }}>
+              <Text
+                style={{
+                  fontSize: typography.base,
+                  fontWeight: typography.semibold,
+                  color: colors.text,
+                }}
+              >
+                Nur markierte Karten
+              </Text>
+              <Text
+                style={{
+                  fontSize: typography.sm,
+                  color: colors.textSecondary,
+                  marginTop: 2,
+                }}
+              >
+                Übt nur Karten mit Stern
+              </Text>
+            </View>
+            <Switch
+              value={starredOnly}
+              onValueChange={setStarredOnly}
+              trackColor={{ false: colors.surfaceSecondary, true: colors.primary }}
+              thumbColor="#ffffff"
+              ios_backgroundColor={colors.surfaceSecondary}
+            />
+          </View>
 
           <View style={{ flex: 1 }} />
 

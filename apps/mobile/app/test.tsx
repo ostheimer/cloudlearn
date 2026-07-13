@@ -77,6 +77,7 @@ export default function TestScreen() {
   const [typeWritten, setTypeWritten] = useState(true);
   const [strict, setStrict] = useState(true);
   const [reverse, setReverse] = useState(false);
+  const [starredOnly, setStarredOnly] = useState(false);
   const [timed, setTimed] = useState(false);
 
   const [phase, setPhase] = useState<Phase>("setup");
@@ -87,12 +88,30 @@ export default function TestScreen() {
   const [remaining, setRemaining] = useState(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const usableCount = useMemo(
+  // Unfiltered usable count — the "empty deck" screen must not depend on the
+  // starred filter, or toggling it could lock the learner out of the setup.
+  const deckUsableCount = useMemo(
     () =>
       allCards.filter(
         (c) => (c.front ?? "").trim().length > 0 && (c.back ?? "").trim().length > 0
       ).length,
     [allCards]
+  );
+  const starredCount = useMemo(
+    () => allCards.filter((c) => c.starred).length,
+    [allCards]
+  );
+  // Optional starred-only pool; the question count follows it.
+  const pool = useMemo(
+    () => (starredOnly ? allCards.filter((c) => c.starred) : allCards),
+    [allCards, starredOnly]
+  );
+  const usableCount = useMemo(
+    () =>
+      pool.filter(
+        (c) => (c.front ?? "").trim().length > 0 && (c.back ?? "").trim().length > 0
+      ).length,
+    [pool]
   );
 
   useEffect(() => {
@@ -140,7 +159,7 @@ export default function TestScreen() {
     if (typeWritten) types.push("written");
     if (types.length === 0) return;
 
-    const qs = buildTestQuestions(allCards, {
+    const qs = buildTestQuestions(pool, {
       count: count || usableCount,
       types,
       reverse,
@@ -244,7 +263,7 @@ export default function TestScreen() {
     );
   }
 
-  if (usableCount === 0) {
+  if (deckUsableCount === 0) {
     return (
       <>
         {screenHeader("Test")}
@@ -317,6 +336,24 @@ export default function TestScreen() {
               )}
             </View>
 
+            {/* Nur markierte Karten */}
+            <View style={{ ...cardStyle, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+              <View style={{ flex: 1, paddingRight: spacing.md }}>
+                <Text style={{ fontSize: typography.base, fontWeight: typography.semibold, color: colors.text }}>Nur markierte Karten</Text>
+                <Text style={{ fontSize: typography.sm, color: colors.textSecondary, marginTop: 2 }}>
+                  {starredCount === 0 ? "Keine Karten markiert" : `${starredCount} markiert`}
+                </Text>
+              </View>
+              <Switch
+                value={starredOnly}
+                onValueChange={setStarredOnly}
+                disabled={starredCount === 0}
+                trackColor={{ false: colors.surfaceSecondary, true: colors.primary }}
+                thumbColor="#ffffff"
+                ios_backgroundColor={colors.surfaceSecondary}
+              />
+            </View>
+
             {/* Richtung — one arrow in the middle, tap to swap */}
             <TouchableOpacity onPress={() => setReverse((r) => !r)} activeOpacity={0.8} style={cardStyle}>
               <Text style={{ fontSize: typography.sm, color: colors.textSecondary, marginBottom: spacing.sm }}>Abgefragte Richtung</Text>
@@ -352,11 +389,11 @@ export default function TestScreen() {
 
             <TouchableOpacity
               onPress={startTest}
-              disabled={!anyType}
+              disabled={!anyType || usableCount === 0}
               activeOpacity={0.85}
-              style={{ backgroundColor: anyType ? colors.primary : colors.surfaceSecondary, paddingVertical: 16, borderRadius: radius.lg, alignItems: "center", ...shadows.md }}
+              style={{ backgroundColor: anyType && usableCount > 0 ? colors.primary : colors.surfaceSecondary, paddingVertical: 16, borderRadius: radius.lg, alignItems: "center", ...shadows.md }}
             >
-              <Text style={{ color: anyType ? colors.textInverse : colors.textTertiary, fontWeight: typography.bold, fontSize: typography.lg }}>Test starten</Text>
+              <Text style={{ color: anyType && usableCount > 0 ? colors.textInverse : colors.textTertiary, fontWeight: typography.bold, fontSize: typography.lg }}>Test starten</Text>
             </TouchableOpacity>
           </ScrollView>
         </SafeAreaView>
