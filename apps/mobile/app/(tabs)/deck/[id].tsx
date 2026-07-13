@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { useLocalSearchParams, useRouter, Stack } from "expo-router";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import {
   ActivityIndicator,
   Alert,
@@ -43,21 +43,21 @@ import {
   shareDeck,
   exportDeckForOffline,
   type Card,
-} from "../../src/lib/api";
-import { summarizeCardMedia } from "../../src/lib/cardMedia";
+} from "../../../src/lib/api";
+import { summarizeCardMedia } from "../../../src/lib/cardMedia";
 import {
   cardsFromOfflineDeckCache,
   offlineDeckStorageKey,
-} from "../../src/lib/offlineDeckCache";
-import { useSessionStore } from "../../src/store/sessionStore";
-import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
+} from "../../../src/lib/offlineDeckCache";
+import { useSessionStore } from "../../../src/store/sessionStore";
+import { useColors, spacing, radius, typography, shadows } from "../../../src/theme";
 import { useTranslation } from "react-i18next";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import DeckActionSheet from "../../src/components/DeckActionSheet";
-import CoursePickerModal from "../../src/components/CoursePickerModal";
-import FolderPickerModal from "../../src/components/FolderPickerModal";
-import DeckEditModal from "../../src/components/DeckEditModal";
-import DeckDetailsModal from "../../src/components/DeckDetailsModal";
+import DeckActionSheet from "../../../src/components/DeckActionSheet";
+import CoursePickerModal from "../../../src/components/CoursePickerModal";
+import FolderPickerModal from "../../../src/components/FolderPickerModal";
+import DeckEditModal from "../../../src/components/DeckEditModal";
+import DeckDetailsModal from "../../../src/components/DeckDetailsModal";
 
 // Card editor modal component
 function CardEditor({
@@ -377,6 +377,7 @@ function CardEditor({
 export default function DeckDetailScreen() {
   const { id, title } = useLocalSearchParams<{ id: string; title: string }>();
   const router = useRouter();
+  const navigation = useNavigation();
   const userId = useSessionStore((state) => state.userId);
   const colors = useColors();
   const { t } = useTranslation();
@@ -402,6 +403,57 @@ export default function DeckDetailScreen() {
 
   const deckId = id ?? "";
   const deckTitle = currentDeckTitle;
+
+  // Header via the Tabs navigator (this screen lives inside the tab group so
+  // the bottom bar stays visible). Solid bar + hairline per #192; the back
+  // chevron is explicit because tab headers render no automatic back button.
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerShown: true,
+      title: deckTitle,
+      headerTintColor: colors.primary,
+      headerStyle: { backgroundColor: colors.surface },
+      headerShadowVisible: true,
+      headerLeft: () => (
+        <TouchableOpacity
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace("/(tabs)/decks");
+            }
+          }}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          style={{ paddingHorizontal: spacing.md }}
+        >
+          <ChevronLeft size={26} color={colors.primary} />
+        </TouchableOpacity>
+      ),
+      headerRight: () => (
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: spacing.sm,
+            paddingHorizontal: spacing.md,
+          }}
+        >
+          {isOffline && <Download size={16} color={colors.success} />}
+          <TouchableOpacity
+            onPress={() => setMenuVisible(true)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={{ width: 32, height: 32, alignItems: "center", justifyContent: "center" }}
+          >
+            <MoreVertical
+              size={22}
+              color={colors.text}
+              style={{ transform: [{ translateX: 1 }, { translateY: 0.5 }] }}
+            />
+          </TouchableOpacity>
+        </View>
+      ),
+    });
+  }, [navigation, router, deckTitle, colors, isOffline]);
 
   const loadCards = useCallback(async () => {
     if (!deckId) return;
@@ -656,53 +708,10 @@ export default function DeckDetailScreen() {
   } as const;
 
   return (
-    <>
-      <Stack.Screen
-        options={{
-          title: deckTitle,
-          headerBackTitle: "Decks",
-          headerTintColor: colors.primary,
-          // Solid bar instead of the iOS glass default: content scrolls cleanly
-          // underneath, bounded by the native hairline (#192).
-          headerStyle: { backgroundColor: colors.surface },
-          headerTransparent: false,
-          headerShadowVisible: true,
-          ...(router.canGoBack()
-            ? {}
-            : {
-                headerLeft: () => (
-                  <TouchableOpacity
-                    onPress={() => router.replace("/(tabs)/decks")}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <ChevronLeft size={24} color={colors.primary} />
-                  </TouchableOpacity>
-                ),
-              }),
-          headerRight: () => (
-            <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
-              {isOffline && (
-                <Download size={16} color={colors.success} />
-              )}
-              <TouchableOpacity
-                onPress={() => setMenuVisible(true)}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                style={{ width: 32, height: 32, alignItems: "center", justifyContent: "center" }}
-              >
-                <MoreVertical
-                  size={22}
-                  color={colors.text}
-                  style={{ transform: [{ translateX: 1 }, { translateY: 0.5 }] }}
-                />
-              </TouchableOpacity>
-            </View>
-          ),
-        }}
-      />
-      <SafeAreaView
-        edges={["bottom"]}
-        style={{ flex: 1, backgroundColor: colors.background }}
-      >
+    <SafeAreaView
+      edges={["bottom"]}
+      style={{ flex: 1, backgroundColor: colors.background }}
+    >
         {/* One page-level ScrollView: deck info, study modes and the card list
             scroll together as a single page, Quizlet-style (#192). */}
         <ScrollView
@@ -720,6 +729,7 @@ export default function DeckDetailScreen() {
             paddingBottom: spacing.xxl,
           }}
         >
+
           {/* Header with card count + add button */}
           <View
             style={{
@@ -1157,7 +1167,6 @@ export default function DeckDetailScreen() {
           deckId={deckId}
           onClose={() => setDetailsVisible(false)}
         />
-      </SafeAreaView>
-    </>
+    </SafeAreaView>
   );
 }
