@@ -445,7 +445,7 @@ function ShareModal({
             }
           }}
         >
-          {copied ? "Kopiert ✓" : "Kopieren"}
+          {copied ? "Kopiert" : "Kopieren"}
         </button>
       </div>
       <div className="modal__actions">
