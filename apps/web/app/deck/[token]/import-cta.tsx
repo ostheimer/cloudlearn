@@ -36,7 +36,7 @@ export function ImportInAppCta({ token }: { token: string }) {
         fontWeight: 800,
       }}
     >
-      ⬇ In der App übernehmen
+      In der App übernehmen
     </a>
   );
 }

@@ -10,7 +10,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Zap, PlayCircle, ShoppingBag, TrendingUp, Star } from "lucide-react-native";
+import { ArrowLeft, ChevronRight, Zap, PlayCircle, ShoppingBag, TrendingUp, Star } from "lucide-react-native";
 import { useColors, spacing, radius, typography, shadows } from "../src/theme";
 import { useUsageStore } from "../src/store/usageStore";
 import { useRewardedAd } from "../src/features/ads/useRewardedAd";
@@ -454,9 +454,12 @@ export default function LpStoreScreen() {
                     {t("lp.proTeaserSubtitle")}
                   </Text>
                 </View>
-                <Text style={{ fontSize: typography.sm, color: colors.primary, fontWeight: typography.semibold }}>
-                  {t("paywall.openCta")} →
-                </Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
+                  <Text style={{ fontSize: typography.sm, color: colors.primary, fontWeight: typography.semibold }}>
+                    {t("paywall.openCta")}
+                  </Text>
+                  <ChevronRight size={16} color={colors.primary} />
+                </View>
               </TouchableOpacity>
             )}
 
