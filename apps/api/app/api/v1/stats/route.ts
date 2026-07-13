@@ -12,9 +12,12 @@ export async function GET(request: NextRequest) {
     const auth = await getAuthUser(request);
     if (!auth) return jsonError(requestId, "UNAUTHORIZED", "Authentication required", 401);
 
-    // Whitelisted by-day window: exactly 7 or 30 days, everything else → 7.
+    // Whitelisted by-day window: exactly 7 or 30 days. Absent or invalid
+    // values fall back to 30 — the historic window from before the param
+    // existed — so old clients that send no `?days=` (and e.g. derive a
+    // 14-day trend from the data) keep their full 30-day series.
     const days: 7 | 30 =
-      new URL(request.url).searchParams.get("days") === "30" ? 30 : 7;
+      new URL(request.url).searchParams.get("days") === "7" ? 7 : 30;
 
     const [decks, dueCards, streak, reviewStats, lastStudiedDeck] = await Promise.all([
       listDecksForUser(auth.userId),

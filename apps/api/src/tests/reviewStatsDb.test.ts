@@ -86,18 +86,18 @@ describe("getReviewStats – 7/30-day window + durationMsByDay", () => {
     vi.useRealTimers();
   });
 
-  it("returns exactly 7 zero-filled entries by default", async () => {
+  it("returns exactly 30 zero-filled entries by default (historic window)", async () => {
     const { db } = makeDbMock(statsResponses(DAILY_ROWS));
     mockedCreateDb.mockReturnValue(db);
 
     const stats = await getReviewStats(USER_ID);
 
-    expect(stats.reviewsByDay).toHaveLength(7);
-    expect(stats.durationMsByDay).toHaveLength(7);
-    expect(stats.reviewsByDay[0]?.date).toBe("2026-07-07");
-    expect(stats.reviewsByDay[6]?.date).toBe("2026-07-13");
+    expect(stats.reviewsByDay).toHaveLength(30);
+    expect(stats.durationMsByDay).toHaveLength(30);
+    expect(stats.reviewsByDay[0]?.date).toBe("2026-06-14");
+    expect(stats.reviewsByDay[29]?.date).toBe("2026-07-13");
     // Days without reviews are present with count 0
-    expect(stats.reviewsByDay.filter((d) => d.count === 0)).toHaveLength(5);
+    expect(stats.reviewsByDay.filter((d) => d.count === 0)).toHaveLength(28);
   });
 
   it("returns exactly 30 entries for days=30", async () => {
