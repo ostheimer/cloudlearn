@@ -85,6 +85,7 @@ describe("GET /api/v1/stats – days whitelist + durationMsByDay", () => {
       longestStreak: 9,
       lastReviewDate: "2026-07-13",
       dailyGoal: 10,
+      streakFreezes: 0,
     });
     mockedGetReviewStats.mockResolvedValue(REVIEW_STATS);
     mockedGetLastStudiedDeck.mockResolvedValue({ id: "deck-1", title: "Bio" });
