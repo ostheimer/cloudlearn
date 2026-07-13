@@ -493,21 +493,44 @@ export async function updateStreakAfterReview(userId: string): Promise<StreakInf
 
 /**
  * Get aggregated review stats for a user.
+ *
+ * `days` selects the by-day window (7 or 30 — the route whitelists it).
+ * `reviewsByDay` and `durationMsByDay` are zero-filled to exactly `days`
+ * contiguous entries (oldest first, ending today) so clients can render a
+ * uniform time axis. `accuracyByDay` keeps only days with reviews, because a
+ * synthetic 0 % on a review-free day would distort the accuracy trend.
  */
-export async function getReviewStats(userId: string): Promise<{
+export async function getReviewStats(
+  userId: string,
+  days: 7 | 30 = 7
+): Promise<{
   reviewsToday: number;
   reviewsThisWeek: number;
   reviewsTotal: number;
   accuracyRate: number;
   reviewsByDay: Array<{ date: string; count: number }>;
   accuracyByDay: Array<{ date: string; accuracy: number; count: number }>;
+  durationMsByDay: Array<{ date: string; durationMs: number }>;
 }> {
   const db = getDb();
   const now = new Date();
   // "Today" follows the user's local day, not UTC (#211).
   const todayStart = startOfTodayLocalIso(now);
   const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  const monthStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  // Defense in depth: even if a caller bypasses the route whitelist, only the
+  // two supported windows are ever queried.
+  const windowDays = days === 30 ? 30 : 7;
+
+  // By-day buckets use the UTC calendar date of `reviewed_at` (unchanged
+  // behavior). Scaffold the last `windowDays` dates so every day appears
+  // exactly once, including days without reviews.
+  const dayKeys: string[] = [];
+  for (let i = windowDays - 1; i >= 0; i--) {
+    const key =
+      new Date(now.getTime() - i * 24 * 60 * 60 * 1000).toISOString().split("T")[0] ?? "";
+    dayKeys.push(key);
+  }
+  const windowStart = `${dayKeys[0]}T00:00:00.000Z`;
 
   // Reviews today
   const { count: todayCount } = await db
@@ -540,27 +563,45 @@ export async function getReviewStats(userId: string): Promise<{
   const good = goodCount ?? 0;
   const accuracyRate = total > 0 ? good / total : 0;
 
-  // Daily counts for last 30 days (for heatmap)
+  // Daily counts + learn time for the requested window (bar chart, trend,
+  // per-day detail). `review_duration_ms` is nullable — treat null as 0.
   const { data: dailyData } = await db
     .from("review_logs")
-    .select("reviewed_at, rating")
+    .select("reviewed_at, rating, review_duration_ms")
     .eq("user_id", userId)
-    .gte("reviewed_at", monthStart)
+    .gte("reviewed_at", windowStart)
     .order("reviewed_at", { ascending: true });
 
-  const dayStats: Record<string, { count: number; good: number }> = {};
+  const dayStats: Record<string, { count: number; good: number; durationMs: number }> = {};
+  for (const key of dayKeys) {
+    dayStats[key] = { count: 0, good: 0, durationMs: 0 };
+  }
   (dailyData ?? []).forEach((r) => {
     const day = r.reviewed_at.split("T")[0] ?? "";
-    if (!dayStats[day]) dayStats[day] = { count: 0, good: 0 };
-    dayStats[day].count += 1;
-    if ((r.rating ?? 0) >= 3) dayStats[day].good += 1;
+    const bucket = dayStats[day];
+    if (!bucket) return; // outside the scaffolded window (defensive)
+    bucket.count += 1;
+    if ((r.rating ?? 0) >= 3) bucket.good += 1;
+    bucket.durationMs += r.review_duration_ms ?? 0;
   });
-  const reviewsByDay = Object.entries(dayStats).map(([date, s]) => ({ date, count: s.count }));
-  const accuracyByDay = Object.entries(dayStats).map(([date, s]) => ({
+  const reviewsByDay = dayKeys.map((date) => ({
     date,
-    count: s.count,
-    accuracy: s.count > 0 ? Math.round((s.good / s.count) * 100) / 100 : 0,
+    count: dayStats[date]?.count ?? 0,
   }));
+  const durationMsByDay = dayKeys.map((date) => ({
+    date,
+    durationMs: dayStats[date]?.durationMs ?? 0,
+  }));
+  const accuracyByDay = dayKeys
+    .filter((date) => (dayStats[date]?.count ?? 0) > 0)
+    .map((date) => {
+      const s = dayStats[date] ?? { count: 0, good: 0, durationMs: 0 };
+      return {
+        date,
+        count: s.count,
+        accuracy: s.count > 0 ? Math.round((s.good / s.count) * 100) / 100 : 0,
+      };
+    });
 
   return {
     reviewsToday: todayCount ?? 0,
@@ -569,6 +610,7 @@ export async function getReviewStats(userId: string): Promise<{
     accuracyRate: Math.round(accuracyRate * 100) / 100,
     reviewsByDay,
     accuracyByDay,
+    durationMsByDay,
   };
 }
 
