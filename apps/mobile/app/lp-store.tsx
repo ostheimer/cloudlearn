@@ -10,12 +10,12 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, ChevronRight, Zap, PlayCircle, ShoppingBag, TrendingUp, Star } from "lucide-react-native";
+import { ArrowLeft, ChevronRight, Zap, PlayCircle, Shield, ShoppingBag, TrendingUp, Star } from "lucide-react-native";
 import { useColors, spacing, radius, typography, shadows } from "../src/theme";
 import { useUsageStore } from "../src/store/usageStore";
 import { useRewardedAd } from "../src/features/ads/useRewardedAd";
 import { REAL_ADS_ENABLED } from "../src/features/ads/adsMode";
-import { getLpBalance, grantLpPackPurchase } from "../src/lib/api";
+import { buyStreakFreeze, getLpBalance, getStats, grantLpPackPurchase, isApiError } from "../src/lib/api";
 import {
   getRevenueCatAvailability,
   getRevenueCatOfferings,
@@ -28,6 +28,11 @@ import {
   type LpPackDefinition,
 } from "../src/features/paywall/lpPackOffers";
 import { useSessionStore } from "../src/store/sessionStore";
+
+// Display values for the streak-freeze tile. The server enforces the real
+// price and cap (featureGates.STREAK_FREEZE); these only label the UI.
+const FREEZE_COST_LP = 20;
+const FREEZE_MAX_OWNED = 2;
 
 export default function LpStoreScreen() {
   const { t } = useTranslation();
@@ -52,6 +57,8 @@ export default function LpStoreScreen() {
   const [lpPackOffersById, setLpPackOffersById] = useState<
     Record<string, RevenueCatOffer>
   >({});
+  const [freezes, setFreezes] = useState(0);
+  const [buyingFreeze, setBuyingFreeze] = useState(false);
 
   const loadBalance = useCallback(async () => {
     if (!userId) {
@@ -75,6 +82,10 @@ export default function LpStoreScreen() {
         periodStart: res.periodStart,
       });
     } catch { /* best-effort */ } finally {
+      try {
+        const res = await getStats();
+        setFreezes(res.stats.streakFreezes ?? 0);
+      } catch { /* best-effort — tile just shows the last known count */ }
       try {
         const availability = await getRevenueCatAvailability();
         if (!availability.available) {
@@ -166,9 +177,48 @@ export default function LpStoreScreen() {
     }
   };
 
+  const handleBuyFreeze = () => {
+    if (buyingFreeze) return;
+    Alert.alert(
+      t("lp.freezeConfirmTitle"),
+      t("lp.freezeConfirmBody", { cost: FREEZE_COST_LP }),
+      [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: t("lp.purchaseConfirm"),
+          onPress: () => { void confirmBuyFreeze(); },
+        },
+      ]
+    );
+  };
+
+  const confirmBuyFreeze = async () => {
+    setBuyingFreeze(true);
+    try {
+      const res = await buyStreakFreeze();
+      setUsage({ lpBalance: res.newBalance });
+      setFreezes(res.streakFreezes);
+      Alert.alert(t("lp.freezeBoughtTitle"), t("lp.freezeBought", { count: res.streakFreezes }));
+    } catch (err) {
+      // The server is the source of truth for price and cap; translate its
+      // rejection codes instead of trusting local state.
+      const message = isApiError(err) && err.code === "MAX_FREEZES"
+        ? t("lp.freezeErrorMax")
+        : isApiError(err) && err.code === "INSUFFICIENT_LP"
+          ? t("lp.freezeErrorLp")
+          : t("lp.freezeErrorGeneric");
+      Alert.alert(t("lp.freezeTitle"), message);
+      void loadBalance();
+    } finally {
+      setBuyingFreeze(false);
+    }
+  };
+
   const adBusy = adState === "loading" || adState === "showing";
   const anyPurchasing = purchasingPackId !== null;
   const adCapped = tier === "free" && lpAdsToday >= lpAdCapToday;
+  const freezeMaxed = freezes >= FREEZE_MAX_OWNED;
+  const freezeTooExpensive = lpBalance < FREEZE_COST_LP;
   const earnProgress = lpEarnCapToday > 0 ? Math.min(lpEarnedToday / lpEarnCapToday, 1) : 0;
   const adProgress = lpAdCapToday > 0 ? Math.min(lpAdsToday / lpAdCapToday, 1) : 0;
 
@@ -338,6 +388,75 @@ export default function LpStoreScreen() {
                 ) : null}
               </View>
             )}
+
+            {/* Shop: streak freeze — bought with LP, consumed automatically (#237) */}
+            <View style={{ gap: spacing.sm }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+                <ShoppingBag size={18} color={colors.primary} />
+                <Text style={{ fontSize: typography.base, fontWeight: typography.semibold, color: colors.text }}>
+                  {t("lp.shopSection")}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={handleBuyFreeze}
+                disabled={freezeMaxed || freezeTooExpensive || buyingFreeze}
+                activeOpacity={0.8}
+                style={{
+                  backgroundColor: colors.surface,
+                  borderRadius: radius.lg,
+                  padding: spacing.lg,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: spacing.md,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  opacity: freezeMaxed || freezeTooExpensive ? 0.68 : 1,
+                  ...shadows.sm,
+                }}
+              >
+                <View
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: radius.md,
+                    backgroundColor: colors.warningLight,
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
+                >
+                  <Shield size={22} color={colors.warning} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: typography.lg, fontWeight: typography.bold, color: colors.text }}>
+                    {t("lp.freezeTitle")}
+                  </Text>
+                  <Text style={{ fontSize: typography.sm, color: colors.textSecondary, marginTop: 2 }}>
+                    {t("lp.freezeSubtitle")}
+                  </Text>
+                  <Text style={{ fontSize: typography.xs, color: colors.textTertiary, marginTop: 2 }}>
+                    {t("lp.freezeOwned", { count: freezes, max: FREEZE_MAX_OWNED })}
+                  </Text>
+                </View>
+                {buyingFreeze ? (
+                  <ActivityIndicator color={colors.primary} />
+                ) : freezeMaxed ? (
+                  <Text style={{ fontSize: typography.sm, fontWeight: typography.semibold, color: colors.textSecondary }}>
+                    {t("lp.freezeMaxOwned")}
+                  </Text>
+                ) : freezeTooExpensive ? (
+                  <Text style={{ fontSize: typography.sm, fontWeight: typography.semibold, color: colors.textSecondary }}>
+                    {t("lp.freezeNotEnoughLp")}
+                  </Text>
+                ) : (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
+                    <Zap size={14} color={colors.warning} />
+                    <Text style={{ fontSize: typography.lg, fontWeight: typography.bold, color: colors.primary }}>
+                      {FREEZE_COST_LP} LP
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
 
             {/* LP Packs */}
             <View style={{ gap: spacing.sm }}>

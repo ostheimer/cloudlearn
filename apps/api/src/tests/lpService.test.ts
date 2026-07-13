@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { TIER_LIMITS, LP_EARN_RULES, lpCostForFeature, getLimitsForTier } from "../lib/featureGates";
+import { TIER_LIMITS, LP_EARN_RULES, lpCostForFeature, getLimitsForTier, STREAK_FREEZE } from "../lib/featureGates";
 import {
   spendLp,
   refundLp,
@@ -18,6 +18,7 @@ import {
   grantMonthlyLp,
   claimMilestoneReward,
   grantLpPurchase,
+  purchaseStreakFreeze,
 } from "@/services/lpService";
 import { createSupabaseAdminClient } from "@/lib/supabase";
 
@@ -173,6 +174,72 @@ describe("spendLp (atomic spend_lp RPC)", () => {
     useMockDb(db);
 
     await expect(spendLp("user-1", "free", "aiScan")).rejects.toThrow("spendLp: boom");
+  });
+});
+
+describe("purchaseStreakFreeze (atomic purchase_streak_freeze RPC)", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("passes the server-side price and cap, maps a successful purchase", async () => {
+    const db = makeMockDb();
+    db.rpc.mockResolvedValue({
+      data: [{ allowed: true, error_code: null, new_balance: 10, freezes: 1 }],
+      error: null,
+    });
+    useMockDb(db);
+
+    const result = await purchaseStreakFreeze("user-1");
+
+    expect(db.rpc).toHaveBeenCalledWith("purchase_streak_freeze", {
+      p_user: "user-1",
+      p_cost: STREAK_FREEZE.costLp,
+      p_max: STREAK_FREEZE.maxOwned,
+    });
+    expect(result).toEqual({
+      allowed: true,
+      errorCode: null,
+      newBalance: 10,
+      freezes: 1,
+      cost: STREAK_FREEZE.costLp,
+    });
+  });
+
+  it("maps a rejection with its error code (insufficient LP)", async () => {
+    const db = makeMockDb();
+    db.rpc.mockResolvedValue({
+      data: [{ allowed: false, error_code: "insufficient_lp", new_balance: 5, freezes: 0 }],
+      error: null,
+    });
+    useMockDb(db);
+
+    const result = await purchaseStreakFreeze("user-1");
+
+    expect(result.allowed).toBe(false);
+    expect(result.errorCode).toBe("insufficient_lp");
+    expect(result.newBalance).toBe(5);
+  });
+
+  it("maps a rejection at the ownership cap", async () => {
+    const db = makeMockDb();
+    db.rpc.mockResolvedValue({
+      data: [{ allowed: false, error_code: "max_owned", new_balance: 100, freezes: 2 }],
+      error: null,
+    });
+    useMockDb(db);
+
+    const result = await purchaseStreakFreeze("user-1");
+
+    expect(result.allowed).toBe(false);
+    expect(result.errorCode).toBe("max_owned");
+    expect(result.freezes).toBe(2);
+  });
+
+  it("throws when the RPC returns an error", async () => {
+    const db = makeMockDb();
+    db.rpc.mockResolvedValue({ data: null, error: { message: "boom" } });
+    useMockDb(db);
+
+    await expect(purchaseStreakFreeze("user-1")).rejects.toThrow("purchaseStreakFreeze: boom");
   });
 });
 

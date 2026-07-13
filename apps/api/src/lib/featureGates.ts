@@ -76,6 +76,14 @@ export const LP_EARN_RULES = {
   firstReview: 5,
 } as const;
 
+// Streak freeze store item (#237): bought with LP, consumed automatically when
+// exactly one local day was missed. Same price for every tier — it is a
+// habit-keeping item, not a capacity limit.
+export const STREAK_FREEZE = {
+  costLp: 20,
+  maxOwned: 2,
+} as const;
+
 // Max number of paid referrals a single referrer can earn the sender bonus for.
 // Caps referral farming (#203): beyond this the claimer still gets their bonus,
 // but the referrer no longer receives the referralSender payout.

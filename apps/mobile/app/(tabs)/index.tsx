@@ -18,6 +18,7 @@ import {
   Target,
   TrendingUp,
   Award,
+  Shield,
 } from "lucide-react-native";
 import { useSessionStore } from "../../src/store/sessionStore";
 import { getStats, listDecks, type StatsResponse, type Deck } from "../../src/lib/api";
@@ -74,6 +75,7 @@ export default function HomeScreen() {
   const dueCount = stats?.dueCards ?? 0;
   const deckCount = stats?.totalDecks ?? 0;
   const streak = stats?.currentStreak ?? 0;
+  const streakFreezes = stats?.streakFreezes ?? 0;
   const reviewsToday = stats?.reviewsToday ?? 0;
   const dailyGoal = stats?.dailyGoal ?? 10;
   const dailyProgress = dailyGoal > 0 ? Math.min(reviewsToday / dailyGoal, 1) : 0;
@@ -266,8 +268,10 @@ export default function HomeScreen() {
               <Text style={{ color: colors.error }}>{error}</Text>
             ) : null}
 
-            {/* Streak banner */}
-            <View
+            {/* Streak banner — opens the streak calendar (#237) */}
+            <TouchableOpacity
+              onPress={() => router.push("/streak-calendar")}
+              activeOpacity={0.8}
               style={{
                 backgroundColor: streak > 0 ? colors.warningLight : colors.surfaceSecondary,
                 borderRadius: radius.lg,
@@ -320,6 +324,26 @@ export default function HomeScreen() {
                       : "Weiter so!"}
                 </Text>
               </View>
+              {streakFreezes > 0 ? (
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 3,
+                    backgroundColor: colors.surface,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    borderRadius: radius.full,
+                    paddingHorizontal: spacing.sm,
+                    paddingVertical: 3,
+                  }}
+                >
+                  <Shield size={14} color={colors.warning} />
+                  <Text style={{ fontSize: typography.xs, fontWeight: typography.semibold, color: colors.text }}>
+                    {streakFreezes}
+                  </Text>
+                </View>
+              ) : null}
               {stats?.longestStreak && stats.longestStreak > 0 ? (
                 <View style={{ alignItems: "center" }}>
                   <Award size={16} color={colors.textTertiary} />
@@ -334,7 +358,7 @@ export default function HomeScreen() {
                   </Text>
                 </View>
               ) : null}
-            </View>
+            </TouchableOpacity>
 
             {/* Daily goal progress */}
             <View

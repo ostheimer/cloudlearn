@@ -1,5 +1,5 @@
 import { createSupabaseAdminClient } from "@/lib/supabase";
-import { getLimitsForTier, LP_EARN_RULES, lpCostForFeature } from "@/lib/featureGates";
+import { getLimitsForTier, LP_EARN_RULES, lpCostForFeature, STREAK_FREEZE } from "@/lib/featureGates";
 import { todayLocal } from "@/lib/localDay";
 import type { SubscriptionTier } from "@/lib/contracts";
 
@@ -109,6 +109,43 @@ export async function refundLp(
   if (error) throw new Error(`refundLp: ${error.message}`);
 
   return (data as number | null) ?? 0;
+}
+
+// ─── Streak Freeze (LP store item, #237) ─────────────────────────────────────
+
+export interface StreakFreezePurchase {
+  allowed: boolean;
+  errorCode: "insufficient_lp" | "max_owned" | null;
+  newBalance: number;
+  freezes: number;
+  cost: number;
+}
+
+/**
+ * Buys one streak freeze for LP. Balance guard, ownership cap, counter
+ * increment and the `streak_freeze` ledger insert run atomically inside
+ * purchase_streak_freeze — same pattern as spend_lp, so concurrent taps
+ * cannot double-charge. Price and cap are server-side constants
+ * (featureGates.STREAK_FREEZE); the client sends no numbers.
+ */
+export async function purchaseStreakFreeze(userId: string): Promise<StreakFreezePurchase> {
+  const db = getDb();
+  const { data, error } = await db.rpc("purchase_streak_freeze", {
+    p_user: userId,
+    p_cost: STREAK_FREEZE.costLp,
+    p_max: STREAK_FREEZE.maxOwned,
+  });
+
+  if (error) throw new Error(`purchaseStreakFreeze: ${error.message}`);
+
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    allowed: row?.allowed ?? false,
+    errorCode: (row?.error_code as "insufficient_lp" | "max_owned" | undefined) ?? null,
+    newBalance: row?.new_balance ?? 0,
+    freezes: row?.freezes ?? 0,
+    cost: STREAK_FREEZE.costLp,
+  };
 }
 
 // ─── Earn ─────────────────────────────────────────────────────────────────────

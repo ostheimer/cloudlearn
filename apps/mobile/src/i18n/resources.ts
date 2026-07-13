@@ -84,6 +84,33 @@ export const resources = {
       "lp.purchaseUnavailableBody": "LP-Packs sind in diesem Build noch nicht als Store-Produkte aktiviert. Du kannst weiter LP durch Lernen oder Werbung verdienen oder auf Pro upgraden.",
       "lp.purchaseUnavailableShort": "Nicht verfügbar",
 
+      // Streak freeze (LP store item)
+      "lp.shopSection": "Shop",
+      "lp.freezeTitle": "Streak-Schutz",
+      "lp.freezeSubtitle": "Rettet deinen Streak, wenn du genau einen Tag verpasst",
+      "lp.freezeOwned": "Im Besitz: {{count}} von {{max}}",
+      "lp.freezeMaxOwned": "Vorrat voll",
+      "lp.freezeNotEnoughLp": "Nicht genug LP",
+      "lp.freezeConfirmTitle": "Streak-Schutz kaufen?",
+      "lp.freezeConfirmBody": "Kostet {{cost}} LP. Wird automatisch verbraucht, wenn du einen Tag verpasst.",
+      "lp.freezeBought": "Schutz gekauft! Du hast jetzt {{count}} auf Vorrat.",
+      "lp.freezeBoughtTitle": "Streak-Schutz gekauft",
+      "lp.freezeErrorMax": "Dein Vorrat ist schon voll.",
+      "lp.freezeErrorLp": "Dafür reichen deine LP noch nicht.",
+      "lp.freezeErrorGeneric": "Kauf fehlgeschlagen. Versuch es später noch einmal.",
+
+      // Streak calendar
+      "streakCal.title": "Streak-Kalender",
+      "streakCal.current": "Aktuell",
+      "streakCal.freezes": "Vorrat",
+      "streakCal.best": "Best",
+      "streakCal.weekdays": "Mo,Di,Mi,Do,Fr,Sa,So",
+      "streakCal.legendLearned": "gelernt",
+      "streakCal.legendFrozen": "Schutz verwendet",
+      "streakCal.legendEmpty": "leer = nicht gelernt",
+      "streakCal.buyFreeze": "Streak-Schutz kaufen",
+      "streakCal.loadError": "Kalender konnte nicht geladen werden.",
+
       // Scan screen
       "scan.title": "Lernmaterial erfassen",
       "scan.resultTitle": "Ergebnis",
@@ -495,6 +522,33 @@ export const resources = {
       "lp.purchaseUnavailableTitle": "LP pack unavailable",
       "lp.purchaseUnavailableBody": "LP packs are not activated as store products in this build yet. You can still earn LP by learning or watching ads, or upgrade to Pro.",
       "lp.purchaseUnavailableShort": "Unavailable",
+
+      // Streak freeze (LP store item)
+      "lp.shopSection": "Shop",
+      "lp.freezeTitle": "Streak freeze",
+      "lp.freezeSubtitle": "Saves your streak when you miss exactly one day",
+      "lp.freezeOwned": "Owned: {{count}} of {{max}}",
+      "lp.freezeMaxOwned": "Fully stocked",
+      "lp.freezeNotEnoughLp": "Not enough LP",
+      "lp.freezeConfirmTitle": "Buy streak freeze?",
+      "lp.freezeConfirmBody": "Costs {{cost}} LP. Used automatically when you miss a day.",
+      "lp.freezeBought": "Freeze bought! You now have {{count}} in stock.",
+      "lp.freezeBoughtTitle": "Streak freeze bought",
+      "lp.freezeErrorMax": "You already own the maximum number of freezes.",
+      "lp.freezeErrorLp": "You don't have enough LP for this yet.",
+      "lp.freezeErrorGeneric": "Purchase failed. Please try again later.",
+
+      // Streak calendar
+      "streakCal.title": "Streak calendar",
+      "streakCal.current": "Current",
+      "streakCal.freezes": "Freezes",
+      "streakCal.best": "Best",
+      "streakCal.weekdays": "Mo,Tu,We,Th,Fr,Sa,Su",
+      "streakCal.legendLearned": "learned",
+      "streakCal.legendFrozen": "freeze used",
+      "streakCal.legendEmpty": "empty = not learned",
+      "streakCal.buyFreeze": "Buy streak freeze",
+      "streakCal.loadError": "Could not load the calendar.",
 
       // Scan screen
       "scan.title": "Capture study material",
