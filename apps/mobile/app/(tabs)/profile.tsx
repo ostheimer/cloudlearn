@@ -19,6 +19,7 @@ import {
   FileText,
   SlidersHorizontal,
   Trash2,
+  ChevronRight,
 } from "lucide-react-native";
 import { i18n } from "../../src/i18n";
 import { useSessionStore } from "../../src/store/sessionStore";
@@ -398,7 +399,7 @@ export default function ProfileScreen() {
               {t("referral.profileButtonSubtitle")}
             </Text>
           </View>
-          <Text style={{ fontSize: typography.sm, color: c.primary, fontWeight: typography.semibold }}>→</Text>
+          <ChevronRight size={18} color={c.primary} />
         </TouchableOpacity>
 
         {/* Leaderboard */}
@@ -426,7 +427,7 @@ export default function ProfileScreen() {
               {t("leaderboard.profileButtonSubtitle")}
             </Text>
           </View>
-          <Text style={{ fontSize: typography.sm, color: c.primary, fontWeight: typography.semibold }}>→</Text>
+          <ChevronRight size={18} color={c.primary} />
         </TouchableOpacity>
 
         {/* Appearance */}
@@ -715,7 +716,7 @@ export default function ProfileScreen() {
                     {item.subtitle}
                   </Text>
                 </View>
-                <Text style={{ fontSize: typography.sm, color: c.primary, fontWeight: typography.semibold }}>→</Text>
+                <ChevronRight size={18} color={c.primary} />
               </TouchableOpacity>
               {index < items.length - 1 ? <View style={{ height: 1, backgroundColor: c.borderLight, marginTop: spacing.md }} /> : null}
             </View>

@@ -523,14 +523,19 @@ export default function StatsScreen() {
                       <ResponsiveChart render={renderAccuracyChart} />
                     </View>
                   ) : (
-                    <Text
-                      style={{
-                        fontSize: typography.sm,
-                        color: colors.textSecondary,
-                      }}
+                    <View
+                      style={{ flexDirection: "row", alignItems: "center", gap: spacing.xs }}
                     >
-                      ↗ Verlauf erscheint ab 2 Lern-Tagen
-                    </Text>
+                      <TrendingUp size={14} color={colors.textSecondary} />
+                      <Text
+                        style={{
+                          fontSize: typography.sm,
+                          color: colors.textSecondary,
+                        }}
+                      >
+                        Verlauf erscheint ab 2 Lern-Tagen
+                      </Text>
+                    </View>
                   )}
                 </>
               ) : (

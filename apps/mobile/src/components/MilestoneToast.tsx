@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, type ComponentType } from "react";
 import { Text, View } from "react-native";
 import Animated, {
   useSharedValue,
@@ -8,7 +8,7 @@ import Animated, {
   Easing,
 } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
-import { Zap } from "lucide-react-native";
+import { Flame, PartyPopper, Star, Trophy, Zap } from "lucide-react-native";
 import { useColors, spacing, radius, typography, shadows } from "../theme";
 import type { MilestoneToast } from "../features/milestones/useMilestoneToast";
 
@@ -16,12 +16,16 @@ interface MilestoneToastProps {
   toast: MilestoneToast | null;
 }
 
-const MILESTONE_EMOJIS: Record<string, string> = {
-  first_deck:    "🎉",
-  first_review:  "⭐",
-  streak_7:      "🔥",
-  streak_30:     "🔥",
-  streak_100:    "🏆",
+// Drawn icons instead of emoji (house rule: no emojis in the app UI).
+const MILESTONE_ICONS: Record<
+  string,
+  ComponentType<{ size?: number; color?: string }>
+> = {
+  first_deck:    PartyPopper,
+  first_review:  Star,
+  streak_7:      Flame,
+  streak_30:     Flame,
+  streak_100:    Trophy,
 };
 
 export function MilestoneToastView({ toast }: MilestoneToastProps) {
@@ -47,7 +51,7 @@ export function MilestoneToastView({ toast }: MilestoneToastProps) {
 
   if (!toast) return null;
 
-  const emoji = MILESTONE_EMOJIS[toast.key] ?? "⚡";
+  const MilestoneIcon = MILESTONE_ICONS[toast.key] ?? Zap;
 
   return (
     <Animated.View
@@ -75,7 +79,7 @@ export function MilestoneToastView({ toast }: MilestoneToastProps) {
           ...shadows.lg,
         }}
       >
-        <Text style={{ fontSize: 18 }}>{emoji}</Text>
+        <MilestoneIcon size={18} color={colors.textInverse} />
         <View>
           <Text style={{ color: colors.textInverse, fontSize: typography.sm, fontWeight: typography.bold }}>
             {t(`lp.milestone.${toast.key}`, { lp: toast.lpGranted })}

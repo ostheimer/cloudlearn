@@ -60,7 +60,7 @@ export const resources = {
       "lp.adCapReachedDetail": "Du hast heute bereits {{cap}} LP durch Werbung verdient.",
       "lp.buyPack": "LP-Shop öffnen",
       "lp.buyPackSubtitle": "Verfügbare Packs im Store prüfen",
-      "lp.upgradePro": "Auf Pro upgraden →",
+      "lp.upgradePro": "Auf Pro upgraden",
 
       // LP Store
       "lp.storeTitle": "LP-Shop",
@@ -472,7 +472,7 @@ export const resources = {
       "lp.adCapReachedDetail": "You've already earned {{cap}} LP from ads today.",
       "lp.buyPack": "Open LP shop",
       "lp.buyPackSubtitle": "Check available store packs",
-      "lp.upgradePro": "Upgrade to Pro →",
+      "lp.upgradePro": "Upgrade to Pro",
 
       // LP Store
       "lp.storeTitle": "LP Shop",
