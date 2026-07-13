@@ -1235,3 +1235,187 @@ export async function getDeckWithCardCount(deckId: string, userId: string): Prom
 
   return { ...mapDeckRow(deck), cardCount: count ?? 0 };
 }
+
+// ─── Per-deck review stats (#246) ────────────────────────────────────────────
+
+// "Correct" mirrors getReviewStats' accuracy definition: rating >= 3
+// (3 = good, 4 = easy); again (1) and hard (2) count as wrong.
+const CORRECT_RATING_MIN = 3;
+
+/** The last `n` UTC calendar dates (oldest first, ending today). */
+function lastNDayKeysUtc(now: Date, n: number): string[] {
+  const keys: string[] = [];
+  for (let i = n - 1; i >= 0; i--) {
+    keys.push(
+      new Date(now.getTime() - i * 24 * 60 * 60 * 1000).toISOString().split("T")[0] ?? ""
+    );
+  }
+  return keys;
+}
+
+/**
+ * Review stats for ONE deck over the last `days` days: total/correct answers
+ * plus the per-day accuracy trend. Like getReviewStats, `accuracyByDay` keeps
+ * only days that actually have reviews. The deck scope comes from joining
+ * review_logs → cards on card_id; callers verify deck ownership beforehand
+ * (the additional user_id filter here is defense in depth).
+ */
+export async function getDeckReviewStats(
+  userId: string,
+  deckId: string,
+  days = 30
+): Promise<{
+  answersTotal: number;
+  answersCorrect: number;
+  accuracyByDay: Array<{ date: string; accuracy: number; count: number }>;
+}> {
+  const db = getDb();
+  const dayKeys = lastNDayKeysUtc(new Date(), days);
+  const windowStart = `${dayKeys[0]}T00:00:00.000Z`;
+
+  const { data, error } = await db
+    .from("review_logs")
+    .select("rating, reviewed_at, cards!inner(deck_id)")
+    .eq("user_id", userId)
+    .eq("cards.deck_id", deckId)
+    .gte("reviewed_at", windowStart)
+    .order("reviewed_at", { ascending: true });
+  if (error) throw new Error(`getDeckReviewStats: ${error.message}`);
+
+  const dayStats: Record<string, { count: number; good: number }> = {};
+  for (const key of dayKeys) dayStats[key] = { count: 0, good: 0 };
+
+  let answersTotal = 0;
+  let answersCorrect = 0;
+  for (const row of (data ?? []) as Array<{ rating: number | null; reviewed_at: string }>) {
+    answersTotal += 1;
+    const correct = (row.rating ?? 0) >= CORRECT_RATING_MIN;
+    if (correct) answersCorrect += 1;
+    const day = row.reviewed_at.split("T")[0] ?? "";
+    const bucket = dayStats[day];
+    if (!bucket) continue; // outside the scaffolded window (defensive)
+    bucket.count += 1;
+    if (correct) bucket.good += 1;
+  }
+
+  const accuracyByDay = dayKeys
+    .filter((date) => (dayStats[date]?.count ?? 0) > 0)
+    .map((date) => {
+      const s = dayStats[date] ?? { count: 0, good: 0 };
+      return {
+        date,
+        count: s.count,
+        accuracy: s.count > 0 ? Math.round((s.good / s.count) * 100) / 100 : 0,
+      };
+    });
+
+  return { answersTotal, answersCorrect, accuracyByDay };
+}
+
+/**
+ * The deck's "Wackelkandidaten": cards with the most wrong answers (all time),
+ * most-wrong first, ties broken by the most recent wrong answer. Only cards
+ * with at least one wrong answer appear; soft-deleted cards are excluded
+ * because the client offers to practice the result.
+ */
+export async function getDeckWobblyCards(
+  userId: string,
+  deckId: string,
+  limit = 5
+): Promise<
+  Array<{ cardId: string; front: string; back: string; wrongCount: number; lastWrongAt: string }>
+> {
+  const db = getDb();
+  const { data, error } = await db
+    .from("review_logs")
+    .select("card_id, reviewed_at, cards!inner(deck_id, front, back, deleted_at)")
+    .eq("user_id", userId)
+    .eq("cards.deck_id", deckId)
+    .is("cards.deleted_at", null)
+    .lt("rating", CORRECT_RATING_MIN);
+  if (error) throw new Error(`getDeckWobblyCards: ${error.message}`);
+
+  const byCard = new Map<
+    string,
+    { front: string; back: string; wrongCount: number; lastWrongAt: string }
+  >();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const row of (data ?? []) as any[]) {
+    const cardId = row.card_id as string | null;
+    if (!cardId) continue;
+    const existing = byCard.get(cardId);
+    const reviewedAt = (row.reviewed_at as string | null) ?? "";
+    if (existing) {
+      existing.wrongCount += 1;
+      if (reviewedAt > existing.lastWrongAt) existing.lastWrongAt = reviewedAt;
+    } else {
+      byCard.set(cardId, {
+        front: row.cards?.front ?? "",
+        back: row.cards?.back ?? "",
+        wrongCount: 1,
+        lastWrongAt: reviewedAt,
+      });
+    }
+  }
+
+  return [...byCard.entries()]
+    .map(([cardId, s]) => ({ cardId, ...s }))
+    .sort(
+      (a, b) =>
+        b.wrongCount - a.wrongCount || b.lastWrongAt.localeCompare(a.lastWrongAt)
+    )
+    .slice(0, limit);
+}
+
+/**
+ * Per-deck answer summaries for ALL of the user's decks over the last `days`
+ * days, in two queries (decks + windowed review logs) instead of N. Decks
+ * without any answers are included with answersTotal 0 (LEFT-join style).
+ * Uses the same day-aligned window as getDeckReviewStats so the list
+ * percentage matches the deck detail's ring.
+ */
+export async function getDeckReviewSummaries(
+  userId: string,
+  days = 30
+): Promise<Array<{ deckId: string; title: string; answersTotal: number; accuracyRate: number }>> {
+  const db = getDb();
+  const dayKeys = lastNDayKeysUtc(new Date(), days);
+  const windowStart = `${dayKeys[0]}T00:00:00.000Z`;
+
+  const { data: decks, error: decksError } = await db
+    .from("decks")
+    .select("id, title")
+    .eq("user_id", userId)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false });
+  if (decksError) throw new Error(`getDeckReviewSummaries: ${decksError.message}`);
+
+  const { data: logs, error: logsError } = await db
+    .from("review_logs")
+    .select("rating, cards!inner(deck_id)")
+    .eq("user_id", userId)
+    .gte("reviewed_at", windowStart);
+  if (logsError) throw new Error(`getDeckReviewSummaries: ${logsError.message}`);
+
+  const byDeck = new Map<string, { total: number; good: number }>();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const row of (logs ?? []) as any[]) {
+    const rowDeckId = row.cards?.deck_id as string | null;
+    if (!rowDeckId) continue;
+    const s = byDeck.get(rowDeckId) ?? { total: 0, good: 0 };
+    s.total += 1;
+    if ((row.rating ?? 0) >= CORRECT_RATING_MIN) s.good += 1;
+    byDeck.set(rowDeckId, s);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return ((decks ?? []) as any[]).map((deck) => {
+    const s = byDeck.get(deck.id) ?? { total: 0, good: 0 };
+    return {
+      deckId: deck.id as string,
+      title: (deck.title as string | null) ?? "",
+      answersTotal: s.total,
+      accuracyRate: s.total > 0 ? Math.round((s.good / s.total) * 100) / 100 : 0,
+    };
+  });
+}
