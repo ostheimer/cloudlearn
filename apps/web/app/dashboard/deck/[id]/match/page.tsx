@@ -61,6 +61,9 @@ export default function MatchPage() {
   const [wrong, setWrong] = useState<[string, string] | null>(null);
   const [errors, setErrors] = useState(0);
   const [elapsed, setElapsed] = useState(0);
+  // Karten-IDs der Paare, die mindestens einmal falsch zugeordnet wurden
+  // („nicht gewusst"). Für die Wiederholung nur dieser Paare.
+  const [missedIds, setMissedIds] = useState<Set<string>>(new Set());
 
   const [earned, setEarned] = useState<number | null>(null);
   const awardedRef = useRef(false);
@@ -104,9 +107,12 @@ export default function MatchPage() {
     }
   }, []);
 
-  const startGame = useCallback(
-    (withTimer: boolean) => {
-      const selectedCards = shuffle(cards).slice(0, Math.min(MAX_PAIRS, cards.length));
+  const startGameWith = useCallback(
+    (sourceCards: Card[], withTimer: boolean) => {
+      const selectedCards = shuffle(sourceCards).slice(
+        0,
+        Math.min(MAX_PAIRS, sourceCards.length)
+      );
       const newTiles: Tile[] = [];
       for (const card of selectedCards) {
         newTiles.push({
@@ -128,13 +134,19 @@ export default function MatchPage() {
       setWrong(null);
       setErrors(0);
       setElapsed(0);
+      setMissedIds(new Set());
       setIsNewBest(false);
       awardedRef.current = false;
       setEarned(null);
       setTimed(withTimer);
       setPhase("playing");
     },
-    [cards]
+    []
+  );
+
+  const startGame = useCallback(
+    (withTimer: boolean) => startGameWith(cards, withTimer),
+    [cards, startGameWith]
   );
 
   // Stoppuhr — läuft nur im Zeit-Modus während des Spiels.
@@ -183,6 +195,13 @@ export default function MatchPage() {
     } else {
       setErrors((e) => e + 1);
       setWrong([selected.id, tile.id]);
+      // Beide beteiligten Paare als „nicht gewusst" merken.
+      setMissedIds((prev) => {
+        const next = new Set(prev);
+        next.add(selected.cardId);
+        next.add(tile.cardId);
+        return next;
+      });
       setTimeout(() => {
         setWrong(null);
         setSelected(null);
@@ -291,6 +310,10 @@ export default function MatchPage() {
   // ---------- Ergebnis ----------
   if (phase === "finished") {
     const stars = errors === 0 ? 3 : errors <= 2 ? 2 : errors <= 4 ? 1 : 0;
+    // „Nicht gewusst" = Paare mit mindestens einem Fehlversuch. Zuordnen braucht
+    // mindestens 2 Paare, darum nur ab 2 offenen Paaren anbieten.
+    const notKnownCards = cards.filter((c) => missedIds.has(c.id));
+    const showSubset = notKnownCards.length >= 2;
     return (
       <div className="study-wrap">
         <div className="study-done">
@@ -340,8 +363,21 @@ export default function MatchPage() {
             </span>
           )}
           <div style={{ display: "grid", gap: 8, width: "100%", maxWidth: 320 }}>
-            <button type="button" className="btn btn-primary btn-block" onClick={() => startGame(timed)}>
-              <RotateCw size={18} /> Nochmal
+            {showSubset && (
+              <button
+                type="button"
+                className="btn btn-primary btn-block"
+                onClick={() => startGameWith(notKnownCards, timed)}
+              >
+                <RotateCw size={18} /> Nur nicht gewusste ({notKnownCards.length})
+              </button>
+            )}
+            <button
+              type="button"
+              className={`btn btn-block ${showSubset ? "btn-ghost" : "btn-primary"}`}
+              onClick={() => startGame(timed)}
+            >
+              <RotateCw size={18} /> {showSubset ? "Nochmal alle" : "Nochmal"}
             </button>
             <button
               type="button"
