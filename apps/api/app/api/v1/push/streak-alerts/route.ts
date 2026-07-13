@@ -2,6 +2,7 @@ import { type NextRequest } from "next/server";
 import { getEnv } from "@/lib/env";
 import { jsonError, jsonOk, normalizeError } from "@/lib/http";
 import { createRequestContext } from "@/lib/observability";
+import { secureCompare } from "@/lib/secureCompare";
 import { sendStreakAlertNotifications } from "@/services/notificationService";
 
 // Cron-triggered endpoint (or manual trigger for testing).
@@ -10,10 +11,14 @@ export async function POST(request: NextRequest) {
   const { requestId } = createRequestContext(request.headers);
   try {
     const env = getEnv();
-    const secret = request.headers.get("x-cron-secret");
-    const runtimeEnv = process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "development";
+    // No configured secret → refuse in EVERY environment (no development
+    // bypass — previously dev/preview accepted any caller).
+    if (!env.CRON_SECRET) {
+      return jsonError(requestId, "CRON_NOT_CONFIGURED", "Cron secret is not configured", 503);
+    }
 
-    if (env.CRON_SECRET && secret !== env.CRON_SECRET.trim() && runtimeEnv !== "development") {
+    const secret = request.headers.get("x-cron-secret");
+    if (!secureCompare(secret, env.CRON_SECRET.trim())) {
       return jsonError(requestId, "UNAUTHORIZED", "Invalid cron secret", 401);
     }
 

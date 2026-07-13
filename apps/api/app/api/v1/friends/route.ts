@@ -99,8 +99,16 @@ export async function DELETE(request: NextRequest) {
     const auth = await getAuthUser(request);
     if (!auth) return jsonError(requestId, "UNAUTHORIZED", "Authentication required", 401);
 
-    const friendId = new URL(request.url).searchParams.get("friendId");
-    if (!friendId) return jsonError(requestId, "INVALID_REQUEST", "friendId is required", 400);
+    // Validate as UUID before use — friendId is interpolated into a PostgREST
+    // `.or()` filter on the service-role client, so unvalidated input could
+    // smuggle extra filter syntax into the query.
+    const friendIdParam = addFriendSchema.shape.friendId.safeParse(
+      new URL(request.url).searchParams.get("friendId")
+    );
+    if (!friendIdParam.success) {
+      return jsonError(requestId, "INVALID_REQUEST", "friendId must be a valid UUID", 400);
+    }
+    const friendId = friendIdParam.data;
 
     const db = createSupabaseAdminClient();
     if (!db) return jsonError(requestId, "DB_UNAVAILABLE", "Database not configured", 503);
