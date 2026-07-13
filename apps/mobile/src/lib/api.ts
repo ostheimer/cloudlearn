@@ -234,6 +234,8 @@ export interface StatsResponse {
   longestStreak: number;
   lastReviewDate: string | null;
   dailyGoal: number;
+  // Streak freezes owned (LP store item); optional while old API versions roll out.
+  streakFreezes?: number;
   reviewsToday: number;
   reviewsThisWeek: number;
   reviewsTotal: number;
@@ -705,6 +707,35 @@ export async function claimMilestone(
     method: "POST",
     body: JSON.stringify({ milestone }),
   });
+}
+
+// ─── Streak Freeze (LP store item) ────────────────────────────────────────────
+
+export interface StreakFreezePurchaseResponse {
+  cost: number;
+  newBalance: number;
+  streakFreezes: number;
+  maxFreezes: number;
+}
+
+export async function buyStreakFreeze(): Promise<StreakFreezePurchaseResponse> {
+  return requestAuthenticated<StreakFreezePurchaseResponse>("/api/v1/lp/streak-freeze", {
+    method: "POST",
+  });
+}
+
+// ─── Streak Calendar ──────────────────────────────────────────────────────────
+
+export interface StreakCalendarResponse {
+  month: string;
+  learnedDays: string[];
+  frozenDays: string[];
+}
+
+export async function getStreakCalendar(month: string): Promise<StreakCalendarResponse> {
+  return requestAuthenticated<StreakCalendarResponse>(
+    `/api/v1/stats/streak-calendar?month=${encodeURIComponent(month)}`
+  );
 }
 
 // ─── LP Pack Purchase ──────────────────────────────────────────────────────────

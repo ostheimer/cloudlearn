@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { todayLocal, daysBetween, startOfTodayLocalIso } from "./localDay";
+import { todayLocal, daysBetween, startOfLocalDayIso, startOfTodayLocalIso } from "./localDay";
 
 describe("todayLocal (Europe/Berlin)", () => {
   it("rolls to the next day at Berlin midnight, not UTC midnight (summer, UTC+2)", () => {
@@ -28,6 +28,23 @@ describe("daysBetween", () => {
   it("crosses month and year boundaries", () => {
     expect(daysBetween("2026-06-30", "2026-07-01")).toBe(1);
     expect(daysBetween("2025-12-31", "2026-01-01")).toBe(1);
+  });
+});
+
+describe("startOfLocalDayIso", () => {
+  it("maps a summer date to 22:00Z of the previous day (UTC+2)", () => {
+    expect(startOfLocalDayIso("2026-07-01")).toBe("2026-06-30T22:00:00.000Z");
+  });
+
+  it("maps a winter date to 23:00Z of the previous day (UTC+1)", () => {
+    expect(startOfLocalDayIso("2026-01-15")).toBe("2026-01-14T23:00:00.000Z");
+  });
+
+  it("uses the offset valid at that day's own midnight around a DST switch", () => {
+    // Summer time starts 2026-03-29 in Berlin; midnight of that day is still UTC+1.
+    expect(startOfLocalDayIso("2026-03-29")).toBe("2026-03-28T23:00:00.000Z");
+    // The following day is fully UTC+2.
+    expect(startOfLocalDayIso("2026-03-30")).toBe("2026-03-29T22:00:00.000Z");
   });
 });
 

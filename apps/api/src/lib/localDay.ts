@@ -47,14 +47,18 @@ function offsetMinutesAt(at: Date): number {
   return Math.round((wallAsUtc - at.getTime()) / 60_000);
 }
 
-/** Start of the current local calendar day, as an ISO timestamp (UTC instant). */
-export function startOfTodayLocalIso(now: Date = new Date()): string {
-  const day = todayLocal(now);
+/** Start of a given local calendar day (YYYY-MM-DD), as an ISO timestamp (UTC instant). */
+export function startOfLocalDayIso(day: string): string {
   const [y, m, d] = day.split("-").map(Number);
   const dayUtcMidnight = Date.UTC(y ?? 0, (m ?? 1) - 1, d ?? 1);
   // Local midnight = UTC midnight of that date minus the zone offset. Compute
   // twice so DST-switch days use the offset that applies at midnight itself.
-  let candidate = new Date(dayUtcMidnight - offsetMinutesAt(now) * 60_000);
+  let candidate = new Date(dayUtcMidnight - offsetMinutesAt(new Date(dayUtcMidnight)) * 60_000);
   candidate = new Date(dayUtcMidnight - offsetMinutesAt(candidate) * 60_000);
   return candidate.toISOString();
+}
+
+/** Start of the current local calendar day, as an ISO timestamp (UTC instant). */
+export function startOfTodayLocalIso(now: Date = new Date()): string {
+  return startOfLocalDayIso(todayLocal(now));
 }

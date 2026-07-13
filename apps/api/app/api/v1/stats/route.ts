@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
         longestStreak: streak.longestStreak,
         lastReviewDate: streak.lastReviewDate,
         dailyGoal: streak.dailyGoal,
+        streakFreezes: streak.streakFreezes,
         reviewsToday: reviewStats.reviewsToday,
         reviewsThisWeek: reviewStats.reviewsThisWeek,
         reviewsTotal: reviewStats.reviewsTotal,

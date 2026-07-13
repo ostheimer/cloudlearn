@@ -5,7 +5,7 @@
  */
 
 import { createSupabaseAdminClient } from "./supabase";
-import { daysBetween, startOfTodayLocalIso, todayLocal } from "./localDay";
+import { startOfLocalDayIso, startOfTodayLocalIso, todayLocal } from "./localDay";
 import type { Flashcard, SubscriptionTier } from "./contracts";
 
 // ─── Interfaces (same shape as inMemoryStore) ───────────────────────────────
@@ -423,71 +423,115 @@ export interface StreakInfo {
   longestStreak: number;
   lastReviewDate: string | null;
   dailyGoal: number;
+  streakFreezes: number;
 }
 
 export async function getStreakInfo(userId: string): Promise<StreakInfo> {
   const db = getDb();
   const { data, error } = await db
     .from("profiles")
-    .select("current_streak, longest_streak, last_review_date, daily_goal")
+    .select("current_streak, longest_streak, last_review_date, daily_goal, streak_freezes")
     .eq("id", userId)
     .maybeSingle();
-  if (error || !data) return { currentStreak: 0, longestStreak: 0, lastReviewDate: null, dailyGoal: 10 };
+  if (error || !data) {
+    return { currentStreak: 0, longestStreak: 0, lastReviewDate: null, dailyGoal: 10, streakFreezes: 0 };
+  }
   return {
     currentStreak: data.current_streak ?? 0,
     longestStreak: data.longest_streak ?? 0,
     lastReviewDate: data.last_review_date ?? null,
     dailyGoal: data.daily_goal ?? 10,
+    streakFreezes: data.streak_freezes ?? 0,
   };
 }
 
 /**
  * Update streak after a review. Call after each review.
- * Compares last_review_date with today in the user's local day (#211).
+ *
+ * The whole decision (already reviewed today? consecutive day? one-day gap a
+ * freeze can cover?) runs atomically in Postgres under a row lock — see
+ * 20260713140000_streak_freeze.sql. The previous TS read-modify-write could
+ * lose updates under concurrent reviews (#211 follow-up). Day boundaries are
+ * the user's local day (#211).
  */
-export async function updateStreakAfterReview(userId: string): Promise<StreakInfo> {
+export async function updateStreakAfterReview(
+  userId: string
+): Promise<StreakInfo & { freezeUsed: boolean }> {
   const db = getDb();
-  const today: string = todayLocal();
-
-  const current = await getStreakInfo(userId);
-
-  let newStreak = current.currentStreak;
-  if (current.lastReviewDate === today) {
-    // Already reviewed today — no change
-    return current;
-  } else if (current.lastReviewDate) {
-    const diffDays = daysBetween(current.lastReviewDate, today);
-    if (diffDays === 1) {
-      // Consecutive day
-      newStreak = current.currentStreak + 1;
-    } else {
-      // Gap — reset streak
-      newStreak = 1;
-    }
-  } else {
-    // First ever review
-    newStreak = 1;
-  }
-
-  const newLongest = Math.max(newStreak, current.longestStreak);
-
-  const { error } = await db
-    .from("profiles")
-    .update({
-      current_streak: newStreak,
-      longest_streak: newLongest,
-      last_review_date: today,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", userId);
+  const { data, error } = await db.rpc("update_streak_after_review", {
+    p_user: userId,
+    p_today: todayLocal(),
+  });
 
   if (error) throw new Error(`updateStreakAfterReview: ${error.message}`);
 
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) {
+    // Profile row missing — same neutral fallback getStreakInfo uses.
+    return { currentStreak: 0, longestStreak: 0, lastReviewDate: null, dailyGoal: 10, streakFreezes: 0, freezeUsed: false };
+  }
   return {
-    currentStreak: newStreak,
-    longestStreak: newLongest,
-    lastReviewDate: today,
-    dailyGoal: current.dailyGoal,
+    currentStreak: row.current_streak ?? 0,
+    longestStreak: row.longest_streak ?? 0,
+    lastReviewDate: row.last_review_date ?? null,
+    dailyGoal: row.daily_goal ?? 10,
+    streakFreezes: row.streak_freezes ?? 0,
+    freezeUsed: row.freeze_used ?? false,
+  };
+}
+
+/**
+ * Days of a month (YYYY-MM) the user learned on, plus the days a streak
+ * freeze covered — the data behind the streak calendar (#237). Learned days
+ * come from review_logs grouped into the user's local day, so a review at
+ * 00:30 Berlin time counts to the new day even though its UTC timestamp is
+ * still on the old one.
+ */
+export interface StreakCalendarData {
+  month: string;
+  learnedDays: string[];
+  frozenDays: string[];
+}
+
+export async function getStreakCalendar(userId: string, month: string): Promise<StreakCalendarData> {
+  const db = getDb();
+  const [y, m] = month.split("-").map(Number);
+  const monthStart = `${month}-01`;
+  const nextMonthStart =
+    (m ?? 1) === 12 ? `${(y ?? 0) + 1}-01-01` : `${y}-${String((m ?? 1) + 1).padStart(2, "0")}-01`;
+  const fromIso = startOfLocalDayIso(monthStart);
+  const toIso = startOfLocalDayIso(nextMonthStart);
+
+  // PostgREST caps a select at 1000 rows; a heavy month can exceed that, so
+  // page until short — distinct days are what we keep, not the rows.
+  const learned = new Set<string>();
+  const PAGE = 1000;
+  for (let offset = 0; ; offset += PAGE) {
+    const { data, error } = await db
+      .from("review_logs")
+      .select("reviewed_at")
+      .eq("user_id", userId)
+      .gte("reviewed_at", fromIso)
+      .lt("reviewed_at", toIso)
+      .order("reviewed_at", { ascending: true })
+      .range(offset, offset + PAGE - 1);
+    if (error) throw new Error(`getStreakCalendar: ${error.message}`);
+    for (const row of data ?? []) learned.add(todayLocal(new Date(row.reviewed_at)));
+    if (!data || data.length < PAGE) break;
+  }
+
+  const { data: freezes, error: freezeError } = await db
+    .from("streak_freeze_uses")
+    .select("used_on")
+    .eq("user_id", userId)
+    .gte("used_on", monthStart)
+    .lt("used_on", nextMonthStart);
+  if (freezeError) throw new Error(`getStreakCalendar: ${freezeError.message}`);
+
+  return {
+    month,
+    learnedDays: [...learned].sort(),
+    frozenDays: (freezes ?? []).map((r) => r.used_on as string).sort(),
   };
 }
 
