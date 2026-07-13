@@ -24,6 +24,8 @@ import { useSessionStore } from "../../src/store/sessionStore";
 import {
   listDecks,
   getDueCards,
+  searchCards,
+  type CardSearchResult,
   updateDeck,
   deleteDeck,
   createDeck,
@@ -175,6 +177,38 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
   }, [loadDecks, loadCourses, loadFolders]);
 
   const filteredDecks = useMemo(() => searchDecks(decks, query), [decks, query]);
+
+  // Card search: from 2+ characters the query also searches card fronts/backs
+  // server-side (debounced so we don't fire a request per keystroke).
+  const [cardResults, setCardResults] = useState<CardSearchResult[]>([]);
+  const [cardSearchLoading, setCardSearchLoading] = useState(false);
+  useEffect(() => {
+    const term = query.trim();
+    if (activeTab !== "decks" || term.length < 2 || !userId) {
+      setCardResults([]);
+      setCardSearchLoading(false);
+      return;
+    }
+    setCardSearchLoading(true);
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      searchCards(term)
+        .then((res) => {
+          if (!cancelled) setCardResults(res.results);
+        })
+        .catch(() => {
+          // Best-effort: a failing card search must not disturb the deck list.
+          if (!cancelled) setCardResults([]);
+        })
+        .finally(() => {
+          if (!cancelled) setCardSearchLoading(false);
+        });
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [query, activeTab, userId]);
 
   const filteredCourses = useMemo(
     () =>
@@ -714,15 +748,87 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
     </View>
   );
 
+  // Card hits for the current search, shown above the deck list.
+  const renderCardResults = () => {
+    const term = query.trim();
+    if (term.length < 2) return null;
+    if (!cardSearchLoading && cardResults.length === 0) return null;
+    return (
+      <View style={{ gap: spacing.sm, marginBottom: spacing.md }}>
+        <Text
+          style={{
+            fontSize: typography.xs,
+            color: colors.textTertiary,
+            fontWeight: typography.semibold,
+            textTransform: "uppercase",
+            letterSpacing: 0.5,
+          }}
+        >
+          {cardSearchLoading
+            ? "Karten werden durchsucht…"
+            : `Karten · ${cardResults.length} Treffer`}
+        </Text>
+        {cardResults.map((hit) => (
+          <TouchableOpacity
+            key={hit.cardId}
+            onPress={() =>
+              router.push(
+                `/deck/${hit.deckId}?title=${encodeURIComponent(hit.deckTitle)}`
+              )
+            }
+            activeOpacity={0.7}
+            style={{
+              backgroundColor: colors.surface,
+              borderRadius: radius.md,
+              padding: 12,
+              borderWidth: 1,
+              borderColor: colors.border,
+              ...shadows.sm,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: typography.sm,
+                fontWeight: typography.semibold,
+                color: colors.text,
+              }}
+              numberOfLines={1}
+            >
+              {hit.front}
+            </Text>
+            <Text
+              style={{ fontSize: typography.sm, color: colors.textSecondary, marginTop: 1 }}
+              numberOfLines={1}
+            >
+              {hit.back}
+            </Text>
+            <Text
+              style={{ fontSize: typography.xs, color: colors.primary, marginTop: 4 }}
+              numberOfLines={1}
+            >
+              in: {hit.deckTitle}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    );
+  };
+
   const renderList = () => {
     if (activeTab === "decks") {
-      if (filteredDecks.length === 0) {
+      const cardSection = renderCardResults();
+      if (filteredDecks.length === 0 && !cardSection) {
         return renderEmpty(
           <Layers size={28} color={colors.textTertiary} />,
           decks.length === 0 ? t("library.emptyDecks") : t("library.noMatchDecks")
         );
       }
-      return filteredDecks.map(renderDeckItem);
+      return (
+        <>
+          {cardSection}
+          {filteredDecks.map(renderDeckItem)}
+        </>
+      );
     }
 
     if (activeTab === "courses") {

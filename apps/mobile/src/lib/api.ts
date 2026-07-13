@@ -444,6 +444,23 @@ export async function listCardsInDeck(
   return requestAuthenticated<{ cards: Card[] }>(`/api/v1/decks/${deckId}/cards`);
 }
 
+export interface CardSearchResult {
+  cardId: string;
+  deckId: string;
+  deckTitle: string;
+  front: string;
+  back: string;
+}
+
+// Search the user's own cards by front/back text (Bibliothek card search).
+export async function searchCards(
+  query: string
+): Promise<{ results: CardSearchResult[] }> {
+  return requestAuthenticated<{ results: CardSearchResult[] }>(
+    `/api/v1/cards/search?q=${encodeURIComponent(query)}`
+  );
+}
+
 // --- Card Management ---
 
 export async function updateCard(
