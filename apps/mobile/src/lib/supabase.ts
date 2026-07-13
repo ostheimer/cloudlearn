@@ -2,9 +2,15 @@ import { createClient } from "@supabase/supabase-js";
 import { Platform } from "react-native";
 import { SupabaseAuthStorage } from "./authStorage";
 
-// Supabase project credentials (public / anon key — safe to expose in client)
-const SUPABASE_URL = "https://yektpwhycxusblnueplm.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_BN5r8pNWC40Eahc8h5NqpA_imO5Ky-f";
+// Supabase project credentials (public / anon key — safe to expose in client).
+// Configurable via env (staging/preview builds); production values as fallback
+// so builds without env configuration keep working (#77).
+const SUPABASE_URL =
+  process.env.EXPO_PUBLIC_SUPABASE_URL?.trim() ||
+  "https://yektpwhycxusblnueplm.supabase.co";
+const SUPABASE_ANON_KEY =
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY?.trim() ||
+  "sb_publishable_BN5r8pNWC40Eahc8h5NqpA_imO5Ky-f";
 
 export interface AuthProviderAvailability {
   email: boolean;

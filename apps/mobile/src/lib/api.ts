@@ -1,7 +1,10 @@
 // API client for communicating with the clearn backend
 import { supabase } from "./supabase";
 
-const API_BASE = "https://clearn-api.vercel.app";
+// Configurable via env (staging/preview builds); production URL as fallback
+// so builds without env configuration keep working (#77).
+const API_BASE =
+  process.env.EXPO_PUBLIC_API_URL?.trim() || "https://clearn-api.vercel.app";
 
 export class ApiError extends Error {
   status: number;
