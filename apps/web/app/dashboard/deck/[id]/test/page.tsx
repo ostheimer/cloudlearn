@@ -12,6 +12,12 @@ import {
   type TestQuestionType,
 } from "@/lib/testQuestions";
 import {
+  beginSessionAward,
+  getSessionReviewedCount,
+  isSessionEarnFinalized,
+  type SessionAwardState,
+} from "@/lib/learn-session-lp";
+import {
   ArrowLeft,
   ChevronRight,
   X,
@@ -26,7 +32,6 @@ import {
 } from "@/components/icons";
 
 const SECONDS_PER_QUESTION = 30;
-const LP_SESSION_MIN = 5;
 
 type Answer = { mc: number | null; tf: boolean | null; text: string };
 type Graded = { correct: boolean; overridden: boolean };
@@ -69,7 +74,9 @@ export default function TestPage() {
   const [fellBackToWritten, setFellBackToWritten] = useState(false);
 
   const [earned, setEarned] = useState<number | null>(null);
-  const awardedRef = useRef(false);
+  const [earnCapReached, setEarnCapReached] = useState(false);
+  const awardStateRef = useRef<SessionAwardState>({ finalized: false, inFlight: null });
+  const pendingReviewsRef = useRef<Promise<unknown>[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -126,24 +133,44 @@ export default function TestPage() {
   const scoredCount = graded.filter((g) => g.correct || g.overridden).length;
   const percent = questions.length > 0 ? Math.round((scoredCount / questions.length) * 100) : 0;
 
-  const awardSession = useCallback(async (n: number) => {
-    if (awardedRef.current || n < LP_SESSION_MIN) return;
-    awardedRef.current = true;
-    try {
-      const r = await earnLp("session", n);
-      setEarned(r.granted);
-    } catch {
-      /* LP-Gutschrift best-effort */
-    }
+  const awardSession = useCallback((count: number) => {
+    const state = awardStateRef.current;
+    return beginSessionAward(state, count, async () => {
+      try {
+        const maxAttempts = 3;
+        const retryDelayMs = 250;
+
+        for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+          if (attempt > 0) {
+            await new Promise((resolve) => window.setTimeout(resolve, retryDelayMs));
+          }
+
+          const pendingReviews = pendingReviewsRef.current;
+          pendingReviewsRef.current = [];
+          await Promise.allSettled(pendingReviews);
+
+          const res = await earnLp("session", count);
+          setEarned(res.granted);
+          setEarnCapReached(res.capReached);
+
+          if (isSessionEarnFinalized(res, count)) {
+            state.finalized = true;
+            break;
+          }
+        }
+      } catch {
+        /* LP-Gutschrift ist best-effort */
+      }
+    });
   }, []);
 
   // Baut den Test aus den übergebenen Karten und geht direkt ins Spiel — die
   // gemeinsame Basis für „Nochmal" (alle Karten) und „Nur nicht gewusste"
-  // (Teilmenge, überspringt das Setup). Der LP-Zustand wird genauso
-  // zurückgesetzt wie zuvor: die abgeschlossene Sitzung wurde bereits in submit
-  // gutgeschrieben, hier startet nur die neue Sitzung frisch.
+  // (Teilmenge, überspringt das Setup). Erst LP der abgeschlossenen Sitzung
+  // sichern, dann den Award-Zustand für die neue Runde zurücksetzen.
   const buildAndStart = useCallback(
-    (sourceCards: Card[]) => {
+    async (sourceCards: Card[]) => {
+      await awardSession(questions.length);
       const types: TestQuestionType[] = [];
       if (typeTF) types.push("trueFalse");
       if (typeMC) types.push("mc");
@@ -166,6 +193,8 @@ export default function TestPage() {
         }
       }
       setFellBackToWritten(fellBack);
+      awardStateRef.current = { finalized: false, inFlight: null };
+      pendingReviewsRef.current = [];
       setQuestions(qs);
       setAnswers(qs.map(() => ({ mc: null, tf: null, text: "" })));
       setGraded([]);
@@ -174,11 +203,11 @@ export default function TestPage() {
       // Anzahl) — buildTestQuestions kann weniger liefern (z. B. Lücken-Karten bei
       // ausgeschaltetem „Schriftlich"). Nur im Zeit-Modus relevant.
       setRemaining(timed ? qs.length * SECONDS_PER_QUESTION : 0);
-      awardedRef.current = false;
       setEarned(null);
+      setEarnCapReached(false);
       setPhase("play");
     },
-    [count, usableCount, typeTF, typeMC, typeWritten, reverse, timed]
+    [count, usableCount, typeTF, typeMC, typeWritten, reverse, timed, awardSession, questions.length]
   );
 
   const startTest = useCallback(() => buildAndStart(cards), [buildAndStart, cards]);
@@ -190,11 +219,18 @@ export default function TestPage() {
       if (q.type === "mc") correct = a.mc === q.correctIndex;
       else if (q.type === "trueFalse") correct = a.tf === q.tfIsCorrect;
       else correct = isAnswerCorrect(a.text, q.expected, { strict });
-      if (userId) reviewCard(userId, q.cardId, correct ? "good" : "again").catch(() => {});
+      if (userId) {
+        const reviewPromise = reviewCard(userId, q.cardId, correct ? "good" : "again").catch(() => {});
+        pendingReviewsRef.current.push(reviewPromise);
+      }
       return { correct, overridden: false };
     });
     setGraded(result);
-    void awardSession(questions.length);
+    const reviewedCount = getSessionReviewedCount(
+      questions.length,
+      pendingReviewsRef.current.length,
+    );
+    void awardSession(reviewedCount);
     setPhase("result");
   }, [questions, answers, strict, userId, awardSession]);
 
@@ -244,7 +280,10 @@ export default function TestPage() {
     // Selbstbewertung soll auch die SRS-Planung korrigieren (wie im Lückentext):
     // die zuvor als „again" gebuchte Karte jetzt als „good" nachbewerten.
     const card = questions[i];
-    if (userId && card) reviewCard(userId, card.cardId, "good").catch(() => {});
+    if (userId && card) {
+      const reviewPromise = reviewCard(userId, card.cardId, "good").catch(() => {});
+      pendingReviewsRef.current.push(reviewPromise);
+    }
   };
 
   if (loading) return <div className="spinner" />;
@@ -398,7 +437,7 @@ export default function TestPage() {
           type="button"
           className="btn btn-primary btn-lg btn-block"
           disabled={!anyType}
-          onClick={startTest}
+          onClick={() => void startTest()}
         >
           Test starten
         </button>
@@ -437,6 +476,11 @@ export default function TestPage() {
             <span className="lp-pill">
               <Zap size={15} /> +{earned} Lernpunkte
             </span>
+          )}
+          {earned === 0 && earnCapReached && (
+            <p className="muted" style={{ fontSize: "0.9rem" }}>
+              Heutiges Lernpunkte-Limit erreicht — morgen gibt es wieder welche.
+            </p>
           )}
         </div>
 
@@ -485,16 +529,16 @@ export default function TestPage() {
             <button
               type="button"
               className="btn btn-primary btn-block"
-              onClick={() => buildAndStart(wrongCards)}
+              onClick={() => void buildAndStart(wrongCards)}
             >
               Nur nicht gewusste ({wrongCards.length})
             </button>
-            <button type="button" className="btn btn-ghost btn-block" onClick={startTest}>
+            <button type="button" className="btn btn-ghost btn-block" onClick={() => void startTest()}>
               <RotateCw size={18} /> Nochmal alle
             </button>
           </>
         ) : (
-          <button type="button" className="btn btn-primary btn-block" onClick={startTest}>
+          <button type="button" className="btn btn-primary btn-block" onClick={() => void startTest()}>
             <RotateCw size={18} /> Nochmal
           </button>
         )}

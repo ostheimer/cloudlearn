@@ -13,10 +13,14 @@ import {
 } from "@/lib/api";
 import { getSupabase } from "@/lib/supabase-browser";
 import { ArrowLeft, X, Trophy, ImageIcon, AlertTriangle, Zap } from "@/components/icons";
+import {
+  beginSessionAward,
+  getSessionReviewedCount,
+  isSessionEarnFinalized,
+  type SessionAwardState,
+} from "@/lib/learn-session-lp";
 
 const BUCKET = "card-images";
-// Ab so vielen gelernten Karten schreibt der Server LP gut (wie die anderen Modi).
-const LP_SESSION_MIN = 5;
 
 type Region = { x: number; y: number; w: number; h: number; label: string };
 type OccItem = {
@@ -74,7 +78,8 @@ export default function OcclusionLearnPage() {
   const [wrong, setWrong] = useState<OccItem[]>([]);
   const [earned, setEarned] = useState<number | null>(null);
   const [earnCapReached, setEarnCapReached] = useState(false);
-  const awardedRef = useRef(false);
+  const awardStateRef = useRef<SessionAwardState>({ finalized: false, inFlight: null });
+  const pendingReviewsRef = useRef<Promise<unknown>[]>([]);
   // Volle geladene Liste, damit „Nochmal alle" nach einer Teil-Runde wieder alles nimmt.
   const allItemsRef = useRef<OccItem[]>([]);
 
@@ -113,16 +118,35 @@ export default function OcclusionLearnPage() {
   const current = items[index];
   const done = phase === "study" && index >= total;
 
-  const awardSession = useCallback(async (count: number) => {
-    if (awardedRef.current || count < LP_SESSION_MIN) return;
-    awardedRef.current = true;
-    try {
-      const res = await earnLp("session", count);
-      setEarned(res.granted);
-      setEarnCapReached(res.capReached);
-    } catch {
-      /* LP-Gutschrift ist best-effort */
-    }
+  const awardSession = useCallback((count: number) => {
+    const state = awardStateRef.current;
+    return beginSessionAward(state, count, async () => {
+      try {
+        const maxAttempts = 3;
+        const retryDelayMs = 250;
+
+        for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+          if (attempt > 0) {
+            await new Promise((resolve) => window.setTimeout(resolve, retryDelayMs));
+          }
+
+          const pendingReviews = pendingReviewsRef.current;
+          pendingReviewsRef.current = [];
+          await Promise.allSettled(pendingReviews);
+
+          const res = await earnLp("session", count);
+          setEarned(res.granted);
+          setEarnCapReached(res.capReached);
+
+          if (isSessionEarnFinalized(res, count)) {
+            state.finalized = true;
+            break;
+          }
+        }
+      } catch {
+        /* LP-Gutschrift ist best-effort */
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -134,14 +158,18 @@ export default function OcclusionLearnPage() {
     if (!item || !userId) return;
     if (known) setCorrect((n) => n + 1);
     else setWrong((w) => [...w, item]);
-    // Fire-and-forget — FSRS-Planung passiert serverseitig.
-    reviewCard(userId, item.id, known ? "good" : "again").catch(() => {});
+    const reviewPromise = reviewCard(userId, item.id, known ? "good" : "again").catch(() => {
+      /* review sync best-effort; scheduling will catch up on next load */
+    });
+    pendingReviewsRef.current.push(reviewPromise);
     setRevealed(false);
     window.setTimeout(() => setIndex((i) => i + 1), 140);
   }
 
-  function restart() {
-    awardedRef.current = false;
+  async function restart() {
+    await awardSession(total);
+    awardStateRef.current = { finalized: false, inFlight: null };
+    pendingReviewsRef.current = [];
     setEarned(null);
     setEarnCapReached(false);
     // Zurück auf die volle Liste, falls zuvor eine Teil-Runde lief.
@@ -154,9 +182,11 @@ export default function OcclusionLearnPage() {
   }
 
   // Nur die „nicht gewussten" Items erneut lernen — maskOthers bleibt, direkt ins Lernen.
-  function restartWrong() {
+  async function restartWrong() {
     const subset = wrong;
-    awardedRef.current = false;
+    await awardSession(total);
+    awardStateRef.current = { finalized: false, inFlight: null };
+    pendingReviewsRef.current = [];
     setEarned(null);
     setEarnCapReached(false);
     setItems(subset);
@@ -167,8 +197,9 @@ export default function OcclusionLearnPage() {
     setPhase("study");
   }
 
-  function quit() {
-    void awardSession(index);
+  async function quit() {
+    const reviewedCount = getSessionReviewedCount(index, pendingReviewsRef.current.length);
+    await awardSession(reviewedCount);
     router.push(`/dashboard/deck/${deckId}`);
   }
 
@@ -230,14 +261,14 @@ export default function OcclusionLearnPage() {
           )}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
             {wrong.length > 0 && (
-              <button type="button" className="btn btn-primary" onClick={restartWrong}>
+              <button type="button" className="btn btn-primary" onClick={() => void restartWrong()}>
                 Nur nicht gewusste ({wrong.length})
               </button>
             )}
             <button
               type="button"
               className={`btn ${wrong.length > 0 ? "btn-ghost" : "btn-primary"}`}
-              onClick={restart}
+              onClick={() => void restart()}
             >
               {wrong.length > 0 ? "Nochmal alle" : "Nochmal lernen"}
             </button>
@@ -326,7 +357,7 @@ export default function OcclusionLearnPage() {
           type="button"
           className="crumb"
           style={{ margin: 0, background: "none", border: "none", cursor: "pointer" }}
-          onClick={quit}
+          onClick={() => void quit()}
         >
           <X size={16} /> Beenden
         </button>
