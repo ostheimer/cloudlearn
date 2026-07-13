@@ -568,6 +568,43 @@ export async function getReviewStats(userId: string): Promise<{
   };
 }
 
+/**
+ * The deck the user's most recent review belongs to ("Zuletzt gelernt" on
+ * Home). Follows review_logs → card → deck; null when the user has never
+ * reviewed or the deck has since been deleted (cascade removes the logs).
+ */
+export async function getLastStudiedDeck(
+  userId: string
+): Promise<{ id: string; title: string } | null> {
+  const db = getDb();
+
+  const { data: lastLog } = await db
+    .from("review_logs")
+    .select("card_id")
+    .eq("user_id", userId)
+    .order("reviewed_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!lastLog?.card_id) return null;
+
+  const { data: card } = await db
+    .from("cards")
+    .select("deck_id")
+    .eq("id", lastLog.card_id)
+    .maybeSingle();
+  if (!card?.deck_id) return null;
+
+  const { data: deck } = await db
+    .from("decks")
+    .select("id, title")
+    .eq("id", card.deck_id)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!deck?.id) return null;
+
+  return { id: deck.id, title: deck.title ?? "" };
+}
+
 // ─── Subscription (from profiles table) ─────────────────────────────────────
 
 export async function getSubscriptionTier(

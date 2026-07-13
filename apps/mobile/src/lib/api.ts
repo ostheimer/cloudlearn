@@ -237,6 +237,8 @@ export interface StatsResponse {
   accuracyRate: number;
   reviewsByDay: Array<{ date: string; count: number }>;
   accuracyByDay?: Array<{ date: string; accuracy: number; count: number }>;
+  // Deck of the user's most recent review ("Zuletzt gelernt" on Home).
+  lastStudiedDeck?: { id: string; title: string } | null;
 }
 
 export interface SubscriptionStatus {

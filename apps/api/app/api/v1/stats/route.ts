@@ -4,7 +4,7 @@ import { createRequestContext } from "@/lib/observability";
 import { getAuthUser } from "@/lib/auth";
 import { listDecksForUser } from "@/services/deckService";
 import { getDueCards } from "@/services/learnService";
-import { getStreakInfo, getReviewStats } from "@/lib/db";
+import { getStreakInfo, getReviewStats, getLastStudiedDeck } from "@/lib/db";
 
 export async function GET(request: NextRequest) {
   const { requestId } = createRequestContext(request.headers);
@@ -12,11 +12,12 @@ export async function GET(request: NextRequest) {
     const auth = await getAuthUser(request);
     if (!auth) return jsonError(requestId, "UNAUTHORIZED", "Authentication required", 401);
 
-    const [decks, dueCards, streak, reviewStats] = await Promise.all([
+    const [decks, dueCards, streak, reviewStats, lastStudiedDeck] = await Promise.all([
       listDecksForUser(auth.userId),
       getDueCards(auth.userId),
       getStreakInfo(auth.userId),
       getReviewStats(auth.userId),
+      getLastStudiedDeck(auth.userId),
     ]);
 
     return jsonOk(requestId, {
@@ -34,6 +35,7 @@ export async function GET(request: NextRequest) {
         accuracyRate: reviewStats.accuracyRate,
         reviewsByDay: reviewStats.reviewsByDay,
         accuracyByDay: reviewStats.accuracyByDay,
+        lastStudiedDeck,
       },
     });
   } catch (error) {
