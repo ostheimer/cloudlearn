@@ -430,7 +430,7 @@ export default function StatsScreen() {
               color: colors.text,
             }}
           >
-            Dein Fortschritt
+            Deine Statistik
           </Text>
         </View>
 
