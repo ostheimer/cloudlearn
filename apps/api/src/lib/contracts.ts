@@ -21,7 +21,7 @@ export const flashcardSchema = z.object({
   // Storage path of the card image (Occlusion & future image cards).
   sourceImageUrl: z.string().max(1000).optional(),
   // Free-form per-card data. For Occlusion: { regions: OcclusionRegion[], hideIndex: number }.
-  extraData: z.record(z.unknown()).optional(),
+  extraData: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type Flashcard = z.infer<typeof flashcardSchema>;
