@@ -1,5 +1,6 @@
 import { createSupabaseAdminClient } from "@/lib/supabase";
 import { getLimitsForTier } from "@/lib/featureGates";
+import { todayLocal } from "@/lib/localDay";
 import { getSubscriptionStatus } from "@/services/subscriptionService";
 import { verifyAdSsvSignature } from "@/lib/adSsvCrypto";
 
@@ -62,7 +63,8 @@ async function grantAdSsvLp(
   const db = createSupabaseAdminClient();
   if (!db) throw new Error("Supabase not configured");
 
-  const today = new Date().toISOString().split("T")[0]!;
+  // The daily ad cap resets at the user's local midnight, not UTC (#211).
+  const today = todayLocal();
   const { data, error } = await db.rpc("grant_ad_ssv_lp", {
     p_user: userId,
     p_amount: amount,

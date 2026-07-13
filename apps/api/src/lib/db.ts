@@ -5,6 +5,7 @@
  */
 
 import { createSupabaseAdminClient } from "./supabase";
+import { daysBetween, startOfTodayLocalIso, todayLocal } from "./localDay";
 import type { Flashcard, SubscriptionTier } from "./contracts";
 
 // ─── Interfaces (same shape as inMemoryStore) ───────────────────────────────
@@ -438,11 +439,11 @@ export async function getStreakInfo(userId: string): Promise<StreakInfo> {
 
 /**
  * Update streak after a review. Call after each review.
- * Compares last_review_date with today (user timezone = UTC for simplicity).
+ * Compares last_review_date with today in the user's local day (#211).
  */
 export async function updateStreakAfterReview(userId: string): Promise<StreakInfo> {
   const db = getDb();
-  const today: string = new Date().toISOString().split("T")[0] ?? "";
+  const today: string = todayLocal();
 
   const current = await getStreakInfo(userId);
 
@@ -451,9 +452,7 @@ export async function updateStreakAfterReview(userId: string): Promise<StreakInf
     // Already reviewed today — no change
     return current;
   } else if (current.lastReviewDate) {
-    const lastDate = new Date(current.lastReviewDate);
-    const todayDate = new Date(today);
-    const diffDays = Math.floor((todayDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+    const diffDays = daysBetween(current.lastReviewDate, today);
     if (diffDays === 1) {
       // Consecutive day
       newStreak = current.currentStreak + 1;
@@ -501,7 +500,8 @@ export async function getReviewStats(userId: string): Promise<{
 }> {
   const db = getDb();
   const now = new Date();
-  const todayStart = new Date((now.toISOString().split("T")[0] ?? "") + "T00:00:00Z").toISOString();
+  // "Today" follows the user's local day, not UTC (#211).
+  const todayStart = startOfTodayLocalIso(now);
   const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const monthStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
 

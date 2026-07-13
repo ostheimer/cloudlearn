@@ -73,8 +73,10 @@ export default function HomeScreen() {
   const dailyProgress = dailyGoal > 0 ? Math.min(reviewsToday / dailyGoal, 1) : 0;
   const accuracyPercent = Math.round((stats?.accuracyRate ?? 0) * 100);
 
-  // Determine whether user has reviewed today
-  const today = new Date().toISOString().split("T")[0];
+  // Determine whether user has reviewed today. The device's local calendar
+  // date (sv-SE renders YYYY-MM-DD) matches the server's local-day streak
+  // dates — toISOString() would flip to the next day at UTC midnight (#211).
+  const today = new Date().toLocaleDateString("sv-SE");
   const reviewedToday = stats?.lastReviewDate === today;
 
   if (!userId) {
