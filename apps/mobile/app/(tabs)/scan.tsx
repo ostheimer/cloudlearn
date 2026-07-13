@@ -857,9 +857,12 @@ export default function ScanScreen() {
             <Text style={{ flex: 1, color: colors.text, fontSize: typography.sm }}>
               {t("lp.insufficientHint", { cost: lpCostAiScan, balance: lpBalance })}
             </Text>
-            <Text style={{ color: colors.warning, fontSize: typography.xs, fontWeight: typography.semibold }}>
-              {t("lp.earnMore")} →
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+              <Text style={{ color: colors.warning, fontSize: typography.xs, fontWeight: typography.semibold }}>
+                {t("lp.earnMore")}
+              </Text>
+              <ChevronRight size={12} color={colors.warning} />
+            </View>
           </TouchableOpacity>
         )}
 
