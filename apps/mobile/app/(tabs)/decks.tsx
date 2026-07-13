@@ -23,6 +23,7 @@ import { useTranslation } from "react-i18next";
 import { useSessionStore } from "../../src/store/sessionStore";
 import {
   listDecks,
+  getDueCards,
   updateDeck,
   deleteDeck,
   createDeck,
@@ -80,6 +81,8 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
   const [decksLoading, setDecksLoading] = useState(true);
   const [decksRefreshing, setDecksRefreshing] = useState(false);
   const [decksError, setDecksError] = useState(false);
+  // Due cards per deck ("N fällig" badge on each deck row).
+  const [dueByDeck, setDueByDeck] = useState<Record<string, number>>({});
 
   // Courses state
   const [courses, setCourses] = useState<Course[]>([]);
@@ -104,8 +107,17 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
     }
     setDecksError(false);
     try {
-      const { decks: fetched } = await listDecks(userId);
+      // The badge is best-effort: a failing due lookup must not break the list.
+      const [{ decks: fetched }, due] = await Promise.all([
+        listDecks(userId),
+        getDueCards(userId).catch(() => ({ cards: [] })),
+      ]);
       setDecks(fetched);
+      const counts: Record<string, number> = {};
+      for (const card of due.cards) {
+        counts[card.deckId] = (counts[card.deckId] ?? 0) + 1;
+      }
+      setDueByDeck(counts);
     } catch {
       // Distinguish a load failure (offline / server error) from a genuinely
       // empty library so we can offer a retry instead of "noch keine Decks".
@@ -521,7 +533,29 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
             )}
           </View>
         </View>
-        <ChevronRight size={18} color={colors.textTertiary} />
+        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+          {(dueByDeck[deck.id] ?? 0) > 0 && (
+            <View
+              style={{
+                backgroundColor: colors.primaryLight,
+                borderRadius: radius.full ?? 999,
+                paddingHorizontal: spacing.sm,
+                paddingVertical: 2,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: typography.xs,
+                  fontWeight: typography.bold,
+                  color: colors.primary,
+                }}
+              >
+                {dueByDeck[deck.id]} fällig
+              </Text>
+            </View>
+          )}
+          <ChevronRight size={18} color={colors.textTertiary} />
+        </View>
       </View>
       {deck.tags.length > 0 && (
         <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm, marginLeft: 26 }}>

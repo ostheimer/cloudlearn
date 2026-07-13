@@ -398,9 +398,8 @@ export default function HomeScreen() {
 
             {/* Stats cards row */}
             <View style={{ flexDirection: "row", gap: spacing.sm }}>
-              {/* Due cards — parked for now: the global "learn all due cards"
-                  entry is temporarily disabled (greyed, not tappable). Deck-based
-                  learning replaces it; the global daily entry returns later. */}
+              {/* Due cards — pure stat. Which decks are due shows as badges in
+                  the Bibliothek; learning always starts from a deck. */}
               <View
                 style={{
                   flex: 1,
@@ -410,7 +409,6 @@ export default function HomeScreen() {
                   alignItems: "center",
                   borderWidth: 1,
                   borderColor: colors.border,
-                  opacity: 0.5,
                   ...shadows.sm,
                 }}
               >
@@ -419,13 +417,16 @@ export default function HomeScreen() {
                     width: 36,
                     height: 36,
                     borderRadius: radius.sm,
-                    backgroundColor: colors.surfaceSecondary,
+                    backgroundColor: dueCount > 0 ? colors.primaryLight : colors.surfaceSecondary,
                     justifyContent: "center",
                     alignItems: "center",
                     marginBottom: spacing.sm,
                   }}
                 >
-                  <BookOpen size={18} color={colors.textTertiary} />
+                  <BookOpen
+                    size={18}
+                    color={dueCount > 0 ? colors.primary : colors.textTertiary}
+                  />
                 </View>
                 <Text
                   style={{
@@ -445,25 +446,6 @@ export default function HomeScreen() {
                 >
                   Fällig
                 </Text>
-                <View
-                  style={{
-                    marginTop: 6,
-                    backgroundColor: colors.surfaceSecondary,
-                    borderRadius: radius.full ?? 999,
-                    paddingHorizontal: 8,
-                    paddingVertical: 3,
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: typography.xs,
-                      fontWeight: typography.bold,
-                      color: colors.textTertiary,
-                    }}
-                  >
-                    bald
-                  </Text>
-                </View>
               </View>
 
               {/* Decks */}
@@ -668,56 +650,28 @@ export default function HomeScreen() {
             )}
 
             {/* Action buttons */}
-            <View style={{ gap: spacing.md }}>
-              {dueCount > 0 && (
-                <View
-                  style={{
-                    backgroundColor: colors.surfaceSecondary,
-                    borderRadius: radius.lg,
-                    padding: spacing.lg,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: spacing.sm,
-                    opacity: 0.6,
-                  }}
-                >
-                  <BookOpen size={20} color={colors.textTertiary} />
-                  <Text
-                    style={{
-                      color: colors.textTertiary,
-                      fontSize: typography.lg,
-                      fontWeight: typography.bold,
-                    }}
-                  >
-                    {dueCount} Karten lernen (bald)
-                  </Text>
-                </View>
-              )}
+            <View style={{ gap: spacing.md }}>{/* The parked global "learn all
+              due cards" button is gone for good — learning starts from a deck
+              (Bibliothek shows which decks are due). */}
 
               <TouchableOpacity
                 onPress={() => router.push("/(tabs)/scan")}
                 activeOpacity={0.8}
                 style={{
-                  backgroundColor: dueCount > 0 ? colors.surface : colors.primary,
+                  backgroundColor: colors.primary,
                   borderRadius: radius.lg,
                   padding: spacing.lg,
                   flexDirection: "row",
                   alignItems: "center",
                   justifyContent: "center",
                   gap: spacing.sm,
-                  borderWidth: dueCount > 0 ? 1 : 0,
-                  borderColor: colors.border,
-                  ...shadows.sm,
+                  ...shadows.md,
                 }}
               >
-                <ScanLine
-                  size={20}
-                  color={dueCount > 0 ? colors.text : colors.textInverse}
-                />
+                <ScanLine size={20} color={colors.textInverse} />
                 <Text
                   style={{
-                    color: dueCount > 0 ? colors.text : colors.textInverse,
+                    color: colors.textInverse,
                     fontSize: typography.lg,
                     fontWeight: typography.bold,
                   }}

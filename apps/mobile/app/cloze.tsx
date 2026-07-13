@@ -84,6 +84,7 @@ export default function ClozeScreen() {
   // Settings chosen on the setup screen
   const [strict, setStrict] = useState(true);
   const [reverse, setReverse] = useState(false);
+  const [starredOnly, setStarredOnly] = useState(false);
 
   const [phase, setPhase] = useState<Phase>("setup");
   const [round, setRound] = useState<Card[]>([]);
@@ -117,6 +118,10 @@ export default function ClozeScreen() {
       }
     })();
   }, [deckId]);
+
+  // Optional starred-only pool for this round.
+  const starredCount = allCards.filter((c) => c.starred).length;
+  const studyPool = starredOnly ? allCards.filter((c) => c.starred) : allCards;
 
   const current = round[idx];
   const parsed = current ? buildPrompt(current, reverse) : null;
@@ -393,16 +398,64 @@ export default function ClozeScreen() {
                   Tippen zum Tauschen
                 </Text>
               </TouchableOpacity>
+
+              {/* Nur markierte Karten */}
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  backgroundColor: colors.surface,
+                  borderRadius: radius.lg,
+                  padding: spacing.lg,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  ...shadows.sm,
+                }}
+              >
+                <View style={{ flex: 1, paddingRight: spacing.md }}>
+                  <Text
+                    style={{
+                      fontSize: typography.base,
+                      fontWeight: typography.semibold,
+                      color: colors.text,
+                    }}
+                  >
+                    Nur markierte Karten
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: typography.sm,
+                      color: colors.textSecondary,
+                      marginTop: 2,
+                    }}
+                  >
+                    {starredCount === 0
+                      ? "Keine Karten markiert"
+                      : `${starredCount} markiert`}
+                  </Text>
+                </View>
+                <Switch
+                  value={starredOnly}
+                  onValueChange={setStarredOnly}
+                  disabled={starredCount === 0}
+                  trackColor={{ false: colors.surfaceSecondary, true: colors.primary }}
+                  thumbColor="#ffffff"
+                  ios_backgroundColor={colors.surfaceSecondary}
+                />
+              </View>
             </View>
 
             <View style={{ flex: 1 }} />
 
             {/* Start */}
             <TouchableOpacity
-              onPress={() => startRound(allCards)}
+              onPress={() => startRound(studyPool)}
+              disabled={studyPool.length === 0}
               activeOpacity={0.85}
               style={{
-                backgroundColor: colors.primary,
+                backgroundColor:
+                  studyPool.length === 0 ? colors.surfaceSecondary : colors.primary,
                 paddingVertical: 16,
                 borderRadius: radius.lg,
                 alignItems: "center",
@@ -411,7 +464,8 @@ export default function ClozeScreen() {
             >
               <Text
                 style={{
-                  color: colors.textInverse,
+                  color:
+                    studyPool.length === 0 ? colors.textTertiary : colors.textInverse,
                   fontWeight: typography.bold,
                   fontSize: typography.lg,
                 }}
@@ -529,7 +583,7 @@ export default function ClozeScreen() {
               )}
 
               <TouchableOpacity
-                onPress={() => startRound(allCards)}
+                onPress={() => startRound(studyPool)}
                 activeOpacity={0.85}
                 style={{
                   backgroundColor: allRight ? colors.primary : colors.surface,
@@ -547,7 +601,7 @@ export default function ClozeScreen() {
                     fontWeight: typography.bold,
                   }}
                 >
-                  Von vorne (alle {allCards.length})
+                  Von vorne (alle {studyPool.length})
                 </Text>
               </TouchableOpacity>
 

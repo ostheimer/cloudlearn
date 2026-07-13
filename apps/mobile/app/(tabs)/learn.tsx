@@ -77,11 +77,14 @@ export default function LearnScreen({
   deckId,
   deckTitle,
   initialShowBackFirst,
+  starredOnly,
 }: {
   deckId?: string | undefined;
   deckTitle?: string | undefined;
   // Deck mode: ask back → front from the start (chosen on the setup screen).
   initialShowBackFirst?: boolean | undefined;
+  // Deck mode: study only starred cards (chosen on the setup screen).
+  starredOnly?: boolean | undefined;
 } = {}) {
   const router = useRouter();
   const c = useColors();
@@ -107,6 +110,7 @@ export default function LearnScreen({
       deckId={deckId}
       deckTitle={deckTitle}
       initialShowBackFirst={initialShowBackFirst}
+      starredOnly={starredOnly}
     />
   );
 }
@@ -116,11 +120,13 @@ function AuthenticatedLearnScreen({
   deckId,
   deckTitle,
   initialShowBackFirst,
+  starredOnly,
 }: {
   userId: string;
   deckId?: string | undefined;
   deckTitle?: string | undefined;
   initialShowBackFirst?: boolean | undefined;
+  starredOnly?: boolean | undefined;
 }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -247,9 +253,12 @@ function AuthenticatedLearnScreen({
     try {
       await syncPendingReviewOperations(userId).catch(() => null);
       // Deck mode: study every card of one deck. Tab mode: study globally-due cards.
-      const { cards: loaded } = deckId
+      const { cards: fetched } = deckId
         ? await listCardsInDeck(deckId)
         : await getDueCards(userId);
+      // Deck setup may restrict the session to starred cards.
+      const loaded =
+        deckId && starredOnly ? fetched.filter((card) => card.starred) : fetched;
       if (loaded.length > 0) {
         const starMap: Record<string, boolean> = {};
         loaded.forEach((card) => { starMap[card.id] = card.starred ?? false; });
@@ -265,7 +274,7 @@ function AuthenticatedLearnScreen({
     } finally {
       setLoading(false);
     }
-  }, [userId, deckId, start]);
+  }, [userId, deckId, starredOnly, start]);
 
   // The review session store is module-global, so a fresh screen can inherit
   // cards from a previous session. Reload whenever the source changes (a

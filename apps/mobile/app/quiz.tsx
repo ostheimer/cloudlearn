@@ -69,7 +69,13 @@ export default function QuizScreen() {
   const [reverse, setReverse] = useState(false);
   const [typeMC, setTypeMC] = useState(true);
   const [typeTF, setTypeTF] = useState(true);
+  const [starredOnly, setStarredOnly] = useState(false);
   const anyType = typeMC || typeTF;
+
+  // Optional starred-only pool; choice questions need at least two cards.
+  const starredCount = cards.filter((c) => c.starred).length;
+  const pool = starredOnly ? cards.filter((c) => c.starred) : cards;
+  const canStart = anyType && pool.length >= 2;
 
   // Load cards
   const loadCards = useCallback(async () => {
@@ -93,8 +99,8 @@ export default function QuizScreen() {
   }, [loadCards]);
 
   const startQuiz = () => {
-    if (!anyType) return;
-    const q = generateQuestions(cards, 10, quizCopy, Math.random, {
+    if (!canStart) return;
+    const q = generateQuestions(pool, 10, quizCopy, Math.random, {
       reverse,
       allowMc: typeMC,
       allowTrueFalse: typeTF,
@@ -446,15 +452,61 @@ export default function QuizScreen() {
               )}
             </View>
 
+            {/* Nur markierte Karten */}
+            <View
+              style={{
+                ...setupCardStyle,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <View style={{ flex: 1, paddingRight: spacing.md }}>
+                <Text
+                  style={{
+                    fontSize: typography.base,
+                    fontWeight: typography.semibold,
+                    color: colors.text,
+                  }}
+                >
+                  Nur markierte Karten
+                </Text>
+                <Text
+                  style={{
+                    fontSize: typography.sm,
+                    color: colors.textSecondary,
+                    marginTop: 2,
+                  }}
+                >
+                  {starredCount === 0
+                    ? "Keine Karten markiert"
+                    : `${starredCount} markiert`}
+                </Text>
+              </View>
+              <Switch
+                value={starredOnly}
+                onValueChange={setStarredOnly}
+                disabled={starredCount === 0}
+                trackColor={{ false: colors.surfaceSecondary, true: colors.primary }}
+                thumbColor="#ffffff"
+                ios_backgroundColor={colors.surfaceSecondary}
+              />
+            </View>
+            {starredOnly && pool.length < 2 && (
+              <Text style={{ fontSize: typography.xs, color: colors.error }}>
+                Mindestens 2 markierte Karten nötig.
+              </Text>
+            )}
+
             <View style={{ flex: 1 }} />
 
             {/* Start */}
             <TouchableOpacity
               onPress={startQuiz}
-              disabled={!anyType}
+              disabled={!canStart}
               activeOpacity={0.85}
               style={{
-                backgroundColor: anyType ? colors.primary : colors.surfaceSecondary,
+                backgroundColor: canStart ? colors.primary : colors.surfaceSecondary,
                 paddingVertical: 16,
                 borderRadius: radius.lg,
                 alignItems: "center",
@@ -463,7 +515,7 @@ export default function QuizScreen() {
             >
               <Text
                 style={{
-                  color: anyType ? colors.textInverse : colors.textTertiary,
+                  color: canStart ? colors.textInverse : colors.textTertiary,
                   fontWeight: typography.bold,
                   fontSize: typography.lg,
                 }}
