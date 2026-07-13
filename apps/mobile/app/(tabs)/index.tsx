@@ -79,6 +79,13 @@ export default function HomeScreen() {
   const today = new Date().toLocaleDateString("sv-SE");
   const reviewedToday = stats?.lastReviewDate === today;
 
+  // "Zuletzt gelernt": the deck of the most recent review (server-derived).
+  // Falls back to the most recently edited deck for accounts without reviews.
+  const lastStudied = stats?.lastStudiedDeck ?? null;
+  const shownDeck =
+    lastStudied ?? (recentDeck ? { id: recentDeck.id, title: recentDeck.title } : null);
+  const shownDeckLabel = lastStudied ? "Zuletzt gelernt" : "Zuletzt geändert";
+
   if (!userId) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
@@ -587,9 +594,17 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Recently used deck — parked alongside the global learn entry. */}
-            {recentDeck && (
-              <View
+            {/* Recently studied deck — opens that deck's view, where every
+                study mode (and the tab bar) is available. */}
+            {shownDeck && (
+              <TouchableOpacity
+                onPress={() =>
+                  router.push({
+                    pathname: "/deck/[id]",
+                    params: { id: shownDeck.id, title: shownDeck.title },
+                  })
+                }
+                activeOpacity={0.8}
                 style={{
                   backgroundColor: colors.surface,
                   borderRadius: radius.lg,
@@ -599,7 +614,6 @@ export default function HomeScreen() {
                   gap: spacing.md,
                   borderWidth: 1,
                   borderColor: colors.border,
-                  opacity: 0.5,
                   ...shadows.sm,
                 }}
               >
@@ -623,7 +637,7 @@ export default function HomeScreen() {
                       marginBottom: 2,
                     }}
                   >
-                    Zuletzt gelernt
+                    {shownDeckLabel}
                   </Text>
                   <Text
                     style={{
@@ -633,11 +647,11 @@ export default function HomeScreen() {
                     }}
                     numberOfLines={1}
                   >
-                    {recentDeck.title}
+                    {shownDeck.title}
                   </Text>
                 </View>
                 <ChevronRight size={18} color={colors.textTertiary} />
-              </View>
+              </TouchableOpacity>
             )}
 
             {/* Action buttons */}
