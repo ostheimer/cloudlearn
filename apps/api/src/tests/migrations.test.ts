@@ -185,6 +185,26 @@ describe("supabase migrations", () => {
     expect(sql).toContain("grant execute on function claim_referral(uuid, text, int, int, int) to service_role");
   });
 
+  it("grants monthly Pro LP idempotently per (user, billing period) (#209)", () => {
+    const migrationPath = join(
+      apiRoot,
+      "supabase/migrations/20260713110000_monthly_lp_grant.sql",
+    );
+    const sql = readFileSync(migrationPath, "utf-8");
+
+    // Per-(user, period) primary key is the idempotency guard against re-delivered webhooks
+    expect(sql).toContain("create table if not exists monthly_lp_grants");
+    expect(sql).toContain("primary key (user_id, period)");
+    // Server-only table: RLS on, no policy (service_role bypasses it) — mirrors the LP tables
+    expect(sql).toContain("alter table monthly_lp_grants enable row level security");
+    // Idempotent grant fn: insert-guard + reuse of the atomic add_lp credit
+    expect(sql).toContain("create or replace function grant_monthly_lp");
+    expect(sql).toContain("on conflict (user_id, period) do nothing");
+    expect(sql).toContain("if not found then return false");
+    expect(sql).toContain("perform add_lp(p_user, p_amount, 'abo_grant'");
+    expect(sql).toContain("grant execute on function grant_monthly_lp(uuid, text, int, text) to service_role");
+  });
+
   it("keeps profile deletion backed by cascading user-data references", () => {
     const migrationDir = join(apiRoot, "supabase/migrations");
     const migrationFiles = [
