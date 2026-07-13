@@ -12,11 +12,15 @@ export async function GET(request: NextRequest) {
     const auth = await getAuthUser(request);
     if (!auth) return jsonError(requestId, "UNAUTHORIZED", "Authentication required", 401);
 
+    // Whitelisted by-day window: exactly 7 or 30 days, everything else → 7.
+    const days: 7 | 30 =
+      new URL(request.url).searchParams.get("days") === "30" ? 30 : 7;
+
     const [decks, dueCards, streak, reviewStats, lastStudiedDeck] = await Promise.all([
       listDecksForUser(auth.userId),
       getDueCards(auth.userId),
       getStreakInfo(auth.userId),
-      getReviewStats(auth.userId),
+      getReviewStats(auth.userId, days),
       getLastStudiedDeck(auth.userId),
     ]);
 
@@ -35,6 +39,7 @@ export async function GET(request: NextRequest) {
         accuracyRate: reviewStats.accuracyRate,
         reviewsByDay: reviewStats.reviewsByDay,
         accuracyByDay: reviewStats.accuracyByDay,
+        durationMsByDay: reviewStats.durationMsByDay,
         lastStudiedDeck,
       },
     });
