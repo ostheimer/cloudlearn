@@ -95,14 +95,14 @@ export const resources = {
       "lp.freezeConfirmBody": "Kostet {{cost}} LP. Wird automatisch verbraucht, wenn du einen Tag verpasst.",
       "lp.freezeBought": "Schutz gekauft! Du hast jetzt {{count}} auf Vorrat.",
       "lp.freezeBoughtTitle": "Streak-Schutz gekauft",
-      "lp.freezeErrorMax": "Du hast schon die maximale Anzahl an Schutzen.",
+      "lp.freezeErrorMax": "Dein Vorrat ist schon voll.",
       "lp.freezeErrorLp": "Dafür reichen deine LP noch nicht.",
       "lp.freezeErrorGeneric": "Kauf fehlgeschlagen. Versuch es später noch einmal.",
 
       // Streak calendar
       "streakCal.title": "Streak-Kalender",
       "streakCal.current": "Aktuell",
-      "streakCal.freezes": "Schutze",
+      "streakCal.freezes": "Vorrat",
       "streakCal.best": "Best",
       "streakCal.weekdays": "Mo,Di,Mi,Do,Fr,Sa,So",
       "streakCal.legendLearned": "gelernt",
