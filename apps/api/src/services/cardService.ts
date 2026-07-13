@@ -38,7 +38,7 @@ export async function updateCardForUser(input: unknown) {
   const updates: Partial<{
     front: string;
     back: string;
-    type: "basic" | "cloze" | "mcq" | "matching";
+    type: "basic" | "cloze" | "mcq" | "matching" | "occlusion";
     difficulty: "easy" | "medium" | "hard";
     tags: string[];
     starred: boolean;
