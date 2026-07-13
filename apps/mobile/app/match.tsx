@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import {
   ActivityIndicator,
@@ -62,6 +62,7 @@ export default function MatchScreen() {
 
   const [cards, setCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   // Mode + progression
   const [phase, setPhase] = useState<Phase>("setup");
@@ -79,24 +80,32 @@ export default function MatchScreen() {
   const [gameCards, setGameCards] = useState<Card[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Load cards
+  const loadCards = useCallback(async () => {
+    if (!deckId) return;
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const { cards: fetched } = await listCardsInDeck(deckId);
+      setCards(fetched);
+    } catch {
+      // Distinguish a load failure (offline / server error) from a deck that
+      // genuinely has too few cards, so we can offer a retry instead.
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [deckId]);
+
   // Load cards + this deck's best time
   useEffect(() => {
     if (!deckId) return;
-    (async () => {
-      try {
-        const { cards: fetched } = await listCardsInDeck(deckId);
-        setCards(fetched);
-      } catch {
-        // Error
-      } finally {
-        setLoading(false);
-      }
-    })();
+    loadCards();
     AsyncStorage.getItem(bestTimeStorageKey(deckId)).then((value) => {
       const seconds = value ? parseInt(value, 10) : NaN;
       if (!Number.isNaN(seconds)) setBestTime(seconds);
     });
-  }, [deckId]);
+  }, [deckId, loadCards]);
 
   const startGame = (allCards: Card[], withTimer: boolean) => {
     const count = Math.min(MAX_PAIRS, allCards.length);
@@ -236,6 +245,50 @@ export default function MatchScreen() {
           }}
         >
           <ActivityIndicator size="large" color={colors.primary} />
+        </SafeAreaView>
+      </>
+    );
+  }
+
+  // Load failed (offline / server error) — distinct from "too few cards".
+  if (loadError) {
+    return (
+      <>
+        {screenHeader("Zuordnen", "Zurück")}
+        <SafeAreaView
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: colors.background,
+            padding: spacing.xxl,
+            gap: spacing.lg,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: typography.lg,
+              color: colors.textSecondary,
+              textAlign: "center",
+              lineHeight: 24,
+            }}
+          >
+            Konnte nicht laden — bist du offline?
+          </Text>
+          <TouchableOpacity
+            onPress={loadCards}
+            activeOpacity={0.8}
+            style={{
+              paddingVertical: spacing.md,
+              paddingHorizontal: spacing.xl,
+              borderRadius: radius.md,
+              backgroundColor: colors.surfaceSecondary,
+            }}
+          >
+            <Text style={{ color: colors.text, fontWeight: typography.semibold }}>
+              Erneut versuchen
+            </Text>
+          </TouchableOpacity>
         </SafeAreaView>
       </>
     );

@@ -40,6 +40,7 @@ import {
   scanImage,
   createDeck,
   createCard,
+  listCardsInDeck,
   listDecks,
   getLpBalance,
   type Flashcard,
@@ -99,6 +100,9 @@ export default function ScanScreen() {
   const [model, setModel] = useState("");
   const [deckTitle, setDeckTitle] = useState("");
   const [saved, setSaved] = useState(false);
+  // Deck created for THIS scan. Kept so a retry after a partial save reuses the
+  // same deck instead of creating another one (and re-inserting cards).
+  const [savedDeckId, setSavedDeckId] = useState<string | null>(null);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [sourceUrl, setSourceUrl] = useState("");
@@ -408,17 +412,27 @@ export default function ScanScreen() {
     if (!userId || cards.length === 0) return;
     setSaving(true);
     try {
-      const savedCards = [];
+      // Resume-safe: a previous attempt may have created the deck and inserted
+      // some cards before failing. Read what's already in the deck and skip those
+      // (matched on front+back) so a retry doesn't duplicate cards.
+      let existingKeys = new Set<string>();
+      try {
+        const { cards: existing } = await listCardsInDeck(deckId);
+        existingKeys = new Set(existing.map((c) => JSON.stringify([c.front, c.back])));
+      } catch {
+        // Couldn't read existing cards — fall back to inserting all (best effort).
+      }
+
       for (const card of cards) {
-        const { card: savedCard } = await createCard(userId, deckId, card);
-        savedCards.push(savedCard);
+        if (existingKeys.has(JSON.stringify([card.front, card.back]))) continue;
+        await createCard(userId, deckId, card);
       }
 
       setSaved(true);
 
       Alert.alert(
         "Gespeichert!",
-        `${savedCards.length} Karten in "${title}" gespeichert.`,
+        `${cards.length} Karten in "${title}" gespeichert.`,
         [
           {
             text: "Deck öffnen",
@@ -438,11 +452,21 @@ export default function ScanScreen() {
 
   const handleSaveNewDeck = async () => {
     if (!userId || cards.length === 0) return;
+    const title =
+      deckTitle || `Scan ${new Date().toLocaleDateString("de")}`;
+    // Retry after a partial save: a deck was already created for this scan, so
+    // reuse it instead of creating a second one. saveCardsToDeck then skips the
+    // cards it already inserted, so no duplicate deck and no duplicate cards.
+    if (savedDeckId) {
+      await saveCardsToDeck(savedDeckId, title);
+      return;
+    }
     setSaving(true);
     try {
-      const title =
-        deckTitle || `Scan ${new Date().toLocaleDateString("de")}`;
       const { deck } = await createDeck(userId, title, ["scan", "auto"]);
+      // Remember the deck up front so a failure in the card loop below still lets
+      // a retry reuse this exact deck.
+      setSavedDeckId(deck.id);
       await saveCardsToDeck(deck.id, deck.title);
     } catch (error: unknown) {
       const msg =
@@ -489,6 +513,7 @@ export default function ScanScreen() {
     setModel("");
     setDeckTitle("");
     setSaved(false);
+    setSavedDeckId(null);
     setImageUri(null);
     setImageBase64(null);
     setMode("choose");
