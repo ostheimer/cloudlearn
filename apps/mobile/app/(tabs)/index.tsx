@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -15,13 +16,15 @@ import {
   Layers,
   ChevronRight,
   Flame,
+  HeartCrack,
+  HeartHandshake,
   Target,
   TrendingUp,
   Award,
   Shield,
 } from "lucide-react-native";
 import { useSessionStore } from "../../src/store/sessionStore";
-import { getStats, listDecks, type StatsResponse, type Deck } from "../../src/lib/api";
+import { getStats, listDecks, buyStreakRepair, isApiError, type StatsResponse, type Deck } from "../../src/lib/api";
 import { getLastUsedDeck, type LastUsedDeck } from "../../src/lib/lastUsedDeck";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
 import { LpBadge } from "../../src/components/LpBadge";
@@ -37,6 +40,7 @@ export default function HomeScreen() {
   const [lastUsed, setLastUsed] = useState<LastUsedDeck | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [repairing, setRepairing] = useState(false);
 
   const loadHomeData = useCallback(() => {
     if (!userId) {
@@ -76,6 +80,40 @@ export default function HomeScreen() {
   const deckCount = stats?.totalDecks ?? 0;
   const streak = stats?.currentStreak ?? 0;
   const streakFreezes = stats?.streakFreezes ?? 0;
+  const repairAvailable = stats?.repairAvailable ?? false;
+  const repairBrokenStreak = stats?.repairBrokenStreak ?? 0;
+  const repairCost = stats?.repairCost ?? 40;
+
+  const handleRepair = useCallback(() => {
+    Alert.alert(
+      "Streak zurückholen?",
+      `Das kostet ${repairCost} LP und stellt deinen ${repairBrokenStreak}-Tage-Streak wieder her.`,
+      [
+        { text: "Abbrechen", style: "cancel" },
+        {
+          text: "Zurückholen",
+          onPress: async () => {
+            setRepairing(true);
+            try {
+              await buyStreakRepair();
+              loadHomeData();
+            } catch (err) {
+              // The server owns price, window and eligibility; translate its codes.
+              const message = isApiError(err) && err.code === "INSUFFICIENT_LP"
+                ? "Dafür reichen deine LP noch nicht."
+                : isApiError(err) && err.code === "NO_REPAIR"
+                  ? "Diese Reparatur ist nicht mehr möglich."
+                  : "Zurückholen fehlgeschlagen. Versuch es später noch einmal.";
+              Alert.alert("Streak-Reparatur", message);
+              loadHomeData();
+            } finally {
+              setRepairing(false);
+            }
+          },
+        },
+      ]
+    );
+  }, [repairCost, repairBrokenStreak, loadHomeData]);
   const reviewsToday = stats?.reviewsToday ?? 0;
   const dailyGoal = stats?.dailyGoal ?? 10;
   const dailyProgress = dailyGoal > 0 ? Math.min(reviewsToday / dailyGoal, 1) : 0;
@@ -266,6 +304,68 @@ export default function HomeScreen() {
           <>
             {error ? (
               <Text style={{ color: colors.error }}>{error}</Text>
+            ) : null}
+
+            {/* Streak repair prompt — only while a lost streak is still repairable (#237) */}
+            {repairAvailable ? (
+              <View
+                style={{
+                  backgroundColor: colors.errorLight,
+                  borderRadius: radius.lg,
+                  padding: spacing.lg,
+                  borderWidth: 1,
+                  borderColor: colors.error,
+                  gap: spacing.sm,
+                }}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.md }}>
+                  <View
+                    style={{
+                      width: 42,
+                      height: 42,
+                      borderRadius: 21,
+                      backgroundColor: colors.surface,
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
+                    <HeartCrack size={22} color={colors.error} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: typography.base, fontWeight: typography.bold, color: colors.text }}>
+                      Streak gerissen
+                    </Text>
+                    <Text style={{ fontSize: typography.sm, color: colors.textSecondary, marginTop: 2 }}>
+                      Dein {repairBrokenStreak}-Tage-Streak ist weg
+                    </Text>
+                  </View>
+                </View>
+                <TouchableOpacity
+                  onPress={handleRepair}
+                  disabled={repairing}
+                  activeOpacity={0.8}
+                  style={{
+                    backgroundColor: colors.primary,
+                    borderRadius: radius.md,
+                    paddingVertical: spacing.md,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: spacing.sm,
+                  }}
+                >
+                  {repairing ? (
+                    <ActivityIndicator color={colors.textInverse} />
+                  ) : (
+                    <>
+                      <HeartHandshake size={16} color={colors.textInverse} />
+                      <Text style={{ fontSize: typography.base, fontWeight: typography.bold, color: colors.textInverse }}>
+                        Für {repairCost} LP zurückholen
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
             ) : null}
 
             {/* Streak banner — opens the streak calendar (#237) */}

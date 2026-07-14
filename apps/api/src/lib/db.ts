@@ -5,7 +5,8 @@
  */
 
 import { createSupabaseAdminClient } from "./supabase";
-import { startOfLocalDayIso, startOfTodayLocalIso, todayLocal } from "./localDay";
+import { daysBetween, startOfLocalDayIso, startOfTodayLocalIso, todayLocal } from "./localDay";
+import { STREAK_REPAIR } from "./featureGates";
 import type { Flashcard, SubscriptionTier } from "./contracts";
 
 // ─── Interfaces (same shape as inMemoryStore) ───────────────────────────────
@@ -473,24 +474,40 @@ export interface StreakInfo {
   lastReviewDate: string | null;
   dailyGoal: number;
   streakFreezes: number;
+  // Streak repair (#237 follow-up): a lost streak is repairable for a short window.
+  repairAvailable: boolean;
+  repairBrokenStreak: number;
+  repairCost: number;
 }
 
 export async function getStreakInfo(userId: string): Promise<StreakInfo> {
   const db = getDb();
   const { data, error } = await db
     .from("profiles")
-    .select("current_streak, longest_streak, last_review_date, daily_goal, streak_freezes")
+    .select("current_streak, longest_streak, last_review_date, daily_goal, streak_freezes, broken_streak, broken_on")
     .eq("id", userId)
     .maybeSingle();
   if (error || !data) {
-    return { currentStreak: 0, longestStreak: 0, lastReviewDate: null, dailyGoal: 10, streakFreezes: 0 };
+    return {
+      currentStreak: 0, longestStreak: 0, lastReviewDate: null, dailyGoal: 10,
+      streakFreezes: 0, repairAvailable: false, repairBrokenStreak: 0, repairCost: STREAK_REPAIR.costLp,
+    };
   }
+  const brokenStreak = data.broken_streak ?? 0;
+  const brokenOn = data.broken_on ?? null;
+  // Repairable only for a real loss (>= 2) and only within the local-day window.
+  const withinWindow =
+    brokenOn != null && daysBetween(brokenOn, todayLocal()) >= 0 &&
+    daysBetween(brokenOn, todayLocal()) <= STREAK_REPAIR.windowDays;
   return {
     currentStreak: data.current_streak ?? 0,
     longestStreak: data.longest_streak ?? 0,
     lastReviewDate: data.last_review_date ?? null,
     dailyGoal: data.daily_goal ?? 10,
     streakFreezes: data.streak_freezes ?? 0,
+    repairAvailable: brokenStreak >= 2 && withinWindow,
+    repairBrokenStreak: brokenStreak,
+    repairCost: STREAK_REPAIR.costLp,
   };
 }
 
@@ -503,9 +520,18 @@ export async function getStreakInfo(userId: string): Promise<StreakInfo> {
  * lose updates under concurrent reviews (#211 follow-up). Day boundaries are
  * the user's local day (#211).
  */
+export interface StreakUpdateResult {
+  currentStreak: number;
+  longestStreak: number;
+  lastReviewDate: string | null;
+  dailyGoal: number;
+  streakFreezes: number;
+  freezeUsed: boolean;
+}
+
 export async function updateStreakAfterReview(
   userId: string
-): Promise<StreakInfo & { freezeUsed: boolean }> {
+): Promise<StreakUpdateResult> {
   const db = getDb();
   const { data, error } = await db.rpc("update_streak_after_review", {
     p_user: userId,

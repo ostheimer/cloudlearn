@@ -1,5 +1,5 @@
 import { createSupabaseAdminClient } from "@/lib/supabase";
-import { getLimitsForTier, LP_EARN_RULES, lpCostForFeature, STREAK_FREEZE } from "@/lib/featureGates";
+import { getLimitsForTier, LP_EARN_RULES, lpCostForFeature, STREAK_FREEZE, STREAK_REPAIR } from "@/lib/featureGates";
 import { todayLocal } from "@/lib/localDay";
 import type { SubscriptionTier } from "@/lib/contracts";
 
@@ -145,6 +145,43 @@ export async function purchaseStreakFreeze(userId: string): Promise<StreakFreeze
     newBalance: row?.new_balance ?? 0,
     freezes: row?.freezes ?? 0,
     cost: STREAK_FREEZE.costLp,
+  };
+}
+
+// ─── Streak Repair (LP, reactive counterpart to the freeze, #237) ────────────
+
+export interface StreakRepairPurchase {
+  allowed: boolean;
+  errorCode: "no_repair" | "insufficient_lp" | null;
+  newBalance: number;
+  newStreak: number;
+  cost: number;
+}
+
+/**
+ * Restores a lost streak for LP, within the repair window. All guards (a real
+ * loss exists, window not passed, balance suffices) and the streak restore +
+ * ledger insert run atomically inside purchase_streak_repair. The local day is
+ * computed server-side (Europe/Berlin) so the window can't be gamed by a client
+ * clock; price is the server constant.
+ */
+export async function purchaseStreakRepair(userId: string): Promise<StreakRepairPurchase> {
+  const db = getDb();
+  const { data, error } = await db.rpc("purchase_streak_repair", {
+    p_user: userId,
+    p_cost: STREAK_REPAIR.costLp,
+    p_today: todayLocalDate(),
+  });
+
+  if (error) throw new Error(`purchaseStreakRepair: ${error.message}`);
+
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    allowed: row?.allowed ?? false,
+    errorCode: (row?.error_code as "no_repair" | "insufficient_lp" | undefined) ?? null,
+    newBalance: row?.new_balance ?? 0,
+    newStreak: row?.new_streak ?? 0,
+    cost: STREAK_REPAIR.costLp,
   };
 }
 
