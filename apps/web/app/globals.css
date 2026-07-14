@@ -3333,40 +3333,71 @@ a.lp-pill:hover {
 }
 
 /* ---------- Profil & Einstellungen ---------- */
-.settings-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+.settings { display: flex; flex-direction: column; gap: 16px; }
+
+.pf-banner {
+  display: flex; align-items: center; gap: 14px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px 18px;
 }
-/* Konto/Design/Tarif/Freunde nebeneinander (Desktop). Über die Spaltenbreite
-   fällt es am Handy automatisch auf eine Spalte zurück. Rangliste steht als
-   Geschwister außerhalb → volle Breite. */
-.settings-cols {
-  columns: 2 300px;
-  column-gap: 16px;
+.pf-banner__ava {
+  width: 48px; height: 48px; border-radius: 50%; flex: none;
+  background: var(--brand-50); color: var(--brand-600);
+  display: flex; align-items: center; justify-content: center;
 }
-.settings-cols > .settings-card {
-  break-inside: avoid;
-  margin-bottom: 16px;
+.pf-banner__mail { font-weight: 700; font-size: 1rem; overflow-wrap: anywhere; }
+.pf-banner__sub { font-size: 0.85rem; color: var(--ink-3); }
+
+.pf-card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 2px 18px;
 }
-.settings-card {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.pf-card--pad { padding: 16px 18px; }
+.pf-row {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding: 15px 0; border-bottom: 1px solid var(--line);
 }
-.settings-card__head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 700;
-  font-size: 0.95rem;
-  color: var(--ink);
+.pf-row:last-child { border-bottom: 0; }
+.pf-row__t { flex: 1; min-width: 180px; }
+.pf-row__t b { font-size: 0.95rem; font-weight: 700; display: block; }
+.pf-row__t span { font-size: 0.85rem; color: var(--ink-3); }
+
+.pf-card__head { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 0.95rem; margin-bottom: 4px; }
+.pf-card__sub { font-size: 0.85rem; color: var(--ink-3); margin: 0 0 12px; }
+.pf-card__label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); padding: 4px 0 6px; }
+
+.pf-ic { width: 34px; height: 34px; border-radius: 10px; flex: none; display: flex; align-items: center; justify-content: center; }
+.pf-ic--indigo { background: rgba(99, 102, 241, 0.14); color: #6366f1; }
+.pf-ic--green { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+.pf-ic--amber { background: rgba(245, 158, 11, 0.17); color: #f59e0b; }
+.pf-ic--danger { background: rgba(239, 68, 68, 0.13); color: #ef4444; }
+
+.pf-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+@media (max-width: 760px) { .pf-grid2 { grid-template-columns: 1fr; } }
+
+.pf-navrow {
+  display: flex; align-items: center; gap: 14px; padding: 14px 0;
+  border-bottom: 1px solid var(--line); text-decoration: none; color: var(--ink);
 }
-.settings-account {
-  display: flex;
-  align-items: center;
-  gap: 14px;
+.pf-navrow:last-child { border-bottom: 0; }
+.pf-navrow:hover { background: var(--bg-soft); border-radius: 8px; }
+.pf-navrow__t { flex: 1; min-width: 0; }
+.pf-navrow__t b { font-size: 0.95rem; font-weight: 700; display: block; }
+.pf-navrow__t span { font-size: 0.85rem; color: var(--ink-3); }
+.pf-navrow > svg:last-child { color: var(--ink-3); flex: none; }
+
+.pf-bottom { display: flex; flex-direction: column; gap: 12px; margin-top: 4px; }
+.pf-danger {
+  display: flex; align-items: center; gap: 14px; width: 100%; text-align: left;
+  font: inherit; cursor: pointer; border-radius: 14px; padding: 14px 18px;
+  background: rgba(239, 68, 68, 0.07); border: 1px solid rgba(239, 68, 68, 0.26); color: #dc2626;
 }
+.pf-danger:hover { background: rgba(239, 68, 68, 0.11); }
+.pf-danger__t b { font-size: 0.95rem; font-weight: 700; display: block; }
+.pf-danger__t span { font-size: 0.85rem; opacity: 0.9; }
+.pf-danger--plain { justify-content: center; font-weight: 700; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .pf-danger { color: #f87171; } }
+:root[data-theme="dark"] .pf-danger { color: #f87171; }
 
 /* Segmented control (Design hell/dunkel/system) */
 .seg {
