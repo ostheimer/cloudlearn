@@ -66,7 +66,7 @@ export default function HomePage() {
   const tileGo: CSSProperties = { fontSize: "0.72rem", color: "var(--brand)", marginTop: 2 };
 
   return (
-    <div className="study-wrap" style={{ display: "grid", gap: 12 }}>
+    <div style={{ maxWidth: 960, margin: "0 auto", display: "grid", gap: 14 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
         <div>
           <h1 className="h2" style={{ margin: 0 }}>
@@ -87,7 +87,14 @@ export default function HomePage() {
         </p>
       )}
 
-      {/* Streak */}
+      {/* Streak + Tagesziel — am Desktop nebeneinander, am Handy gestapelt */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+          gap: 12,
+        }}
+      >
       <div
         style={{
           display: "flex",
@@ -139,6 +146,7 @@ export default function HomePage() {
           <i style={{ width: `${goalPct}%`, background: "var(--green)" }} />
         </div>
       </div>
+      </div>
 
       {/* Kennzahlen */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10 }}>
@@ -169,7 +177,14 @@ export default function HomePage() {
       <Link
         href="/dashboard/import"
         className="btn btn-primary btn-lg btn-block"
-        style={{ marginTop: 4, textDecoration: "none" }}
+        style={{
+          marginTop: 4,
+          textDecoration: "none",
+          width: "100%",
+          maxWidth: 420,
+          marginLeft: "auto",
+          marginRight: "auto",
+        }}
       >
         <Camera size={18} /> Text scannen
       </Link>
