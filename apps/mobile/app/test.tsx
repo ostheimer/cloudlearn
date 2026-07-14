@@ -35,6 +35,12 @@ import {
   type TestQuestion,
   type TestQuestionType,
 } from "../src/lib/testQuestions";
+import { fetchDeckStats } from "../src/lib/statsApi";
+import {
+  CardSourcePicker,
+  filterBySource,
+  type CardSource,
+} from "../src/components/cardSourcePicker";
 import { useColors, spacing, radius, typography, shadows } from "../src/theme";
 
 const SECONDS_PER_QUESTION = 30;
@@ -82,7 +88,8 @@ export default function TestScreen() {
   const [typeWritten, setTypeWritten] = useState(true);
   const [strict, setStrict] = useState(true);
   const [reverse, setReverse] = useState(false);
-  const [starredOnly, setStarredOnly] = useState(false);
+  const [source, setSource] = useState<CardSource>("all");
+  const [wobblyIds, setWobblyIds] = useState<Set<string>>(new Set());
   const [timed, setTimed] = useState(false);
 
   const [phase, setPhase] = useState<Phase>("setup");
@@ -93,31 +100,32 @@ export default function TestScreen() {
   const [remaining, setRemaining] = useState(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Unfiltered usable count — the "empty deck" screen must not depend on the
-  // starred filter, or toggling it could lock the learner out of the setup.
-  const deckUsableCount = useMemo(
+  // All cards with both a question and an answer — the base pool for the test.
+  const usableCards = useMemo(
     () =>
       allCards.filter(
         (c) => (c.front ?? "").trim().length > 0 && (c.back ?? "").trim().length > 0
-      ).length,
+      ),
     [allCards]
   );
+  // Unfiltered usable count — the "empty deck" screen must not depend on the
+  // chosen source, or picking one could lock the learner out of the setup.
+  const deckUsableCount = usableCards.length;
   const starredCount = useMemo(
-    () => allCards.filter((c) => c.starred).length,
-    [allCards]
+    () => usableCards.filter((c) => c.starred).length,
+    [usableCards]
   );
-  // Optional starred-only pool; the question count follows it.
+  const wobblyCount = useMemo(
+    () => usableCards.filter((c) => wobblyIds.has(c.id)).length,
+    [usableCards, wobblyIds]
+  );
+  // The chosen source drives which cards the test draws from; the question
+  // count then follows this pool.
   const pool = useMemo(
-    () => (starredOnly ? allCards.filter((c) => c.starred) : allCards),
-    [allCards, starredOnly]
+    () => filterBySource(usableCards, source, wobblyIds),
+    [usableCards, source, wobblyIds]
   );
-  const usableCount = useMemo(
-    () =>
-      pool.filter(
-        (c) => (c.front ?? "").trim().length > 0 && (c.back ?? "").trim().length > 0
-      ).length,
-    [pool]
-  );
+  const usableCount = pool.length;
 
   const loadCards = useCallback(async () => {
     if (!deckId) return;
@@ -126,6 +134,14 @@ export default function TestScreen() {
     try {
       const { cards: fetched } = await listCardsInDeck(deckId);
       setAllCards(fetched);
+      // Wobbly ids power the "Nur Wackelkandidaten" source. They are optional —
+      // never fail the mode (or show the retry) if the stats endpoint is down.
+      try {
+        const stats = await fetchDeckStats(deckId);
+        setWobblyIds(new Set(stats.wobblyCards.map((c) => c.cardId)));
+      } catch {
+        setWobblyIds(new Set());
+      }
     } catch {
       // Distinguish a load failure (offline / server error) from a deck with no
       // usable cards, so we can offer a retry instead of the empty state.
@@ -431,23 +447,14 @@ export default function TestScreen() {
               )}
             </View>
 
-            {/* Nur markierte Karten */}
-            <View style={{ ...cardStyle, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-              <View style={{ flex: 1, paddingRight: spacing.md }}>
-                <Text style={{ fontSize: typography.base, fontWeight: typography.semibold, color: colors.text }}>Nur markierte Karten</Text>
-                <Text style={{ fontSize: typography.sm, color: colors.textSecondary, marginTop: 2 }}>
-                  {starredCount === 0 ? "Keine Karten markiert" : `${starredCount} markiert`}
-                </Text>
-              </View>
-              <Switch
-                value={starredOnly}
-                onValueChange={setStarredOnly}
-                disabled={starredCount === 0}
-                trackColor={{ false: colors.surfaceSecondary, true: colors.primary }}
-                thumbColor="#ffffff"
-                ios_backgroundColor={colors.surfaceSecondary}
-              />
-            </View>
+            {/* Kartenquelle — Alle / Nur markierte / Nur Wackelkandidaten */}
+            <CardSourcePicker
+              value={source}
+              onChange={setSource}
+              allCount={deckUsableCount}
+              starredCount={starredCount}
+              wobblyCount={wobblyCount}
+            />
 
             {/* Richtung — one arrow in the middle, tap to swap */}
             <TouchableOpacity onPress={() => setReverse((r) => !r)} activeOpacity={0.8} style={cardStyle}>

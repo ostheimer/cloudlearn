@@ -28,6 +28,12 @@ import { listCardsInDeck, type Card } from "../src/lib/api";
 import { summarizeCardMedia } from "../src/lib/cardMedia";
 import { isAnswerCorrect } from "../src/lib/answerCheck";
 import { cleanTerm } from "../src/lib/cardTerms";
+import { fetchDeckStats } from "../src/lib/statsApi";
+import {
+  CardSourcePicker,
+  filterBySource,
+  type CardSource,
+} from "../src/components/cardSourcePicker";
 import { useColors, spacing, radius, typography, shadows } from "../src/theme";
 
 interface Prompt {
@@ -87,7 +93,8 @@ export default function ClozeScreen() {
   // Settings chosen on the setup screen
   const [strict, setStrict] = useState(true);
   const [reverse, setReverse] = useState(false);
-  const [starredOnly, setStarredOnly] = useState(false);
+  const [source, setSource] = useState<CardSource>("all");
+  const [wobblyIds, setWobblyIds] = useState<Set<string>>(new Set());
 
   const [phase, setPhase] = useState<Phase>("setup");
   const [round, setRound] = useState<Card[]>([]);
@@ -115,6 +122,14 @@ export default function ClozeScreen() {
       const { cards: fetched } = await listCardsInDeck(deckId);
       const usable = fetched.filter(hasTypeable);
       setAllCards(usable);
+      // Wobbly ids power the "Nur Wackelkandidaten" source. Optional — never
+      // fail the mode (or show the retry) if the stats endpoint is down.
+      try {
+        const stats = await fetchDeckStats(deckId);
+        setWobblyIds(new Set(stats.wobblyCards.map((c) => c.cardId)));
+      } catch {
+        setWobblyIds(new Set());
+      }
     } catch {
       // Distinguish a load failure (offline / server error) from a deck that
       // genuinely has no typeable cards, so we can offer a retry instead.
@@ -128,9 +143,10 @@ export default function ClozeScreen() {
     loadCards();
   }, [loadCards]);
 
-  // Optional starred-only pool for this round.
+  // The chosen source decides which cards this round draws from.
   const starredCount = allCards.filter((c) => c.starred).length;
-  const studyPool = starredOnly ? allCards.filter((c) => c.starred) : allCards;
+  const wobblyCount = allCards.filter((c) => wobblyIds.has(c.id)).length;
+  const studyPool = filterBySource(allCards, source, wobblyIds);
 
   const current = round[idx];
   const parsed = current ? buildPrompt(current, reverse) : null;
@@ -452,51 +468,14 @@ export default function ClozeScreen() {
                 </Text>
               </TouchableOpacity>
 
-              {/* Nur markierte Karten */}
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  backgroundColor: colors.surface,
-                  borderRadius: radius.lg,
-                  padding: spacing.lg,
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                  ...shadows.sm,
-                }}
-              >
-                <View style={{ flex: 1, paddingRight: spacing.md }}>
-                  <Text
-                    style={{
-                      fontSize: typography.base,
-                      fontWeight: typography.semibold,
-                      color: colors.text,
-                    }}
-                  >
-                    Nur markierte Karten
-                  </Text>
-                  <Text
-                    style={{
-                      fontSize: typography.sm,
-                      color: colors.textSecondary,
-                      marginTop: 2,
-                    }}
-                  >
-                    {starredCount === 0
-                      ? "Keine Karten markiert"
-                      : `${starredCount} markiert`}
-                  </Text>
-                </View>
-                <Switch
-                  value={starredOnly}
-                  onValueChange={setStarredOnly}
-                  disabled={starredCount === 0}
-                  trackColor={{ false: colors.surfaceSecondary, true: colors.primary }}
-                  thumbColor="#ffffff"
-                  ios_backgroundColor={colors.surfaceSecondary}
-                />
-              </View>
+              {/* Kartenquelle — Alle / Nur markierte / Nur Wackelkandidaten */}
+              <CardSourcePicker
+                value={source}
+                onChange={setSource}
+                allCount={allCards.length}
+                starredCount={starredCount}
+                wobblyCount={wobblyCount}
+              />
             </View>
 
             <View style={{ flex: 1 }} />
