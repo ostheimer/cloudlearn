@@ -75,6 +75,33 @@ export async function listFriendStreaks(userId: string): Promise<FriendStreakEnt
   });
 }
 
+// Best-effort push to one user's registered devices. Never throws — a missing
+// token or a push failure must not break the action that triggered it.
+async function pushToUser(
+  db: ReturnType<typeof getDb>,
+  toUserId: string,
+  title: string,
+  body: string,
+  type: string
+): Promise<boolean> {
+  try {
+    const { data: tokens } = await db.from("push_tokens").select("token").eq("user_id", toUserId);
+    const pushTokens = (tokens ?? []).map((t) => t.token as string);
+    if (pushTokens.length === 0) return false;
+    await sendExpoPushNotification(
+      pushTokens.map((to) => ({ to, title, body, sound: "default" as const, data: { type } }))
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function displayName(db: ReturnType<typeof getDb>, userId: string, fallback: string): Promise<string> {
+  const { data } = await db.from("profiles").select("display_name").eq("id", userId).maybeSingle();
+  return data?.display_name ?? fallback;
+}
+
 export async function inviteFriendStreak(
   userId: string,
   friendId: string
@@ -85,7 +112,20 @@ export async function inviteFriendStreak(
     p_invitee: friendId,
   });
   if (error) throw new Error(`inviteFriendStreak: ${error.message}`);
-  return { result: (data as string | null) ?? "invited" };
+  const result = (data as string | null) ?? "invited";
+
+  // Notify the invitee so a fresh invite isn't missed (Etappe 2).
+  if (result === "invited") {
+    const name = await displayName(db, userId, "Ein Freund");
+    await pushToUser(
+      db,
+      friendId,
+      "Neuer Freunde-Streak",
+      `${name} lädt dich zu einem gemeinsamen Streak ein.`,
+      "friend_streak_invite"
+    );
+  }
+  return { result };
 }
 
 export async function acceptFriendStreak(
@@ -114,10 +154,11 @@ export async function leaveFriendStreak(userId: string, friendId: string): Promi
 }
 
 /**
- * Nudge the partner of an active shared streak with a push notification.
- * Only works for a real, active pairing (so it can't be used to spam
- * arbitrary users), and is best-effort — a friend without a push token
- * simply receives nothing.
+ * Nudge the partner of a shared streak with a push notification. Two cases,
+ * both only for a real pairing (so it can't spam arbitrary users):
+ *  - active streak → "I studied, your turn".
+ *  - pending invite (only the inviter may nudge) → "please accept".
+ * Best-effort — a friend without a push token simply receives nothing.
  */
 export async function remindFriendStreak(
   userId: string,
@@ -129,30 +170,36 @@ export async function remindFriendStreak(
 
   const { data: streak } = await db
     .from("friend_streaks")
-    .select("status")
+    .select("status, invited_by")
     .eq("user_low", low)
     .eq("user_high", high)
-    .eq("status", "active")
     .maybeSingle();
   if (!streak) return { sent: false };
 
-  const [{ data: me }, { data: tokens }] = await Promise.all([
-    db.from("profiles").select("display_name").eq("id", userId).maybeSingle(),
-    db.from("push_tokens").select("token").eq("user_id", friendId),
-  ]);
+  const name = await displayName(db, userId, "Dein Lernbuddy");
 
-  const pushTokens = (tokens ?? []).map((t) => t.token as string);
-  if (pushTokens.length === 0) return { sent: false };
+  if (streak.status === "active") {
+    const sent = await pushToUser(
+      db,
+      friendId,
+      "Euer gemeinsamer Streak",
+      `${name} hat heute gelernt. Lern auch du, damit eure Flamme weiterbrennt!`,
+      "friend_streak_reminder"
+    );
+    return { sent };
+  }
 
-  const senderName = me?.display_name ?? "Dein Lernbuddy";
-  await sendExpoPushNotification(
-    pushTokens.map((to) => ({
-      to,
-      title: "Euer gemeinsamer Streak",
-      body: `${senderName} hat heute gelernt. Lern auch du, damit eure Flamme weiterbrennt!`,
-      sound: "default" as const,
-      data: { type: "friend_streak_reminder" },
-    }))
-  );
-  return { sent: true };
+  // Pending: only the person who sent the invite can nudge the invitee.
+  if (streak.status === "pending" && streak.invited_by === userId) {
+    const sent = await pushToUser(
+      db,
+      friendId,
+      "Freunde-Streak",
+      `${name} wartet, dass du die Einladung annimmst.`,
+      "friend_streak_invite"
+    );
+    return { sent };
+  }
+
+  return { sent: false };
 }

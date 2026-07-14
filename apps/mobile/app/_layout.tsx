@@ -242,6 +242,27 @@ export default function RootLayout() {
     })();
   }, [clearOfflineQueue, isAuthenticated, isLoading, resetUsage, userId]);
 
+  // Tapping a friend-streak push opens the Freunde area (Etappe 2). Native-only
+  // and gated on auth, so expo-notifications never loads during web bootstrap.
+  useEffect(() => {
+    if (Platform.OS === "web" || !isAuthenticated || !userId) return;
+    let sub: { remove: () => void } | undefined;
+    void (async () => {
+      try {
+        const Notifications = await import("expo-notifications");
+        sub = Notifications.addNotificationResponseReceivedListener((response) => {
+          const type = response.notification.request.content.data?.type;
+          if (typeof type === "string" && type.startsWith("friend_streak")) {
+            router.push("/friend-streaks");
+          }
+        });
+      } catch {
+        // best-effort — notification routing simply won't work if this fails
+      }
+    })();
+    return () => sub?.remove();
+  }, [isAuthenticated, userId, router]);
+
   useEffect(() => {
     if (!userId || !offlineQueueHydrated) {
       return;
