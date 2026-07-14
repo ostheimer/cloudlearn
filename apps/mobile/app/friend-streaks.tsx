@@ -119,6 +119,26 @@ export default function FriendStreaksScreen() {
           </Text>
         </View>
 
+        {/* Add a friend by code — the entry that unblocks the whole feature */}
+        <TouchableOpacity
+          onPress={() => router.push("/friend-add")}
+          activeOpacity={0.8}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: spacing.sm,
+            backgroundColor: colors.primary,
+            borderRadius: radius.lg,
+            paddingVertical: spacing.md,
+          }}
+        >
+          <UserPlus size={18} color={colors.textInverse} />
+          <Text style={{ fontSize: typography.base, fontWeight: typography.bold, color: colors.textInverse }}>
+            Freund hinzufügen
+          </Text>
+        </TouchableOpacity>
+
         {loading ? (
           <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
         ) : (
@@ -302,7 +322,7 @@ export default function FriendStreaksScreen() {
                   Noch keine Freunde
                 </Text>
                 <Text style={{ fontSize: typography.sm, color: colors.textSecondary, textAlign: "center", maxWidth: 260 }}>
-                  Füge zuerst Freunde hinzu, dann könnt ihr gemeinsam einen Streak halten.
+                  Tippe oben auf „Freund hinzufügen", teile deinen Code oder gib den einer Freundin ein — dann könnt ihr gemeinsam einen Streak halten.
                 </Text>
               </View>
             ) : null}
