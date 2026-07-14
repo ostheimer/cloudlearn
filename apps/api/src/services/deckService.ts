@@ -17,7 +17,7 @@ import {
 import { randomUUID } from "node:crypto";
 import { HttpError } from "@/lib/http";
 import { getSubscriptionStatus } from "./subscriptionService";
-import { assertDeckLimit } from "@/lib/limits";
+import { assertDeckLimit, assertEntitlement } from "@/lib/limits";
 
 const createDeckSchema = z.object({
   userId: z.string().uuid(),
@@ -113,6 +113,10 @@ export async function getDeckDetails(userId: string, deckId: string) {
 }
 
 export async function exportDeckForOffline(userId: string, deckId: string) {
+  // Offline download is a Pro entitlement (#235) — enforce it server-side, not
+  // just by hiding the button in the client.
+  const { tier } = await getSubscriptionStatus(userId);
+  assertEntitlement(tier, "offlineDownload");
   const deck = await getDeck(deckId, userId);
   if (!deck) throw new Error("Deck not found");
   const cards = await listCardsForDeck(userId, deckId);

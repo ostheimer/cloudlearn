@@ -5,6 +5,8 @@ import { getAuthUser } from "@/lib/auth";
 import { listDecksForUser } from "@/services/deckService";
 import { getDueCards } from "@/services/learnService";
 import { getStreakInfo, getReviewStats, getLastStudiedDeck } from "@/lib/db";
+import { getSubscriptionStatus } from "@/services/subscriptionService";
+import { effectiveStatsWindowDays } from "@/lib/limits";
 
 export async function GET(request: NextRequest) {
   const { requestId } = createRequestContext(request.headers);
@@ -16,8 +18,13 @@ export async function GET(request: NextRequest) {
     // values fall back to 30 — the historic window from before the param
     // existed — so old clients that send no `?days=` (and e.g. derive a
     // 14-day trend from the data) keep their full 30-day series.
-    const days: 7 | 30 =
+    const requestedDays: 7 | 30 =
       new URL(request.url).searchParams.get("days") === "7" ? 7 : 30;
+
+    // Advanced statistics (the 30-day history) is a Pro feature (#235). Free
+    // users keep the full basic stats but are clamped to the 7-day window.
+    const { tier } = await getSubscriptionStatus(auth.userId);
+    const days = effectiveStatsWindowDays(tier, requestedDays);
 
     const [decks, dueCards, streak, reviewStats, lastStudiedDeck] = await Promise.all([
       listDecksForUser(auth.userId),

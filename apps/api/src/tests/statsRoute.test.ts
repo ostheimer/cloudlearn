@@ -8,6 +8,11 @@
  * pre-existing field is still present, and the new `durationMsByDay` rides
  * along for the per-day "Lernzeit" detail.
  *
+ * #235: the 30-day history is a Pro ("advanced statistics") feature. Free
+ * users keep the full basic stats but are clamped to the 7-day window. The
+ * whitelist tests below run as a Pro user so the `days` logic is exercised in
+ * isolation; a dedicated block covers the free-tier clamp.
+ *
  * `@/lib/http` is mocked with light Response-shaped fakes so the test never
  * has to load `next/server`.
  */
@@ -40,12 +45,14 @@ vi.mock("@/lib/db", () => ({
 }));
 vi.mock("@/services/deckService", () => ({ listDecksForUser: vi.fn() }));
 vi.mock("@/services/learnService", () => ({ getDueCards: vi.fn() }));
+vi.mock("@/services/subscriptionService", () => ({ getSubscriptionStatus: vi.fn() }));
 
 import { GET } from "../../app/api/v1/stats/route";
 import { getAuthUser } from "@/lib/auth";
 import { getStreakInfo, getReviewStats, getLastStudiedDeck } from "@/lib/db";
 import { listDecksForUser } from "@/services/deckService";
 import { getDueCards } from "@/services/learnService";
+import { getSubscriptionStatus } from "@/services/subscriptionService";
 
 const mockedGetAuthUser = vi.mocked(getAuthUser);
 const mockedGetStreakInfo = vi.mocked(getStreakInfo);
@@ -53,6 +60,16 @@ const mockedGetReviewStats = vi.mocked(getReviewStats);
 const mockedGetLastStudiedDeck = vi.mocked(getLastStudiedDeck);
 const mockedListDecksForUser = vi.mocked(listDecksForUser);
 const mockedGetDueCards = vi.mocked(getDueCards);
+const mockedGetSubscriptionStatus = vi.mocked(getSubscriptionStatus);
+
+function mockTier(tier: "free" | "pro" | "lifetime") {
+  mockedGetSubscriptionStatus.mockResolvedValue({
+    userId: AUTH_USER_ID,
+    tier,
+    isActive: tier !== "free",
+    expiresAt: null,
+  } as never);
+}
 
 const AUTH_USER_ID = "11111111-1111-4111-8111-111111111111";
 
@@ -91,6 +108,9 @@ describe("GET /api/v1/stats – days whitelist + durationMsByDay", () => {
     });
     mockedGetReviewStats.mockResolvedValue(REVIEW_STATS);
     mockedGetLastStudiedDeck.mockResolvedValue({ id: "deck-1", title: "Bio" });
+    // Whitelist behaviour is about the `days` logic, not the tier — run it as
+    // Pro so the 30-day window is not clamped away (#235).
+    mockTier("pro");
   });
 
   it("defaults to the historic 30-day window without a days param (old clients)", async () => {
@@ -160,5 +180,57 @@ describe("GET /api/v1/stats – days whitelist + durationMsByDay", () => {
 
     expect(response.status).toBe(401);
     expect(mockedGetReviewStats).not.toHaveBeenCalled();
+  });
+});
+
+describe("GET /api/v1/stats – advanced-stats gate for free users (#235)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedGetAuthUser.mockResolvedValue({
+      userId: AUTH_USER_ID,
+      email: "lara@example.com",
+    });
+    mockedListDecksForUser.mockResolvedValue([] as never);
+    mockedGetDueCards.mockResolvedValue([] as never);
+    mockedGetStreakInfo.mockResolvedValue({
+      currentStreak: 4,
+      longestStreak: 9,
+      lastReviewDate: "2026-07-13",
+      dailyGoal: 10,
+      streakFreezes: 0,
+    });
+    mockedGetReviewStats.mockResolvedValue(REVIEW_STATS);
+    mockedGetLastStudiedDeck.mockResolvedValue({ id: "deck-1", title: "Bio" });
+  });
+
+  it("clamps a free user's 30-day request down to the basic 7-day window", async () => {
+    mockTier("free");
+
+    const response = await GET(getRequest("30"));
+
+    expect(response.status).toBe(200);
+    expect(mockedGetReviewStats).toHaveBeenCalledWith(AUTH_USER_ID, 7);
+  });
+
+  it("clamps a free user with no days param to 7 days (not the historic 30)", async () => {
+    mockTier("free");
+
+    await GET(getRequest());
+
+    expect(mockedGetReviewStats).toHaveBeenCalledWith(AUTH_USER_ID, 7);
+  });
+
+  it("still returns the full basic stats to a free user (tab keeps working)", async () => {
+    mockTier("free");
+
+    const response = await GET(getRequest("7"));
+    const body = (await response.json()) as { stats: Record<string, unknown> };
+
+    expect(response.status).toBe(200);
+    expect(body.stats).toMatchObject({
+      currentStreak: 4,
+      reviewsToday: 3,
+      accuracyRate: 0.85,
+    });
   });
 });
