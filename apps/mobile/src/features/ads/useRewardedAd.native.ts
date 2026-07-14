@@ -7,6 +7,12 @@ import {
 } from "./trackingConsent";
 import { shouldPromptForAdPersonalization } from "./trackingConsentUtils";
 import { REAL_ADS_ENABLED } from "./adsMode";
+import { createAdRewardSettler } from "./adRewardSettler";
+
+// How long to wait for a rewarded ad to LOAD before giving up. Only guards the
+// load phase — once the ad is showing, CLOSED/EARNED_REWARD settle it, so a
+// slow watcher is never cut off (#206 Teil B).
+const AD_LOAD_TIMEOUT_MS = 15000;
 
 const APP_VARIANT = process.env.EXPO_PUBLIC_APP_VARIANT ?? "development";
 const USE_TEST_ADS = __DEV__ || APP_VARIANT !== "production";
@@ -59,7 +65,7 @@ async function loadAndShowRewardedAd(options: {
   userId: string;
 }): Promise<boolean> {
   try {
-    const { RewardedAd, RewardedAdEventType } =
+    const { RewardedAd, RewardedAdEventType, AdEventType } =
       await import("react-native-google-mobile-ads");
 
     if (!ADMOB_REWARDED_ID) {
@@ -75,35 +81,46 @@ async function loadAndShowRewardedAd(options: {
         serverSideVerificationOptions: { userId: options.userId },
       });
 
-      const unsubscribeLoaded = ad.addAdEventListener(
-        RewardedAdEventType.LOADED,
-        () => {
-          unsubscribeLoaded();
+      const unsubs: Array<() => void> = [];
+      let loadTimer: ReturnType<typeof setTimeout> | null = null;
+
+      // Exactly one outcome, then tear everything down — no listener or timer can
+      // resolve the promise twice, and nothing is left dangling (#206 Teil B).
+      const settle = createAdRewardSettler((rewarded) => {
+        for (const unsub of unsubs) unsub();
+        if (loadTimer) {
+          clearTimeout(loadTimer);
+          loadTimer = null;
+        }
+        resolve(rewarded);
+      });
+
+      loadTimer = setTimeout(() => settle("timeout"), AD_LOAD_TIMEOUT_MS);
+
+      unsubs.push(
+        ad.addAdEventListener(RewardedAdEventType.LOADED, () => {
+          // Loaded in time — stop the load timeout and show. From here the ad is
+          // on screen, so CLOSED (or EARNED_REWARD) is guaranteed to settle it.
+          if (loadTimer) {
+            clearTimeout(loadTimer);
+            loadTimer = null;
+          }
           ad.show();
-        }
+        }),
       );
-
-      const unsubscribeEarned = ad.addAdEventListener(
-        RewardedAdEventType.EARNED_REWARD,
-        () => {
-          unsubscribeEarned();
-          resolve(true);
-        }
+      unsubs.push(
+        ad.addAdEventListener(RewardedAdEventType.EARNED_REWARD, () => settle("earned")),
       );
-
-      ad.addAdEventListener(
-        "error" as Parameters<typeof ad.addAdEventListener>[0],
-        () => {
-          resolve(false);
-        }
-      );
+      // The fix: dismissing the ad before earning now settles the promise instead
+      // of hanging forever.
+      unsubs.push(ad.addAdEventListener(AdEventType.CLOSED, () => settle("closed")));
+      unsubs.push(ad.addAdEventListener(AdEventType.ERROR, () => settle("error")));
 
       ad.load();
     });
   } catch {
-    return new Promise<boolean>((resolve) => {
-      setTimeout(() => resolve(true), 1500);
-    });
+    // SDK unavailable → no ad was shown, so report failure (never a fake success).
+    return false;
   }
 }
 
