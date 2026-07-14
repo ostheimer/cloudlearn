@@ -117,6 +117,12 @@ export async function DELETE(request: NextRequest) {
       .delete()
       .or(`and(user_id.eq.${auth.userId},friend_id.eq.${friendId}),and(user_id.eq.${friendId},friend_id.eq.${auth.userId})`);
 
+    // Unfriending ends any shared streak too (Etappe 4) — the canonical pair is
+    // (low < high). Leaving it behind would strand a streak with a non-friend.
+    const low = auth.userId < friendId ? auth.userId : friendId;
+    const high = auth.userId < friendId ? friendId : auth.userId;
+    await db.from("friend_streaks").delete().eq("user_low", low).eq("user_high", high);
+
     return jsonOk(requestId, { removed: true });
   } catch (error) {
     const normalized = normalizeError(error);

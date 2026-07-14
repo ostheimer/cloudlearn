@@ -51,7 +51,12 @@ function deleteRequest(friendId?: string) {
 
 function makeDbMock() {
   const or = vi.fn().mockResolvedValue({ data: null, error: null });
-  const del = vi.fn().mockReturnValue({ or });
+  // friend_streaks cleanup uses .delete().eq().eq(); make eq chainable + awaitable.
+  const eqChain: Record<string, unknown> = {};
+  eqChain.eq = vi.fn(() => eqChain);
+  eqChain.then = (onF: (v: unknown) => unknown) =>
+    Promise.resolve({ data: null, error: null }).then(onF);
+  const del = vi.fn().mockReturnValue({ or, eq: () => eqChain });
   const from = vi.fn().mockReturnValue({ delete: del });
   return { db: { from } as never, or };
 }

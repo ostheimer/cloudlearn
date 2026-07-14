@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
-import { ArrowLeft, Bell, Check, Clock, Flame, UserPlus, Users, X } from "lucide-react-native";
+import { ArrowLeft, Award, Bell, Check, Clock, Flame, UserPlus, Users, X } from "lucide-react-native";
 import { useColors, spacing, radius, typography } from "../src/theme";
 import { useSessionStore } from "../src/store/sessionStore";
 import {
@@ -171,6 +171,14 @@ export default function FriendStreaksScreen() {
                     ? `${s.currentStreak} ${s.currentStreak === 1 ? "Tag" : "Tage"} gemeinsam mit ${s.displayName}`
                     : `Lernt beide heute, um mit ${s.displayName} zu starten`}
                 </Text>
+                {s.longestStreak > 0 ? (
+                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4 }}>
+                    <Award size={13} color={colors.textTertiary} />
+                    <Text style={{ fontSize: typography.xs, color: colors.textTertiary }}>
+                      Rekord: {s.longestStreak} {s.longestStreak === 1 ? "Tag" : "Tage"}
+                    </Text>
+                  </View>
+                ) : null}
 
                 <View style={{ flexDirection: "row", gap: spacing.sm }}>
                   <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 6, justifyContent: "center", backgroundColor: colors.surfaceSecondary, borderRadius: radius.md, paddingVertical: spacing.sm }}>
