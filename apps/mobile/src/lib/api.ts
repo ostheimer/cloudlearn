@@ -900,6 +900,51 @@ export async function removeFriend(friendId: string): Promise<{ removed: boolean
   });
 }
 
+// ─── Friend Streaks (shared streaks, #237) ─────────────────────────────────────
+
+export interface FriendStreak {
+  friendId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  status: "pending" | "active";
+  currentStreak: number;
+  longestStreak: number;
+  youStudiedToday: boolean;
+  friendStudiedToday: boolean;
+  invitedByYou: boolean;
+}
+
+export async function getFriendStreaks(): Promise<{ streaks: FriendStreak[] }> {
+  return requestAuthenticated<{ streaks: FriendStreak[] }>("/api/v1/friends/streaks");
+}
+
+export async function inviteFriendStreak(friendId: string): Promise<{ result: string }> {
+  return requestAuthenticated<{ result: string }>("/api/v1/friends/streaks", {
+    method: "POST",
+    body: JSON.stringify({ friendId, action: "invite" }),
+  });
+}
+
+export async function acceptFriendStreak(friendId: string): Promise<{ accepted: boolean }> {
+  return requestAuthenticated<{ accepted: boolean }>("/api/v1/friends/streaks", {
+    method: "POST",
+    body: JSON.stringify({ friendId, action: "accept" }),
+  });
+}
+
+export async function remindFriendStreak(friendId: string): Promise<{ sent: boolean }> {
+  return requestAuthenticated<{ sent: boolean }>("/api/v1/friends/streaks", {
+    method: "POST",
+    body: JSON.stringify({ friendId, action: "remind" }),
+  });
+}
+
+export async function leaveFriendStreak(friendId: string): Promise<{ left: boolean }> {
+  return requestAuthenticated<{ left: boolean }>(`/api/v1/friends/streaks?friendId=${friendId}`, {
+    method: "DELETE",
+  });
+}
+
 // ─── Push Notifications ───────────────────────────────────────────────────────
 
 export async function registerPushToken(

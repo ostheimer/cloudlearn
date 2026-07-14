@@ -556,6 +556,20 @@ export async function updateStreakAfterReview(
 }
 
 /**
+ * Record that the user studied today and advance any active friend streaks
+ * whose other member also studied today (#237 follow-up). Fire-and-forget from
+ * the review flow; all pair logic + the freeze-save run atomically in SQL.
+ */
+export async function markFriendStreakDay(userId: string): Promise<void> {
+  const db = getDb();
+  const { error } = await db.rpc("mark_friend_streak_day", {
+    p_user: userId,
+    p_today: todayLocal(),
+  });
+  if (error) throw new Error(`markFriendStreakDay: ${error.message}`);
+}
+
+/**
  * Days of a month (YYYY-MM) the user learned on, plus the days a streak
  * freeze covered — the data behind the streak calendar (#237). Learned days
  * come from review_logs grouped into the user's local day, so a review at
