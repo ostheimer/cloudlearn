@@ -1,5 +1,10 @@
 import type { SubscriptionTier } from "./contracts";
 
+// Runtime source of truth for the LP economy (server is authoritative).
+// A deliberate copy lives in packages/contracts/src/featureGates.ts; the
+// lpEconomyConsistency guard in packages/testkit fails CI if the two drift
+// apart, and also checks the mobile pack list. Change both together (#212).
+
 export interface TierLimits {
   maxDecks: number;
   maxCardsPerDeck: number;
