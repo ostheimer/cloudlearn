@@ -27,7 +27,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
 
   // Already signed in? Skip the form.
   useEffect(() => {
-    if (status === "authenticated") router.replace("/dashboard");
+    if (status === "authenticated") router.replace("/dashboard/home");
   }, [status, router]);
 
   useEffect(() => {
@@ -61,7 +61,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
           setError(error);
           return;
         }
-        router.replace("/dashboard");
+        router.replace("/dashboard/home");
       } else {
         const { error, requiresEmailConfirmation } = await signUp(email, password);
         if (error) {
@@ -72,7 +72,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
           setConfirmSent(true);
           return;
         }
-        router.replace("/dashboard");
+        router.replace("/dashboard/home");
       }
     } finally {
       setBusy(false);
