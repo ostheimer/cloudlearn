@@ -1,11 +1,9 @@
 import { useEffect, useState } from "react";
-import { Modal, Pressable, Text, View } from "react-native";
+import { Modal, Platform, Pressable, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as Notifications from "expo-notifications";
 import { useTranslation } from "react-i18next";
 import { Bell } from "lucide-react-native";
 import { useColors, spacing, radius, typography, shadows } from "../theme";
-import { enablePushNotifications } from "../lib/notifications";
 
 // Remembered once we've asked, so the rationale never nags a second time.
 const ASKED_KEY = "clearn-notif-prompt-asked";
@@ -15,6 +13,10 @@ const ASKED_KEY = "clearn-notif-prompt-asked";
  * *checked* notification permission (and so never registered a push token, so
  * no server push ever arrived). This asks at a good moment — explaining why
  * first — and registers the token on grant. Renders nothing once handled.
+ *
+ * Push notifications are native-only, so on web this is inert and — crucially —
+ * `expo-notifications` is only ever pulled in lazily (dynamic import), so it
+ * cannot run at web bootstrap where it would log an unsupported-on-web warning.
  */
 export function NotificationPermissionPrompt() {
   const colors = useColors();
@@ -23,10 +25,12 @@ export function NotificationPermissionPrompt() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    if (Platform.OS === "web") return;
     let active = true;
     (async () => {
       try {
         if ((await AsyncStorage.getItem(ASKED_KEY)) === "true") return;
+        const Notifications = await import("expo-notifications");
         const { status, canAskAgain } = await Notifications.getPermissionsAsync();
         // Already granted (token handled at app start) or permanently denied
         // (we can't re-prompt) → mark done, show nothing.
@@ -50,6 +54,7 @@ export function NotificationPermissionPrompt() {
   const handleAllow = async () => {
     setBusy(true);
     try {
+      const { enablePushNotifications } = await import("../lib/notifications");
       await enablePushNotifications();
     } finally {
       setBusy(false);
@@ -57,7 +62,7 @@ export function NotificationPermissionPrompt() {
     }
   };
 
-  if (!visible) return null;
+  if (Platform.OS === "web" || !visible) return null;
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={finish}>
