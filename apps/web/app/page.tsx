@@ -105,7 +105,7 @@ const modes: { Icon: IconType; tint: string; title: string; desc: string }[] = [
 const faqs = [
   {
     q: "Kann ich clearn im Browser nutzen?",
-    a: "Ja! Registriere dich auf clearn-web.vercel.app und leg sofort los — ganz ohne Installation. Zusätzlich gibt es clearn als iPhone-App (aktuell über TestFlight).",
+    a: "Ja! Registriere dich auf clearn.ai und leg sofort los — ganz ohne Installation. Zusätzlich gibt es clearn als iPhone-App (aktuell über TestFlight).",
   },
   {
     q: "Was kostet clearn? Was ist gratis, was Pro?",
@@ -421,7 +421,7 @@ export default function LandingPage() {
                 <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#f59e0b" }} />
                 <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#10b981" }} />
                 <span style={{ marginLeft: 6, fontSize: "0.8rem", color: "var(--ink-3)", fontWeight: 600 }}>
-                  clearn-web.vercel.app
+                  clearn.ai
                 </span>
               </div>
               <div className="stack">
