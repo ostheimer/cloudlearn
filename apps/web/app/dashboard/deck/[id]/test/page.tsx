@@ -64,6 +64,9 @@ export default function TestPage() {
   const [graded, setGraded] = useState<Graded[]>([]);
   const [idx, setIdx] = useState(0);
   const [remaining, setRemaining] = useState(0);
+  // Merkt sich, ob die Runde auf „Schriftlich" zurückgefallen ist (zu wenige
+  // offene Karten für Wahr/Falsch bzw. Multiple Choice) — für den Hinweis im Spiel.
+  const [fellBackToWritten, setFellBackToWritten] = useState(false);
 
   const [earned, setEarned] = useState<number | null>(null);
   const awardedRef = useRef(false);
@@ -145,7 +148,24 @@ export default function TestPage() {
       if (typeTF) types.push("trueFalse");
       if (typeMC) types.push("mc");
       if (typeWritten) types.push("written");
-      const qs = buildTestQuestions(sourceCards, { count: count || usableCount, types, reverse });
+      let qs = buildTestQuestions(sourceCards, { count: count || usableCount, types, reverse });
+      // Wahr/Falsch und Multiple Choice brauchen ≥ 2 Karten (für eine falsche
+      // Gegen-Zuordnung). Bei zu wenigen offenen Karten (z. B. „Nur nicht gewusste"
+      // mit 1 Karte) lässt sich damit keine Frage bilden → dann fällt die Runde auf
+      // „Schriftlich" zurück, das schon mit einer einzigen Karte funktioniert.
+      let fellBack = false;
+      if (qs.length === 0 && !typeWritten) {
+        const withWritten = buildTestQuestions(sourceCards, {
+          count: count || usableCount,
+          types: [...types, "written"],
+          reverse,
+        });
+        if (withWritten.length > 0) {
+          qs = withWritten;
+          fellBack = true;
+        }
+      }
+      setFellBackToWritten(fellBack);
       setQuestions(qs);
       setAnswers(qs.map(() => ({ mc: null, tf: null, text: "" })));
       setGraded([]);
@@ -510,6 +530,10 @@ export default function TestPage() {
   const a = answers[idx] ?? { mc: null, tf: null, text: "" };
   const isLast = idx + 1 >= questions.length;
   const progress = (idx + 1) / questions.length;
+  const fallbackTypeNames =
+    [typeTF ? "Wahr/Falsch" : null, typeMC ? "Multiple Choice" : null]
+      .filter(Boolean)
+      .join(" und ") || "die gewählten Fragetypen";
 
   return (
     <div className="study-wrap">
@@ -529,6 +553,19 @@ export default function TestPage() {
       <div className="progress">
         <i style={{ width: `${Math.max(progress * 100, 2)}%` }} />
       </div>
+
+      {fellBackToWritten && (
+        <p
+          style={{
+            textAlign: "center",
+            fontSize: "0.85rem",
+            color: "var(--ink-3)",
+            margin: "0 0 12px",
+          }}
+        >
+          Für {fallbackTypeNames} sind zu wenige Karten offen — wird als Eintippen wiederholt.
+        </p>
+      )}
 
       <div className="cl-prompt">
         <div className="quiz-eyebrow" style={{ color: "#ef4444" }}>
