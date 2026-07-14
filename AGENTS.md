@@ -51,11 +51,20 @@ EAS builds burn paid cloud minutes / plan quota (22 iOS builds in July 2026,
 
 ## featureGates.ts sync
 
-`packages/contracts/src/featureGates.ts` is the canonical source for tier limits, LP costs, LP earn rules, and LP pack prices.
+The LP economy (tier limits, LP costs, earn rules, pack prices) is deliberately
+duplicated across independently-deployed apps. `apps/api/src/lib/featureGates.ts`
+is the **runtime source of truth** — the server is authoritative. Clients read
+live costs from `/usage` rather than hard-coding them.
 
-Keep these mirrors in sync when changing LP economics:
-- `apps/api/src/lib/featureGates.ts`
-- `apps/mobile/src/features/paywall/lpPackOffers.ts`
+The code copies are now **machine-enforced**: `packages/testkit/src/lpEconomyConsistency.test.ts`
+imports the real exported values and fails CI (#212) the moment any drift apart.
+So when you change LP economics, change **both** code copies together — the guard
+tells you which one you missed:
+- `apps/api/src/lib/featureGates.ts` (runtime authority)
+- `packages/contracts/src/featureGates.ts` (shared-typing mirror — must equal the API)
+- `apps/mobile/src/features/paywall/lpPackOffers.ts` (pack IDs + LP amounts; prices come from RevenueCat, not from us)
+
+These doc mirrors are **not** covered by the guard — update them by hand:
 - `README.md` section "Monetarisierung"
 - `docs/monetization/MONETIZATION_CONCEPT.md`
 
