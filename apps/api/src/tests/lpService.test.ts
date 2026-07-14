@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { TIER_LIMITS, LP_EARN_RULES, lpCostForFeature, getLimitsForTier, STREAK_FREEZE } from "../lib/featureGates";
+import { TIER_LIMITS, LP_EARN_RULES, lpCostForFeature, getLimitsForTier, STREAK_FREEZE, STREAK_REPAIR } from "../lib/featureGates";
 import {
   spendLp,
   refundLp,
@@ -19,6 +19,7 @@ import {
   claimMilestoneReward,
   grantLpPurchase,
   purchaseStreakFreeze,
+  purchaseStreakRepair,
 } from "@/services/lpService";
 import { createSupabaseAdminClient } from "@/lib/supabase";
 
@@ -240,6 +241,48 @@ describe("purchaseStreakFreeze (atomic purchase_streak_freeze RPC)", () => {
     useMockDb(db);
 
     await expect(purchaseStreakFreeze("user-1")).rejects.toThrow("purchaseStreakFreeze: boom");
+  });
+});
+
+describe("purchaseStreakRepair (atomic purchase_streak_repair RPC)", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("passes the server price + local day, maps a successful repair", async () => {
+    const db = makeMockDb();
+    db.rpc.mockResolvedValue({
+      data: [{ allowed: true, error_code: null, new_balance: 60, new_streak: 13 }],
+      error: null,
+    });
+    useMockDb(db);
+
+    const result = await purchaseStreakRepair("user-1");
+
+    expect(db.rpc).toHaveBeenCalledWith("purchase_streak_repair", expect.objectContaining({
+      p_user: "user-1",
+      p_cost: STREAK_REPAIR.costLp,
+    }));
+    expect(result).toMatchObject({ allowed: true, errorCode: null, newBalance: 60, newStreak: 13, cost: STREAK_REPAIR.costLp });
+  });
+
+  it("maps a rejection when there is nothing to repair", async () => {
+    const db = makeMockDb();
+    db.rpc.mockResolvedValue({
+      data: [{ allowed: false, error_code: "no_repair", new_balance: 100, new_streak: 3 }],
+      error: null,
+    });
+    useMockDb(db);
+
+    const result = await purchaseStreakRepair("user-1");
+    expect(result.allowed).toBe(false);
+    expect(result.errorCode).toBe("no_repair");
+  });
+
+  it("throws when the RPC returns an error", async () => {
+    const db = makeMockDb();
+    db.rpc.mockResolvedValue({ data: null, error: { message: "boom" } });
+    useMockDb(db);
+
+    await expect(purchaseStreakRepair("user-1")).rejects.toThrow("purchaseStreakRepair: boom");
   });
 });
 

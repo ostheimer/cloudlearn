@@ -236,6 +236,10 @@ export interface StatsResponse {
   dailyGoal: number;
   // Streak freezes owned (LP store item); optional while old API versions roll out.
   streakFreezes?: number;
+  // Streak repair (reactive counterpart to the freeze); optional during rollout.
+  repairAvailable?: boolean;
+  repairBrokenStreak?: number;
+  repairCost?: number;
   reviewsToday: number;
   reviewsThisWeek: number;
   reviewsTotal: number;
@@ -737,6 +741,18 @@ export interface StreakFreezePurchaseResponse {
 
 export async function buyStreakFreeze(): Promise<StreakFreezePurchaseResponse> {
   return requestAuthenticated<StreakFreezePurchaseResponse>("/api/v1/lp/streak-freeze", {
+    method: "POST",
+  });
+}
+
+export interface StreakRepairResponse {
+  cost: number;
+  newBalance: number;
+  currentStreak: number;
+}
+
+export async function buyStreakRepair(): Promise<StreakRepairResponse> {
+  return requestAuthenticated<StreakRepairResponse>("/api/v1/lp/streak-repair", {
     method: "POST",
   });
 }

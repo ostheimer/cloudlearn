@@ -46,6 +46,8 @@ create table profiles (
   longest_streak int not null default 0,
   last_review_date date,
   daily_goal int not null default 10,
+  broken_streak int not null default 0,
+  broken_on date,
   updated_at timestamptz not null default now()
 );
 create table lp_transactions (
@@ -81,6 +83,7 @@ suite("LP SQL functions (real Postgres integration)", () => {
     await client.query(loadMigration("20260708150000_atomic_claim_milestone.sql"));
     await client.query(loadMigration("20260709120000_idempotent_lp_purchase.sql"));
     await client.query(loadMigration("20260713140000_streak_freeze.sql"));
+    await client.query(loadMigration("20260714120000_streak_repair.sql"));
   });
 
   afterEach(async () => {
@@ -275,6 +278,103 @@ suite("LP SQL functions (real Postgres integration)", () => {
       const row = await callUpdate();
       expect(row).toMatchObject({ current_streak: 1, longest_streak: 8, streak_freezes: 2, freeze_used: false });
       expect(await freezeUses()).toEqual([]);
+    });
+  });
+
+  // ── streak repair: broken-marker recording + purchase_streak_repair ──────
+  describe("streak repair", () => {
+    async function profile() {
+      const { rows } = await client.query(
+        "select current_streak, longest_streak, broken_streak, to_char(broken_on,'YYYY-MM-DD') as broken_on, lp_balance from profiles where id = $1",
+        [USER]
+      );
+      return rows[0];
+    }
+    async function seedLost(opts: { streak: number; lastDaysAgo: number; freezes?: number }) {
+      await client.query(
+        `insert into profiles (id, lp_balance, current_streak, longest_streak, last_review_date, streak_freezes)
+         values ($1, 100, $2, greatest($2,0), current_date - $3::int, $4)`,
+        [USER, opts.streak, opts.lastDaysAgo, opts.freezes ?? 0]
+      );
+    }
+
+    it("records a repair marker when a real streak (>= 2) is lost", async () => {
+      await seedLost({ streak: 12, lastDaysAgo: 3 });
+      await client.query("select * from update_streak_after_review($1, current_date)", [USER]);
+      const p = await profile();
+      expect(p.current_streak).toBe(1);
+      expect(p.broken_streak).toBe(12);
+      const { rows } = await client.query("select to_char(current_date,'YYYY-MM-DD') as d");
+      expect(p.broken_on).toBe(rows[0].d);
+    });
+
+    it("does not record a marker when there was no real streak to lose", async () => {
+      await seedLost({ streak: 1, lastDaysAgo: 5 });
+      await client.query("select * from update_streak_after_review($1, current_date)", [USER]);
+      const p = await profile();
+      expect(p.broken_streak).toBe(0);
+      expect(p.broken_on).toBeNull();
+    });
+
+    it("keeps the marker alive across a following review, so the window survives", async () => {
+      // Streak was lost and reset to 1 today; marker recorded (broken_on = today).
+      await client.query(
+        `insert into profiles (id, lp_balance, current_streak, longest_streak, last_review_date, broken_streak, broken_on)
+         values ($1, 100, 1, 12, current_date, 12, current_date)`,
+        [USER]
+      );
+      // A consecutive-day review tomorrow must not wipe the marker.
+      await client.query("select * from update_streak_after_review($1, current_date + 1)", [USER]);
+      const p = await profile();
+      expect(p.current_streak).toBe(2);
+      expect(p.broken_streak).toBe(12);
+    });
+
+    it("repairs within the window: restores lost + rebuilt run, deducts LP, writes ledger", async () => {
+      await client.query(
+        `insert into profiles (id, lp_balance, current_streak, longest_streak, broken_streak, broken_on)
+         values ($1, 100, 1, 12, 12, current_date)`,
+        [USER]
+      );
+      const { rows } = await client.query("select * from purchase_streak_repair($1, 40, current_date)", [USER]);
+      expect(rows[0]).toMatchObject({ allowed: true, error_code: null, new_balance: 60, new_streak: 13 });
+      const p = await profile();
+      expect(p.current_streak).toBe(13);
+      expect(p.longest_streak).toBe(13);
+      expect(p.broken_streak).toBe(0);
+      const led = await client.query("select type, amount, reason from lp_transactions where user_id = $1", [USER]);
+      expect(led.rows).toEqual([{ type: "spent", amount: -40, reason: "streak_repair" }]);
+    });
+
+    it("rejects with no_repair when the window has passed", async () => {
+      await client.query(
+        `insert into profiles (id, lp_balance, current_streak, longest_streak, broken_streak, broken_on)
+         values ($1, 100, 3, 12, 12, current_date - 3)`,
+        [USER]
+      );
+      const { rows } = await client.query("select * from purchase_streak_repair($1, 40, current_date)", [USER]);
+      expect(rows[0]).toMatchObject({ allowed: false, error_code: "no_repair" });
+      const p = await profile();
+      expect(p.lp_balance).toBe(100); // untouched
+    });
+
+    it("rejects with no_repair when there is nothing to repair", async () => {
+      await client.query("insert into profiles (id, lp_balance) values ($1, 100)", [USER]);
+      const { rows } = await client.query("select * from purchase_streak_repair($1, 40, current_date)", [USER]);
+      expect(rows[0].allowed).toBe(false);
+      expect(rows[0].error_code).toBe("no_repair");
+    });
+
+    it("rejects with insufficient_lp when the balance is too low", async () => {
+      await client.query(
+        `insert into profiles (id, lp_balance, current_streak, longest_streak, broken_streak, broken_on)
+         values ($1, 30, 1, 12, 12, current_date)`,
+        [USER]
+      );
+      const { rows } = await client.query("select * from purchase_streak_repair($1, 40, current_date)", [USER]);
+      expect(rows[0]).toMatchObject({ allowed: false, error_code: "insufficient_lp" });
+      const p = await profile();
+      expect(p.broken_streak).toBe(12); // still repairable later
     });
   });
 

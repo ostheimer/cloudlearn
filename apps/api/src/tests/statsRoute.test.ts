@@ -105,6 +105,9 @@ describe("GET /api/v1/stats – days whitelist + durationMsByDay", () => {
       lastReviewDate: "2026-07-13",
       dailyGoal: 10,
       streakFreezes: 0,
+      repairAvailable: false,
+      repairBrokenStreak: 0,
+      repairCost: 40,
     });
     mockedGetReviewStats.mockResolvedValue(REVIEW_STATS);
     mockedGetLastStudiedDeck.mockResolvedValue({ id: "deck-1", title: "Bio" });
@@ -198,6 +201,9 @@ describe("GET /api/v1/stats – advanced-stats gate for free users (#235)", () =
       lastReviewDate: "2026-07-13",
       dailyGoal: 10,
       streakFreezes: 0,
+      repairAvailable: false,
+      repairBrokenStreak: 0,
+      repairCost: 40,
     });
     mockedGetReviewStats.mockResolvedValue(REVIEW_STATS);
     mockedGetLastStudiedDeck.mockResolvedValue({ id: "deck-1", title: "Bio" });

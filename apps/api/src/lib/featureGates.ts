@@ -89,6 +89,14 @@ export const STREAK_FREEZE = {
   maxOwned: 2,
 } as const;
 
+// Streak repair (#237 follow-up): restore a lost streak after the fact. Priced
+// above the freeze so the proactive freeze stays the better deal; only offered
+// within `windowDays` local days of the loss.
+export const STREAK_REPAIR = {
+  costLp: 40,
+  windowDays: 2,
+} as const;
+
 // Max number of paid referrals a single referrer can earn the sender bonus for.
 // Caps referral farming (#203): beyond this the claimer still gets their bonus,
 // but the referrer no longer receives the referralSender payout.
