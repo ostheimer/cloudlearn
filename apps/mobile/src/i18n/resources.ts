@@ -109,6 +109,7 @@ export const resources = {
       "streakCal.legendFrozen": "Schutz verwendet",
       "streakCal.legendEmpty": "leer = nicht gelernt",
       "streakCal.buyFreeze": "Streak-Schutz kaufen",
+      "streakCal.friendStreak": "Freunde-Streak",
       "streakCal.loadError": "Kalender konnte nicht geladen werden.",
 
       // Scan screen
@@ -548,6 +549,7 @@ export const resources = {
       "streakCal.legendFrozen": "freeze used",
       "streakCal.legendEmpty": "empty = not learned",
       "streakCal.buyFreeze": "Buy streak freeze",
+      "streakCal.friendStreak": "Friend streak",
       "streakCal.loadError": "Could not load the calendar.",
 
       // Scan screen

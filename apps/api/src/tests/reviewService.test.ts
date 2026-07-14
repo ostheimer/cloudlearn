@@ -7,6 +7,7 @@ const dbMocks = vi.hoisted(() => ({
   createReview: vi.fn(),
   updateCardFsrs: vi.fn(),
   updateStreakAfterReview: vi.fn(),
+  markFriendStreakDay: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -15,6 +16,7 @@ vi.mock("@/lib/db", () => ({
   createReview: dbMocks.createReview,
   updateCardFsrs: dbMocks.updateCardFsrs,
   updateStreakAfterReview: dbMocks.updateStreakAfterReview,
+  markFriendStreakDay: dbMocks.markFriendStreakDay,
 }));
 
 import { storeReview } from "@/services/reviewService";
@@ -49,6 +51,7 @@ describe("storeReview", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     dbMocks.updateStreakAfterReview.mockResolvedValue(undefined);
+    dbMocks.markFriendStreakDay.mockResolvedValue(undefined);
   });
 
   it("rejects reviews for cards owned by another user", async () => {
