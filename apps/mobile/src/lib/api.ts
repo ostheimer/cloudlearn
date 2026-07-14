@@ -193,6 +193,10 @@ export interface Card {
   starred: boolean;
   fsrsDue: string;
   fsrsState: string;
+  // Image cards (Occlusion, #207): storage path of the image + per-card payload
+  // ({ regions, hideIndex }). Absent on normal text cards.
+  sourceImageUrl?: string;
+  extraData?: Record<string, unknown>;
 }
 
 export interface ReviewResponse {
@@ -360,11 +364,33 @@ export async function listDecks(
 export async function createCard(
   userId: string,
   deckId: string,
-  card: { front: string; back: string; type: string; difficulty: string; tags: string[] }
+  card: {
+    front: string;
+    back: string;
+    type: string;
+    difficulty: string;
+    tags: string[];
+    // Image cards (Occlusion, #207): storage path + per-card payload. The API
+    // accepts these on the shared flashcard schema; only sent when present.
+    sourceImageUrl?: string;
+    extraData?: Record<string, unknown>;
+  }
 ): Promise<{ card: Card }> {
   return requestAuthenticated<{ card: Card }>("/api/v1/cards", {
     method: "POST",
-    body: JSON.stringify({ userId, deckId, card }),
+    body: JSON.stringify({
+      userId,
+      deckId,
+      card: {
+        front: card.front,
+        back: card.back,
+        type: card.type,
+        difficulty: card.difficulty,
+        tags: card.tags,
+        ...(card.sourceImageUrl ? { sourceImageUrl: card.sourceImageUrl } : {}),
+        ...(card.extraData ? { extraData: card.extraData } : {}),
+      },
+    }),
   });
 }
 
