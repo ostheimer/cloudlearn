@@ -22,6 +22,12 @@ import {
 } from "lucide-react-native";
 import { listCardsInDeck, type Card } from "../src/lib/api";
 import { cleanTerm } from "../src/lib/cardTerms";
+import { fetchDeckStats } from "../src/lib/statsApi";
+import {
+  CardSourcePicker,
+  filterBySource,
+  type CardSource,
+} from "../src/components/cardSourcePicker";
 import { useColors, spacing, radius, typography, shadows } from "../src/theme";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -67,13 +73,15 @@ export default function MatchScreen() {
   // Mode + progression
   const [phase, setPhase] = useState<Phase>("setup");
   const [timed, setTimed] = useState(false);
-  const [starredOnly, setStarredOnly] = useState(false);
+  const [source, setSource] = useState<CardSource>("all");
+  const [wobblyIds, setWobblyIds] = useState<Set<string>>(new Set());
   const [bestTime, setBestTime] = useState<number | null>(null);
   const [isNewBest, setIsNewBest] = useState(false);
 
-  // Optional starred-only pool; matching needs at least two cards.
+  // The chosen source; matching needs at least two cards from it.
   const starredCount = cards.filter((c) => c.starred).length;
-  const pool = starredOnly ? cards.filter((c) => c.starred) : cards;
+  const wobblyCount = cards.filter((c) => wobblyIds.has(c.id)).length;
+  const pool = filterBySource(cards, source, wobblyIds);
 
   // Game state
   const [tiles, setTiles] = useState<Tile[]>([]);
@@ -93,6 +101,14 @@ export default function MatchScreen() {
     try {
       const { cards: fetched } = await listCardsInDeck(deckId);
       setCards(fetched);
+      // Wobbly ids power the "Nur Wackelkandidaten" source. Optional — never
+      // fail the mode (or show the retry) if the stats endpoint is down.
+      try {
+        const stats = await fetchDeckStats(deckId);
+        setWobblyIds(new Set(stats.wobblyCards.map((c) => c.cardId)));
+      } catch {
+        setWobblyIds(new Set());
+      }
     } catch {
       // Distinguish a load failure (offline / server error) from a deck that
       // genuinely has too few cards, so we can offer a retry instead.
@@ -458,54 +474,17 @@ export default function MatchScreen() {
                 </View>
               )}
 
-              {/* Nur markierte Karten */}
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  backgroundColor: colors.surface,
-                  borderRadius: radius.lg,
-                  padding: spacing.lg,
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                  ...shadows.sm,
-                }}
-              >
-                <View style={{ flex: 1, paddingRight: spacing.md }}>
-                  <Text
-                    style={{
-                      fontSize: typography.base,
-                      fontWeight: typography.semibold,
-                      color: colors.text,
-                    }}
-                  >
-                    Nur markierte Karten
-                  </Text>
-                  <Text
-                    style={{
-                      fontSize: typography.sm,
-                      color: colors.textSecondary,
-                      marginTop: 2,
-                    }}
-                  >
-                    {starredCount === 0
-                      ? "Keine Karten markiert"
-                      : `${starredCount} markiert`}
-                  </Text>
-                </View>
-                <Switch
-                  value={starredOnly}
-                  onValueChange={setStarredOnly}
-                  disabled={starredCount === 0}
-                  trackColor={{ false: colors.surfaceSecondary, true: colors.primary }}
-                  thumbColor="#ffffff"
-                  ios_backgroundColor={colors.surfaceSecondary}
-                />
-              </View>
-              {starredOnly && pool.length < 2 && (
+              {/* Kartenquelle — Alle / Nur markierte / Nur Wackelkandidaten */}
+              <CardSourcePicker
+                value={source}
+                onChange={setSource}
+                allCount={cards.length}
+                starredCount={starredCount}
+                wobblyCount={wobblyCount}
+              />
+              {source !== "all" && pool.length < 2 && (
                 <Text style={{ fontSize: typography.xs, color: colors.error }}>
-                  Mindestens 2 markierte Karten nötig.
+                  Mindestens 2 Karten für diese Auswahl nötig.
                 </Text>
               )}
             </View>
