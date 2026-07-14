@@ -2,15 +2,38 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState, type CSSProperties } from "react";
-import { getStats, getLpBalance, isApiError, type StatsResponse } from "@/lib/api";
-import { Flame, Target, Clock, Trophy, Layers, Zap, Camera } from "@/components/icons";
+import {
+  getStats,
+  getLpBalance,
+  getFriendStreaks,
+  listDecks,
+  isApiError,
+  type StatsResponse,
+  type FriendStreak,
+} from "@/lib/api";
+import { useAuth } from "@/components/app/auth-context";
+import {
+  Flame,
+  Target,
+  Trophy,
+  Layers,
+  Users,
+  BookOpen,
+  ChevronRight,
+  Shield,
+  Zap,
+  Camera,
+} from "@/components/icons";
 
-// Startseite im Geist der App-Home: Streak, Tagesziel, ein paar Kennzahlen und
-// der Scan-Einstieg — alles aus vorhandenen Daten (getStats + getLpBalance),
-// kein neues Backend. Gelernt wird wie gehabt pro Deck über die Bibliothek.
+// Startseite im Geist der App-Home: Streak (mit Freeze + Kalender-Link),
+// Tagesziel, Kennzahl-Kacheln (Freunde/Decks/Genauigkeit), das zuletzt genutzte
+// Deck und der Scan-Einstieg. Alles aus vorhandenen Daten — kein neues Backend.
 export default function HomePage() {
+  const { userId } = useAuth();
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [lp, setLp] = useState<number | null>(null);
+  const [friendStreaks, setFriendStreaks] = useState<FriendStreak[]>([]);
+  const [recentDeck, setRecentDeck] = useState<{ id: string; title: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,6 +54,28 @@ export default function HomePage() {
     load();
   }, [load]);
 
+  // Freunde-Streaks best-effort — ein sozialer Fehler darf die Home nie brechen.
+  useEffect(() => {
+    getFriendStreaks()
+      .then((r) => setFriendStreaks(r.streaks))
+      .catch(() => setFriendStreaks([]));
+  }, []);
+
+  // Zuletzt bearbeitetes Deck für den "Zuletzt genutzt"-Wiedereinstieg.
+  useEffect(() => {
+    if (!userId) return;
+    listDecks(userId)
+      .then(({ decks }) => {
+        if (decks.length === 0) return;
+        const sorted = [...decks].sort(
+          (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+        );
+        const top = sorted[0];
+        if (top) setRecentDeck({ id: top.id, title: top.title });
+      })
+      .catch(() => {});
+  }, [userId]);
+
   if (loading) return <div className="spinner" />;
 
   const streak = stats?.currentStreak ?? 0;
@@ -39,19 +84,28 @@ export default function HomePage() {
   const decks = stats?.totalDecks ?? 0;
   const goal = stats?.dailyGoal ?? 0;
   const today = stats?.reviewsToday ?? 0;
+  const streakFreezes = stats?.streakFreezes ?? 0;
   const accuracy = stats
     ? Math.round(stats.accuracyRate <= 1 ? stats.accuracyRate * 100 : stats.accuracyRate)
     : 0;
   const goalPct = goal > 0 ? Math.min(100, Math.round((today / goal) * 100)) : 0;
 
+  const activeFriend = friendStreaks.filter((s) => s.status === "active");
+  const bestFriendStreak = activeFriend.reduce((m, s) => Math.max(m, s.currentStreak), 0);
+  const waitingPartner =
+    activeFriend.find((s) => s.friendStudiedToday && !s.youStudiedToday) ?? null;
+
+  const shownDeck = stats?.lastStudiedDeck ?? recentDeck;
+
   const tileStyle: CSSProperties = {
     display: "flex",
     flexDirection: "column",
+    alignItems: "center",
     gap: 2,
     background: "var(--surface)",
     border: "1px solid var(--line)",
     borderRadius: 12,
-    padding: "12px 13px",
+    padding: "13px",
     textDecoration: "none",
     color: "inherit",
   };
@@ -63,7 +117,15 @@ export default function HomePage() {
     gap: 5,
   };
   const tileNum: CSSProperties = { fontSize: "1.5rem", fontWeight: 800, color: "var(--ink)" };
-  const tileGo: CSSProperties = { fontSize: "0.72rem", color: "var(--brand)", marginTop: 2 };
+  const badge = (amber: boolean): CSSProperties => ({
+    marginTop: 4,
+    fontSize: "0.72rem",
+    fontWeight: 700,
+    color: amber ? "var(--amber)" : "var(--brand)",
+    background: amber ? "var(--amber-50)" : "transparent",
+    borderRadius: 999,
+    padding: amber ? "1px 8px" : 0,
+  });
 
   return (
     <div style={{ maxWidth: 960, margin: "0 auto", display: "grid", gap: 14 }}>
@@ -95,86 +157,193 @@ export default function HomePage() {
           gap: 12,
         }}
       >
-      <Link
-        href="/dashboard/streak-calendar"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 13,
-          background: "rgba(99,102,241,0.10)",
-          borderRadius: 14,
-          padding: "14px 16px",
-          textDecoration: "none",
-          color: "inherit",
-        }}
-      >
-        <span
+        <Link
+          href="/dashboard/streak-calendar"
           style={{
-            width: 44,
-            height: 44,
-            borderRadius: 12,
-            background: "var(--brand)",
-            color: "#fff",
-            display: "grid",
-            placeItems: "center",
-            flex: "none",
+            display: "flex",
+            alignItems: "center",
+            gap: 13,
+            background: "rgba(99,102,241,0.10)",
+            borderRadius: 14,
+            padding: "14px 16px",
+            textDecoration: "none",
+            color: "inherit",
           }}
-          aria-hidden
         >
-          <Flame size={24} />
-        </span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: "1.05rem", fontWeight: 700, color: "var(--brand)" }}>
-            {streak > 0 ? `${streak} ${streak === 1 ? "Tag" : "Tage"} Streak` : "Starte deinen Streak"}
+          <span
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 12,
+              background: "var(--brand)",
+              color: "#fff",
+              display: "grid",
+              placeItems: "center",
+              flex: "none",
+            }}
+            aria-hidden
+          >
+            <Flame size={24} />
+          </span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: "1.05rem", fontWeight: 700, color: "var(--brand)" }}>
+              {streak > 0 ? `${streak} ${streak === 1 ? "Tag" : "Tage"} Streak` : "Starte deinen Streak"}
+            </div>
+            <div style={{ fontSize: "0.8rem", color: "var(--ink-3)" }}>
+              {streak > 0
+                ? `Bestwert: ${best} ${best === 1 ? "Tag" : "Tage"}`
+                : "Lerne heute eine Karte, um zu beginnen"}
+            </div>
           </div>
-          <div style={{ fontSize: "0.8rem", color: "var(--ink-3)" }}>
-            {streak > 0
-              ? `Bestwert: ${best} ${best === 1 ? "Tag" : "Tage"}`
-              : "Lerne heute eine Karte, um zu beginnen"}
-          </div>
-        </div>
-      </Link>
+          {streakFreezes > 0 && (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 3,
+                background: "var(--surface)",
+                border: "1px solid var(--line)",
+                borderRadius: 999,
+                padding: "2px 8px",
+                fontSize: "0.75rem",
+                fontWeight: 700,
+                color: "var(--ink)",
+                flex: "none",
+              }}
+            >
+              <Shield size={14} style={{ color: "var(--amber)" }} /> {streakFreezes}
+            </span>
+          )}
+        </Link>
 
-      {/* Tagesziel */}
-      <div style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 14, padding: "14px 16px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
-          <div style={{ fontWeight: 700, fontSize: "0.95rem" }}>
-            <Target size={15} style={{ verticalAlign: -2, marginRight: 6, color: "var(--ink-3)" }} /> Tagesziel
+        {/* Tagesziel */}
+        <div style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 14, padding: "14px 16px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+            <div style={{ fontWeight: 700, fontSize: "0.95rem" }}>
+              <Target size={15} style={{ verticalAlign: -2, marginRight: 6, color: "var(--ink-3)" }} /> Tagesziel
+            </div>
+            <div className="muted" style={{ fontSize: "0.9rem" }}>
+              <b style={{ color: "var(--ink)" }}>{today}</b> / {goal || "—"} Karten
+            </div>
           </div>
-          <div className="muted" style={{ fontSize: "0.9rem" }}>
-            <b style={{ color: "var(--ink)" }}>{today}</b> / {goal || "—"} Karten
+          <div className="progress">
+            <i style={{ width: `${goalPct}%`, background: "var(--green)" }} />
           </div>
-        </div>
-        <div className="progress">
-          <i style={{ width: `${goalPct}%`, background: "var(--green)" }} />
         </div>
       </div>
-      </div>
 
-      {/* Kennzahlen */}
+      {/* Freunde-Hinweis: Partner hat heute gelernt, du noch nicht */}
+      {waitingPartner && (
+        <Link
+          href="/dashboard/friends"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            background: "var(--amber-50)",
+            border: "1px solid var(--amber)",
+            borderRadius: 14,
+            padding: "12px 16px",
+            textDecoration: "none",
+            color: "inherit",
+          }}
+        >
+          <Users size={20} style={{ color: "var(--amber)", flex: "none" }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>
+              {waitingPartner.displayName} hat heute gelernt
+            </div>
+            <div style={{ fontSize: "0.8rem", color: "var(--ink-3)" }}>
+              Lern auch du, damit eure Flamme weiterbrennt
+            </div>
+          </div>
+          <ChevronRight size={18} style={{ color: "var(--ink-4)", flex: "none" }} />
+        </Link>
+      )}
+
+      {/* Kennzahlen — wie in der App: Freunde / Decks (mit fällig) / Genauigkeit */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10 }}>
-        <Link href="/dashboard" style={tileStyle}>
+        <Link
+          href="/dashboard/friends"
+          style={{
+            ...tileStyle,
+            borderColor: waitingPartner ? "var(--amber)" : "var(--line)",
+          }}
+        >
           <span style={tileLabel}>
-            <Clock size={14} /> Heute fällig
+            <Users size={14} /> Freunde
           </span>
-          <span style={tileNum}>{due}</span>
-          <span style={tileGo}>Zur Bibliothek ›</span>
-        </Link>
-        <Link href="/dashboard/stats" style={tileStyle}>
-          <span style={tileLabel}>
-            <Trophy size={14} /> Genauigkeit
+          <span style={{ ...tileNum, display: "inline-flex", alignItems: "center", gap: 4 }}>
+            {bestFriendStreak > 0 && <Flame size={16} style={{ color: "var(--amber)" }} />}
+            {bestFriendStreak}
           </span>
-          <span style={tileNum}>{accuracy} %</span>
-          <span style={tileGo}>Zur Statistik ›</span>
+          <span style={badge(false)}>Öffnen ›</span>
         </Link>
+
         <Link href="/dashboard" style={tileStyle}>
           <span style={tileLabel}>
             <Layers size={14} /> Decks
           </span>
           <span style={tileNum}>{decks}</span>
-          <span style={tileGo}>Zur Bibliothek ›</span>
+          <span style={badge(due > 0)}>{due > 0 ? `${due} fällig ›` : "Bibliothek ›"}</span>
+        </Link>
+
+        <Link href="/dashboard/stats" style={tileStyle}>
+          <span style={tileLabel}>
+            <Trophy size={14} /> Genauigkeit
+          </span>
+          <span style={tileNum}>{stats && stats.reviewsTotal > 0 ? `${accuracy} %` : "—"}</span>
+          <span style={badge(false)}>Statistik ›</span>
         </Link>
       </div>
+
+      {/* Zuletzt genutztes Deck — Wiedereinstieg in genau ein Deck */}
+      {shownDeck && (
+        <Link
+          href={`/dashboard/deck/${shownDeck.id}`}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            background: "var(--surface)",
+            border: "1px solid var(--line)",
+            borderRadius: 14,
+            padding: "14px 16px",
+            textDecoration: "none",
+            color: "inherit",
+          }}
+        >
+          <span
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 10,
+              background: "rgba(99,102,241,0.12)",
+              color: "var(--brand)",
+              display: "grid",
+              placeItems: "center",
+              flex: "none",
+            }}
+            aria-hidden
+          >
+            <BookOpen size={18} />
+          </span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: "0.72rem", color: "var(--ink-4)" }}>Zuletzt genutzt</div>
+            <div
+              style={{
+                fontWeight: 600,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {shownDeck.title}
+            </div>
+          </div>
+          <ChevronRight size={18} style={{ color: "var(--ink-4)", flex: "none" }} />
+        </Link>
+      )}
 
       {/* Haupt-Aktion */}
       <Link
