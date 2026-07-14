@@ -5,6 +5,7 @@ import {
   createReview,
   findReviewByIdempotencyKey,
   getCard,
+  markFriendStreakDay,
   updateCardFsrs,
   updateStreakAfterReview,
 } from "@/lib/db";
@@ -69,6 +70,8 @@ export async function storeReview(
 
   // Update streak (fire-and-forget for first review of the day)
   updateStreakAfterReview(parsed.userId).catch(() => {});
+  // Advance any shared friend streaks whose partner also studied today (#237)
+  markFriendStreakDay(parsed.userId).catch(() => {});
 
   // Reconstruct the FSRS card from persisted DB state (NOT a blank new card!)
   // This ensures the algorithm considers previous reviews for scheduling.

@@ -16,6 +16,7 @@ import {
   ChevronRight,
   Flame,
   Shield,
+  Users,
 } from "lucide-react-native";
 import { useColors, spacing, radius, typography } from "../src/theme";
 import { useSessionStore } from "../src/store/sessionStore";
@@ -324,6 +325,28 @@ export default function StreakCalendarScreen() {
           <Shield size={18} color={colors.warning} />
           <Text style={{ fontSize: typography.base, fontWeight: typography.semibold, color: colors.primary }}>
             {t("streakCal.buyFreeze")}
+          </Text>
+        </TouchableOpacity>
+
+        {/* Shortcut to shared friend streaks (#237) */}
+        <TouchableOpacity
+          onPress={() => router.push("/friend-streaks")}
+          activeOpacity={0.8}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: spacing.sm,
+            backgroundColor: colors.surface,
+            borderWidth: 1,
+            borderColor: colors.border,
+            borderRadius: radius.lg,
+            padding: spacing.lg,
+          }}
+        >
+          <Users size={18} color={colors.primary} />
+          <Text style={{ fontSize: typography.base, fontWeight: typography.semibold, color: colors.primary }}>
+            {t("streakCal.friendStreak")}
           </Text>
         </TouchableOpacity>
 

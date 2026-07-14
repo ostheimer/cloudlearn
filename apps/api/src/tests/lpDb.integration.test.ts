@@ -66,9 +66,16 @@ create table rewards_claimed (
   claimed_at timestamptz not null default now(),
   unique (user_id, reward_key)
 );
+create table friend_connections (
+  user_id uuid not null references profiles(id) on delete cascade,
+  friend_id uuid not null references profiles(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (user_id, friend_id)
+);
 `;
 
 const USER = "00000000-0000-4000-8000-000000000001";
+const FRIEND = "00000000-0000-4000-8000-000000000002";
 
 suite("LP SQL functions (real Postgres integration)", () => {
   let client: PgClient;
@@ -84,6 +91,7 @@ suite("LP SQL functions (real Postgres integration)", () => {
     await client.query(loadMigration("20260709120000_idempotent_lp_purchase.sql"));
     await client.query(loadMigration("20260713140000_streak_freeze.sql"));
     await client.query(loadMigration("20260714120000_streak_repair.sql"));
+    await client.query(loadMigration("20260714130000_friend_streaks.sql"));
   });
 
   afterEach(async () => {
@@ -375,6 +383,87 @@ suite("LP SQL functions (real Postgres integration)", () => {
       expect(rows[0]).toMatchObject({ allowed: false, error_code: "insufficient_lp" });
       const p = await profile();
       expect(p.broken_streak).toBe(12); // still repairable later
+    });
+  });
+
+  // ── friend streaks: invite/accept + shared-day progression + freeze save ──
+  describe("friend streaks", () => {
+    const LOW = USER < FRIEND ? USER : FRIEND;
+    const HIGH = USER < FRIEND ? FRIEND : USER;
+
+    async function seedPair(opts?: { userFreezes?: number; friendFreezes?: number }) {
+      await client.query(
+        "insert into profiles (id, streak_freezes) values ($1, $2), ($3, $4)",
+        [USER, opts?.userFreezes ?? 0, FRIEND, opts?.friendFreezes ?? 0]
+      );
+      await client.query(
+        "insert into friend_connections (user_id, friend_id) values ($1,$2),($2,$1)",
+        [USER, FRIEND]
+      );
+    }
+    async function activePair(opts?: { userFreezes?: number; friendFreezes?: number }) {
+      await seedPair(opts);
+      await client.query("select invite_friend_streak($1,$2)", [USER, FRIEND]);
+      await client.query("select accept_friend_streak($1,$2)", [FRIEND, USER]);
+    }
+    async function streak() {
+      const { rows } = await client.query(
+        "select status, current_streak, longest_streak from friend_streaks where user_low=$1 and user_high=$2",
+        [LOW, HIGH]
+      );
+      return rows[0];
+    }
+    const both = async (day: string) => {
+      await client.query(`select mark_friend_streak_day($1, ${day})`, [USER]);
+      await client.query(`select mark_friend_streak_day($1, ${day})`, [FRIEND]);
+    };
+
+    it("invite requires an existing friendship", async () => {
+      await client.query("insert into profiles (id) values ($1),($2)", [USER, FRIEND]);
+      const { rows } = await client.query("select invite_friend_streak($1,$2) as r", [USER, FRIEND]);
+      expect(rows[0].r).toBe("not_friends");
+    });
+
+    it("invite then accept activates it; only the invitee may accept", async () => {
+      await seedPair();
+      expect((await client.query("select invite_friend_streak($1,$2) as r", [USER, FRIEND])).rows[0].r).toBe("invited");
+      // the inviter cannot accept their own invite
+      expect((await client.query("select accept_friend_streak($1,$2) as r", [USER, FRIEND])).rows[0].r).toBe(false);
+      // the invitee can
+      expect((await client.query("select accept_friend_streak($1,$2) as r", [FRIEND, USER])).rows[0].r).toBe(true);
+      expect((await streak()).status).toBe("active");
+    });
+
+    it("advances only when both studied the same day", async () => {
+      await activePair();
+      await client.query("select mark_friend_streak_day($1, current_date)", [USER]);
+      expect((await streak()).current_streak).toBe(0); // partner hasn't studied
+      await client.query("select mark_friend_streak_day($1, current_date)", [FRIEND]);
+      expect((await streak()).current_streak).toBe(1);
+    });
+
+    it("counts a consecutive shared day once, ignoring repeat reviews", async () => {
+      await activePair();
+      await both("current_date");
+      await both("current_date + 1");
+      await client.query("select mark_friend_streak_day($1, current_date + 1)", [USER]); // repeat
+      expect((await streak()).current_streak).toBe(2);
+    });
+
+    it("bridges a one-day gap with a partner's freeze and consumes it", async () => {
+      await activePair({ friendFreezes: 1 });
+      await both("current_date");
+      await both("current_date + 2"); // day+1 missed → one shared day gap
+      expect((await streak()).current_streak).toBe(2);
+      const { rows } = await client.query("select streak_freezes from profiles where id=$1", [FRIEND]);
+      expect(rows[0].streak_freezes).toBe(0);
+    });
+
+    it("resets to 1 on a one-day gap when no one has a freeze", async () => {
+      await activePair();
+      await both("current_date");
+      await both("current_date + 2");
+      expect((await streak()).current_streak).toBe(1);
     });
   });
 
