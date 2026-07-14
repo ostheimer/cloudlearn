@@ -37,7 +37,7 @@ vi.mock("@/lib/observability", () => ({
   createRequestContext: () => ({ requestId: "req-cron-1" }),
 }));
 
-import { POST } from "../../app/api/v1/push/streak-alerts/route";
+import { POST, GET } from "../../app/api/v1/push/streak-alerts/route";
 import { sendStreakAlertNotifications } from "@/services/notificationService";
 
 const mockedSend = vi.mocked(sendStreakAlertNotifications);
@@ -46,6 +46,14 @@ function cronRequest(secret?: string) {
   return new Request("http://localhost/api/v1/push/streak-alerts", {
     method: "POST",
     headers: secret === undefined ? {} : { "x-cron-secret": secret },
+  }) as never;
+}
+
+// Vercel Cron hits the endpoint with a GET and an `Authorization: Bearer …`.
+function cronGetRequest(bearer?: string) {
+  return new Request("http://localhost/api/v1/push/streak-alerts", {
+    method: "GET",
+    headers: bearer === undefined ? {} : { authorization: bearer },
   }) as never;
 }
 
@@ -98,6 +106,48 @@ describe("POST /api/v1/push/streak-alerts – always-on cron secret (#205)", () 
     const response = await POST(cronRequest());
 
     expect(response.status).toBe(401);
+    expect(mockedSend).not.toHaveBeenCalled();
+  });
+});
+
+describe("GET /api/v1/push/streak-alerts – Vercel Cron (Authorization: Bearer)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedSend.mockResolvedValue({ sent: 3 });
+    envState.secret = "cron-secret";
+  });
+
+  it("sends alerts for the correct Bearer token (as Vercel Cron attaches)", async () => {
+    const response = await GET(cronGetRequest("Bearer cron-secret"));
+    const body = (await response.json()) as { sent: number };
+
+    expect(response.status).toBe(200);
+    expect(body.sent).toBe(3);
+    expect(mockedSend).toHaveBeenCalledOnce();
+  });
+
+  it("returns 401 for a wrong Bearer token", async () => {
+    const response = await GET(cronGetRequest("Bearer nope"));
+
+    expect(response.status).toBe(401);
+    expect(mockedSend).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 without an Authorization header", async () => {
+    const response = await GET(cronGetRequest());
+
+    expect(response.status).toBe(401);
+    expect(mockedSend).not.toHaveBeenCalled();
+  });
+
+  it("returns 503 when the secret is unset", async () => {
+    envState.secret = undefined;
+
+    const response = await GET(cronGetRequest("Bearer cron-secret"));
+    const body = (await response.json()) as { code: string };
+
+    expect(response.status).toBe(503);
+    expect(body.code).toBe("CRON_NOT_CONFIGURED");
     expect(mockedSend).not.toHaveBeenCalled();
   });
 });
