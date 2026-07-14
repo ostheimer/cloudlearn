@@ -6,6 +6,7 @@ import {
   buildOcclusionCardInputs,
   normalizeDragRect,
   isRegionLargeEnough,
+  parseOcclusionCard,
   type OcclusionRegion,
 } from "./occlusion";
 
@@ -126,5 +127,75 @@ describe("buildOcclusionCardInputs", () => {
       sourceImageUrl: "user-1/deck-1/img.png",
       front: "Bild-Occlusion: Was ist an der markierten Stelle?",
     });
+  });
+});
+
+describe("parseOcclusionCard", () => {
+  const validCard = {
+    id: "c1",
+    type: "occlusion",
+    back: "Blüte",
+    sourceImageUrl: "user-1/deck-1/img.png",
+    extraData: {
+      regions: [
+        { x: 0.1, y: 0.1, w: 0.2, h: 0.2, label: "Blüte" },
+        { x: 0.5, y: 0.5, w: 0.2, h: 0.2, label: "Wurzel" },
+      ],
+      hideIndex: 1,
+    },
+  };
+
+  it("parses a well-formed occlusion card into a study item", () => {
+    const item = parseOcclusionCard(validCard);
+    expect(item).toMatchObject({
+      id: "c1",
+      path: "user-1/deck-1/img.png",
+      hideIndex: 1,
+      label: "Blüte",
+    });
+    expect(item?.regions).toHaveLength(2);
+  });
+
+  it("prefers the editable card back over the frozen region label as the answer", () => {
+    const item = parseOcclusionCard({ ...validCard, back: "Angepasst" });
+    expect(item?.label).toBe("Angepasst");
+  });
+
+  it("falls back to the region label, then '?', when the back is empty", () => {
+    const fromRegion = parseOcclusionCard({ ...validCard, back: "" });
+    expect(fromRegion?.label).toBe("Wurzel");
+    const unlabeled = {
+      ...validCard,
+      back: "",
+      extraData: { regions: [{ x: 0, y: 0, w: 0.2, h: 0.2, label: "" }], hideIndex: 0 },
+    };
+    expect(parseOcclusionCard(unlabeled)?.label).toBe("?");
+  });
+
+  it("rejects non-occlusion cards and cards without an image", () => {
+    expect(parseOcclusionCard({ ...validCard, type: "basic" })).toBeNull();
+    expect(parseOcclusionCard({ id: "c", type: "occlusion", back: "x" })).toBeNull();
+  });
+
+  it("rejects malformed or out-of-range regions", () => {
+    expect(
+      parseOcclusionCard({ ...validCard, extraData: { regions: [], hideIndex: 0 } }),
+    ).toBeNull();
+    expect(
+      parseOcclusionCard({ ...validCard, extraData: { regions: [{ x: 0.1 }], hideIndex: 0 } }),
+    ).toBeNull();
+    expect(
+      parseOcclusionCard({ ...validCard, extraData: { regions: validCard.extraData.regions, hideIndex: 5 } }),
+    ).toBeNull();
+  });
+
+  it("defaults hideIndex to 0 when missing", () => {
+    const item = parseOcclusionCard({
+      ...validCard,
+      back: "",
+      extraData: { regions: validCard.extraData.regions },
+    });
+    expect(item?.hideIndex).toBe(0);
+    expect(item?.label).toBe("Blüte");
   });
 });

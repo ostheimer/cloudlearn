@@ -903,12 +903,13 @@ export default function DeckDetailScreen() {
                 <ChevronRight size={18} color={colors.textTertiary} />
               </TouchableOpacity>
 
-              {/* Occlusion — create image cards (Editor). Study mode follows in
-                  the next step; deckId is passed so cards land in THIS deck. */}
+              {/* Occlusion — study masked images. The learn screen sends you to
+                  the editor when the deck has no occlusion cards yet. deckId is
+                  passed so cards are read from / created in THIS deck (#207). */}
               <TouchableOpacity
                 onPress={() =>
                   router.push({
-                    pathname: "/occlusion-editor",
+                    pathname: "/occlusion",
                     params: { deckId, deckTitle },
                   })
                 }
@@ -920,7 +921,7 @@ export default function DeckDetailScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={studyModeTitleStyle}>Occlusion</Text>
-                  <Text style={studyModeDescStyle}>Bild abdecken & Karten erstellen</Text>
+                  <Text style={studyModeDescStyle}>Bildteile verdecken & abfragen</Text>
                 </View>
                 <ChevronRight size={18} color={colors.textTertiary} />
               </TouchableOpacity>

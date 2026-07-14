@@ -87,6 +87,50 @@ export function base64ToBytes(base64: string): Uint8Array {
 // tap or tiny drag is ignored. Same threshold the web editor uses.
 export const MIN_REGION_SIZE = 0.04;
 
+// A parsed occlusion card, ready for the study screen.
+export type OcclusionStudyItem = {
+  id: string;
+  path: string;
+  regions: OcclusionRegion[];
+  hideIndex: number;
+  label: string;
+};
+
+function isValidRegion(value: unknown): value is OcclusionRegion {
+  if (typeof value !== "object" || value === null) return false;
+  const r = value as Record<string, unknown>;
+  return (
+    typeof r.x === "number" &&
+    typeof r.y === "number" &&
+    typeof r.w === "number" &&
+    typeof r.h === "number"
+  );
+}
+
+// Turn a card into an occlusion study task, or null when it is not a usable
+// occlusion card (normal card, missing image, malformed regions, hideIndex out
+// of range). Mirrors the web study parser (apps/web/.../occlusion/page.tsx) so
+// cards created on either platform learn identically. The editable card back
+// wins over the frozen extraData label as the answer.
+export function parseOcclusionCard(card: {
+  id: string;
+  type: string;
+  back: string;
+  sourceImageUrl?: string;
+  extraData?: Record<string, unknown>;
+}): OcclusionStudyItem | null {
+  if (card.type !== "occlusion" || !card.sourceImageUrl) return null;
+
+  const raw = card.extraData?.regions;
+  const regions = Array.isArray(raw) && raw.every(isValidRegion) ? (raw as OcclusionRegion[]) : null;
+  const hideIndex = typeof card.extraData?.hideIndex === "number" ? card.extraData.hideIndex : 0;
+  const target = regions?.[hideIndex];
+  if (!regions || regions.length === 0 || !target) return null;
+
+  const label = (card.back || target.label || "").trim() || "?";
+  return { id: card.id, path: card.sourceImageUrl, regions, hideIndex, label };
+}
+
 // Turn a drag (start + current point, each in 0-1 image fractions) into a
 // normalized rectangle: top-left origin, positive width/height, clamped to the
 // image. Pure so the drawing math is unit-tested without a device.
