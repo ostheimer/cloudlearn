@@ -3336,8 +3336,18 @@ a.lp-pill:hover {
 .settings-grid {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  max-width: 620px;
+  gap: 16px;
+}
+/* Konto/Design/Tarif/Freunde nebeneinander (Desktop). Über die Spaltenbreite
+   fällt es am Handy automatisch auf eine Spalte zurück. Rangliste steht als
+   Geschwister außerhalb → volle Breite. */
+.settings-cols {
+  columns: 2 300px;
+  column-gap: 16px;
+}
+.settings-cols > .settings-card {
+  break-inside: avoid;
+  margin-bottom: 16px;
 }
 .settings-card {
   display: flex;
