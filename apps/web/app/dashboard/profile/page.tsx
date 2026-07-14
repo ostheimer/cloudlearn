@@ -120,6 +120,9 @@ export default function ProfilePage() {
       </div>
 
       <div className="settings-grid">
+        {/* Konto, Design, Tarif, Freunde in einem zweispaltigen Raster (Desktop);
+            am Handy automatisch eine Spalte. */}
+        <div className="settings-cols">
         {/* Konto */}
         <section className="panel settings-card">
           <div className="settings-card__head">
@@ -250,8 +253,9 @@ export default function ProfilePage() {
             <p className="muted">Dein Einladungs-Code wird geladen …</p>
           )}
         </section>
+        </div>
 
-        {/* Rangliste */}
+        {/* Rangliste (volle Breite) */}
         <section className="panel settings-card">
           <div className="settings-card__head">
             <Trophy size={18} /> Rangliste
