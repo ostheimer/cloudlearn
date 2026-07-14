@@ -3519,3 +3519,61 @@ a.lp-pill:hover {
 }
 .btn-danger:hover { background: #b91c1c; }
 .btn-danger:disabled { opacity: 0.6; cursor: default; }
+
+/* ── Streak-Kalender (/dashboard/streak-calendar) ────────────────────────── */
+.cal {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+.cal-wd {
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--ink-3);
+  padding: 2px 0 4px;
+}
+.cal-cell {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  color: var(--ink-2);
+  border: 2px solid transparent;
+  box-sizing: border-box;
+}
+.cal-cell--future {
+  color: var(--ink-4);
+}
+.cal-cell--learned {
+  background: var(--amber-50);
+  color: var(--amber);
+}
+.cal-cell--today {
+  border-color: var(--brand);
+}
+.cal-cell--frozen {
+  border: 2px dashed var(--amber);
+}
+.cal-chips {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.cal-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 12px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+.cal-chip--streak {
+  background: var(--amber-50);
+  border-color: transparent;
+}
+.cal-chip b {
+  font-size: 1.15rem;
+}
