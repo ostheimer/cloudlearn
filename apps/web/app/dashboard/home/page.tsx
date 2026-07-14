@@ -95,7 +95,8 @@ export default function HomePage() {
           gap: 12,
         }}
       >
-      <div
+      <Link
+        href="/dashboard/streak-calendar"
         style={{
           display: "flex",
           alignItems: "center",
@@ -103,6 +104,8 @@ export default function HomePage() {
           background: "rgba(99,102,241,0.10)",
           borderRadius: 14,
           padding: "14px 16px",
+          textDecoration: "none",
+          color: "inherit",
         }}
       >
         <span
@@ -130,7 +133,7 @@ export default function HomePage() {
               : "Lerne heute eine Karte, um zu beginnen"}
           </div>
         </div>
-      </div>
+      </Link>
 
       {/* Tagesziel */}
       <div style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 14, padding: "14px 16px" }}>
