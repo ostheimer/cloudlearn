@@ -441,3 +441,42 @@ export function earnLp(
     ),
   });
 }
+
+// ─── Rangliste (global) ────────────────────────────────────────────────────
+// Datenminimierung: keine rohen Nutzer-IDs — "bin das ich?" entscheidet der
+// Server (isCurrentUser).
+export interface LeaderboardEntry {
+  rank: number;
+  displayName: string;
+  avatarUrl: string | null;
+  lpBalance: number;
+  tier: "free" | "pro" | "lifetime";
+  currentStreak: number;
+  isCurrentUser: boolean;
+}
+export interface LeaderboardResponse {
+  entries: LeaderboardEntry[];
+  myRank: number;
+  total: number;
+}
+export function getLeaderboard(): Promise<LeaderboardResponse> {
+  return authed<LeaderboardResponse>("/api/v1/leaderboard/global");
+}
+
+// ─── Freunde einladen (Referral) ───────────────────────────────────────────
+export interface ReferralInfoResponse {
+  referralCode: string | null;
+  referredCount: number;
+  lpEarnedFromReferrals: number;
+}
+export function getReferralInfo(): Promise<ReferralInfoResponse> {
+  return authed<ReferralInfoResponse>("/api/v1/referral/info");
+}
+
+// ─── Konto löschen ─────────────────────────────────────────────────────────
+export interface DeleteAccountResponse {
+  deleted: boolean;
+}
+export function deleteAccount(): Promise<DeleteAccountResponse> {
+  return authed<DeleteAccountResponse>("/api/v1/account", { method: "DELETE" });
+}

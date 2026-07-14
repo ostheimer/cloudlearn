@@ -54,9 +54,17 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
+// Set the saved theme on <html> before first paint so a forced light/dark
+// choice doesn't flash the system theme first. "system" stores nothing → the
+// CSS media query decides.
+const themeScript = `try{var t=localStorage.getItem('clearn-theme');if(t==='dark'||t==='light'){document.documentElement.setAttribute('data-theme',t);}}catch(e){}`;
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="de">
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body>{children}</body>
     </html>
   );
