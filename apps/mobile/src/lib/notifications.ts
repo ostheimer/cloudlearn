@@ -1,5 +1,6 @@
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
+import { registerPushToken } from "./api";
 
 // Configure notification handler (show even when app is in foreground)
 Notifications.setNotificationHandler({
@@ -38,6 +39,28 @@ export async function requestNotificationPermissions(): Promise<boolean> {
     });
   }
 
+  return true;
+}
+
+/**
+ * Ask for notification permission (if still undecided) and, when granted,
+ * register this device's Expo push token with the backend — so server-sent
+ * pushes (friend-streak invites, streak reminders) can actually reach the
+ * user. This closes the gap where the app only ever *checked* permission and
+ * so never received a push. Returns true if notifications are enabled after.
+ */
+export async function enablePushNotifications(): Promise<boolean> {
+  const granted = await requestNotificationPermissions();
+  if (!granted) return false;
+  try {
+    const token = await Notifications.getExpoPushTokenAsync();
+    if (token.data) {
+      const platform = Platform.OS === "ios" ? "ios" : Platform.OS === "android" ? "android" : "web";
+      await registerPushToken(token.data, platform);
+    }
+  } catch {
+    // Token registration is best-effort; the permission itself is still granted.
+  }
   return true;
 }
 
