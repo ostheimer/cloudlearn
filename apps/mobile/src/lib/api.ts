@@ -900,6 +900,19 @@ export async function removeFriend(friendId: string): Promise<{ removed: boolean
   });
 }
 
+export interface AddFriendByCodeResponse {
+  added: boolean;
+  friend: { userId: string; displayName: string; avatarUrl: string | null };
+}
+
+// Add a friend by their share code (the referral code, reused as a friend code).
+export async function addFriendByCode(code: string): Promise<AddFriendByCodeResponse> {
+  return requestAuthenticated<AddFriendByCodeResponse>("/api/v1/friends/by-code", {
+    method: "POST",
+    body: JSON.stringify({ code }),
+  });
+}
+
 // ─── Friend Streaks (shared streaks, #237) ─────────────────────────────────────
 
 export interface FriendStreak {
