@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useLocalSearchParams, Stack } from "expo-router";
 import {
   ActivityIndicator,
@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 import {
   CheckCircle2,
   XCircle,
@@ -73,6 +74,7 @@ type Phase = "setup" | "play" | "summary";
 
 export default function ClozeScreen() {
   const colors = useColors();
+  const { t } = useTranslation();
   const { deckId, deckTitle } = useLocalSearchParams<{
     deckId: string;
     deckTitle: string;
@@ -80,6 +82,7 @@ export default function ClozeScreen() {
 
   const [allCards, setAllCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   // Settings chosen on the setup screen
   const [strict, setStrict] = useState(true);
@@ -104,20 +107,26 @@ export default function ClozeScreen() {
     setPhase("play");
   };
 
-  useEffect(() => {
+  const loadCards = useCallback(async () => {
     if (!deckId) return;
-    (async () => {
-      try {
-        const { cards: fetched } = await listCardsInDeck(deckId);
-        const usable = fetched.filter(hasTypeable);
-        setAllCards(usable);
-      } catch {
-        // Error — falls through to the "no cards" state below.
-      } finally {
-        setLoading(false);
-      }
-    })();
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const { cards: fetched } = await listCardsInDeck(deckId);
+      const usable = fetched.filter(hasTypeable);
+      setAllCards(usable);
+    } catch {
+      // Distinguish a load failure (offline / server error) from a deck that
+      // genuinely has no typeable cards, so we can offer a retry instead.
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
   }, [deckId]);
+
+  useEffect(() => {
+    loadCards();
+  }, [loadCards]);
 
   // Optional starred-only pool for this round.
   const starredCount = allCards.filter((c) => c.starred).length;
@@ -208,6 +217,50 @@ export default function ClozeScreen() {
           }}
         >
           <ActivityIndicator size="large" color={colors.primary} />
+        </SafeAreaView>
+      </>
+    );
+  }
+
+  // Load failed (offline / server error) — distinct from "no typeable cards".
+  if (loadError) {
+    return (
+      <>
+        {screenHeader("Lückentext")}
+        <SafeAreaView
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: colors.background,
+            padding: spacing.xxl,
+            gap: spacing.lg,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: typography.lg,
+              color: colors.textSecondary,
+              textAlign: "center",
+              lineHeight: 24,
+            }}
+          >
+            {t("common.loadError")}
+          </Text>
+          <TouchableOpacity
+            onPress={loadCards}
+            activeOpacity={0.8}
+            style={{
+              paddingVertical: spacing.md,
+              paddingHorizontal: spacing.xl,
+              borderRadius: radius.md,
+              backgroundColor: colors.surfaceSecondary,
+            }}
+          >
+            <Text style={{ color: colors.text, fontWeight: typography.semibold }}>
+              {t("common.retry")}
+            </Text>
+          </TouchableOpacity>
         </SafeAreaView>
       </>
     );

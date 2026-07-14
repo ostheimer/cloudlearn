@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import {
   ActivityIndicator,
   Alert,
@@ -170,11 +170,17 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
     }
   }, [userId]);
 
-  useEffect(() => {
-    loadDecks();
-    loadCourses();
-    loadFolders();
-  }, [loadDecks, loadCourses, loadFolders]);
+  // Reload whenever the tab regains focus so returning to the library (e.g.
+  // after creating or editing a deck elsewhere) shows fresh data — not just on
+  // first mount. The load callbacks are keyed to userId, so this focus callback
+  // is stable and won't loop; pull-to-refresh keeps working independently.
+  useFocusEffect(
+    useCallback(() => {
+      loadDecks();
+      loadCourses();
+      loadFolders();
+    }, [loadDecks, loadCourses, loadFolders])
+  );
 
   const filteredDecks = useMemo(() => searchDecks(decks, query), [decks, query]);
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocalSearchParams, Stack } from "expo-router";
 import {
   ActivityIndicator,
@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useTranslation } from "react-i18next";
 import {
   CheckCircle2,
   XCircle,
@@ -61,6 +62,7 @@ type Phase = "setup" | "play" | "result";
 
 export default function TestScreen() {
   const colors = useColors();
+  const { t } = useTranslation();
   const { deckId, deckTitle } = useLocalSearchParams<{
     deckId: string;
     deckTitle: string;
@@ -68,6 +70,7 @@ export default function TestScreen() {
 
   const [allCards, setAllCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [lastResult, setLastResult] = useState<number | null>(null);
 
   // Settings
@@ -114,23 +117,30 @@ export default function TestScreen() {
     [pool]
   );
 
+  const loadCards = useCallback(async () => {
+    if (!deckId) return;
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const { cards: fetched } = await listCardsInDeck(deckId);
+      setAllCards(fetched);
+    } catch {
+      // Distinguish a load failure (offline / server error) from a deck with no
+      // usable cards, so we can offer a retry instead of the empty state.
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [deckId]);
+
   useEffect(() => {
     if (!deckId) return;
-    (async () => {
-      try {
-        const { cards: fetched } = await listCardsInDeck(deckId);
-        setAllCards(fetched);
-      } catch {
-        // Error — "no cards" state below handles it.
-      } finally {
-        setLoading(false);
-      }
-    })();
+    loadCards();
     AsyncStorage.getItem(lastResultKey(deckId)).then((value) => {
       const n = value ? parseInt(value, 10) : NaN;
       if (!Number.isNaN(n)) setLastResult(n);
     });
-  }, [deckId]);
+  }, [deckId, loadCards]);
 
   // Default the question count to the maximum once cards are loaded.
   useEffect(() => {
@@ -258,6 +268,27 @@ export default function TestScreen() {
         {screenHeader("Test")}
         <SafeAreaView style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: colors.background }}>
           <ActivityIndicator size="large" color={colors.primary} />
+        </SafeAreaView>
+      </>
+    );
+  }
+
+  // Load failed (offline / server error) — distinct from "no usable cards".
+  if (loadError) {
+    return (
+      <>
+        {screenHeader("Test")}
+        <SafeAreaView style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: colors.background, padding: spacing.xxl, gap: spacing.lg }}>
+          <Text style={{ fontSize: typography.lg, color: colors.textSecondary, textAlign: "center", lineHeight: 24 }}>
+            {t("common.loadError")}
+          </Text>
+          <TouchableOpacity
+            onPress={loadCards}
+            activeOpacity={0.8}
+            style={{ paddingVertical: spacing.md, paddingHorizontal: spacing.xl, borderRadius: radius.md, backgroundColor: colors.surfaceSecondary }}
+          >
+            <Text style={{ color: colors.text, fontWeight: typography.semibold }}>{t("common.retry")}</Text>
+          </TouchableOpacity>
         </SafeAreaView>
       </>
     );

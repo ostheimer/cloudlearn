@@ -71,8 +71,10 @@ export function isAnswerCorrect(
   }
 
   // Forgiving: ignore case/accents/punctuation and tolerate small typos. The
-  // number of allowed typos grows with length, so a single missing letter in a
-  // longer answer ("Johan(n) Peter Salomon") always passes.
+  // typo budget scales with the *expected* answer's length (candidate), never the
+  // input — so a long wrong guess can't buy extra tolerance: under 8 chars needs
+  // an exact match, 8–15 allows one typo, 16+ allows two. That still accepts
+  // "diagram" for "diagramm" while "haus" no longer accepts "maus".
   const answer = normalizeAnswer(input);
   if (!answer) return false;
   return candidates
@@ -81,8 +83,6 @@ export function isAnswerCorrect(
     .some(
       (candidate) =>
         candidate === answer ||
-        (candidate.length >= 4 &&
-          levenshtein(answer, candidate) <=
-            Math.max(1, Math.floor(candidate.length / 8)))
+        levenshtein(answer, candidate) <= Math.floor(candidate.length / 8)
     );
 }
