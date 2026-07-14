@@ -35,6 +35,29 @@ describe("quizQuestions", () => {
     expect(imageQuestion?.options).toHaveLength(4);
   });
 
+  it("never offers a case-only variant of the correct label as an image distractor", () => {
+    // The image card's correct label is "Button"; another card carries the same
+    // word as "button". A case-only twin must never slip in as a wrong option —
+    // that would offer two options meaning the same thing.
+    const cards = [
+      { id: "c0", front: "Was ist das? ![T](https://example.com/t.png)", back: "Tooltip" },
+      { id: "c1", front: "Welches Element? ![X](https://example.com/x.png)", back: "Button" },
+      { id: "c2", front: "Und hier? ![Y](https://example.com/y.png)", back: "button" },
+      { id: "c3", front: "Wie heißt das? ![C](https://example.com/c.png)", back: "Card" },
+      { id: "c4", front: "Was zeigt das Bild? ![M](https://example.com/m.png)", back: "Modal" },
+    ];
+
+    // randomFn === 0 rotates the shuffle left by one, so "Button" (c1) is the
+    // image question and "button" (c2) sits in the distractor pool.
+    const questions = generateQuestions(cards, 5, undefined, () => 0);
+    const imageQuestion = questions.find((q) => q.type === "imageMc");
+
+    expect(imageQuestion).toBeTruthy();
+    expect(imageQuestion?.correctAnswer).toBe("Button");
+    expect(imageQuestion?.options).not.toContain("button");
+    expect(imageQuestion?.options.filter((o) => o === "Button")).toHaveLength(1);
+  });
+
   it("uses translated true/false labels from quiz copy", () => {
     const copy: QuizCopy = {
       trueLabel: "True",

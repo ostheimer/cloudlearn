@@ -143,10 +143,9 @@ export function buildTestQuestions(
   };
 
   const shuffled = shuffle(enriched, randomFn);
-  const limit = Math.min(options.count, shuffled.length);
   const questions: TestQuestion[] = [];
 
-  for (let i = 0; i < limit; i++) {
+  for (let i = 0; i < shuffled.length && questions.length < options.count; i++) {
     const current = shuffled[i]!;
 
     // Fill-in cards are always "fill the gap" (front sentence → missing word).
