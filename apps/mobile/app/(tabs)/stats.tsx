@@ -56,7 +56,7 @@ export default function StatsScreen() {
   const colors = useColors();
   const router = useRouter();
 
-  const [rangeDays, setRangeDays] = useState<7 | 30>(7);
+  const [rangeDays, setRangeDays] = useState<7 | 30>(30);
   const [stats, setStats] = useState<StatsWithDuration | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
