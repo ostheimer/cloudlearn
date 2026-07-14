@@ -38,16 +38,22 @@ export default function DeckStatsScreen() {
   const colors = useColors();
   const startReview = useReviewSession((s) => s.start);
 
+  const [rangeDays, setRangeDays] = useState<7 | 30>(30);
   const [stats, setStats] = useState<DeckStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  // Angetippter Verlaufspunkt (Index in accuracyByDay) — gilt nur innerhalb
+  // eines Zeitraums, wird beim Umschalten zurückgesetzt.
+  const [selectedTrendIndex, setSelectedTrendIndex] = useState<number | null>(
+    null
+  );
 
   const loadStats = useCallback(() => {
     if (!id) return () => {};
     let cancelled = false;
     setLoading(true);
     setError(false);
-    fetchDeckStats(id)
+    fetchDeckStats(id, rangeDays)
       .then((result) => {
         if (!cancelled) setStats(result);
       })
@@ -60,9 +66,15 @@ export default function DeckStatsScreen() {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, rangeDays]);
 
   useEffect(() => loadStats(), [loadStats]);
+
+  const switchRange = (days: 7 | 30) => {
+    if (days === rangeDays) return;
+    setSelectedTrendIndex(null); // Auswahl gilt nur im aktuellen Zeitraum
+    setRangeDays(days);
+  };
 
   const deckTitle = stats?.deck.title ?? title ?? "Deck";
   const answersTotal = stats?.answersTotal ?? 0;
@@ -137,13 +149,49 @@ export default function DeckStatsScreen() {
             </Text>
           </View>
 
-          {loading ? (
+          {/* Range switch: 7 / 30 days (identical to the main Statistik tab) */}
+          <View style={{ flexDirection: "row", gap: spacing.sm }}>
+            {([7, 30] as const).map((days) => {
+              const active = rangeDays === days;
+              return (
+                <TouchableOpacity
+                  key={days}
+                  onPress={() => switchRange(days)}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                  style={{
+                    flex: 1,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    paddingVertical: spacing.sm,
+                    borderRadius: radius.full,
+                    backgroundColor: active
+                      ? colors.primary
+                      : colors.surfaceSecondary,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: typography.sm,
+                      fontWeight: typography.semibold,
+                      color: active ? "#fff" : colors.textSecondary,
+                    }}
+                  >
+                    {days} Tage
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {loading && !stats ? (
             <ActivityIndicator
               size="large"
               color={colors.primary}
               style={{ marginTop: 40 }}
             />
-          ) : error ? (
+          ) : error && !stats ? (
             <View style={{ ...cardStyle, gap: spacing.md }}>
               <Text
                 style={{
@@ -181,8 +229,28 @@ export default function DeckStatsScreen() {
               </TouchableOpacity>
             </View>
           ) : stats ? (
-            <>
-              {/* Genauigkeit — ring + context + trend (30 Tage) */}
+            // While a range switch loads, the previous cards stay visible,
+            // slightly dimmed and not tappable (mirrors the Statistik tab).
+            <View
+              style={{ gap: spacing.lg, opacity: loading ? 0.55 : 1 }}
+              pointerEvents={loading ? "none" : "auto"}
+            >
+              {error ? (
+                <View
+                  style={{
+                    backgroundColor: colors.errorLight,
+                    borderRadius: radius.md,
+                    padding: spacing.md,
+                  }}
+                >
+                  <Text style={{ color: colors.error, fontSize: typography.sm }}>
+                    Aktualisieren fehlgeschlagen — es werden die letzten Daten
+                    angezeigt.
+                  </Text>
+                </View>
+              ) : null}
+
+              {/* Genauigkeit — ring + context + trend (gewähltes Fenster) */}
               <View style={{ ...cardStyle, gap: spacing.md }}>
                 <View
                   style={{
@@ -223,7 +291,7 @@ export default function DeckStatsScreen() {
                             color: colors.textSecondary,
                           }}
                         >
-                          in den letzten 30 Tagen
+                          {`in den letzten ${rangeDays} Tagen`}
                         </Text>
                       </View>
                     </View>
@@ -240,11 +308,17 @@ export default function DeckStatsScreen() {
                             color: colors.textTertiary,
                           }}
                         >
-                          Verlauf — letzte 30 Tage
+                          {`Verlauf — letzte ${rangeDays} Tage`}
                         </Text>
                         <AccuracyTrendChart
                           data={accuracyByDay}
-                          showAllDates={false}
+                          showAllDates={rangeDays === 7}
+                          selectedIndex={selectedTrendIndex}
+                          onPointPress={(i) =>
+                            setSelectedTrendIndex((cur) =>
+                              cur === i ? null : i
+                            )
+                          }
                         />
                       </View>
                     ) : (
@@ -279,8 +353,7 @@ export default function DeckStatsScreen() {
                         lineHeight: 20,
                       }}
                     >
-                      Noch keine Antworten in den letzten 30 Tagen — übe
-                      dieses Deck, dann füllt sich die Statistik.
+                      {`Noch keine Antworten in den letzten ${rangeDays} Tagen — übe dieses Deck, dann füllt sich die Statistik.`}
                     </Text>
                   </View>
                 )}
@@ -433,7 +506,7 @@ export default function DeckStatsScreen() {
                   Deck öffnen
                 </Text>
               </TouchableOpacity>
-            </>
+            </View>
           ) : null}
         </ScrollView>
       </SafeAreaView>

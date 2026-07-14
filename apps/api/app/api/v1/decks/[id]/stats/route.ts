@@ -10,9 +10,11 @@ interface Params {
 
 /**
  * GET /api/v1/decks/:id/stats — Statistik für EIN Deck (#246):
- * Antworten gesamt/richtig + Genauigkeits-Verlauf (letzte 30 Tage) und die
- * "Wackelkandidaten" (meist-falsch beantwortete Karten, inkl. front/back,
- * damit der Client eine Übungsrunde ohne weiteren Fetch starten kann).
+ * Antworten gesamt/richtig + Genauigkeits-Verlauf (gewähltes 7-/30-Tage-
+ * Fenster, Standard 30) und die "Wackelkandidaten" (meist-falsch beantwortete
+ * Karten, inkl. front/back, damit der Client eine Übungsrunde ohne weiteren
+ * Fetch starten kann). Die Wackelkandidaten sind bewusst all-time, nicht
+ * gefenstert.
  */
 export async function GET(request: NextRequest, { params }: Params) {
   const { requestId } = createRequestContext(request.headers);
@@ -28,8 +30,16 @@ export async function GET(request: NextRequest, { params }: Params) {
       return jsonError(requestId, "DECK_NOT_FOUND", "Deck not found", 404);
     }
 
+    // Whitelisted trend window: exactly 7 or 30 days. Absent or invalid values
+    // fall back to 30 — the historic window from before the param existed — so
+    // old clients that send no `?days=` keep their full 30-day series (mirrors
+    // the /api/v1/stats fix in #253). Only the accuracy trend is windowed; the
+    // Wackelkandidaten stay all-time.
+    const days: 7 | 30 =
+      new URL(request.url).searchParams.get("days") === "7" ? 7 : 30;
+
     const [stats, wobblyCards] = await Promise.all([
-      getDeckReviewStats(auth.userId, id, 30),
+      getDeckReviewStats(auth.userId, id, days),
       getDeckWobblyCards(auth.userId, id, 5),
     ]);
 
