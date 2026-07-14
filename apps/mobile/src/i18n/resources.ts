@@ -117,6 +117,13 @@ export const resources = {
       "streakCelebrate.subtitle": "Du bist unaufhaltsam. Weiter so!",
       "streakCelebrate.cta": "Weiter so",
 
+      // Notification permission prompt
+      "notifPrompt.title": "Bleib mit Freunden dran",
+      "notifPrompt.body": "Erlaube Benachrichtigungen, damit du erfährst, wenn dich jemand zu einem Streak einlädt oder eure gemeinsame Flamme zu reißen droht.",
+      "notifPrompt.allow": "Benachrichtigungen erlauben",
+      "notifPrompt.busy": "Moment…",
+      "notifPrompt.later": "Später",
+
       // Scan screen
       "scan.title": "Lernmaterial erfassen",
       "scan.resultTitle": "Ergebnis",
@@ -561,6 +568,13 @@ export const resources = {
       "streakCelebrate.title": "{{days}}-day streak!",
       "streakCelebrate.subtitle": "You're unstoppable. Keep it up!",
       "streakCelebrate.cta": "Keep going",
+
+      // Notification permission prompt
+      "notifPrompt.title": "Stay in it with friends",
+      "notifPrompt.body": "Turn on notifications so you hear when someone invites you to a streak or your shared flame is about to break.",
+      "notifPrompt.allow": "Allow notifications",
+      "notifPrompt.busy": "One moment…",
+      "notifPrompt.later": "Later",
 
       // Scan screen
       "scan.title": "Capture study material",
