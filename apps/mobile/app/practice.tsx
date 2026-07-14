@@ -43,6 +43,9 @@ export default function PracticeScreen() {
   const enqueueOfflineReview = useOfflineQueueStore((s) => s.enqueue);
   const setUsage = useUsageStore((s) => s.setUsage);
   const [saveError, setSaveError] = useState(false);
+  // Disables the rating buttons while a review is being submitted, so rapid
+  // taps can't rate the next (still unseen) cards. Mirrors the learn screen.
+  const [reviewLoading, setReviewLoading] = useState(false);
 
   // Cards rated since the last LP earn call — the server derives the actual
   // grant from recorded reviews (replay-safe), like on the learn screen.
@@ -80,6 +83,7 @@ export default function PracticeScreen() {
       cardId: result.cardId,
       rating,
     });
+    setReviewLoading(true);
     setSaveError(false);
     try {
       await reviewCard(userId, result.cardId, rating, queuedReview.payload);
@@ -91,6 +95,8 @@ export default function PracticeScreen() {
         // 4xx: surface it instead of dropping the answer silently.
         setSaveError(true);
       }
+    } finally {
+      setReviewLoading(false);
     }
   };
 
@@ -121,6 +127,7 @@ export default function PracticeScreen() {
   const ratingButton = (label: string, rating: ReviewRating, bgColor: string) => (
     <TouchableOpacity
       onPress={() => handleRate(rating)}
+      disabled={reviewLoading}
       activeOpacity={0.8}
       style={{
         flex: 1,

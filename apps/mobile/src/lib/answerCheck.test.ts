@@ -36,13 +36,16 @@ describe("isAnswerCorrect", () => {
   });
 
   it("tolerates a single typo in longer words", () => {
-    expect(isAnswerCorrect("moittie", "moitié")).toBe(true); // one extra letter
+    expect(isAnswerCorrect("diagram", "diagramm")).toBe(true); // one missing letter, 8-char answer
     expect(isAnswerCorrect("halfte", "Hälfte")).toBe(true); // umlaut dropped == exact
   });
 
   it("does not over-tolerate short words", () => {
     expect(isAnswerCorrect("de", "die")).toBe(false);
     expect(isAnswerCorrect("rot", "tot")).toBe(false);
+    // Words under 8 chars need an exact match now — one substitution is wrong.
+    expect(isAnswerCorrect("maus", "haus")).toBe(false);
+    expect(isAnswerCorrect("haus", "haus")).toBe(true);
   });
 
   it("accepts any listed alternative", () => {
