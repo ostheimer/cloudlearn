@@ -15,10 +15,7 @@ import {
 import { getStoredTheme, applyTheme, type ThemeChoice } from "@/lib/theme";
 import {
   User,
-  Lock,
   Trash,
-  Sparkles,
-  Star,
   Users,
   Copy,
   Check,
@@ -26,7 +23,10 @@ import {
   Flame,
   Zap,
   LogOut,
-  Globe,
+  ChevronRight,
+  ShieldCheck,
+  FileText,
+  HelpCircle,
   AlertTriangle,
 } from "@/components/icons";
 
@@ -54,15 +54,9 @@ export default function ProfilePage() {
 
   useEffect(() => {
     setTheme(getStoredTheme());
-    getLpBalance()
-      .then((u) => setTier(u.tier))
-      .catch(() => {});
-    getReferralInfo()
-      .then(setReferral)
-      .catch(() => {});
-    getLeaderboard()
-      .then(setBoard)
-      .catch(() => {});
+    getLpBalance().then((u) => setTier(u.tier)).catch(() => {});
+    getReferralInfo().then(setReferral).catch(() => {});
+    getLeaderboard().then(setBoard).catch(() => {});
   }, []);
 
   function chooseTheme(choice: ThemeChoice) {
@@ -119,180 +113,204 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <div className="settings-grid">
-        {/* Konto, Design, Tarif, Freunde in einem zweispaltigen Raster (Desktop);
-            am Handy automatisch eine Spalte. */}
-        <div className="settings-cols">
-        {/* Konto */}
-        <section className="panel settings-card">
-          <div className="settings-card__head">
-            <User size={18} /> Konto
+      <div className="settings">
+        {/* Profil-Kopf */}
+        <div className="pf-banner">
+          <span className="pf-banner__ava" aria-hidden>
+            <User size={26} />
+          </span>
+          <div style={{ minWidth: 0 }}>
+            <div className="pf-banner__mail">{email ?? "—"}</div>
+            <div className="pf-banner__sub">Angemeldet</div>
           </div>
-          <div className="settings-account">
-            <span className="profile-avatar" aria-hidden>
-              <User size={24} />
-            </span>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontWeight: 700 }}>Angemeldet als</div>
-              <div className="muted" style={{ overflowWrap: "anywhere" }}>
-                {email ?? "—"}
-              </div>
+        </div>
+
+        {/* Konto: Tarif, Design, Passwort */}
+        <div className="pf-card">
+          <div className="pf-row">
+            <div className="pf-row__t">
+              <b>Dein Tarif</b>
+              <span>Pro-Vorteile schaltest du in der clearn-App frei</span>
             </div>
-          </div>
-          <div className="profile-actions">
-            <button type="button" className="profile-row" onClick={handlePassword}>
-              <Lock size={18} /> {pwSent ? "E-Mail zum Zurücksetzen gesendet" : "Passwort ändern"}
-            </button>
-            <button type="button" className="profile-row" onClick={handleSignOut}>
-              <LogOut size={18} /> Abmelden
-            </button>
-            {!confirmDelete ? (
-              <button
-                type="button"
-                className="profile-row profile-row--danger"
-                onClick={() => setConfirmDelete(true)}
-              >
-                <Trash size={18} /> Konto löschen
-              </button>
-            ) : (
-              <div className="danger-confirm">
-                <div className="danger-confirm__head">
-                  <AlertTriangle size={18} /> Konto wirklich löschen?
-                </div>
-                <p className="muted">
-                  Dein Konto und alle Decks werden dauerhaft gelöscht. Das kann nicht rückgängig
-                  gemacht werden.
-                </p>
-                {deleteError && <p className="form-error">{deleteError}</p>}
-                <div className="danger-confirm__actions">
-                  <button
-                    type="button"
-                    className="btn btn-danger"
-                    onClick={handleDelete}
-                    disabled={deleting}
-                  >
-                    {deleting ? "Wird gelöscht…" : "Endgültig löschen"}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost"
-                    onClick={() => {
-                      setConfirmDelete(false);
-                      setDeleteError(null);
-                    }}
-                    disabled={deleting}
-                  >
-                    Abbrechen
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* Design */}
-        <section className="panel settings-card">
-          <div className="settings-card__head">
-            <Sparkles size={18} /> Design
-          </div>
-          <div className="seg" role="group" aria-label="Design">
-            {THEME_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                className={`seg__btn${theme === opt.value ? " is-on" : ""}`}
-                aria-pressed={theme === opt.value}
-                onClick={() => chooseTheme(opt.value)}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-          <p className="muted" style={{ fontSize: "0.85rem" }}>
-            „System" folgt deinem Gerät.
-          </p>
-        </section>
-
-        {/* Dein Tarif */}
-        <section className="panel settings-card">
-          <div className="settings-card__head">
-            <Star size={18} /> Dein Tarif
-          </div>
-          <div className="tier-row">
             <span className={`tier-badge tier-badge--${tier ?? "free"}`}>
               {tier ? (TIER_LABEL[tier] ?? tier) : "…"}
             </span>
-            {tier === "free" && (
-              <span className="muted" style={{ fontSize: "0.85rem" }}>
-                Pro-Vorteile schaltest du in der clearn-App frei.
-              </span>
-            )}
           </div>
-        </section>
 
-        {/* Freunde einladen */}
-        <section className="panel settings-card">
-          <div className="settings-card__head">
-            <Users size={18} /> Freunde einladen
-          </div>
-          {referral?.referralCode ? (
-            <>
-              <div className="ref-code-row">
-                <code className="ref-code">{referral.referralCode}</code>
-                <button type="button" className="btn btn-ghost" onClick={copyCode}>
-                  {copied ? <Check size={16} /> : <Copy size={16} />} {copied ? "Kopiert" : "Kopieren"}
+          <div className="pf-row">
+            <div className="pf-row__t">
+              <b>Design</b>
+              <span>Hell, Dunkel oder System</span>
+            </div>
+            <div className="seg" role="group" aria-label="Design">
+              {THEME_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  className={`seg__btn${theme === opt.value ? " is-on" : ""}`}
+                  aria-pressed={theme === opt.value}
+                  onClick={() => chooseTheme(opt.value)}
+                >
+                  {opt.label}
                 </button>
-              </div>
-              <p className="muted" style={{ fontSize: "0.85rem" }}>
-                +50 Lernpunkte, wenn deine Freundin 7 Tage lernt.
-                {referral.referredCount > 0 &&
-                  ` Bisher geworben: ${referral.referredCount} · verdient: ${referral.lpEarnedFromReferrals} LP.`}
-              </p>
-            </>
-          ) : (
-            <p className="muted">Dein Einladungs-Code wird geladen …</p>
-          )}
-        </section>
+              ))}
+            </div>
+          </div>
+
+          <div className="pf-row">
+            <div className="pf-row__t">
+              <b>Passwort</b>
+              <span>Setzt dein Passwort per E-Mail zurück</span>
+            </div>
+            <button type="button" className="btn btn-ghost" onClick={handlePassword}>
+              {pwSent ? "E-Mail gesendet" : "Ändern"}
+            </button>
+          </div>
         </div>
 
-        {/* Rangliste (volle Breite) */}
-        <section className="panel settings-card">
-          <div className="settings-card__head">
-            <Trophy size={18} /> Rangliste
-          </div>
-          {board ? (
-            <div className="lb">
-              {shownEntries.map((e) => (
-                <div key={e.rank} className={`lb-row${e.isCurrentUser ? " lb-row--me" : ""}`}>
-                  <span className="lb-row__rank">{e.rank}</span>
-                  <span className="lb-row__name">{e.isCurrentUser ? "Du" : e.displayName}</span>
-                  {e.currentStreak > 0 && (
-                    <span className="lb-row__streak">
-                      <Flame size={13} /> {e.currentStreak}
-                    </span>
-                  )}
-                  <span className="lb-row__lp">
-                    <Zap size={13} /> {e.lpBalance.toLocaleString("de-DE")}
-                  </span>
-                </div>
-              ))}
-              {!meShown && board.myRank > 0 && (
-                <div className="lb-row lb-row--me">
-                  <span className="lb-row__rank">{board.myRank}</span>
-                  <span className="lb-row__name">Du</span>
-                  <span className="lb-row__lp" />
-                </div>
-              )}
+        {/* Community: Freunde + Rangliste */}
+        <div className="pf-grid2">
+          <div className="pf-card pf-card--pad">
+            <div className="pf-card__head">
+              <span className="pf-ic pf-ic--green" aria-hidden>
+                <Users size={18} />
+              </span>
+              Freunde einladen
             </div>
-          ) : (
-            <p className="muted">Rangliste wird geladen …</p>
-          )}
-        </section>
+            {referral?.referralCode ? (
+              <>
+                <div className="ref-code-row">
+                  <code className="ref-code">{referral.referralCode}</code>
+                  <button type="button" className="btn btn-ghost" onClick={copyCode}>
+                    {copied ? <Check size={16} /> : <Copy size={16} />} {copied ? "Kopiert" : "Kopieren"}
+                  </button>
+                </div>
+                <p className="pf-card__sub" style={{ margin: "12px 0 0" }}>
+                  +50 Lernpunkte, wenn deine Freundin 7 Tage lernt.
+                  {referral.referredCount > 0 &&
+                    ` Bisher geworben: ${referral.referredCount} · verdient: ${referral.lpEarnedFromReferrals} LP.`}
+                </p>
+              </>
+            ) : (
+              <p className="muted">Dein Einladungs-Code wird geladen …</p>
+            )}
+          </div>
 
-        <div className="settings-card">
-          <a href="/" className="profile-row">
-            <Globe size={18} /> Zur Website
+          <div className="pf-card pf-card--pad">
+            <div className="pf-card__head">
+              <span className="pf-ic pf-ic--amber" aria-hidden>
+                <Trophy size={18} />
+              </span>
+              Rangliste
+            </div>
+            {board ? (
+              <div className="lb">
+                {shownEntries.map((e) => (
+                  <div key={e.rank} className={`lb-row${e.isCurrentUser ? " lb-row--me" : ""}`}>
+                    <span className="lb-row__rank">{e.rank}</span>
+                    <span className="lb-row__name">{e.isCurrentUser ? "Du" : e.displayName}</span>
+                    {e.currentStreak > 0 && (
+                      <span className="lb-row__streak">
+                        <Flame size={13} /> {e.currentStreak}
+                      </span>
+                    )}
+                    <span className="lb-row__lp">
+                      <Zap size={13} /> {e.lpBalance.toLocaleString("de-DE")}
+                    </span>
+                  </div>
+                ))}
+                {!meShown && board.myRank > 0 && (
+                  <div className="lb-row lb-row--me">
+                    <span className="lb-row__rank">{board.myRank}</span>
+                    <span className="lb-row__name">Du</span>
+                    <span className="lb-row__lp" />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="muted">Rangliste wird geladen …</p>
+            )}
+          </div>
+        </div>
+
+        {/* Hilfe & Rechtliches */}
+        <div className="pf-card">
+          <div className="pf-card__label">Hilfe &amp; Rechtliches</div>
+          <a className="pf-navrow" href="/support">
+            <span className="pf-ic pf-ic--indigo" aria-hidden>
+              <HelpCircle size={18} />
+            </span>
+            <div className="pf-navrow__t">
+              <b>Support</b>
+              <span>Fragen zu Konto, Käufen oder Import</span>
+            </div>
+            <ChevronRight size={18} />
           </a>
+          <a className="pf-navrow" href="/privacy">
+            <span className="pf-ic pf-ic--green" aria-hidden>
+              <ShieldCheck size={18} />
+            </span>
+            <div className="pf-navrow__t">
+              <b>Datenschutz</b>
+              <span>So verarbeitet clearn deine Daten</span>
+            </div>
+            <ChevronRight size={18} />
+          </a>
+          <a className="pf-navrow" href="/impressum">
+            <span className="pf-ic pf-ic--amber" aria-hidden>
+              <FileText size={18} />
+            </span>
+            <div className="pf-navrow__t">
+              <b>Impressum</b>
+              <span>Kontakt und Anbieterangaben</span>
+            </div>
+            <ChevronRight size={18} />
+          </a>
+        </div>
+
+        {/* Konto löschen + Abmelden */}
+        <div className="pf-bottom">
+          {!confirmDelete ? (
+            <button type="button" className="pf-danger" onClick={() => setConfirmDelete(true)}>
+              <span className="pf-ic pf-ic--danger" aria-hidden>
+                <Trash size={18} />
+              </span>
+              <div className="pf-danger__t">
+                <b>Konto löschen</b>
+                <span>Löscht Konto, Decks, Karten und Lernfortschritt endgültig</span>
+              </div>
+            </button>
+          ) : (
+            <div className="danger-confirm">
+              <div className="danger-confirm__head">
+                <AlertTriangle size={18} /> Konto wirklich löschen?
+              </div>
+              <p className="muted">
+                Dein Konto und alle Decks werden dauerhaft gelöscht. Das kann nicht rückgängig
+                gemacht werden.
+              </p>
+              {deleteError && <p className="form-error">{deleteError}</p>}
+              <div className="danger-confirm__actions">
+                <button type="button" className="btn btn-danger" onClick={handleDelete} disabled={deleting}>
+                  {deleting ? "Wird gelöscht…" : "Endgültig löschen"}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => {
+                    setConfirmDelete(false);
+                    setDeleteError(null);
+                  }}
+                  disabled={deleting}
+                >
+                  Abbrechen
+                </button>
+              </div>
+            </div>
+          )}
+          <button type="button" className="pf-danger pf-danger--plain" onClick={handleSignOut}>
+            <LogOut size={18} /> Abmelden
+          </button>
         </div>
       </div>
     </>

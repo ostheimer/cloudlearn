@@ -187,6 +187,14 @@ export const ShieldCheck = (p: IconProps) => (
   </Icon>
 );
 
+export const HelpCircle = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M9.2 9.3a2.8 2.8 0 1 1 3.6 2.7c-.9.3-1.3 1-1.3 1.8v.4" />
+    <path d="M12 17h.01" />
+  </Icon>
+);
+
 export const Lock = (p: IconProps) => (
   <Icon {...p}>
     <rect x="4" y="10" width="16" height="11" rx="2" />
