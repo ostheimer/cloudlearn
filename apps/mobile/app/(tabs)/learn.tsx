@@ -57,6 +57,7 @@ import { cleanTerm } from "../../src/lib/cardTerms";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
 import { useMilestoneToast } from "../../src/features/milestones/useMilestoneToast";
 import { MilestoneToastView } from "../../src/components/MilestoneToast";
+import { MilestoneCelebration } from "../../src/components/MilestoneCelebration";
 import {
   createReviewSyncOperation,
   syncPendingReviewOperations,
@@ -374,7 +375,13 @@ function AuthenticatedLearnScreen({
 
   const deductLp = useUsageStore((s) => s.deductLp);
   const setUsage = useUsageStore((s) => s.setUsage);
-  const { toast: milestoneToast, checkStreakMilestones, claimOnceMilestone } = useMilestoneToast();
+  const {
+    toast: milestoneToast,
+    celebration: milestoneCelebration,
+    dismissCelebration,
+    checkStreakMilestones,
+    claimOnceMilestone,
+  } = useMilestoneToast();
 
   useEffect(() => {
     if (completed && autoPlaying) setAutoPlaying(false);
@@ -945,6 +952,7 @@ function AuthenticatedLearnScreen({
         </View>
       </SafeAreaView>
       <MilestoneToastView toast={milestoneToast} />
+      <MilestoneCelebration celebration={milestoneCelebration} onDismiss={dismissCelebration} />
     </GestureHandlerRootView>
   );
 }

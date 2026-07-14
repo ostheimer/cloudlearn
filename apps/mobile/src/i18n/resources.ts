@@ -111,6 +111,11 @@ export const resources = {
       "streakCal.buyFreeze": "Streak-Schutz kaufen",
       "streakCal.loadError": "Kalender konnte nicht geladen werden.",
 
+      // Streak milestone celebration
+      "streakCelebrate.title": "{{days}} Tage Streak!",
+      "streakCelebrate.subtitle": "Du bist unaufhaltsam. Weiter so!",
+      "streakCelebrate.cta": "Weiter so",
+
       // Scan screen
       "scan.title": "Lernmaterial erfassen",
       "scan.resultTitle": "Ergebnis",
@@ -549,6 +554,11 @@ export const resources = {
       "streakCal.legendEmpty": "empty = not learned",
       "streakCal.buyFreeze": "Buy streak freeze",
       "streakCal.loadError": "Could not load the calendar.",
+
+      // Streak milestone celebration
+      "streakCelebrate.title": "{{days}}-day streak!",
+      "streakCelebrate.subtitle": "You're unstoppable. Keep it up!",
+      "streakCelebrate.cta": "Keep going",
 
       // Scan screen
       "scan.title": "Capture study material",

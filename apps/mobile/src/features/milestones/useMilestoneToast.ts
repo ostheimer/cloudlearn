@@ -18,12 +18,16 @@ const STREAK_MILESTONES: Array<{ streak: number; key: "streak_7" | "streak_30" |
 export interface UseMilestoneToastReturn {
   toast: MilestoneToast | null;
   dismissToast: () => void;
+  // Full-screen celebration for streak milestones (7/30/100); stays until tapped.
+  celebration: MilestoneToast | null;
+  dismissCelebration: () => void;
   checkStreakMilestones: (currentStreak: number) => Promise<void>;
   claimOnceMilestone: (key: "first_deck" | "first_review") => Promise<void>;
 }
 
 export function useMilestoneToast(): UseMilestoneToastReturn {
   const [toast, setToast] = useState<MilestoneToast | null>(null);
+  const [celebration, setCelebration] = useState<MilestoneToast | null>(null);
   const lpBalance = useUsageStore((s) => s.lpBalance);
   const setUsage = useUsageStore((s) => s.setUsage);
 
@@ -39,11 +43,12 @@ export function useMilestoneToast(): UseMilestoneToastReturn {
         const result = await claimMilestone(key).catch(() => null);
         if (result && !result.alreadyClaimed && result.granted > 0) {
           setUsage({ lpBalance: lpBalance + result.granted });
-          showToast(key, result.granted);
+          // Streak milestones earn the big moment; smaller ones stay a toast.
+          setCelebration({ key, lpGranted: result.granted, label: key });
         }
       }
     }
-  }, [lpBalance, setUsage, showToast]);
+  }, [lpBalance, setUsage]);
 
   const claimOnceMilestone = useCallback(async (key: "first_deck" | "first_review") => {
     const result = await claimMilestone(key).catch(() => null);
@@ -54,6 +59,7 @@ export function useMilestoneToast(): UseMilestoneToastReturn {
   }, [lpBalance, setUsage, showToast]);
 
   const dismissToast = useCallback(() => setToast(null), []);
+  const dismissCelebration = useCallback(() => setCelebration(null), []);
 
-  return { toast, dismissToast, checkStreakMilestones, claimOnceMilestone };
+  return { toast, dismissToast, celebration, dismissCelebration, checkStreakMilestones, claimOnceMilestone };
 }
