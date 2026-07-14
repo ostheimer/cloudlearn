@@ -4,6 +4,8 @@ import {
   occlusionImagePath,
   base64ToBytes,
   buildOcclusionCardInputs,
+  normalizeDragRect,
+  isRegionLargeEnough,
   type OcclusionRegion,
 } from "./occlusion";
 
@@ -52,6 +54,34 @@ describe("base64ToBytes", () => {
     expect(Array.from(base64ToBytes(withWhitespace))).toEqual(
       Array.from(Buffer.from("occlusion", "utf8")),
     );
+  });
+});
+
+describe("normalizeDragRect", () => {
+  it("returns a top-left origin with positive width/height regardless of drag direction", () => {
+    for (const r of [normalizeDragRect(0.2, 0.3, 0.6, 0.7), normalizeDragRect(0.6, 0.7, 0.2, 0.3)]) {
+      expect(r.x).toBeCloseTo(0.2, 6);
+      expect(r.y).toBeCloseTo(0.3, 6);
+      expect(r.w).toBeCloseTo(0.4, 6);
+      expect(r.h).toBeCloseTo(0.4, 6);
+    }
+  });
+
+  it("clamps points that leave the image bounds", () => {
+    const r = normalizeDragRect(-0.5, 0.5, 1.4, 1.2);
+    expect(r.x).toBeCloseTo(0, 6);
+    expect(r.y).toBeCloseTo(0.5, 6);
+    expect(r.w).toBeCloseTo(1, 6);
+    expect(r.h).toBeCloseTo(0.5, 6);
+  });
+});
+
+describe("isRegionLargeEnough", () => {
+  it("rejects a tap or hairline drag but accepts a real box", () => {
+    expect(isRegionLargeEnough(0, 0)).toBe(false);
+    expect(isRegionLargeEnough(0.02, 0.2)).toBe(false);
+    expect(isRegionLargeEnough(0.2, 0.02)).toBe(false);
+    expect(isRegionLargeEnough(0.1, 0.1)).toBe(true);
   });
 });
 

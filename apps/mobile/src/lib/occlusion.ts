@@ -83,6 +83,36 @@ export function base64ToBytes(base64: string): Uint8Array {
   return bytes;
 }
 
+// Smallest box (as a fraction of the image) that counts as a real region — a
+// tap or tiny drag is ignored. Same threshold the web editor uses.
+export const MIN_REGION_SIZE = 0.04;
+
+// Turn a drag (start + current point, each in 0-1 image fractions) into a
+// normalized rectangle: top-left origin, positive width/height, clamped to the
+// image. Pure so the drawing math is unit-tested without a device.
+export function normalizeDragRect(
+  sx: number,
+  sy: number,
+  x: number,
+  y: number,
+): { x: number; y: number; w: number; h: number } {
+  const clamp = (n: number) => Math.min(1, Math.max(0, n));
+  const cx0 = clamp(sx);
+  const cy0 = clamp(sy);
+  const cx1 = clamp(x);
+  const cy1 = clamp(y);
+  return {
+    x: Math.min(cx0, cx1),
+    y: Math.min(cy0, cy1),
+    w: Math.abs(cx1 - cx0),
+    h: Math.abs(cy1 - cy0),
+  };
+}
+
+export function isRegionLargeEnough(w: number, h: number): boolean {
+  return w > MIN_REGION_SIZE && h > MIN_REGION_SIZE;
+}
+
 // Turn a picked image + drawn regions into one occlusion card per region. Each
 // card hides exactly its own region (hideIndex) but carries the full region
 // list, so the study screen can also mask the *other* regions when the learner

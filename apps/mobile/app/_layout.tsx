@@ -509,6 +509,15 @@ export default function RootLayout() {
               }}
             />
             <Stack.Screen
+              name="occlusion-editor"
+              options={{
+                headerShown: true,
+                headerBackTitle: "Zurück",
+                headerTintColor,
+                headerStyle,
+              }}
+            />
+            <Stack.Screen
               name="paywall"
               options={{
                 headerShown: true,
