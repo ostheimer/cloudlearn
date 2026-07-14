@@ -61,6 +61,10 @@ export default function StatsScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  // Angetippter Verlaufspunkt (Index in accData) — analog zum Balken-Detail.
+  const [selectedTrendIndex, setSelectedTrendIndex] = useState<number | null>(
+    null
+  );
 
   // ─── "Pro Deck" summaries (fixed 30-day window, weakest deck first) ──────
   const [deckSummaries, setDeckSummaries] = useState<DeckSummary[] | null>(null);
@@ -110,6 +114,7 @@ export default function StatsScreen() {
   const switchRange = (days: 7 | 30) => {
     if (days === rangeDays) return;
     setSelectedDate(null); // Auswahl gilt nur innerhalb eines Zeitraums
+    setSelectedTrendIndex(null);
     setRangeDays(days);
   };
 
@@ -518,6 +523,10 @@ export default function StatsScreen() {
                       <AccuracyTrendChart
                         data={accData}
                         showAllDates={rangeDays === 7}
+                        selectedIndex={selectedTrendIndex}
+                        onPointPress={(i) =>
+                          setSelectedTrendIndex((cur) => (cur === i ? null : i))
+                        }
                       />
                     </View>
                   ) : (

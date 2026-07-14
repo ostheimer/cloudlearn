@@ -90,9 +90,16 @@ export interface DeckStats {
   wobblyCards: DeckWobblyCard[];
 }
 
-/** GET /api/v1/decks/:id/stats — Statistik für EIN Deck (letzte 30 Tage). */
-export async function fetchDeckStats(deckId: string): Promise<DeckStats> {
+/**
+ * GET /api/v1/decks/:id/stats?days=… — Statistik für EIN Deck im gewählten
+ * 7- oder 30-Tage-Fenster (Standard 30). Nur der Genauigkeits-Verlauf ist
+ * gefenstert; die Wackelkandidaten bleiben all-time.
+ */
+export async function fetchDeckStats(
+  deckId: string,
+  days: 7 | 30 = 30
+): Promise<DeckStats> {
   return requestAuthenticated<DeckStats>(
-    `/api/v1/decks/${encodeURIComponent(deckId)}/stats`
+    `/api/v1/decks/${encodeURIComponent(deckId)}/stats?days=${days}`
   );
 }

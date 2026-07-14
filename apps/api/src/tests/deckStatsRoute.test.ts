@@ -100,8 +100,9 @@ const SUMMARIES = [
   { deckId: "33333333-3333-4333-8333-333333333333", title: "Latein", answersTotal: 0, accuracyRate: 0 },
 ];
 
-function deckStatsRequest() {
-  return new Request(`http://localhost/api/v1/decks/${DECK_ID}/stats`, {
+function deckStatsRequest(days?: string) {
+  const query = days === undefined ? "" : `?days=${encodeURIComponent(days)}`;
+  return new Request(`http://localhost/api/v1/decks/${DECK_ID}/stats${query}`, {
     method: "GET",
   }) as never;
 }
@@ -167,6 +168,42 @@ describe("GET /api/v1/decks/:id/stats", () => {
       wobblyCards: WOBBLY_CARDS,
     });
     expect(mockedGetDeckReviewStats).toHaveBeenCalledWith(AUTH_USER_ID, DECK_ID, 30);
+    expect(mockedGetDeckWobblyCards).toHaveBeenCalledWith(AUTH_USER_ID, DECK_ID, 5);
+  });
+
+  it("defaults to the 30-day window without a days param (old clients)", async () => {
+    await getDeckStatsRoute(deckStatsRequest(), deckParams());
+
+    expect(mockedGetDeckReviewStats).toHaveBeenCalledWith(AUTH_USER_ID, DECK_ID, 30);
+  });
+
+  it("passes ?days=7 through to getDeckReviewStats", async () => {
+    await getDeckStatsRoute(deckStatsRequest("7"), deckParams());
+
+    expect(mockedGetDeckReviewStats).toHaveBeenCalledWith(AUTH_USER_ID, DECK_ID, 7);
+  });
+
+  it("passes ?days=30 through to getDeckReviewStats", async () => {
+    await getDeckStatsRoute(deckStatsRequest("30"), deckParams());
+
+    expect(mockedGetDeckReviewStats).toHaveBeenCalledWith(AUTH_USER_ID, DECK_ID, 30);
+  });
+
+  it("treats a non-whitelisted value (?days=999) like 30", async () => {
+    await getDeckStatsRoute(deckStatsRequest("999"), deckParams());
+
+    expect(mockedGetDeckReviewStats).toHaveBeenCalledWith(AUTH_USER_ID, DECK_ID, 30);
+  });
+
+  it("treats a garbage value (?days=abc) like 30", async () => {
+    await getDeckStatsRoute(deckStatsRequest("abc"), deckParams());
+
+    expect(mockedGetDeckReviewStats).toHaveBeenCalledWith(AUTH_USER_ID, DECK_ID, 30);
+  });
+
+  it("keeps the Wackelkandidaten all-time (limit 5) regardless of days", async () => {
+    await getDeckStatsRoute(deckStatsRequest("7"), deckParams());
+
     expect(mockedGetDeckWobblyCards).toHaveBeenCalledWith(AUTH_USER_ID, DECK_ID, 5);
   });
 });
