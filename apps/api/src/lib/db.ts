@@ -154,6 +154,10 @@ export async function listDecks(userId: string): Promise<DeckRecord[]> {
   const { data, error } = await db
     .from("decks")
     .select("*, cards(count)")
+    // Bild-Occlusion-Karten sind ein eigener Modus und zählen nicht als „Karten"
+    // des Decks (der eingebettete Zähler filtert sie deshalb aus). Decks, die nur
+    // Bild-Karten haben, erscheinen weiterhin mit Zähler 0.
+    .neq("cards.card_type", "occlusion")
     .eq("user_id", userId)
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
