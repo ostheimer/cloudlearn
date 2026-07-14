@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
-import { ArrowLeft, Bell, Check, Clock, Flame, UserPlus, Users } from "lucide-react-native";
+import { ArrowLeft, Bell, Check, Clock, Flame, UserPlus, Users, X } from "lucide-react-native";
 import { useColors, spacing, radius, typography } from "../src/theme";
 import { useSessionStore } from "../src/store/sessionStore";
 import {
@@ -220,15 +220,45 @@ export default function FriendStreaksScreen() {
               </View>
             ))}
 
-            {/* Invites I sent, still pending */}
+            {/* Invites I sent, still pending — nudge to accept or withdraw */}
             {sent.map((s) => (
-              <View key={s.friendId} style={{ backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, flexDirection: "row", alignItems: "center", gap: spacing.md }}>
-                <Avatar id={s.friendId} name={s.displayName} size={40} />
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: typography.base, fontWeight: typography.semibold, color: colors.text }}>{s.displayName}</Text>
-                  <Text style={{ fontSize: typography.sm, color: colors.textSecondary }}>Einladung gesendet – wartet auf Antwort</Text>
+              <View key={s.friendId} style={{ backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, gap: spacing.md }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.md }}>
+                  <Avatar id={s.friendId} name={s.displayName} size={40} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: typography.base, fontWeight: typography.semibold, color: colors.text }}>{s.displayName}</Text>
+                    <Text style={{ fontSize: typography.sm, color: colors.textSecondary }}>Einladung gesendet – wartet auf Antwort</Text>
+                  </View>
+                  <Clock size={18} color={colors.textTertiary} />
                 </View>
-                <Clock size={18} color={colors.textTertiary} />
+                <View style={{ flexDirection: "row", gap: spacing.sm }}>
+                  <TouchableOpacity
+                    onPress={() => runAction(s.friendId, async () => {
+                      const res = await remindFriendStreak(s.friendId);
+                      Alert.alert("Freunde-Streak", res.sent ? `${s.displayName} wurde erinnert.` : `${s.displayName} lässt sich gerade nicht erreichen.`);
+                    })}
+                    disabled={busyId === s.friendId}
+                    style={{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: colors.primaryLight, borderRadius: radius.md, paddingVertical: spacing.sm }}
+                  >
+                    <Bell size={15} color={colors.primary} />
+                    <Text style={{ fontSize: typography.sm, fontWeight: typography.semibold, color: colors.primary }}>Erinnern</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => Alert.alert(
+                      "Einladung zurückziehen?",
+                      `Deine Einladung an ${s.displayName} wird entfernt.`,
+                      [
+                        { text: "Abbrechen", style: "cancel" },
+                        { text: "Zurückziehen", style: "destructive", onPress: () => runAction(s.friendId, () => leaveFriendStreak(s.friendId)) },
+                      ]
+                    )}
+                    disabled={busyId === s.friendId}
+                    style={{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: colors.surfaceSecondary, borderRadius: radius.md, paddingVertical: spacing.sm }}
+                  >
+                    <X size={15} color={colors.textSecondary} />
+                    <Text style={{ fontSize: typography.sm, fontWeight: typography.semibold, color: colors.textSecondary }}>Zurückziehen</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             ))}
 
