@@ -22,9 +22,10 @@ import {
   TrendingUp,
   Award,
   Shield,
+  Users,
 } from "lucide-react-native";
 import { useSessionStore } from "../../src/store/sessionStore";
-import { getStats, listDecks, buyStreakRepair, isApiError, type StatsResponse, type Deck } from "../../src/lib/api";
+import { getStats, listDecks, getFriendStreaks, buyStreakRepair, isApiError, type StatsResponse, type Deck, type FriendStreak } from "../../src/lib/api";
 import { getLastUsedDeck, type LastUsedDeck } from "../../src/lib/lastUsedDeck";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
 import { LpBadge } from "../../src/components/LpBadge";
@@ -39,6 +40,7 @@ export default function HomeScreen() {
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [recentDeck, setRecentDeck] = useState<Deck | null>(null);
   const [lastUsed, setLastUsed] = useState<LastUsedDeck | null>(null);
+  const [friendStreaks, setFriendStreaks] = useState<FriendStreak[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [repairing, setRepairing] = useState(false);
@@ -65,6 +67,11 @@ export default function HomeScreen() {
           stored && res.decks.some((d) => d.id === stored.id) ? stored : null
         );
       }),
+      // Friend streaks power the Freunde tile + the "partner waiting" nudge.
+      // Self-contained catch so a social hiccup never breaks the Home load.
+      getFriendStreaks()
+        .then((res) => setFriendStreaks(res.streaks))
+        .catch(() => setFriendStreaks([])),
     ])
       .catch((e) => setError(String(e)))
       .finally(() => setLoading(false));
@@ -84,6 +91,13 @@ export default function HomeScreen() {
   const repairAvailable = stats?.repairAvailable ?? false;
   const repairBrokenStreak = stats?.repairBrokenStreak ?? 0;
   const repairCost = stats?.repairCost ?? 40;
+
+  // Friend-streak summary for Home: the best shared streak drives the tile,
+  // and a partner who studied today (while you haven't) drives the nudge.
+  const activeFriendStreaks = friendStreaks.filter((s) => s.status === "active");
+  const bestFriendStreak = activeFriendStreaks.reduce((max, s) => Math.max(max, s.currentStreak), 0);
+  const waitingPartner =
+    activeFriendStreaks.find((s) => s.friendStudiedToday && !s.youStudiedToday) ?? null;
 
   const handleRepair = useCallback(() => {
     Alert.alert(
@@ -461,6 +475,35 @@ export default function HomeScreen() {
               ) : null}
             </TouchableOpacity>
 
+            {/* Friend-streak nudge — partner studied today, you haven't yet (#237) */}
+            {waitingPartner ? (
+              <TouchableOpacity
+                onPress={() => router.push("/friend-streaks")}
+                activeOpacity={0.8}
+                style={{
+                  backgroundColor: colors.warningLight,
+                  borderRadius: radius.lg,
+                  borderWidth: 1,
+                  borderColor: colors.warning,
+                  padding: spacing.md,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: spacing.md,
+                }}
+              >
+                <Users size={20} color={colors.warning} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: typography.sm, fontWeight: typography.semibold, color: colors.text }}>
+                    {waitingPartner.displayName} hat heute gelernt
+                  </Text>
+                  <Text style={{ fontSize: typography.xs, color: colors.textSecondary, marginTop: 1 }}>
+                    Lern auch du, damit eure Flamme weiterbrennt
+                  </Text>
+                </View>
+                <ChevronRight size={18} color={colors.textTertiary} />
+              </TouchableOpacity>
+            ) : null}
+
             {/* Daily goal progress */}
             <View
               style={{
@@ -523,9 +566,11 @@ export default function HomeScreen() {
 
             {/* Stats cards row */}
             <View style={{ flexDirection: "row", gap: spacing.sm }}>
-              {/* Due cards — pure stat. Which decks are due shows as badges in
-                  the Bibliothek; learning always starts from a deck. */}
-              <View
+              {/* Freunde — replaces the old dead "Fällig" tile; the due count
+                  now rides on the Bibliothek tile below. Opens shared streaks. */}
+              <TouchableOpacity
+                onPress={() => router.push("/friend-streaks")}
+                activeOpacity={0.8}
                 style={{
                   flex: 1,
                   backgroundColor: colors.surface,
@@ -533,7 +578,7 @@ export default function HomeScreen() {
                   padding: spacing.md,
                   alignItems: "center",
                   borderWidth: 1,
-                  borderColor: colors.border,
+                  borderColor: waitingPartner ? colors.warning : colors.border,
                   ...shadows.sm,
                 }}
               >
@@ -542,26 +587,28 @@ export default function HomeScreen() {
                     width: 36,
                     height: 36,
                     borderRadius: radius.sm,
-                    backgroundColor: dueCount > 0 ? colors.primaryLight : colors.surfaceSecondary,
+                    backgroundColor: colors.primaryLight,
                     justifyContent: "center",
                     alignItems: "center",
                     marginBottom: spacing.sm,
                   }}
                 >
-                  <BookOpen
-                    size={18}
-                    color={dueCount > 0 ? colors.primary : colors.textTertiary}
-                  />
+                  <Users size={18} color={colors.primary} />
                 </View>
-                <Text
-                  style={{
-                    fontSize: 22,
-                    fontWeight: typography.extrabold,
-                    color: colors.text,
-                  }}
-                >
-                  {dueCount}
-                </Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+                  {bestFriendStreak > 0 ? (
+                    <Flame size={15} color={colors.warning} fill={colors.warning} />
+                  ) : null}
+                  <Text
+                    style={{
+                      fontSize: 22,
+                      fontWeight: typography.extrabold,
+                      color: colors.text,
+                    }}
+                  >
+                    {bestFriendStreak}
+                  </Text>
+                </View>
                 <Text
                   style={{
                     fontSize: typography.xs,
@@ -569,9 +616,28 @@ export default function HomeScreen() {
                     marginTop: 2,
                   }}
                 >
-                  Fällig
+                  Freunde
                 </Text>
-              </View>
+                <View
+                  style={{
+                    marginTop: 6,
+                    backgroundColor: colors.surfaceSecondary,
+                    borderRadius: radius.full ?? 999,
+                    paddingHorizontal: 8,
+                    paddingVertical: 3,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: typography.xs,
+                      fontWeight: typography.bold,
+                      color: colors.primary,
+                    }}
+                  >
+                    Öffnen  ›
+                  </Text>
+                </View>
+              </TouchableOpacity>
 
               {/* Decks */}
               <TouchableOpacity
@@ -622,7 +688,7 @@ export default function HomeScreen() {
                 <View
                   style={{
                     marginTop: 6,
-                    backgroundColor: colors.surfaceSecondary,
+                    backgroundColor: dueCount > 0 ? colors.warningLight : colors.surfaceSecondary,
                     borderRadius: radius.full ?? 999,
                     paddingHorizontal: 8,
                     paddingVertical: 3,
@@ -632,10 +698,10 @@ export default function HomeScreen() {
                     style={{
                       fontSize: typography.xs,
                       fontWeight: typography.bold,
-                      color: colors.primary,
+                      color: dueCount > 0 ? colors.warning : colors.primary,
                     }}
                   >
-                    Bibliothek  ›
+                    {dueCount > 0 ? `${dueCount} fällig  ›` : "Bibliothek  ›"}
                   </Text>
                 </View>
               </TouchableOpacity>
