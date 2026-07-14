@@ -395,3 +395,68 @@ export const GraduationCap = (p: IconProps) => (
     <path d="M22 8v5" />
   </Icon>
 );
+
+export const TrendingUp = (p: IconProps) => (
+  <Icon {...p}>
+    <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
+    <polyline points="16 7 22 7 22 13" />
+  </Icon>
+);
+
+export const BookOpen = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+  </Icon>
+);
+
+export const Award = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="8" r="6" />
+    <path d="M15.5 12.9 17 22l-5-3-5 3 1.5-9.1" />
+  </Icon>
+);
+
+export const Shield = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M12 22c4.5-2 8-5 8-10V5l-8-3-8 3v7c0 5 3.5 8 8 10z" />
+  </Icon>
+);
+
+export const ChevronLeft = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m15 18-6-6 6-6" />
+  </Icon>
+);
+
+export const HeartCrack = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+    <path d="m12 5-3 4 4 2.5-2 3.5" />
+  </Icon>
+);
+
+export const HeartHandshake = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+    <path d="M12 5 9.04 7.96a2.17 2.17 0 0 0 0 3.08c.82.82 2.13.85 3 .07l2.07-1.9a2.82 2.82 0 0 1 3.79 0l2.96 2.66" />
+    <path d="m18 15-2-2" />
+    <path d="m15 18-2-2" />
+  </Icon>
+);
+
+export const UserPlus = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <line x1="19" y1="8" x2="19" y2="14" />
+    <line x1="22" y1="11" x2="16" y2="11" />
+  </Icon>
+);
+
+export const Bell = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+    <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+  </Icon>
+);

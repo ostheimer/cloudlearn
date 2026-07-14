@@ -130,6 +130,14 @@ export interface StatsResponse {
   accuracyRate: number;
   reviewsByDay: Array<{ date: string; count: number }>;
   accuracyByDay?: Array<{ date: string; accuracy: number; count: number }>;
+  // Streak-Freezes (LP-Store-Artikel), optional während alte API-Versionen auslaufen.
+  streakFreezes?: number;
+  // Streak-Reparatur (reaktives Gegenstück zum Freeze), optional während des Rollouts.
+  repairAvailable?: boolean;
+  repairBrokenStreak?: number;
+  repairCost?: number;
+  // Deck des zuletzt gelernten Reviews ("Zuletzt gelernt" auf der Home).
+  lastStudiedDeck?: { id: string; title: string } | null;
 }
 
 // ─── Decks ──────────────────────────────────────────────────────────────────
@@ -479,4 +487,83 @@ export interface DeleteAccountResponse {
 }
 export function deleteAccount(): Promise<DeleteAccountResponse> {
   return authed<DeleteAccountResponse>("/api/v1/account", { method: "DELETE" });
+}
+
+// ─── Streak-Reparatur ──────────────────────────────────────────────────────
+// Reaktives Gegenstück zum Freeze: einen frisch gerissenen Streak gegen LP
+// zurückholen. Preis/Fenster/Berechtigung entscheidet der Server (atomare RPC).
+export interface StreakRepairResponse {
+  cost: number;
+  newBalance: number;
+  currentStreak: number;
+}
+export function buyStreakRepair(): Promise<StreakRepairResponse> {
+  return authed<StreakRepairResponse>("/api/v1/lp/streak-repair", { method: "POST" });
+}
+
+// ─── Streak-Kalender ───────────────────────────────────────────────────────
+// Monatsansicht der gelernten und per Freeze geschützten Tage.
+export interface StreakCalendarResponse {
+  month: string;
+  learnedDays: string[];
+  frozenDays: string[];
+}
+export function getStreakCalendar(month: string): Promise<StreakCalendarResponse> {
+  return authed<StreakCalendarResponse>(
+    `/api/v1/stats/streak-calendar?month=${encodeURIComponent(month)}`
+  );
+}
+
+// ─── Freunde ───────────────────────────────────────────────────────────────
+export interface FriendProfile {
+  userId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  lpBalance: number;
+  currentStreak: number;
+  lastReviewDate: string | null;
+  streakInDanger: boolean;
+}
+export function getFriends(): Promise<{ friends: FriendProfile[] }> {
+  return authed<{ friends: FriendProfile[] }>("/api/v1/friends");
+}
+
+// ─── Freunde-Streaks (gemeinsame Streaks) ──────────────────────────────────
+export interface FriendStreak {
+  friendId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  status: "pending" | "active";
+  currentStreak: number;
+  longestStreak: number;
+  youStudiedToday: boolean;
+  friendStudiedToday: boolean;
+  invitedByYou: boolean;
+}
+export function getFriendStreaks(): Promise<{ streaks: FriendStreak[] }> {
+  return authed<{ streaks: FriendStreak[] }>("/api/v1/friends/streaks");
+}
+export function inviteFriendStreak(friendId: string): Promise<{ result: string }> {
+  return authed<{ result: string }>("/api/v1/friends/streaks", {
+    method: "POST",
+    body: JSON.stringify({ friendId, action: "invite" }),
+  });
+}
+export function acceptFriendStreak(friendId: string): Promise<{ accepted: boolean }> {
+  return authed<{ accepted: boolean }>("/api/v1/friends/streaks", {
+    method: "POST",
+    body: JSON.stringify({ friendId, action: "accept" }),
+  });
+}
+export function remindFriendStreak(friendId: string): Promise<{ sent: boolean }> {
+  return authed<{ sent: boolean }>("/api/v1/friends/streaks", {
+    method: "POST",
+    body: JSON.stringify({ friendId, action: "remind" }),
+  });
+}
+export function leaveFriendStreak(friendId: string): Promise<{ left: boolean }> {
+  return authed<{ left: boolean }>(
+    `/api/v1/friends/streaks?friendId=${encodeURIComponent(friendId)}`,
+    { method: "DELETE" }
+  );
 }
