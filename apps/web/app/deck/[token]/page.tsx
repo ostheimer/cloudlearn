@@ -6,10 +6,14 @@ import { SiteFrame } from "@/components/site-frame";
 import { landingCtas } from "@/lib/landing";
 import { ImportInAppCta } from "./import-cta";
 
-const API_BASE_URL = (process.env.CLEARN_API_BASE_URL ?? "https://clearn-api.vercel.app").replace(
-  /\/+$/,
-  ""
-);
+// Prefer the app-wide NEXT_PUBLIC_ name (the same var the client uses in
+// src/lib/api.ts) so a single setting configures the whole web app. The legacy
+// server-only CLEARN_API_BASE_URL is still honoured for backward compatibility.
+const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_CLEARN_API_BASE_URL ??
+  process.env.CLEARN_API_BASE_URL ??
+  "https://clearn-api.vercel.app"
+).replace(/\/+$/, "");
 
 const MAX_PREVIEW_CARDS = 30;
 
