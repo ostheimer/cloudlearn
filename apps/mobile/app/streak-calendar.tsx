@@ -7,7 +7,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import {
   ArrowLeft,
@@ -18,6 +18,7 @@ import {
   Shield,
 } from "lucide-react-native";
 import { useColors, spacing, radius, typography } from "../src/theme";
+import { useSessionStore } from "../src/store/sessionStore";
 import {
   getStats,
   getStreakCalendar,
@@ -56,17 +57,25 @@ export default function StreakCalendarScreen() {
   const colors = useColors();
 
   const currentMonth = todayLocalDate().slice(0, 7);
+  const userId = useSessionStore((s) => s.userId);
   const [month, setMonth] = useState(currentMonth);
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [calendar, setCalendar] = useState<StreakCalendarResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  useEffect(() => {
-    getStats()
-      .then((res) => setStats(res.stats))
-      .catch(() => { /* header chips just stay empty */ });
-  }, []);
+  // /api/v1/stats is heavier than the calendar endpoint (decks, due cards, full
+  // review stats), so it lands noticeably later. Refetch on focus and keep the
+  // last known values; the chips render a placeholder (not a misleading 0) until
+  // the first response arrives.
+  useFocusEffect(
+    useCallback(() => {
+      if (!userId) return;
+      getStats()
+        .then((res) => setStats(res.stats))
+        .catch(() => { /* keep last known values; chips show a placeholder */ });
+    }, [userId])
+  );
 
   const loadMonth = useCallback((m: string) => {
     setLoading(true);
@@ -131,7 +140,7 @@ export default function StreakCalendarScreen() {
             <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
               <Flame size={16} color={colors.warning} fill={colors.warning} />
               <Text style={{ fontSize: typography.lg, fontWeight: typography.bold, color: colors.warning }}>
-                {stats?.currentStreak ?? 0}
+                {stats ? stats.currentStreak : "–"}
               </Text>
             </View>
             <Text style={{ fontSize: typography.xs, color: colors.textSecondary }}>
@@ -153,7 +162,7 @@ export default function StreakCalendarScreen() {
             <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
               <Shield size={16} color={colors.warning} />
               <Text style={{ fontSize: typography.lg, fontWeight: typography.bold, color: colors.text }}>
-                {streakFreezes}
+                {stats ? streakFreezes : "–"}
               </Text>
             </View>
             <Text style={{ fontSize: typography.xs, color: colors.textSecondary }}>
@@ -175,7 +184,7 @@ export default function StreakCalendarScreen() {
             <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
               <Award size={16} color={colors.textTertiary} />
               <Text style={{ fontSize: typography.lg, fontWeight: typography.bold, color: colors.text }}>
-                {stats?.longestStreak ?? 0}
+                {stats ? stats.longestStreak : "–"}
               </Text>
             </View>
             <Text style={{ fontSize: typography.xs, color: colors.textSecondary }}>
