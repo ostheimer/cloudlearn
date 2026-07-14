@@ -34,7 +34,7 @@ export default function AuthCallbackPage() {
     const finish = () => {
       if (done) return;
       done = true;
-      router.replace("/dashboard");
+      router.replace("/dashboard/home");
     };
 
     const {

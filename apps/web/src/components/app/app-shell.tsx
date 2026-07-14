@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 import { useAuth } from "./auth-context";
-import { GraduationCap, Layers, Sparkles, Zap, BarChart, User } from "@/components/icons";
+import { GraduationCap, Home, Layers, Sparkles, Zap, BarChart, User } from "@/components/icons";
 
 type NavItem = {
   href: string;
@@ -14,9 +14,10 @@ type NavItem = {
   exact: boolean;
 };
 
-// App-Reihenfolge, an die Web-Bereiche angepasst (kein „Home"/„Lernen" — die
-// gibt es im Web nicht). Die ersten vier stehen oben; alle fünf unten am Handy.
+// App-artige Reihenfolge: „Home" ist die Landeseite. Am Desktop stehen alle
+// außer Profil oben; am Handy erscheinen alle als untere Tab-Leiste.
 const NAV: NavItem[] = [
+  { href: "/dashboard/home", label: "Home", Icon: Home, exact: true },
   { href: "/dashboard", label: "Bibliothek", Icon: Layers, exact: true },
   { href: "/dashboard/import", label: "Scan", Icon: Sparkles, exact: false },
   { href: "/dashboard/lp", label: "Lernpunkte", Icon: Zap, exact: false },
@@ -53,7 +54,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="app-shell">
       <header className="app-topbar">
         <div className="container app-topbar__inner">
-          <Link href="/dashboard" className="brand">
+          <Link href="/dashboard/home" className="brand">
             <span className="brand__mark" aria-hidden>
               <GraduationCap size={20} />
             </span>
@@ -62,7 +63,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
           {/* Obere Navigation — nur am Desktop */}
           <nav className="app-nav" aria-label="Navigation">
-            {NAV.slice(0, 4).map((item) => (
+            {NAV.slice(0, -1).map((item) => (
               <Link key={item.href} href={item.href} className={isActive(item) ? "active" : ""}>
                 <item.Icon size={17} /> {item.label}
               </Link>
