@@ -136,7 +136,7 @@ export function generateQuestions(
             .map((entry) => entry.label),
           randomFn
         )
-      ).filter((label) => label !== correctLabel);
+      ).filter((label) => label.toLowerCase() !== correctLabel.toLowerCase());
 
       if (correctLabel && distractors.length >= 3 && current.media.primaryImage) {
         const options = shuffle([correctLabel, ...distractors.slice(0, 3)], randomFn);

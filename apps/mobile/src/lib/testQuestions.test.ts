@@ -28,6 +28,41 @@ describe("buildTestQuestions", () => {
     expect(buildTestQuestions(cards, { count: 99, types: ["written"], randomFn: seeded(1) })).toHaveLength(4);
   });
 
+  it("fills up to the requested count by skipping past ineligible fill-in cards", () => {
+    // With written disabled, fill-in cards yield no question. When such cards
+    // fall early in the shuffle the loop must keep going and pull the later
+    // eligible cards as replacements, not stop short of the requested count.
+    const mixed: TestCardInput[] = [
+      { id: "n3", front: "le soleil", back: "die Sonne" },
+      { id: "f1", front: "Le ______ brille.", back: "soleil" },
+      { id: "f2", front: "La ______ est ronde.", back: "lune" },
+      { id: "n1", front: "la lune", back: "der Mond" },
+      { id: "n2", front: "l'arbre", back: "der Baum" },
+    ];
+    // randomFn === 0 rotates the shuffle left by one → visit order is
+    // f1, f2, n1, n2, n3, so the two fill-in cards come first.
+    const qs = buildTestQuestions(mixed, { count: 3, types: ["mc"], randomFn: () => 0 });
+    expect(qs).toHaveLength(3);
+    expect(qs.length).toBeLessThanOrEqual(3);
+    for (const q of qs) expect(q.type).toBe("mc");
+    const ids = qs.map((q) => q.cardId);
+    expect(ids).toEqual(expect.arrayContaining(["n1", "n2", "n3"]));
+    expect(ids).not.toContain("f1");
+    expect(ids).not.toContain("f2");
+  });
+
+  it("never returns more than the requested count when extra eligible cards remain", () => {
+    const mixed: TestCardInput[] = [
+      { id: "n3", front: "le soleil", back: "die Sonne" },
+      { id: "f1", front: "Le ______ brille.", back: "soleil" },
+      { id: "n1", front: "la lune", back: "der Mond" },
+      { id: "n2", front: "l'arbre", back: "der Baum" },
+      { id: "n4", front: "la fleur", back: "die Blume" },
+    ];
+    const qs = buildTestQuestions(mixed, { count: 2, types: ["mc"], randomFn: () => 0 });
+    expect(qs).toHaveLength(2);
+  });
+
   it("builds written questions with prompt and expected", () => {
     const qs = buildTestQuestions(cards, { count: 4, types: ["written"], randomFn: seeded(3) });
     for (const q of qs) {
