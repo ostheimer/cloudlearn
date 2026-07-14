@@ -52,8 +52,27 @@ export async function sendExpoPushNotification(
   return allTickets;
 }
 
-// Sends a streak-in-danger reminder to users whose friends haven't reviewed today.
-// Intended to be called once per day (e.g. via cron at 18:00 local time).
+interface FriendStreakRow {
+  user_low: string;
+  user_high: string;
+  last_day_low: string | null;
+  last_day_high: string | null;
+  current_streak: number | null;
+}
+interface ProfileRow {
+  id: string;
+  current_streak: number | null;
+  last_review_date: string | null;
+  display_name: string | null;
+}
+
+/**
+ * Evening reminder — one bundled push per user about *their own* streaks in
+ * danger today (Etappe 4): the personal streak they haven't kept, plus any
+ * shared friend streak whose today's slot they still owe. Deliberately at most
+ * one message per device (the old version sent one per at-risk friend, which
+ * could spam). Meant to run once a day via the streak-alerts cron.
+ */
 export async function sendStreakAlertNotifications(): Promise<{ sent: number }> {
   const db = createSupabaseAdminClient();
   if (!db) return { sent: 0 };
@@ -61,87 +80,81 @@ export async function sendStreakAlertNotifications(): Promise<{ sent: number }> 
   // Streak days follow the user's local day, not UTC (#211).
   const today = todayLocal();
 
-  // Find users who have a streak > 0 but haven't reviewed today
-  const { data: atRiskUsers } = await db
+  const { data: tokenRows } = await db.from("push_tokens").select("user_id, token");
+  if (!tokenRows || tokenRows.length === 0) return { sent: 0 };
+
+  const tokensByUser = new Map<string, string[]>();
+  for (const r of tokenRows) {
+    const list = tokensByUser.get(r.user_id) ?? [];
+    list.push(r.token);
+    tokensByUser.set(r.user_id, list);
+  }
+  const userIds = [...tokensByUser.keys()];
+
+  // All active shared streaks (small table) — filtered per user in memory.
+  const { data: fsRowsRaw } = await db
+    .from("friend_streaks")
+    .select("user_low, user_high, last_day_low, last_day_high, current_streak")
+    .eq("status", "active");
+  const fsRows = (fsRowsRaw ?? []) as FriendStreakRow[];
+
+  // Profiles for everyone we might name or check (token users + their partners).
+  const nameIds = new Set<string>(userIds);
+  for (const fs of fsRows) { nameIds.add(fs.user_low); nameIds.add(fs.user_high); }
+  const { data: profRows } = await db
     .from("profiles")
-    .select("id, current_streak, display_name")
-    .gt("current_streak", 0)
-    .lt("last_review_date", today);
+    .select("id, current_streak, last_review_date, display_name")
+    .in("id", [...nameIds]);
+  const profById = new Map<string, ProfileRow>(
+    (profRows ?? []).map((p) => [p.id as string, p as ProfileRow])
+  );
 
-  if (!atRiskUsers || atRiskUsers.length === 0) return { sent: 0 };
-
-  const atRiskIds = atRiskUsers.map((u) => u.id);
-
-  // Find their friends who have reviewed today (the ones who might want to nudge them)
-  const { data: friendConnections } = await db
-    .from("friend_connections")
-    .select("user_id, friend_id")
-    .in("friend_id", atRiskIds);
-
-  if (!friendConnections || friendConnections.length === 0) return { sent: 0 };
-
-  // Friends who should receive the "your friend's streak is in danger" notification
-  const friendsToNotify = [...new Set(friendConnections.map((c) => c.user_id))];
-
-  // Get push tokens for those friends
-  const { data: tokens } = await db
-    .from("push_tokens")
-    .select("user_id, token")
-    .in("user_id", friendsToNotify);
-
-  if (!tokens || tokens.length === 0) return { sent: 0 };
-
-  // Build messages: one per token per friend-who-is-at-risk
   const messages: ExpoPushMessage[] = [];
-  for (const { user_id, token } of tokens) {
-    // Find which of their friends is at risk
-    const atRiskFriendId = friendConnections.find((c) => c.user_id === user_id)?.friend_id;
-    const atRiskFriend = atRiskUsers.find((u) => u.id === atRiskFriendId);
-    if (!atRiskFriend) continue;
+  for (const uid of userIds) {
+    const me = profById.get(uid);
+    if (!me) continue;
 
-    const name = atRiskFriend.display_name ?? "Dein Freund";
-    messages.push({
-      to: token,
-      title: "Streak in Gefahr! 🔥",
-      body: `${name} hat heute noch nicht gelernt. Schick eine Nachricht und motiviere ihn!`,
-      data: { type: "streak_alert", friendId: atRiskFriend.id },
-      sound: "default",
-      channelId: "streak-alerts",
+    const personalAtRisk =
+      (me.current_streak ?? 0) > 0 && (me.last_review_date == null || me.last_review_date < today);
+
+    // Shared streaks where I still owe today's slot and the streak is worth
+    // saving (already running, or the partner already did their part today).
+    const sharedAtRisk = fsRows.filter((fs) => {
+      const iAmLow = fs.user_low === uid;
+      if (!iAmLow && fs.user_high !== uid) return false;
+      const myDay = iAmLow ? fs.last_day_low : fs.last_day_high;
+      if (myDay === today) return false;
+      const partnerDay = iAmLow ? fs.last_day_high : fs.last_day_low;
+      return (fs.current_streak ?? 0) > 0 || partnerDay === today;
     });
+
+    const total = (personalAtRisk ? 1 : 0) + sharedAtRisk.length;
+    if (total === 0) continue;
+
+    let body: string;
+    if (total > 1) {
+      body = `${total} deiner Streaks sind heute in Gefahr. Lern jetzt, um sie zu halten.`;
+    } else if (personalAtRisk) {
+      body = `Dein ${me.current_streak}-Tage-Streak wartet. Lern heute, um ihn zu halten.`;
+    } else {
+      const fs = sharedAtRisk[0]!;
+      const partnerId = fs.user_low === uid ? fs.user_high : fs.user_low;
+      const partnerName = profById.get(partnerId)?.display_name ?? "deinem Lernbuddy";
+      body = `Eure gemeinsame Flamme mit ${partnerName} braucht dich heute noch.`;
+    }
+
+    for (const token of tokensByUser.get(uid) ?? []) {
+      messages.push({
+        to: token,
+        title: "Streak in Gefahr",
+        body,
+        data: { type: "streak_reminder" },
+        sound: "default",
+        channelId: "streak-alerts",
+      });
+    }
   }
 
   await sendExpoPushNotification(messages);
   return { sent: messages.length };
-}
-
-// Sends a direct streak-in-danger reminder to a user themselves.
-export async function sendSelfStreakReminder(userId: string): Promise<void> {
-  const db = createSupabaseAdminClient();
-  if (!db) return;
-
-  const { data: profile } = await db
-    .from("profiles")
-    .select("current_streak, display_name")
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (!profile || (profile.current_streak ?? 0) === 0) return;
-
-  const { data: tokens } = await db
-    .from("push_tokens")
-    .select("token")
-    .eq("user_id", userId);
-
-  if (!tokens || tokens.length === 0) return;
-
-  const messages: ExpoPushMessage[] = tokens.map(({ token }) => ({
-    to: token,
-    title: "Dein Streak wartet! 🔥",
-    body: `Du hast einen ${profile.current_streak}-Tage-Streak. Lern heute, um ihn zu halten!`,
-    data: { type: "self_streak_reminder" },
-    sound: "default",
-    channelId: "streak-alerts",
-  }));
-
-  await sendExpoPushNotification(messages);
 }
