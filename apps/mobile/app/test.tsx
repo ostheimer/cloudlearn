@@ -511,8 +511,8 @@ export default function TestScreen() {
         <SafeAreaView edges={["bottom"]} style={{ flex: 1, backgroundColor: colors.background }}>
           <ScrollView contentContainerStyle={{ padding: spacing.xl, gap: spacing.lg }} showsVerticalScrollIndicator={false}>
             <View style={{ alignItems: "center", gap: spacing.sm }}>
-              <View style={{ width: 76, height: 76, borderRadius: 38, backgroundColor: percent >= 50 ? colors.successLight : colors.errorLight, justifyContent: "center", alignItems: "center" }}>
-                <Trophy size={38} color={percent >= 50 ? colors.success : colors.error} />
+              <View style={{ width: 76, height: 76, borderRadius: 38, backgroundColor: percent >= 80 ? colors.successLight : percent >= 50 ? colors.warningLight : colors.errorLight, justifyContent: "center", alignItems: "center" }}>
+                <Trophy size={38} color={percent >= 80 ? colors.success : percent >= 50 ? colors.warning : colors.error} />
               </View>
               <Text style={{ fontSize: typography.xxxl, fontWeight: typography.extrabold, color: colors.text }}>{percent} %</Text>
               <Text style={{ fontSize: typography.base, color: colors.textSecondary }}>{scoredCount} von {questions.length} richtig</Text>
@@ -558,7 +558,7 @@ export default function TestScreen() {
             <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
               <TouchableOpacity onPress={startTest} activeOpacity={0.85} style={{ backgroundColor: colors.primary, paddingVertical: 14, borderRadius: radius.md, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm }}>
                 <RotateCcw size={18} color={colors.textInverse} />
-                <Text style={{ color: colors.textInverse, fontWeight: typography.bold }}>Nochmal</Text>
+                <Text style={{ color: colors.textInverse, fontWeight: typography.bold }}>Neuer Test</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => setPhase("setup")} activeOpacity={0.85} style={{ paddingVertical: 12, borderRadius: radius.md, alignItems: "center" }}>
                 <Text style={{ color: colors.textSecondary, fontWeight: typography.semibold, fontSize: typography.base }}>Einstellungen</Text>
