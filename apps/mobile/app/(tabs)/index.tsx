@@ -130,7 +130,7 @@ export default function HomeScreen() {
     );
   }, [repairCost, repairBrokenStreak, loadHomeData]);
   const reviewsToday = stats?.reviewsToday ?? 0;
-  const dailyGoal = stats?.dailyGoal ?? 10;
+  const dailyGoal = stats?.dailyGoal ?? 30;
   const dailyProgress = dailyGoal > 0 ? Math.min(reviewsToday / dailyGoal, 1) : 0;
   const accuracyPercent = Math.round((stats?.accuracyRate ?? 0) * 100);
 
@@ -504,8 +504,12 @@ export default function HomeScreen() {
               </TouchableOpacity>
             ) : null}
 
-            {/* Daily goal progress */}
-            <View
+            {/* Daily goal progress — tappable to open the goal setter */}
+            <TouchableOpacity
+              onPress={() =>
+                router.push({ pathname: "/daily-goal", params: { current: String(dailyGoal) } })
+              }
+              activeOpacity={0.8}
               style={{
                 backgroundColor: colors.surface,
                 borderRadius: radius.lg,
@@ -534,15 +538,18 @@ export default function HomeScreen() {
                     Tagesziel
                   </Text>
                 </View>
-                <Text
-                  style={{
-                    fontSize: typography.sm,
-                    fontWeight: typography.bold,
-                    color: dailyProgress >= 1 ? colors.success : colors.primary,
-                  }}
-                >
-                  {reviewsToday}/{dailyGoal} Karten
-                </Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.xs }}>
+                  <Text
+                    style={{
+                      fontSize: typography.sm,
+                      fontWeight: typography.bold,
+                      color: dailyProgress >= 1 ? colors.success : colors.primary,
+                    }}
+                  >
+                    {reviewsToday}/{dailyGoal} Karten
+                  </Text>
+                  <ChevronRight size={16} color={colors.textTertiary} />
+                </View>
               </View>
               {/* Progress bar */}
               <View
@@ -562,7 +569,7 @@ export default function HomeScreen() {
                   }}
                 />
               </View>
-            </View>
+            </TouchableOpacity>
 
             {/* Stats cards row */}
             <View style={{ flexDirection: "row", gap: spacing.sm }}>
