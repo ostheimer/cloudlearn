@@ -274,7 +274,7 @@ export default function LearnPage() {
           <div className="flip__face flip__face--front">
             <span className="flip__label">Frage</span>
             <span className="flip__q">{current?.front}</span>
-            <span className="flip__hint">Tippen zum Umdrehen</span>
+            <span className="flip__hint">Zum Umdrehen klicken</span>
           </div>
           <div className="flip__face flip__face--back">
             <span className="flip__label">Antwort</span>

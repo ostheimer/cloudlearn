@@ -13,7 +13,9 @@ export default function FriendAddPage() {
   const [input, setInput] = useState("");
   const [adding, setAdding] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
   const [addedName, setAddedName] = useState<string | null>(null);
+  const [addedLp, setAddedLp] = useState(0);
   const [errMsg, setErrMsg] = useState<string | null>(null);
   const [codeErr, setCodeErr] = useState(false);
   const router = useRouter();
@@ -50,7 +52,7 @@ export default function FriendAddPage() {
 
   const share = useCallback(async () => {
     if (!myCode) return;
-    const text = `Füge mich auf clearn hinzu, dann halten wir einen gemeinsamen Lern-Streak und bekommen beide Lernpunkte! Mein Code: ${myCode}`;
+    const text = `Füge mich auf clearn hinzu, dann halten wir einen gemeinsamen Lern-Streak und bekommen beide Lernpunkte! Mein Code: ${myCode} — los geht's auf clearn-web.vercel.app`;
     if (typeof navigator !== "undefined" && navigator.share) {
       try {
         await navigator.share({ text });
@@ -58,9 +60,17 @@ export default function FriendAddPage() {
         /* Teilen abgebrochen */
       }
     } else {
-      copyCode();
+      // Kein Teilen-Dialog (Desktop): den ganzen Einladungstext kopieren und
+      // die Rückmeldung am Teilen-Knopf selbst zeigen (nicht am Kopieren-Knopf).
+      try {
+        await navigator.clipboard.writeText(text);
+        setShareCopied(true);
+        window.setTimeout(() => setShareCopied(false), 2000);
+      } catch {
+        /* Clipboard nicht verfügbar */
+      }
     }
-  }, [myCode, copyCode]);
+  }, [myCode]);
 
   const handleAdd = useCallback(async () => {
     const code = input.trim().toUpperCase();
@@ -68,10 +78,12 @@ export default function FriendAddPage() {
     setAdding(true);
     setErrMsg(null);
     setAddedName(null);
+    setAddedLp(0);
     try {
       const res = await addFriendByCode(code);
       setInput("");
       setAddedName(res.friend.displayName);
+      setAddedLp(res.lpGranted ?? 0);
       loadInfo();
     } catch (err) {
       const code2 = isApiError(err) ? err.code : undefined;
@@ -173,7 +185,7 @@ export default function FriendAddPage() {
               disabled={!myCode}
               style={{ flex: 1, gap: 6 }}
             >
-              <Share size={16} /> Teilen
+              <Share size={16} /> {shareCopied ? "Kopiert" : "Teilen"}
             </button>
           </div>
           {(referredCount > 0 || lpFromReferrals > 0) && (
@@ -249,7 +261,10 @@ export default function FriendAddPage() {
             >
               <CheckCircle size={20} style={{ color: "var(--green)", flex: "none" }} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 600 }}>{addedName} ist jetzt dein Freund</div>
+                <div style={{ fontWeight: 600 }}>
+                  {addedName} ist jetzt dein Freund
+                  {addedLp > 0 && ` — ihr habt beide Lernpunkte bekommen (+${addedLp} für dich)`}
+                </div>
                 <Link
                   href="/dashboard/friends"
                   style={{ fontSize: "0.85rem", color: "var(--brand)", textDecoration: "none" }}

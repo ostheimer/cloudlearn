@@ -176,7 +176,7 @@ export default function HomePage() {
           </p>
         </div>
         <Link href="/dashboard/lp" className="lp-pill" style={{ textDecoration: "none", flex: "none" }}>
-          <Zap size={15} /> {lp !== null ? lp : "…"}
+          <Zap size={15} /> {lp !== null ? lp : error ? "–" : "…"}
         </Link>
       </div>
 
