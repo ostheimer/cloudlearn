@@ -76,6 +76,7 @@ export default function FriendsPage() {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  const [loadErr, setLoadErr] = useState(false);
   const router = useRouter();
   const goBack = () => {
     if (typeof window !== "undefined" && window.history.length > 1) router.back();
@@ -83,14 +84,13 @@ export default function FriendsPage() {
   };
 
   const load = useCallback(() => {
+    setLoadErr(false);
     Promise.all([getFriendStreaks(), getFriends()])
       .then(([s, f]) => {
         setStreaks(s.streaks);
         setFriends(f.friends);
       })
-      .catch(() => {
-        /* best-effort; Leerzustände greifen */
-      })
+      .catch(() => setLoadErr(true))
       .finally(() => setLoading(false));
   }, []);
 
@@ -389,18 +389,29 @@ export default function FriendsPage() {
           )}
 
           {/* Leerzustand */}
-          {nothing && (
+          {loadErr ? (
+            <div className="empty-state">
+              <div className="ic" aria-hidden>
+                <Users size={30} />
+              </div>
+              <h3>Konnte nicht geladen werden</h3>
+              <p>Deine Freunde ließen sich gerade nicht laden.</p>
+              <button type="button" className="btn btn-primary" onClick={load}>
+                Neu laden
+              </button>
+            </div>
+          ) : nothing ? (
             <div className="empty-state">
               <div className="ic" aria-hidden>
                 <Users size={30} />
               </div>
               <h3>Noch keine Freunde</h3>
               <p>
-                Tippe oben auf „Freund hinzufügen" — teile deinen Code oder gib den einer Freundin ein,
+                Nutze oben „Freund hinzufügen" — teile deinen Code oder gib den einer Freundin ein,
                 dann könnt ihr gemeinsam einen Streak halten.
               </p>
             </div>
-          )}
+          ) : null}
         </div>
       )}
     </>

@@ -242,7 +242,7 @@ export default function DeckDetailPage() {
                 <span className="mode-card__sub">
                   {hasOcclusion
                     ? "Bildteile verdecken & abfragen"
-                    : "Noch kein Bild — tippen zum Erstellen"}
+                    : "Noch kein Bild — zum Erstellen klicken"}
                 </span>
               </span>
               <ChevronRight size={20} className="mode-card__chevron" />
