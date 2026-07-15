@@ -9,7 +9,7 @@ import {
   type StatsResponse,
   type DeckSummary,
 } from "@/lib/api";
-import { BarChart, TrendingUp } from "@/components/icons";
+import { BarChart, ChevronRight, TrendingUp } from "@/components/icons";
 import { AccuracyRing, AccuracyTrendChart, ActivityBars } from "@/components/app/stats-charts";
 
 function accColor(rate: number): string {
@@ -189,9 +189,16 @@ export default function StatsPage() {
               const pct = Math.round(d.accuracyRate <= 1 ? d.accuracyRate * 100 : d.accuracyRate);
               const noData = d.answersTotal === 0;
               return (
-                <div
+                <Link
                   key={d.deckId}
-                  style={{ display: "flex", alignItems: "center", gap: 12 }}
+                  href={`/dashboard/deck-stats/${d.deckId}`}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    textDecoration: "none",
+                    color: "inherit",
+                  }}
                 >
                   <span
                     style={{
@@ -233,7 +240,8 @@ export default function StatsPage() {
                       <b style={{ width: 38, textAlign: "right", fontSize: "0.85rem" }}>{pct}%</b>
                     </>
                   )}
-                </div>
+                  <ChevronRight size={18} style={{ color: "var(--ink-4)", flex: "none" }} />
+                </Link>
               );
             })}
           </div>
