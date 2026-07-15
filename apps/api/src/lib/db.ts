@@ -489,7 +489,7 @@ export async function getStreakInfo(userId: string): Promise<StreakInfo> {
     .maybeSingle();
   if (error || !data) {
     return {
-      currentStreak: 0, longestStreak: 0, lastReviewDate: null, dailyGoal: 10,
+      currentStreak: 0, longestStreak: 0, lastReviewDate: null, dailyGoal: 30,
       streakFreezes: 0, repairAvailable: false, repairBrokenStreak: 0, repairCost: STREAK_REPAIR.costLp,
     };
   }
@@ -503,12 +503,31 @@ export async function getStreakInfo(userId: string): Promise<StreakInfo> {
     currentStreak: data.current_streak ?? 0,
     longestStreak: data.longest_streak ?? 0,
     lastReviewDate: data.last_review_date ?? null,
-    dailyGoal: data.daily_goal ?? 10,
+    dailyGoal: data.daily_goal ?? 30,
     streakFreezes: data.streak_freezes ?? 0,
     repairAvailable: brokenStreak >= 2 && withinWindow,
     repairBrokenStreak: brokenStreak,
     repairCost: STREAK_REPAIR.costLp,
   };
+}
+
+/**
+ * Set the user's daily learning goal (cards/day).
+ *
+ * The goal is clamped to a sane integer range [1, 500] so a malformed or
+ * hostile client can't store a nonsense value. Identity is the caller's job:
+ * the route passes the authenticated userId, never a body-supplied one. Returns
+ * the value actually stored so the client can reflect the clamp.
+ */
+export async function updateDailyGoal(userId: string, goal: number): Promise<number> {
+  const clamped = Math.min(500, Math.max(1, Math.round(goal)));
+  const db = getDb();
+  const { error } = await db
+    .from("profiles")
+    .update({ daily_goal: clamped, updated_at: new Date().toISOString() })
+    .eq("id", userId);
+  if (error) throw new Error(`updateDailyGoal: ${error.message}`);
+  return clamped;
 }
 
 /**
@@ -543,13 +562,13 @@ export async function updateStreakAfterReview(
   const row = Array.isArray(data) ? data[0] : data;
   if (!row) {
     // Profile row missing — same neutral fallback getStreakInfo uses.
-    return { currentStreak: 0, longestStreak: 0, lastReviewDate: null, dailyGoal: 10, streakFreezes: 0, freezeUsed: false };
+    return { currentStreak: 0, longestStreak: 0, lastReviewDate: null, dailyGoal: 30, streakFreezes: 0, freezeUsed: false };
   }
   return {
     currentStreak: row.current_streak ?? 0,
     longestStreak: row.longest_streak ?? 0,
     lastReviewDate: row.last_review_date ?? null,
-    dailyGoal: row.daily_goal ?? 10,
+    dailyGoal: row.daily_goal ?? 30,
     streakFreezes: row.streak_freezes ?? 0,
     freezeUsed: row.freeze_used ?? false,
   };
