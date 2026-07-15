@@ -46,7 +46,9 @@ export default function ProfilePage() {
   const [theme, setTheme] = useState<ThemeChoice>("system");
   const [tier, setTier] = useState<string | null>(null);
   const [referral, setReferral] = useState<ReferralInfoResponse | null>(null);
+  const [referralErr, setReferralErr] = useState(false);
   const [board, setBoard] = useState<LeaderboardResponse | null>(null);
+  const [boardErr, setBoardErr] = useState(false);
 
   const [copied, setCopied] = useState(false);
   const [pwSent, setPwSent] = useState(false);
@@ -57,8 +59,8 @@ export default function ProfilePage() {
   useEffect(() => {
     setTheme(getStoredTheme());
     getLpBalance().then((u) => setTier(u.tier)).catch(() => {});
-    getReferralInfo().then(setReferral).catch(() => {});
-    getLeaderboard().then(setBoard).catch(() => {});
+    getReferralInfo().then(setReferral).catch(() => setReferralErr(true));
+    getLeaderboard().then(setBoard).catch(() => setBoardErr(true));
   }, []);
 
   function chooseTheme(choice: ThemeChoice) {
@@ -193,6 +195,10 @@ export default function ProfilePage() {
                     ` Bisher geworben: ${referral.referredCount} · verdient: ${referral.lpEarnedFromReferrals} LP.`}
                 </p>
               </>
+            ) : referralErr ? (
+              <p className="muted">Der Einladungs-Code konnte nicht geladen werden.</p>
+            ) : referral ? (
+              <p className="muted">Noch kein Einladungs-Code vorhanden.</p>
             ) : (
               <p className="muted">Dein Einladungs-Code wird geladen …</p>
             )}
@@ -236,6 +242,8 @@ export default function ProfilePage() {
                   </div>
                 )}
               </div>
+            ) : boardErr ? (
+              <p className="muted">Die Rangliste konnte nicht geladen werden.</p>
             ) : (
               <p className="muted">Rangliste wird geladen …</p>
             )}

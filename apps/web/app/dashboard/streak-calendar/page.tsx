@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -248,14 +247,22 @@ export default function StreakCalendarPage() {
         </div>
       </div>
 
-      {/* Freezes nachkaufen */}
-      <Link
-        href="/dashboard/lp"
-        className="btn btn-ghost btn-block"
-        style={{ marginTop: 16, textDecoration: "none", gap: 8 }}
+      {/* Streak-Schutz (Freezes) gibt es nur in der clearn-App — im Web kein Kauf.
+          Früher führte der „kaufen"-Knopf auf die LP-Seite, wo man nichts kaufen kann. */}
+      <p
+        className="muted"
+        style={{
+          marginTop: 16,
+          textAlign: "center",
+          fontSize: "0.85rem",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 6,
+        }}
       >
-        <Shield size={18} /> Streak-Schutz kaufen
-      </Link>
+        <Shield size={16} /> Streak-Schutz (Freezes) gibt es in der clearn-App.
+      </p>
     </>
   );
 }
