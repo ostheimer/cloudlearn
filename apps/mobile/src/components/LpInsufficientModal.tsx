@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next";
 import { Zap, PlayCircle, ShoppingBag, X } from "lucide-react-native";
 import { useColors, spacing, radius, typography, shadows } from "../theme";
 import { useRewardedAd } from "../features/ads/useRewardedAd";
+import { resolveRewardedAdOutcome } from "../features/ads/resolveRewardedAdOutcome";
 
 interface LpInsufficientModalProps {
   visible: boolean;
@@ -36,22 +37,26 @@ export function LpInsufficientModal({
 
   const handleWatchAd = async () => {
     setAdMessage("");
-    const result = await watchAd();
-    if (!result) {
-      setAdMessage(t("lp.adFailed"));
+    const outcome = resolveRewardedAdOutcome(await watchAd());
+
+    // Only a real credit touches the balance and closes the sheet. Mock/pending/
+    // cap/failed just show an honest message — no fake "+0 LP", no balance reset
+    // to 0 (#285).
+    if (outcome.kind === "granted") {
+      setAdMessage(t(outcome.messageKey, { count: outcome.count }));
+      onAdRewarded?.(outcome.newBalance);
+      setTimeout(() => {
+        setAdMessage("");
+        onClose();
+      }, 1200);
       return;
     }
-    if (result.capReached) {
-      setAdMessage(t("lp.adCapReached"));
-      return;
+
+    setAdMessage(t(outcome.messageKey));
+    // Auto-clear the transient "coming soon" / "being verified" notes.
+    if (outcome.kind === "mock" || outcome.kind === "pending") {
+      setTimeout(() => setAdMessage(""), 4000);
     }
-    setAdMessage(t("lp.adRewarded", { count: result.granted }));
-    onAdRewarded?.(result.newBalance);
-    // Close after short delay so user sees the reward message
-    setTimeout(() => {
-      setAdMessage("");
-      onClose();
-    }, 1200);
   };
 
   const isAdBusy = adState === "loading" || adState === "showing";
