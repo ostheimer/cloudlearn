@@ -43,6 +43,7 @@ import {
   missedCardsFrom,
   type ReviewRating,
 } from "../../src/features/review/reviewSession";
+import { createReviewSendBuffer } from "../../src/features/review/reviewSendBuffer";
 import { useSessionStore } from "../../src/store/sessionStore";
 import {
   earnLp,
@@ -167,6 +168,15 @@ function AuthenticatedLearnScreen({
   // Cards rated since the last LP earn call. Only a trigger for "did she learn
   // anything?" — the actual LP amount is decided server-side from recorded reviews.
   const reviewedSinceEarnRef = useRef(0);
+
+  // Ratings are held back instead of sent on tap (#283): the buffer keeps the
+  // most recent rating until the learner moves on, so the back arrow can discard
+  // an unsent rating instead of firing a second, double-counting review. Stable
+  // across renders — the session is module-global, so one buffer per screen.
+  const reviewBufferRef = useRef(
+    createReviewSendBuffer<ReturnType<typeof createReviewSyncOperation>>()
+  );
+  const reviewBuffer = reviewBufferRef.current;
 
   // ─── Flip animation (independent toggle) ─────────────────────────────────
   const flipProgress = useSharedValue(0);
@@ -319,32 +329,53 @@ function AuthenticatedLearnScreen({
   );
 
   // ─── Rating handlers ──────────────────────────────────────────────────────
+
+  // Actually send a (previously buffered) review to the server. The buffer above
+  // decides *whether* to send; this does the sending and its error handling.
+  const sendReview = useCallback(
+    async (review: { cardId: string; rating: ReviewRating; queuedReview: ReturnType<typeof createReviewSyncOperation> }) => {
+      if (!userId) return;
+      reviewedSinceEarnRef.current += 1;
+      setReviewLoading(true);
+      setReviewError(false);
+      try {
+        await reviewCard(userId, review.cardId, review.rating, review.queuedReview.payload);
+      } catch (error) {
+        if (!isApiError(error) || error.status >= 500) {
+          // Offline / server error: keep the review for a later retry via the queue.
+          enqueueOfflineReview(review.queuedReview);
+        } else {
+          // 4xx: the server rejected this review outright. Re-queuing it would just
+          // be rejected again, so surface it instead of dropping it silently.
+          // TODO(#208): re-queue/repair rejected reviews instead of only surfacing.
+          setReviewError(true);
+        }
+      } finally {
+        setReviewLoading(false);
+      }
+    },
+    [userId, enqueueOfflineReview]
+  );
+
   const handleRate = async (rating: ReviewRating) => {
     if (!revealed) reveal();
     const result = rateCurrent(rating);
     if (!result || !userId) return;
-    reviewedSinceEarnRef.current += 1;
-    const queuedReview = createReviewSyncOperation({
-      userId,
+    // Buffer this rating instead of sending it now, so a following "back" can
+    // discard it (no server round-trip, no double count, #283). Buffering the new
+    // one releases the previous card's rating — the learner has moved past it.
+    const previous = reviewBuffer.rate({
       cardId: result.cardId,
       rating,
+      queuedReview: createReviewSyncOperation({ userId, cardId: result.cardId, rating }),
     });
-    setReviewLoading(true);
-    setReviewError(false);
-    try {
-      await reviewCard(userId, result.cardId, rating, queuedReview.payload);
-    } catch (error) {
-      if (!isApiError(error) || error.status >= 500) {
-        // Offline / server error: keep the review for a later retry via the queue.
-        enqueueOfflineReview(queuedReview);
-      } else {
-        // 4xx: the server rejected this review outright. Re-queuing it would just
-        // be rejected again, so surface it instead of dropping it silently.
-        // TODO(#208): re-queue/repair rejected reviews instead of only surfacing.
-        setReviewError(true);
-      }
-    } finally {
-      setReviewLoading(false);
+    if (previous) await sendReview(previous);
+    // The last card has nothing after it to release the buffer, and the summary
+    // screen reads the streak, so send it now. The summary has no back arrow (see
+    // the `!completed` render guard), so it can't be re-rated from there.
+    if (useReviewSession.getState().completed) {
+      const last = reviewBuffer.flush();
+      if (last) await sendReview(last);
     }
   };
 
@@ -359,6 +390,9 @@ function AuthenticatedLearnScreen({
   };
 
   const handleGoBack = () => {
+    // Drop the unsent rating for the card we're returning to, so re-rating it
+    // cannot create a second review (#283).
+    reviewBuffer.back();
     const moved = goBack();
     if (!moved) {
       return;
@@ -431,11 +465,16 @@ function AuthenticatedLearnScreen({
   useFocusEffect(
     useCallback(() => {
       // Cleanup runs on blur (leaving the tab / navigating away) — i.e. when a study
-      // session ends. That is the moment we cash in the LP earned this session.
+      // session ends. Send any rating still buffered from the last card first (so it
+      // isn't lost when the learner leaves mid-session), then cash in the LP earned.
       return () => {
-        void collectSessionLp();
+        void (async () => {
+          const last = reviewBuffer.flush();
+          if (last) await sendReview(last);
+          await collectSessionLp();
+        })();
       };
-    }, [collectSessionLp])
+    }, [reviewBuffer, sendReview, collectSessionLp])
   );
 
   // Milestone + streak rewards still fire when a session is fully completed.
