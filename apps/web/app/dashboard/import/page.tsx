@@ -196,9 +196,10 @@ export default function ImportPage() {
     if (!userId) return;
 
     setBusy(true);
+    let beforeIds = new Set<string>();
     try {
       const before = await listDecks(userId);
-      const beforeIds = new Set(before.decks.map((d) => d.id));
+      beforeIds = new Set(before.decks.map((d) => d.id));
 
       if (mode === "text") {
         await scanText(userId, text.trim());
@@ -209,10 +210,6 @@ export default function ImportPage() {
       } else if (mode === "pdf") {
         await importPdf(userId, pdfFileName ?? "Dokument.pdf", pdfBase64!);
       }
-
-      const created = await findNewDeck(beforeIds);
-      router.push(created ? `/dashboard/deck/${created.id}` : "/dashboard");
-      // absichtlich kein setBusy(false): die Seite navigiert weg
     } catch (e) {
       if (isApiError(e) && e.status === 402) {
         setError(
@@ -228,7 +225,19 @@ export default function ImportPage() {
         setError(isApiError(e) ? e.message : "Das hat nicht geklappt. Bitte versuch es erneut.");
       }
       setBusy(false);
+      return;
     }
+
+    // Import erfolgreich (Lernpunkte verbraucht, Deck angelegt). Ein reiner
+    // Nachlade-Fehler darf ab hier NICHT wie ein Fehlschlag aussehen — sonst
+    // würde ein erneuter Klick doppelt importieren und abbuchen.
+    try {
+      const created = await findNewDeck(beforeIds);
+      router.push(created ? `/dashboard/deck/${created.id}` : "/dashboard");
+    } catch {
+      router.push("/dashboard");
+    }
+    // absichtlich kein setBusy(false): die Seite navigiert weg
   }
 
   return (
