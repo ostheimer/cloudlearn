@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Image,
   ScrollView,
   Text,
@@ -8,13 +9,18 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { AlertTriangle, ImagePlus, Trophy, X, Zap } from "lucide-react-native";
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { AlertTriangle, ImagePlus, Pencil, Trash2, Trophy, X, Zap } from "lucide-react-native";
 import { useColors, spacing, radius, typography } from "../src/theme";
 import { useSessionStore } from "../src/store/sessionStore";
-import { listCardsInDeck, reviewCard, earnLp } from "../src/lib/api";
-import { parseOcclusionCard, type OcclusionStudyItem } from "../src/lib/occlusion";
-import { getCardImageSignedUrl } from "../src/lib/occlusionStorage";
+import { listCardsInDeck, reviewCard, earnLp, deleteCard } from "../src/lib/api";
+import {
+  parseOcclusionCard,
+  groupOcclusionCards,
+  type OcclusionStudyItem,
+  type OcclusionImageGroup,
+} from "../src/lib/occlusion";
+import { getCardImageSignedUrl, removeCardImage } from "../src/lib/occlusionStorage";
 
 const LP_SESSION_MIN = 5;
 type Media = { url: string; aspect: number };
@@ -39,6 +45,7 @@ export default function OcclusionStudyScreen() {
   const [media, setMedia] = useState<Record<string, Media | null>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deletingPath, setDeletingPath] = useState<string | null>(null);
 
   const [phase, setPhase] = useState<"setup" | "study">("setup");
   const [maskOthers, setMaskOthers] = useState(true);
@@ -82,9 +89,13 @@ export default function OcclusionStudyScreen() {
     }
   }, [deckId]);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  // Reload on every focus so the "Deine Bilder" list reflects edits made in the
+  // editor (which replaces cards) and deletions, not just the first mount.
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load]),
+  );
 
   const total = items.length;
   const current = items[index];
@@ -147,6 +158,56 @@ export default function OcclusionStudyScreen() {
   function goToEditor() {
     router.push({ pathname: "/occlusion-editor", params: { deckId: deckId ?? "", deckTitle: deckTitle ?? "" } });
   }
+
+  // Open the editor pre-filled with this image's boxes. On save the editor
+  // replaces the old cards (replaceCardIds) so editing never leaves duplicates.
+  function editImage(group: OcclusionImageGroup) {
+    router.push({
+      pathname: "/occlusion-editor",
+      params: {
+        deckId: deckId ?? "",
+        deckTitle: deckTitle ?? "",
+        editPath: group.path,
+        editRegions: JSON.stringify(group.regions),
+        replaceCardIds: JSON.stringify(group.cardIds),
+      },
+    });
+  }
+
+  // Delete a whole image: all its cards, then the stored file. Confirmed first
+  // because it is irreversible.
+  function deleteImage(group: OcclusionImageGroup) {
+    const count = group.cardIds.length;
+    Alert.alert(
+      "Bild löschen?",
+      count === 1
+        ? "Das Bild und die zugehörige Karte werden dauerhaft gelöscht."
+        : `Das Bild und alle ${count} zugehörigen Karten werden dauerhaft gelöscht.`,
+      [
+        { text: "Abbrechen", style: "cancel" },
+        {
+          text: "Löschen",
+          style: "destructive",
+          onPress: async () => {
+            setDeletingPath(group.path);
+            try {
+              for (const id of group.cardIds) {
+                await deleteCard(id);
+              }
+              await removeCardImage(group.path);
+              await load();
+            } catch {
+              Alert.alert("Fehler", "Löschen fehlgeschlagen. Bitte versuche es noch einmal.");
+            } finally {
+              setDeletingPath(null);
+            }
+          },
+        },
+      ],
+    );
+  }
+
+  const imageGroups = groupOcclusionCards(items);
 
   const screenHeader = (
     <Stack.Screen
@@ -277,6 +338,55 @@ export default function OcclusionStudyScreen() {
         <TouchableOpacity onPress={() => setPhase("study")} style={{ backgroundColor: colors.primary, paddingVertical: spacing.lg, borderRadius: radius.md, alignItems: "center" }}>
           <Text style={{ color: "#fff", fontWeight: typography.semibold, fontSize: typography.base }}>Starten</Text>
         </TouchableOpacity>
+
+        {imageGroups.length > 0 && (
+          <View style={{ gap: spacing.sm }}>
+            <Text style={{ fontSize: typography.xs, fontWeight: typography.semibold, color: colors.textSecondary, letterSpacing: 0.6, textTransform: "uppercase" }}>
+              Deine Bilder
+            </Text>
+            {imageGroups.map((group) => {
+              const gm = media[group.path];
+              const busy = deletingPath === group.path;
+              const labels = group.regions.map((r) => r.label).filter(Boolean).join(", ");
+              return (
+                <View
+                  key={group.path}
+                  style={{ flexDirection: "row", alignItems: "center", gap: spacing.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.sm }}
+                >
+                  <View style={{ width: 52, height: 52, borderRadius: radius.sm, overflow: "hidden", backgroundColor: colors.surfaceSecondary, alignItems: "center", justifyContent: "center" }}>
+                    {gm ? (
+                      <Image source={{ uri: gm.url }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+                    ) : (
+                      <ImagePlus size={20} color={colors.textTertiary} />
+                    )}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: typography.base, fontWeight: typography.medium, color: colors.text }}>
+                      {group.regions.length} {group.regions.length === 1 ? "Bereich" : "Bereiche"}
+                    </Text>
+                    {labels ? (
+                      <Text numberOfLines={1} style={{ fontSize: typography.sm, color: colors.textSecondary }}>{labels}</Text>
+                    ) : null}
+                  </View>
+                  {busy ? (
+                    <View style={{ width: 84, alignItems: "center" }}>
+                      <ActivityIndicator color={colors.primary} />
+                    </View>
+                  ) : (
+                    <>
+                      <TouchableOpacity onPress={() => editImage(group)} hitSlop={8} style={{ width: 40, height: 40, alignItems: "center", justifyContent: "center" }}>
+                        <Pencil size={18} color={colors.primary} />
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => deleteImage(group)} hitSlop={8} style={{ width: 40, height: 40, alignItems: "center", justifyContent: "center" }}>
+                        <Trash2 size={18} color={colors.error} />
+                      </TouchableOpacity>
+                    </>
+                  )}
+                </View>
+              );
+            })}
+          </View>
+        )}
 
         <TouchableOpacity onPress={goToEditor} style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, paddingVertical: spacing.sm }}>
           <ImagePlus size={16} color={colors.textSecondary} />

@@ -7,7 +7,9 @@ import {
   normalizeDragRect,
   isRegionLargeEnough,
   parseOcclusionCard,
+  groupOcclusionCards,
   type OcclusionRegion,
+  type OcclusionStudyItem,
 } from "./occlusion";
 
 describe("extForMime", () => {
@@ -197,5 +199,36 @@ describe("parseOcclusionCard", () => {
     });
     expect(item?.hideIndex).toBe(0);
     expect(item?.label).toBe("Blüte");
+  });
+});
+
+describe("groupOcclusionCards", () => {
+  const item = (id: string, path: string, hideIndex: number): OcclusionStudyItem => ({
+    id,
+    path,
+    regions: [
+      { x: 0.1, y: 0.1, w: 0.2, h: 0.2, label: "A" },
+      { x: 0.5, y: 0.5, w: 0.2, h: 0.2, label: "B" },
+    ],
+    hideIndex,
+    label: hideIndex === 0 ? "A" : "B",
+  });
+
+  it("groups cards of the same image and collects their ids", () => {
+    const groups = groupOcclusionCards([
+      item("c1", "user/deck/img1.jpg", 0),
+      item("c2", "user/deck/img1.jpg", 1),
+      item("c3", "user/deck/img2.jpg", 0),
+    ]);
+    expect(groups).toHaveLength(2);
+    expect(groups[0]).toMatchObject({ path: "user/deck/img1.jpg", cardIds: ["c1", "c2"] });
+    expect(groups[0]?.regions).toHaveLength(2);
+    expect(groups[1]).toMatchObject({ path: "user/deck/img2.jpg", cardIds: ["c3"] });
+  });
+
+  it("keeps first-seen order and returns an empty list for no cards", () => {
+    expect(groupOcclusionCards([])).toEqual([]);
+    const groups = groupOcclusionCards([item("c1", "b.jpg", 0), item("c2", "a.jpg", 0)]);
+    expect(groups.map((g) => g.path)).toEqual(["b.jpg", "a.jpg"]);
   });
 });

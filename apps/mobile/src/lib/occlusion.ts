@@ -107,6 +107,28 @@ export type OcclusionStudyItem = {
   label: string;
 };
 
+// One image and all the cards made from it (one card per region). Used by the
+// "manage" list so the learner can edit or delete a whole image at once.
+export type OcclusionImageGroup = {
+  path: string;
+  regions: OcclusionRegion[];
+  cardIds: string[];
+};
+
+// Group occlusion study items by their image, keeping the first-seen order.
+export function groupOcclusionCards(items: OcclusionStudyItem[]): OcclusionImageGroup[] {
+  const byPath = new Map<string, OcclusionImageGroup>();
+  for (const item of items) {
+    const existing = byPath.get(item.path);
+    if (existing) {
+      existing.cardIds.push(item.id);
+    } else {
+      byPath.set(item.path, { path: item.path, regions: item.regions, cardIds: [item.id] });
+    }
+  }
+  return Array.from(byPath.values());
+}
+
 function isValidRegion(value: unknown): value is OcclusionRegion {
   if (typeof value !== "object" || value === null) return false;
   const r = value as Record<string, unknown>;

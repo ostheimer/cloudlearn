@@ -31,7 +31,11 @@ import {
   pinchTransform,
   fitViewport,
 } from "../src/lib/occlusionCanvas";
-import { uploadOcclusionImage, removeCardImage } from "../src/lib/occlusionStorage";
+import {
+  uploadOcclusionImage,
+  removeCardImage,
+  getCardImageSignedUrl,
+} from "../src/lib/occlusionStorage";
 import { createCard, deleteCard, isApiError } from "../src/lib/api";
 
 type PickedImage = { uri: string; base64: string; width: number; height: number; mime: string };
@@ -41,12 +45,42 @@ type Point = { nx: number; ny: number };
 // memory low and the file well under the 5 MB card-image storage limit (#207).
 const MAX_IMAGE_DIM = 1600;
 
+function safeParseRegions(json: string | undefined): OcclusionRegion[] {
+  if (!json) return [];
+  try {
+    const parsed = JSON.parse(json);
+    return Array.isArray(parsed) ? (parsed as OcclusionRegion[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function safeParseIds(json: string | undefined): string[] {
+  if (!json) return [];
+  try {
+    const parsed = JSON.parse(json);
+    return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
 export default function OcclusionEditorScreen() {
   const colors = useColors();
   const router = useRouter();
   const { width: winW, height: winH } = useWindowDimensions();
   const userId = useSessionStore((s) => s.userId);
-  const { deckId, deckTitle } = useLocalSearchParams<{ deckId?: string; deckTitle?: string }>();
+  // editPath/editRegions/replaceCardIds are set when re-opening an existing
+  // image to change its regions ("Bearbeiten"). editRegions and replaceCardIds
+  // arrive as JSON strings.
+  const { deckId, deckTitle, editPath, editRegions, replaceCardIds } = useLocalSearchParams<{
+    deckId?: string;
+    deckTitle?: string;
+    editPath?: string;
+    editRegions?: string;
+    replaceCardIds?: string;
+  }>();
+  const isEditing = !!editPath;
 
   const [image, setImage] = useState<PickedImage | null>(null);
   const [regions, setRegions] = useState<OcclusionRegion[]>([]);
@@ -55,6 +89,11 @@ export default function OcclusionEditorScreen() {
   const [saving, setSaving] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // When editing: the stored image path being reused (no re-upload) and the
+  // card ids to delete once the new region set is saved.
+  const existingPathRef = useRef<string | null>(null);
+  const replaceCardIdsRef = useRef<string[]>([]);
 
   // Fit the image into a fixed box → the viewport matches the image aspect, so
   // at zoom 1 the image fills it with no letterbox and coordinates map cleanly.
@@ -76,6 +115,38 @@ export default function OcclusionEditorScreen() {
   useEffect(() => {
     vpRef.current = viewport;
   }, [viewport]);
+
+  // Editing an existing image: load it from storage (signed URL) and pre-fill
+  // its regions. base64 stays "" → save() reuses the stored image, no re-upload.
+  useEffect(() => {
+    if (!editPath) return;
+    let cancelled = false;
+    setProcessing(true);
+    (async () => {
+      try {
+        const url = await getCardImageSignedUrl(editPath);
+        if (!url) {
+          if (!cancelled) setError("Bild konnte nicht geladen werden.");
+          return;
+        }
+        const size = await new Promise<{ w: number; h: number }>((resolve) => {
+          Image.getSize(url, (w, h) => resolve({ w, h }), () => resolve({ w: 1, h: 1 }));
+        });
+        if (cancelled) return;
+        existingPathRef.current = editPath;
+        replaceCardIdsRef.current = safeParseIds(replaceCardIds);
+        setImage({ uri: url, base64: "", width: size.w || 1, height: size.h || 1, mime: "image/jpeg" });
+        setRegions(safeParseRegions(editRegions));
+      } catch {
+        if (!cancelled) setError("Bild konnte nicht geladen werden.");
+      } finally {
+        if (!cancelled) setProcessing(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [editPath, editRegions, replaceCardIds]);
 
   function setT(t: CanvasTransform) {
     transformRef.current = t;
@@ -230,24 +301,48 @@ export default function OcclusionEditorScreen() {
     setSaving(true);
     setError(null);
 
-    const ext = extForMime(image.mime);
-    const uniqueId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-    const path = occlusionImagePath(userId, deckId, uniqueId, ext);
+    // Reuse the stored image when editing and it wasn't swapped (base64 is ""),
+    // otherwise upload the (new) picked image.
+    const reuseExisting = image.base64 === "" && existingPathRef.current !== null;
+    const oldPath = existingPathRef.current;
+    const oldCardIds = replaceCardIdsRef.current;
+
+    let path: string;
+    let uploadedPath: string | null = null;
+    if (reuseExisting) {
+      path = oldPath as string;
+    } else {
+      const ext = extForMime(image.mime);
+      const uniqueId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+      path = occlusionImagePath(userId, deckId, uniqueId, ext);
+    }
+
     const inputs = buildOcclusionCardInputs(path, regions);
     const createdIds: string[] = [];
 
     try {
-      await uploadOcclusionImage(image.base64, image.mime, path);
+      if (!reuseExisting) {
+        await uploadOcclusionImage(image.base64, image.mime, path);
+        uploadedPath = path;
+      }
+      // Create the new cards first, so a failure leaves the old ones untouched.
       for (const input of inputs) {
         const { card } = await createCard(userId, deckId, input);
         createdIds.push(card.id);
+      }
+      // Editing: remove the replaced cards, and the old image if it was swapped.
+      if (oldCardIds.length > 0) {
+        await Promise.allSettled(oldCardIds.map((id) => deleteCard(id)));
+      }
+      if (uploadedPath && oldPath && oldPath !== uploadedPath) {
+        await removeCardImage(oldPath).catch(() => {});
       }
       router.back();
     } catch (e) {
       if (createdIds.length > 0) {
         await Promise.allSettled(createdIds.map((id) => deleteCard(id)));
       }
-      await removeCardImage(path).catch(() => {});
+      if (uploadedPath) await removeCardImage(uploadedPath).catch(() => {});
       setError(
         isApiError(e) ? e.message : e instanceof Error ? e.message : "Speichern fehlgeschlagen.",
       );
@@ -266,16 +361,25 @@ export default function OcclusionEditorScreen() {
           headerBackTitle: "Zurück",
           headerTintColor: colors.primary,
           headerStyle: { backgroundColor: colors.background },
+          // Disable the iOS swipe-back on this screen: a horizontal drawing drag
+          // (especially near the left edge) was triggering the navigator's
+          // back-swipe and popping the editor mid-marking (#207). Use the
+          // header "Zurück" button to leave instead.
+          gestureEnabled: false,
         }}
       />
       <SafeAreaView edges={["bottom"]} style={{ flex: 1, backgroundColor: colors.background }}>
         <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, gap: spacing.md }}>
           <View style={{ alignItems: "center", gap: spacing.xs }}>
             <Text style={{ fontSize: typography.lg, fontWeight: typography.semibold, color: colors.text }}>
-              Occlusion-Karten
+              {isEditing ? "Occlusion bearbeiten" : "Occlusion-Karten"}
             </Text>
             <Text style={{ fontSize: typography.sm, color: colors.textSecondary, textAlign: "center" }}>
-              {deckTitle ? `Deck: ${deckTitle}` : "Bild wählen, Kästchen ziehen, beschriften"}
+              {isEditing
+                ? "Kästchen ändern oder ergänzen, dann speichern"
+                : deckTitle
+                  ? `Deck: ${deckTitle}`
+                  : "Bild wählen, Kästchen ziehen, beschriften"}
             </Text>
           </View>
 
@@ -415,9 +519,11 @@ export default function OcclusionEditorScreen() {
                   <>
                     <Check size={18} color={canSave ? "#ffffff" : colors.textTertiary} />
                     <Text style={{ color: canSave ? "#ffffff" : colors.textTertiary, fontWeight: typography.semibold, fontSize: typography.base }}>
-                      {regions.length > 0
-                        ? `${regions.length} Occlusion-${regions.length === 1 ? "Karte" : "Karten"} erstellen`
-                        : "Occlusion-Karten erstellen"}
+                      {isEditing
+                        ? "Änderungen speichern"
+                        : regions.length > 0
+                          ? `${regions.length} Occlusion-${regions.length === 1 ? "Karte" : "Karten"} erstellen`
+                          : "Occlusion-Karten erstellen"}
                     </Text>
                   </>
                 )}
