@@ -5,8 +5,7 @@ import { jsonError, jsonOk, normalizeError } from "@/lib/http";
 import { createRequestContext, logError, logInfo } from "@/lib/observability";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { getSubscriptionStatus } from "@/services/subscriptionService";
-import { spendLp } from "@/services/lpService";
-import { refundOnFailure } from "@/lib/lpRefund";
+import { runLpChargedIdempotentRequest } from "@/lib/lpChargedIdempotentRequest";
 import { getPdfJob, processPdfImport } from "@/services/pdfImportService";
 
 export async function GET(request: NextRequest) {
@@ -48,26 +47,29 @@ export async function POST(request: NextRequest) {
       return jsonError(requestId, "RATE_LIMITED", "Rate limit exceeded", 429);
     }
 
-    const lpResult = await spendLp(userId, plan, "pdfImport");
-    if (!lpResult.allowed) {
+    const idempotencyKey =
+      typeof body.idempotencyKey === "string" ? body.idempotencyKey : undefined;
+
+    const charged = await runLpChargedIdempotentRequest({
+      idempotencyKey,
+      userId,
+      plan,
+      feature: "pdfImport",
+      requestId,
+      refundReason: "refund_pdfImport_failed",
+      process: () => processPdfImport(body, requestId, userId),
+    });
+
+    if (charged.kind === "insufficient_lp") {
       return jsonError(
         requestId,
         "INSUFFICIENT_LP",
-        `Not enough LP. Need ${lpResult.cost}, have ${lpResult.newBalance}.`,
+        `Not enough LP. Have ${charged.usage.lpBalance}.`,
         402
       );
     }
 
-    // LP were charged up front, but the actual work (text extraction + AI) can
-    // still fail — a scan-only PDF throws 422 PDF_TEXT_NOT_FOUND. In that case
-    // refund the LP so the user isn't billed for cards that never got created.
-    let result: Awaited<ReturnType<typeof processPdfImport>>;
-    try {
-      result = await processPdfImport(body, requestId, userId);
-    } catch (processingError) {
-      await refundOnFailure(userId, lpResult.cost, "refund_pdfImport_failed", requestId);
-      throw processingError;
-    }
+    const { result, usage } = charged;
 
     logInfo("pdf_import_processed", {
       requestId,
@@ -77,16 +79,14 @@ export async function POST(request: NextRequest) {
       extractedCharacters: result.extractedCharacters,
       cards: result.cards.length,
       model: result.model,
-      lpSpent: lpResult.cost,
-      lpBalance: lpResult.newBalance,
+      lpSpent: usage.lpSpent,
+      lpBalance: usage.lpBalance,
+      idempotentReplay: usage.lpSpent === 0,
     });
 
     return jsonOk(requestId, {
       ...result,
-      usage: {
-        lpSpent: lpResult.cost,
-        lpBalance: lpResult.newBalance,
-      },
+      usage,
     });
   } catch (error) {
     const normalized = normalizeError(error);
