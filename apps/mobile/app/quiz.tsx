@@ -163,6 +163,27 @@ export default function QuizScreen() {
   const scorePercent =
     answeredCount > 0 ? Math.round((correctCount / answeredCount) * 100) : 0;
 
+  // Cards whose question was wrong or unanswered — for the "only the wrong ones"
+  // button. Quiz questions carry their source cardId, so a shorter quiz can be
+  // rebuilt from just those cards.
+  const wrongCards = (() => {
+    const ids = new Set(questions.filter((_, i) => !answers[i]).map((q) => q.cardId));
+    return pool.filter((c) => ids.has(c.id));
+  })();
+  const startQuizFrom = (sourceCards: Card[]) => {
+    const q = generateQuestions(sourceCards, Math.min(10, sourceCards.length), quizCopy, Math.random, {
+      reverse,
+      allowMc: typeMC,
+      allowTrueFalse: typeTF,
+    });
+    if (q.length === 0) return;
+    setQuestions(q);
+    setCurrentIdx(0);
+    setSelections(new Array<number | null>(q.length).fill(null));
+    setFinished(false);
+    setInSetup(false);
+  };
+
   if (loading) {
     return (
       <>
@@ -509,33 +530,21 @@ export default function QuizScreen() {
               alignItems: "center",
             }}
           >
-            {/* Trophy */}
+            {/* Trophy — always green: a finished round is no fail; the
+                red/yellow/green grade belongs to the Test (Quiz is a learning
+                mode with instant per-question feedback). */}
             <View
               style={{
                 width: 80,
                 height: 80,
                 borderRadius: 40,
-                backgroundColor:
-                  scorePercent >= 80
-                    ? colors.successLight
-                    : scorePercent >= 50
-                    ? colors.warningLight
-                    : colors.errorLight,
+                backgroundColor: colors.successLight,
                 justifyContent: "center",
                 alignItems: "center",
                 marginTop: spacing.xl,
               }}
             >
-              <Trophy
-                size={40}
-                color={
-                  scorePercent >= 80
-                    ? colors.success
-                    : scorePercent >= 50
-                    ? colors.warning
-                    : colors.error
-                }
-              />
+              <Trophy size={40} color={colors.success} />
             </View>
 
             <Text
@@ -545,17 +554,7 @@ export default function QuizScreen() {
                 color: colors.text,
               }}
             >
-              {scorePercent}%
-            </Text>
-
-            <Text
-              style={{
-                fontSize: typography.lg,
-                color: colors.textSecondary,
-                textAlign: "center",
-              }}
-            >
-              {correctCount} von {answers.length} richtig
+              {correctCount} von {answers.length}
             </Text>
 
             <Text
@@ -629,10 +628,28 @@ export default function QuizScreen() {
 
             {/* Actions */}
             <View style={{ width: "100%", gap: spacing.sm }}>
+              {wrongCards.length > 0 && (
+                <TouchableOpacity
+                  onPress={() => startQuizFrom(wrongCards)}
+                  style={{
+                    backgroundColor: colors.primary,
+                    paddingVertical: 14,
+                    borderRadius: radius.md,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Text style={{ color: colors.textInverse, fontWeight: typography.bold }}>
+                    Nur die falschen ({wrongCards.length})
+                  </Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity
                 onPress={handleRestart}
                 style={{
-                  backgroundColor: colors.primary,
+                  backgroundColor: wrongCards.length > 0 ? colors.surface : colors.primary,
+                  borderWidth: wrongCards.length > 0 ? 1 : 0,
+                  borderColor: colors.border,
                   paddingVertical: 14,
                   borderRadius: radius.md,
                   flexDirection: "row",
@@ -641,14 +658,14 @@ export default function QuizScreen() {
                   gap: spacing.sm,
                 }}
               >
-                <RotateCcw size={18} color={colors.textInverse} />
+                <RotateCcw size={18} color={wrongCards.length > 0 ? colors.text : colors.textInverse} />
                 <Text
                   style={{
-                    color: colors.textInverse,
+                    color: wrongCards.length > 0 ? colors.text : colors.textInverse,
                     fontWeight: typography.bold,
                   }}
                 >
-                  Nochmal
+                  Alle nochmal
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity

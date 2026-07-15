@@ -15,7 +15,7 @@ import {
   Trophy,
   RotateCcw,
   Timer,
-  Zap,
+  Star,
   HelpCircle,
   Puzzle,
   CheckCircle2,
@@ -596,7 +596,7 @@ export default function MatchScreen() {
 
             <View style={{ flexDirection: "row", gap: spacing.sm }}>
               {[0, 1, 2].map((i) => (
-                <Zap
+                <Star
                   key={i}
                   size={28}
                   color={i < stars ? colors.warning : colors.surfaceSecondary}
