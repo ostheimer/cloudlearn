@@ -13,6 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { GestureDetector, Gesture } from "react-native-gesture-handler";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
 import { Camera, ImagePlus, Trash2, Check, AlertTriangle } from "lucide-react-native";
 import { useColors, spacing, radius, typography } from "../src/theme";
 import { useSessionStore } from "../src/store/sessionStore";
@@ -36,13 +37,9 @@ import { createCard, deleteCard, isApiError } from "../src/lib/api";
 type PickedImage = { uri: string; base64: string; width: number; height: number; mime: string };
 type Point = { nx: number; ny: number };
 
-function mimeFromUri(uri: string): string {
-  const ext = uri.split(".").pop()?.toLowerCase() ?? "";
-  if (ext === "png") return "image/png";
-  if (ext === "webp") return "image/webp";
-  if (ext === "gif") return "image/gif";
-  return "image/jpeg";
-}
+// Longest side a picked image is scaled down to before display/upload. Keeps
+// memory low and the file well under the 5 MB card-image storage limit (#207).
+const MAX_IMAGE_DIM = 1600;
 
 export default function OcclusionEditorScreen() {
   const colors = useColors();
@@ -56,6 +53,7 @@ export default function OcclusionEditorScreen() {
   const [transform, setTransform] = useState<CanvasTransform>({ zoom: 1, panX: 0, panY: 0 });
   const [drawRect, setDrawRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const [saving, setSaving] = useState(false);
+  const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Fit the image into a fixed box → the viewport matches the image aspect, so
@@ -85,12 +83,14 @@ export default function OcclusionEditorScreen() {
   }
 
   async function pickFromGallery() {
+    // No base64 from the picker — a full-res photo's base64 is many MB in memory
+    // and, together with a second one, crashed the app (#207). We downscale
+    // first and take the (small) base64 from the resized copy instead.
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.8,
-      base64: true,
+      quality: 1,
     });
-    applyPick(result);
+    await applyPick(result);
   }
 
   async function takePhoto() {
@@ -99,28 +99,55 @@ export default function OcclusionEditorScreen() {
       setError("Kamera-Zugriff wurde nicht erlaubt.");
       return;
     }
-    const result = await ImagePicker.launchCameraAsync({ quality: 0.8, base64: true });
-    applyPick(result);
+    const result = await ImagePicker.launchCameraAsync({ quality: 1 });
+    await applyPick(result);
   }
 
-  function applyPick(result: ImagePicker.ImagePickerResult) {
+  async function applyPick(result: ImagePicker.ImagePickerResult) {
     if (result.canceled || !result.assets[0]) return;
     const asset = result.assets[0];
-    if (!asset.base64) {
-      setError("Bild konnte nicht gelesen werden.");
-      return;
-    }
-    setImage({
-      uri: asset.uri,
-      base64: asset.base64,
-      width: asset.width || 1,
-      height: asset.height || 1,
-      mime: asset.mimeType ?? mimeFromUri(asset.uri),
-    });
-    setRegions([]);
-    setDrawRect(null);
-    setT({ zoom: 1, panX: 0, panY: 0 });
     setError(null);
+    setProcessing(true);
+    try {
+      // Downscale the long side to MAX_IMAGE_DIM and re-encode as JPEG. This
+      // keeps memory low (no giant bitmap / base64) and stays well under the
+      // 5 MB card-image storage limit. For occlusion the resolution is plenty.
+      const longSide = Math.max(asset.width ?? 0, asset.height ?? 0);
+      const actions: ImageManipulator.Action[] =
+        longSide > MAX_IMAGE_DIM
+          ? [
+              {
+                resize:
+                  (asset.width ?? 0) >= (asset.height ?? 0)
+                    ? { width: MAX_IMAGE_DIM }
+                    : { height: MAX_IMAGE_DIM },
+              },
+            ]
+          : [];
+      const out = await ImageManipulator.manipulateAsync(asset.uri, actions, {
+        compress: 0.7,
+        format: ImageManipulator.SaveFormat.JPEG,
+        base64: true,
+      });
+      if (!out.base64) {
+        setError("Bild konnte nicht verarbeitet werden.");
+        return;
+      }
+      setImage({
+        uri: out.uri,
+        base64: out.base64,
+        width: out.width || 1,
+        height: out.height || 1,
+        mime: "image/jpeg",
+      });
+      setRegions([]);
+      setDrawRect(null);
+      setT({ zoom: 1, panX: 0, panY: 0 });
+    } catch {
+      setError("Bild konnte nicht verarbeitet werden.");
+    } finally {
+      setProcessing(false);
+    }
   }
 
   // ── Gestures: one finger draws, two fingers zoom/move ──────────────────────
@@ -255,8 +282,9 @@ export default function OcclusionEditorScreen() {
           <View style={{ flexDirection: "row", gap: spacing.sm }}>
             <TouchableOpacity
               onPress={pickFromGallery}
+              disabled={processing}
               activeOpacity={0.8}
-              style={{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, backgroundColor: colors.surfaceSecondary, paddingVertical: spacing.md, borderRadius: radius.md }}
+              style={{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, backgroundColor: colors.surfaceSecondary, paddingVertical: spacing.md, borderRadius: radius.md, opacity: processing ? 0.5 : 1 }}
             >
               <ImagePlus size={18} color={colors.text} />
               <Text style={{ color: colors.text, fontWeight: typography.medium, fontSize: typography.base }}>
@@ -265,8 +293,9 @@ export default function OcclusionEditorScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               onPress={takePhoto}
+              disabled={processing}
               activeOpacity={0.8}
-              style={{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, backgroundColor: colors.surfaceSecondary, paddingVertical: spacing.md, borderRadius: radius.md }}
+              style={{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, backgroundColor: colors.surfaceSecondary, paddingVertical: spacing.md, borderRadius: radius.md, opacity: processing ? 0.5 : 1 }}
             >
               <Camera size={18} color={colors.text} />
               <Text style={{ color: colors.text, fontWeight: typography.medium, fontSize: typography.base }}>Kamera</Text>
@@ -274,7 +303,12 @@ export default function OcclusionEditorScreen() {
           </View>
         </View>
 
-        {!image ? (
+        {processing ? (
+          <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md, padding: spacing.xl }}>
+            <ActivityIndicator color={colors.primary} />
+            <Text style={{ color: colors.textSecondary, fontSize: typography.sm }}>Bild wird verarbeitet …</Text>
+          </View>
+        ) : !image ? (
           <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.sm, padding: spacing.xl }}>
             <ImagePlus size={30} color={colors.textTertiary} />
             <Text style={{ color: colors.textSecondary, fontSize: typography.sm, textAlign: "center" }}>
