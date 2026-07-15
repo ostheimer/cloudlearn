@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/app/auth-context";
@@ -17,6 +18,7 @@ import {
   User,
   Trash,
   Users,
+  UserPlus,
   Copy,
   Check,
   Trophy,
@@ -194,6 +196,13 @@ export default function ProfilePage() {
             ) : (
               <p className="muted">Dein Einladungs-Code wird geladen …</p>
             )}
+            <Link
+              href="/dashboard/friends/add"
+              className="btn btn-primary btn-block"
+              style={{ marginTop: 14, gap: 8, textDecoration: "none" }}
+            >
+              <UserPlus size={16} /> Freund hinzufügen
+            </Link>
           </div>
 
           <div className="pf-card pf-card--pad">
