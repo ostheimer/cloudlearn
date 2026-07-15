@@ -18,8 +18,6 @@ import {
   XCircle,
   ArrowLeft,
   ArrowRight,
-  RotateCcw,
-  Trophy,
   HelpCircle,
   Check,
   Pencil,
@@ -35,6 +33,7 @@ import {
   type CardSource,
 } from "../src/components/cardSourcePicker";
 import { useColors, spacing, radius, typography, shadows } from "../src/theme";
+import { StudyResult } from "../src/components/StudyResult";
 
 interface Prompt {
   prompt: string;
@@ -516,7 +515,6 @@ export default function ClozeScreen() {
     const total = round.length;
     const correct = correctCount;
     const wrongCount = wrong.length;
-    const percent = total > 0 ? Math.round((correct / total) * 100) : 0;
     const allRight = wrongCount === 0;
 
     return (
@@ -536,127 +534,32 @@ export default function ClozeScreen() {
             }}
             showsVerticalScrollIndicator={false}
           >
-            <View
-              style={{
-                width: 80,
-                height: 80,
-                borderRadius: 40,
-                backgroundColor: allRight ? colors.successLight : colors.primaryLight,
-                justifyContent: "center",
-                alignItems: "center",
-              }}
-            >
-              {allRight ? (
-                <Trophy size={40} color={colors.success} />
-              ) : (
-                <CheckCircle2 size={40} color={colors.primary} />
-              )}
-            </View>
-
-            <Text
-              style={{
-                fontSize: typography.xxxl,
-                fontWeight: typography.extrabold,
-                color: colors.text,
-              }}
-            >
-              {percent}%
-            </Text>
-
-            <Text style={{ fontSize: typography.lg, color: colors.textSecondary }}>
-              {correct} von {total} richtig
-            </Text>
-
-            {allRight ? (
-              <Text
-                style={{
-                  fontSize: typography.base,
-                  color: colors.success,
-                  fontWeight: typography.semibold,
-                }}
-              >
-                Alles richtig — stark!
-              </Text>
-            ) : (
-              <Text
-                style={{
-                  fontSize: typography.base,
-                  color: colors.textSecondary,
-                  textAlign: "center",
-                }}
-              >
-                {wrongCount} {wrongCount === 1 ? "Karte" : "Karten"} noch offen.
-              </Text>
-            )}
-
-            <View style={{ width: "100%", gap: spacing.sm }}>
-              {!allRight && (
-                <TouchableOpacity
-                  onPress={() => startRound(wrong)}
-                  activeOpacity={0.85}
-                  style={{
-                    backgroundColor: colors.primary,
-                    paddingVertical: 14,
-                    borderRadius: radius.md,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: spacing.sm,
-                    ...shadows.sm,
-                  }}
-                >
-                  <RotateCcw size={18} color={colors.textInverse} />
-                  <Text
-                    style={{ color: colors.textInverse, fontWeight: typography.bold }}
-                  >
-                    Falsche wiederholen ({wrongCount})
-                  </Text>
-                </TouchableOpacity>
-              )}
-
-              <TouchableOpacity
-                onPress={() => startRound(studyPool)}
-                activeOpacity={0.85}
-                style={{
-                  backgroundColor: allRight ? colors.primary : colors.surface,
-                  paddingVertical: 14,
-                  borderRadius: radius.md,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  borderWidth: allRight ? 0 : 1,
-                  borderColor: colors.border,
-                }}
-              >
-                <Text
-                  style={{
-                    color: allRight ? colors.textInverse : colors.text,
-                    fontWeight: typography.bold,
-                  }}
-                >
-                  Von vorne (alle {studyPool.length})
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => setPhase("setup")}
-                activeOpacity={0.85}
-                style={{
-                  paddingVertical: 12,
-                  borderRadius: radius.md,
-                  alignItems: "center",
-                }}
-              >
-                <Text
-                  style={{
-                    color: colors.textSecondary,
-                    fontWeight: typography.semibold,
-                    fontSize: typography.base,
-                  }}
-                >
-                  Einstellungen
-                </Text>
-              </TouchableOpacity>
-            </View>
+            <StudyResult
+              headline={`${correct} von ${total}`}
+              subtitle={
+                allRight
+                  ? "alles richtig — stark!"
+                  : `${wrongCount} ${wrongCount === 1 ? "Karte" : "Karten"} noch offen`
+              }
+              actions={[
+                ...(allRight
+                  ? []
+                  : [
+                      {
+                        label: `Nur die falschen (${wrongCount})`,
+                        onPress: () => startRound(wrong),
+                        variant: "primary" as const,
+                      },
+                    ]),
+                {
+                  label: `Alle nochmal (${studyPool.length})`,
+                  onPress: () => startRound(studyPool),
+                  variant: allRight ? ("primary" as const) : ("secondary" as const),
+                  reload: true,
+                },
+                { label: "Einstellungen", onPress: () => setPhase("setup"), variant: "ghost" as const },
+              ]}
+            />
           </ScrollView>
         </SafeAreaView>
       </>
