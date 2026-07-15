@@ -61,26 +61,37 @@ export function occlusionImagePath(
 // decode by hand. Whitespace and padding are ignored.
 const B64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-export function base64ToBytes(base64: string): Uint8Array {
-  const clean = base64.replace(/[^A-Za-z0-9+/]/g, "");
-  const outLength = Math.floor((clean.length * 3) / 4);
-  const bytes = new Uint8Array(outLength);
-  let p = 0;
-
-  for (let i = 0; i < clean.length; i += 4) {
-    const c0 = B64_ALPHABET.indexOf(clean[i] ?? "");
-    const c1 = B64_ALPHABET.indexOf(clean[i + 1] ?? "");
-    const c2 = i + 2 < clean.length ? B64_ALPHABET.indexOf(clean[i + 2] ?? "") : -1;
-    const c3 = i + 3 < clean.length ? B64_ALPHABET.indexOf(clean[i + 3] ?? "") : -1;
-
-    const chunk = (c0 << 18) | (c1 << 12) | ((c2 & 63) << 6) | (c3 & 63);
-
-    if (p < outLength) bytes[p++] = (chunk >> 16) & 0xff;
-    if (c2 !== -1 && p < outLength) bytes[p++] = (chunk >> 8) & 0xff;
-    if (c3 !== -1 && p < outLength) bytes[p++] = chunk & 0xff;
+// Reverse lookup: char code → 6-bit value (-1 = ignore, e.g. whitespace or "=").
+// Built once so decoding is an O(1) table hit per character instead of a scan.
+const B64_LOOKUP: Int16Array = (() => {
+  const table = new Int16Array(256).fill(-1);
+  for (let i = 0; i < B64_ALPHABET.length; i++) {
+    table[B64_ALPHABET.charCodeAt(i)] = i;
   }
+  return table;
+})();
 
-  return bytes;
+export function base64ToBytes(base64: string): Uint8Array {
+  // Single pass with a table lookup per char. The previous version did an
+  // indexOf() per character and a full regex copy of the string, which blocked
+  // the JS thread for large photos (part of the #207 "app gets kicked out"
+  // crash). Non-alphabet chars (whitespace, "=" padding) are skipped inline.
+  const out = new Uint8Array(Math.floor((base64.length * 3) / 4) + 3);
+  let p = 0;
+  let acc = 0;
+  let accBits = 0;
+  for (let i = 0; i < base64.length; i++) {
+    const code = base64.charCodeAt(i);
+    const value = code < 256 ? (B64_LOOKUP[code] ?? -1) : -1;
+    if (value < 0) continue;
+    acc = (acc << 6) | value;
+    accBits += 6;
+    if (accBits >= 8) {
+      accBits -= 8;
+      out[p++] = (acc >> accBits) & 0xff;
+    }
+  }
+  return out.slice(0, p);
 }
 
 // Smallest box (as a fraction of the image) that counts as a real region — a
