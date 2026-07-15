@@ -14,6 +14,8 @@ import {
   CheckCircle,
   RotateCw,
   Zap,
+  Star,
+  StarFilled,
   AlertTriangle,
 } from "@/components/icons";
 
@@ -342,7 +344,7 @@ export default function MatchPage() {
                 aria-hidden
                 style={{ color: i < stars ? "var(--amber)" : "var(--line)" }}
               >
-                <Zap size={28} fill={i < stars ? "currentColor" : "none"} />
+                {i < stars ? <StarFilled size={28} /> : <Star size={28} />}
               </span>
             ))}
           </div>
