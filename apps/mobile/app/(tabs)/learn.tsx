@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import {
@@ -31,6 +31,7 @@ import {
   ArrowLeft,
   ArrowLeftRight,
   Star,
+  Trophy,
   Volume2,
   Play,
   Pause,
@@ -39,6 +40,7 @@ import {
 import * as Speech from "expo-speech";
 import {
   useReviewSession,
+  missedCardsFrom,
   type ReviewRating,
 } from "../../src/features/review/reviewSession";
 import { useSessionStore } from "../../src/store/sessionStore";
@@ -142,8 +144,16 @@ function AuthenticatedLearnScreen({
   const { t } = useTranslation();
   const router = useRouter();
   const c = useColors();
-  const { cards, index, revealed, completed, swipedLeft, swipedRight, start, reveal, rateCurrent, canGoBack, goBack } =
+  const { cards, index, revealed, completed, swipedLeft, swipedRight, history, ratingHistory, start, reveal, rateCurrent, canGoBack, goBack } =
     useReviewSession();
+
+  // Cards the learner didn't know this session, powering the result summary and
+  // the "only the missed ones" button (pure helper, unit-tested).
+  const missedCards = useMemo(
+    () => missedCardsFrom(cards, history, ratingHistory),
+    [cards, history, ratingHistory],
+  );
+  const knownCount = Math.max(0, cards.length - missedCards.length);
   const enqueueOfflineReview = useOfflineQueueStore((state) => state.enqueue);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(false);
@@ -691,35 +701,95 @@ function AuthenticatedLearnScreen({
               </TouchableOpacity>
             </View>
           ) : completed || cards.length === 0 ? (
-            <View style={{ flex: 1, justifyContent: "center", alignItems: "center", gap: spacing.lg }}>
-              <View style={{
-                width: 72, height: 72, borderRadius: 36,
-                backgroundColor: cards.length === 0 ? c.surfaceSecondary : c.successLight,
-                justifyContent: "center", alignItems: "center",
-              }}>
-                <CheckCircle2 size={36} color={cards.length === 0 ? c.textTertiary : c.success} />
-              </View>
-              <Text style={{ fontSize: typography.xl, fontWeight: typography.semibold, textAlign: "center", color: c.text }}>
-                {cards.length === 0 ? t("review.noCards") : t("review.completed")}
-              </Text>
-              <Text style={{ color: c.textSecondary, textAlign: "center", fontSize: typography.base }}>
-                {cards.length === 0 ? t("review.noCardsHint") : t("review.cardsLearned", { count: cards.length })}
-              </Text>
-              <TouchableOpacity
-                onPress={loadDueCards}
-                activeOpacity={0.8}
-                style={{
-                  backgroundColor: c.primary, borderRadius: radius.md,
-                  paddingHorizontal: spacing.xxl, paddingVertical: 14,
-                  flexDirection: "row", gap: spacing.sm, alignItems: "center",
-                }}
-              >
-                <RotateCcw size={18} color="#fff" />
-                <Text style={{ color: "#fff", fontWeight: typography.semibold, fontSize: typography.base }}>
-                  {t("review.reload")}
+            cards.length === 0 ? (
+              // Nothing due / no cards — an invitation, not a result.
+              <View style={{ flex: 1, justifyContent: "center", alignItems: "center", gap: spacing.lg }}>
+                <View style={{
+                  width: 72, height: 72, borderRadius: 36, backgroundColor: c.surfaceSecondary,
+                  justifyContent: "center", alignItems: "center",
+                }}>
+                  <CheckCircle2 size={36} color={c.textTertiary} />
+                </View>
+                <Text style={{ fontSize: typography.xl, fontWeight: typography.semibold, textAlign: "center", color: c.text }}>
+                  {t("review.noCards")}
                 </Text>
-              </TouchableOpacity>
-            </View>
+                <Text style={{ color: c.textSecondary, textAlign: "center", fontSize: typography.base }}>
+                  {t("review.noCardsHint")}
+                </Text>
+                <TouchableOpacity
+                  onPress={loadDueCards}
+                  activeOpacity={0.8}
+                  style={{
+                    backgroundColor: c.primary, borderRadius: radius.md,
+                    paddingHorizontal: spacing.xxl, paddingVertical: 14,
+                    flexDirection: "row", gap: spacing.sm, alignItems: "center",
+                  }}
+                >
+                  <RotateCcw size={18} color="#fff" />
+                  <Text style={{ color: "#fff", fontWeight: typography.semibold, fontSize: typography.base }}>
+                    {t("review.reload")}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              // Result: how many known + re-study only the missed ones. Same
+              // "Lernen" frame as the other modes — green trophy, never red, a
+              // finished round is never a fail.
+              <View style={{ flex: 1, justifyContent: "center", alignItems: "center", gap: spacing.md, paddingHorizontal: spacing.lg }}>
+                <View style={{
+                  width: 72, height: 72, borderRadius: 36, backgroundColor: c.successLight,
+                  justifyContent: "center", alignItems: "center",
+                }}>
+                  <Trophy size={34} color={c.success} />
+                </View>
+                <Text style={{ fontSize: typography.xxxl, fontWeight: typography.extrabold, textAlign: "center", color: c.text }}>
+                  {t("review.resultKnown", { known: knownCount, total: cards.length })}
+                </Text>
+                <Text style={{ color: c.textSecondary, textAlign: "center", fontSize: typography.base }}>
+                  {missedCards.length > 0
+                    ? t("review.resultSubPractice", { count: missedCards.length })
+                    : t("review.resultSubAll")}
+                </Text>
+                <View style={{ width: "100%", maxWidth: 340, gap: spacing.sm, marginTop: spacing.sm }}>
+                  {missedCards.length > 0 && (
+                    <TouchableOpacity
+                      onPress={() => start(missedCards)}
+                      activeOpacity={0.85}
+                      style={{
+                        backgroundColor: c.primary, borderRadius: radius.md, paddingVertical: 14,
+                        alignItems: "center", justifyContent: "center",
+                      }}
+                    >
+                      <Text style={{ color: "#fff", fontWeight: typography.bold, fontSize: typography.base }}>
+                        {t("review.onlyWrong", { count: missedCards.length })}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity
+                    onPress={loadDueCards}
+                    activeOpacity={0.85}
+                    style={{
+                      backgroundColor: missedCards.length > 0 ? c.surface : c.primary,
+                      borderWidth: missedCards.length > 0 ? 1 : 0, borderColor: c.border,
+                      borderRadius: radius.md, paddingVertical: 14,
+                      flexDirection: "row", gap: spacing.sm, alignItems: "center", justifyContent: "center",
+                    }}
+                  >
+                    <RotateCcw size={18} color={missedCards.length > 0 ? c.text : "#fff"} />
+                    <Text style={{ color: missedCards.length > 0 ? c.text : "#fff", fontWeight: typography.bold, fontSize: typography.base }}>
+                      {t("review.againAll")}
+                    </Text>
+                  </TouchableOpacity>
+                  {deckId && (
+                    <TouchableOpacity onPress={() => router.back()} activeOpacity={0.85} style={{ paddingVertical: 12, alignItems: "center" }}>
+                      <Text style={{ color: c.textSecondary, fontWeight: typography.semibold, fontSize: typography.base }}>
+                        {t("review.done")}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            )
           ) : (
             <View style={{ flex: 1, gap: spacing.md }}>
               {/* Progress */}
