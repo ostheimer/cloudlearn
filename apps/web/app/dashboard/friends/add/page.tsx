@@ -15,6 +15,7 @@ export default function FriendAddPage() {
   const [copied, setCopied] = useState(false);
   const [addedName, setAddedName] = useState<string | null>(null);
   const [errMsg, setErrMsg] = useState<string | null>(null);
+  const [codeErr, setCodeErr] = useState(false);
   const router = useRouter();
   const goBack = () => {
     if (typeof window !== "undefined" && window.history.length > 1) router.back();
@@ -22,15 +23,14 @@ export default function FriendAddPage() {
   };
 
   const loadInfo = useCallback(() => {
+    setCodeErr(false);
     getReferralInfo()
       .then((r) => {
         setMyCode(r.referralCode);
         setReferredCount(r.referredCount);
         setLpFromReferrals(r.lpEarnedFromReferrals);
       })
-      .catch(() => {
-        /* Code bleibt einfach verborgen */
-      });
+      .catch(() => setCodeErr(true));
   }, []);
 
   useEffect(() => {
@@ -149,6 +149,10 @@ export default function FriendAddPage() {
             <span style={{ fontSize: "1.8rem", fontWeight: 800, letterSpacing: 3, color: "var(--brand)" }}>
               {myCode}
             </span>
+          ) : codeErr ? (
+            <button type="button" className="btn btn-ghost" onClick={loadInfo}>
+              Code konnte nicht geladen werden — erneut versuchen
+            </button>
           ) : (
             <div className="spinner" />
           )}
