@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLocalSearchParams, Stack } from "expo-router";
+import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -42,6 +42,7 @@ import {
   type CardSource,
 } from "../src/components/cardSourcePicker";
 import { useColors, spacing, radius, typography, shadows } from "../src/theme";
+import { useReviewSession } from "../src/features/review/reviewSession";
 
 const SECONDS_PER_QUESTION = 30;
 
@@ -71,6 +72,8 @@ type Phase = "setup" | "play" | "result";
 export default function TestScreen() {
   const colors = useColors();
   const { t } = useTranslation();
+  const router = useRouter();
+  const startReview = useReviewSession((s) => s.start);
   const { deckId, deckTitle } = useLocalSearchParams<{
     deckId: string;
     deckTitle: string;
@@ -241,6 +244,23 @@ export default function TestScreen() {
   const scoredCount = graded.filter((g) => g.correct || g.overridden).length;
   const percent =
     questions.length > 0 ? Math.round((scoredCount / questions.length) * 100) : 0;
+
+  // The wrong questions' source cards, ready to hand to a flashcard round. A
+  // test stays a test (no re-learning inside it); this just offers to practice
+  // the misses in the learning mode. `overridden` answers count as correct.
+  const wrongPracticeCards = (() => {
+    const ids = new Set(
+      questions.filter((_, i) => !(graded[i]?.correct || graded[i]?.overridden)).map((q) => q.cardId),
+    );
+    return allCards
+      .filter((c) => ids.has(c.id))
+      .map((c) => ({ id: c.id, front: c.front, back: c.back }));
+  })();
+  const practiceWrongCards = () => {
+    if (wrongPracticeCards.length === 0) return;
+    startReview(wrongPracticeCards);
+    router.push(`/practice?title=${encodeURIComponent(deckTitle ?? "Falsche Antworten")}`);
+  };
 
   // Persist the latest percentage (updates when an answer is overridden).
   useEffect(() => {
@@ -563,6 +583,13 @@ export default function TestScreen() {
               <TouchableOpacity onPress={() => setPhase("setup")} activeOpacity={0.85} style={{ paddingVertical: 12, borderRadius: radius.md, alignItems: "center" }}>
                 <Text style={{ color: colors.textSecondary, fontWeight: typography.semibold, fontSize: typography.base }}>Einstellungen</Text>
               </TouchableOpacity>
+              {wrongPracticeCards.length > 0 && (
+                <TouchableOpacity onPress={practiceWrongCards} activeOpacity={0.85} style={{ paddingVertical: 8, alignItems: "center" }}>
+                  <Text style={{ color: colors.primary, fontWeight: typography.semibold, fontSize: typography.sm, textDecorationLine: "underline" }}>
+                    Falsche als Karteikarten üben ({wrongPracticeCards.length})
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           </ScrollView>
         </SafeAreaView>
