@@ -286,8 +286,42 @@ export function reviewCard(
 
 // ─── Stats ──────────────────────────────────────────────────────────────────
 
-export function getStats(): Promise<{ stats: StatsResponse }> {
-  return authed<{ stats: StatsResponse }>("/api/v1/stats");
+export function getStats(days?: 7 | 30): Promise<{ stats: StatsResponse }> {
+  return authed<{ stats: StatsResponse }>(
+    `/api/v1/stats${days ? `?days=${days}` : ""}`
+  );
+}
+
+// Pro-Deck-Genauigkeit (letzte 30 Tage) — für die „Pro Deck"-Liste in der Statistik.
+export interface DeckSummary {
+  deckId: string;
+  title: string;
+  answersTotal: number;
+  accuracyRate: number;
+}
+export function getDeckSummaries(): Promise<{ decks: DeckSummary[] }> {
+  return authed<{ decks: DeckSummary[] }>("/api/v1/stats/decks");
+}
+
+// Statistik für EIN Deck (Verlauf im 7/30-Fenster + „Wackelkandidaten" all-time).
+export interface DeckWobblyCard {
+  cardId: string;
+  front: string;
+  back: string;
+  wrongCount: number;
+  lastWrongAt: string;
+}
+export interface DeckStats {
+  deck: { id: string; title: string };
+  answersTotal: number;
+  answersCorrect: number;
+  accuracyByDay: Array<{ date: string; accuracy: number; count: number }>;
+  wobblyCards: DeckWobblyCard[];
+}
+export function getDeckStats(deckId: string, days: 7 | 30 = 30): Promise<DeckStats> {
+  return authed<DeckStats>(
+    `/api/v1/decks/${encodeURIComponent(deckId)}/stats?days=${days}`
+  );
 }
 
 // ─── KI-Import (Karten aus Text/URL erzeugen) ────────────────────────────────
