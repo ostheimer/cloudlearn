@@ -64,6 +64,10 @@ import {
   useOfflineQueueStore,
 } from "../../src/features/sync/offlineQueueStore";
 import { AuthPromptCard } from "../../src/components/AuthPromptCard";
+import {
+  filterBySource,
+  type CardSource,
+} from "../../src/components/cardSourcePicker";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 // Threshold: card must travel 30% of screen width to trigger a rating
@@ -78,14 +82,17 @@ export default function LearnScreen({
   deckId,
   deckTitle,
   initialShowBackFirst,
-  starredOnly,
+  source,
+  wobblyIds,
 }: {
   deckId?: string | undefined;
   deckTitle?: string | undefined;
   // Deck mode: ask back → front from the start (chosen on the setup screen).
   initialShowBackFirst?: boolean | undefined;
-  // Deck mode: study only starred cards (chosen on the setup screen).
-  starredOnly?: boolean | undefined;
+  // Deck mode: which subset of the deck to study (chosen on the setup screen).
+  source?: CardSource | undefined;
+  // Deck mode: ids of the deck's wobbly cards, powering the "wobbly" source.
+  wobblyIds?: string[] | undefined;
 } = {}) {
   const router = useRouter();
   const c = useColors();
@@ -111,7 +118,8 @@ export default function LearnScreen({
       deckId={deckId}
       deckTitle={deckTitle}
       initialShowBackFirst={initialShowBackFirst}
-      starredOnly={starredOnly}
+      source={source}
+      wobblyIds={wobblyIds}
     />
   );
 }
@@ -121,13 +129,15 @@ function AuthenticatedLearnScreen({
   deckId,
   deckTitle,
   initialShowBackFirst,
-  starredOnly,
+  source,
+  wobblyIds,
 }: {
   userId: string;
   deckId?: string | undefined;
   deckTitle?: string | undefined;
   initialShowBackFirst?: boolean | undefined;
-  starredOnly?: boolean | undefined;
+  source?: CardSource | undefined;
+  wobblyIds?: string[] | undefined;
 }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -257,9 +267,12 @@ function AuthenticatedLearnScreen({
       const { cards: fetched } = deckId
         ? await listCardsInDeck(deckId)
         : await getDueCards(userId);
-      // Deck setup may restrict the session to starred cards.
+      // Deck setup may restrict the session to a chosen source (all / starred /
+      // wobbly). The global tab (no deckId/source) always studies the full pile.
       const loaded =
-        deckId && starredOnly ? fetched.filter((card) => card.starred) : fetched;
+        deckId && source
+          ? filterBySource(fetched, source, new Set(wobblyIds ?? []))
+          : fetched;
       if (loaded.length > 0) {
         const starMap: Record<string, boolean> = {};
         loaded.forEach((card) => { starMap[card.id] = card.starred ?? false; });
@@ -275,7 +288,7 @@ function AuthenticatedLearnScreen({
     } finally {
       setLoading(false);
     }
-  }, [userId, deckId, starredOnly, start]);
+  }, [userId, deckId, source, wobblyIds, start]);
 
   // The review session store is module-global, so a fresh screen can inherit
   // cards from a previous session. Reload whenever the source changes (a

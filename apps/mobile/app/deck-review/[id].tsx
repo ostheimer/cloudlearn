@@ -1,9 +1,22 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useLocalSearchParams, Stack } from "expo-router";
-import { ScrollView, Switch, Text, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ArrowRight, Layers } from "lucide-react-native";
+import { ArrowRight, Layers, RotateCcw } from "lucide-react-native";
 import LearnScreen from "../(tabs)/learn";
+import { listCardsInDeck, type Card } from "../../src/lib/api";
+import { fetchDeckStats } from "../../src/lib/statsApi";
+import {
+  CardSourcePicker,
+  filterBySource,
+  type CardSource,
+} from "../../src/components/cardSourcePicker";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
 
 // Full-screen "Karteikarten" session for a single deck. Opens with a setup
@@ -15,7 +28,45 @@ export default function DeckReviewScreen() {
 
   const [phase, setPhase] = useState<"setup" | "play">("setup");
   const [reverse, setReverse] = useState(false);
-  const [starredOnly, setStarredOnly] = useState(false);
+  const [source, setSource] = useState<CardSource>("all");
+
+  // Card-source data for the picker: the deck's cards (counts) + its wobbly ids.
+  const [allCards, setAllCards] = useState<Card[]>([]);
+  const [wobblyIds, setWobblyIds] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+
+  const loadCards = useCallback(async () => {
+    if (!id) return;
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const { cards: fetched } = await listCardsInDeck(id);
+      setAllCards(fetched);
+      // Wobbly ids power the "Nur Wackelkandidaten" source. Optional — never
+      // fail the setup (or show the retry) if the stats endpoint is down.
+      try {
+        const stats = await fetchDeckStats(id);
+        setWobblyIds(new Set(stats.wobblyCards.map((card) => card.cardId)));
+      } catch {
+        setWobblyIds(new Set());
+      }
+    } catch {
+      // Distinguish a load failure (offline / server error) from an empty deck,
+      // so we can offer a retry instead of a picker with no counts.
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    loadCards();
+  }, [loadCards]);
+
+  const starredCount = allCards.filter((card) => card.starred).length;
+  const wobblyCount = allCards.filter((card) => wobblyIds.has(card.id)).length;
+  const studyPool = filterBySource(allCards, source, wobblyIds);
 
   if (phase === "play") {
     return (
@@ -25,8 +76,89 @@ export default function DeckReviewScreen() {
           deckId={id}
           deckTitle={title}
           initialShowBackFirst={reverse}
-          starredOnly={starredOnly}
+          source={source}
+          wobblyIds={[...wobblyIds]}
         />
+      </>
+    );
+  }
+
+  // Header shared by the setup / loading / error states (the play state hides it).
+  const setupHeader = (
+    <Stack.Screen
+      options={{
+        headerShown: true,
+        title: title ?? "Karteikarten",
+        headerBackTitle: "Zurück",
+        headerTintColor: colors.primary,
+        headerStyle: { backgroundColor: colors.background },
+      }}
+    />
+  );
+
+  if (loading) {
+    return (
+      <>
+        {setupHeader}
+        <SafeAreaView
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: colors.background,
+          }}
+        >
+          <ActivityIndicator size="large" color={colors.primary} />
+        </SafeAreaView>
+      </>
+    );
+  }
+
+  // Load failed (offline / server error) — offer a retry, #208-style.
+  if (loadError) {
+    return (
+      <>
+        {setupHeader}
+        <SafeAreaView
+          edges={["bottom"]}
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: colors.background,
+            padding: spacing.xxl,
+            gap: spacing.lg,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: typography.lg,
+              color: colors.textSecondary,
+              textAlign: "center",
+              lineHeight: 24,
+            }}
+          >
+            Die Karten konnten nicht geladen werden.
+          </Text>
+          <TouchableOpacity
+            onPress={loadCards}
+            activeOpacity={0.8}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: spacing.sm,
+              paddingVertical: spacing.md,
+              paddingHorizontal: spacing.xl,
+              borderRadius: radius.md,
+              backgroundColor: colors.surfaceSecondary,
+            }}
+          >
+            <RotateCcw size={18} color={colors.text} />
+            <Text style={{ color: colors.text, fontWeight: typography.semibold }}>
+              Erneut versuchen
+            </Text>
+          </TouchableOpacity>
+        </SafeAreaView>
       </>
     );
   }
@@ -42,15 +174,7 @@ export default function DeckReviewScreen() {
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          headerShown: true,
-          title: title ?? "Karteikarten",
-          headerBackTitle: "Zurück",
-          headerTintColor: colors.primary,
-          headerStyle: { backgroundColor: colors.background },
-        }}
-      />
+      {setupHeader}
       <SafeAreaView
         edges={["bottom"]}
         style={{ flex: 1, backgroundColor: colors.background }}
@@ -143,52 +267,25 @@ export default function DeckReviewScreen() {
             </Text>
           </TouchableOpacity>
 
-          {/* Nur markierte Karten */}
-          <View
-            style={{
-              ...setupCardStyle,
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <View style={{ flex: 1, paddingRight: spacing.md }}>
-              <Text
-                style={{
-                  fontSize: typography.base,
-                  fontWeight: typography.semibold,
-                  color: colors.text,
-                }}
-              >
-                Nur markierte Karten
-              </Text>
-              <Text
-                style={{
-                  fontSize: typography.sm,
-                  color: colors.textSecondary,
-                  marginTop: 2,
-                }}
-              >
-                Übt nur Karten mit Stern
-              </Text>
-            </View>
-            <Switch
-              value={starredOnly}
-              onValueChange={setStarredOnly}
-              trackColor={{ false: colors.surfaceSecondary, true: colors.primary }}
-              thumbColor="#ffffff"
-              ios_backgroundColor={colors.surfaceSecondary}
-            />
-          </View>
+          {/* Kartenquelle — Alle / Nur markierte / Nur Wackelkandidaten */}
+          <CardSourcePicker
+            value={source}
+            onChange={setSource}
+            allCount={allCards.length}
+            starredCount={starredCount}
+            wobblyCount={wobblyCount}
+          />
 
           <View style={{ flex: 1 }} />
 
           {/* Start */}
           <TouchableOpacity
             onPress={() => setPhase("play")}
+            disabled={studyPool.length === 0}
             activeOpacity={0.85}
             style={{
-              backgroundColor: colors.primary,
+              backgroundColor:
+                studyPool.length === 0 ? colors.surfaceSecondary : colors.primary,
               paddingVertical: 16,
               borderRadius: radius.lg,
               alignItems: "center",
@@ -197,7 +294,8 @@ export default function DeckReviewScreen() {
           >
             <Text
               style={{
-                color: colors.textInverse,
+                color:
+                  studyPool.length === 0 ? colors.textTertiary : colors.textInverse,
                 fontWeight: typography.bold,
                 fontSize: typography.lg,
               }}
