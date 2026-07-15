@@ -58,8 +58,17 @@ export default function LearnPage() {
       const { cards: c } = await listCardsInDeck(deckId);
       // Bild-Occlusion-Karten gehören nur in den Occlusion-Modus (kein Bild hier).
       const studyable = c.filter((x) => x.type !== "occlusion");
-      poolRef.current = studyable;
-      setCards(studyable);
+      // Gezieltes Üben: ?cards=id1,id2 beschränkt die Runde auf genau diese Karten
+      // (z. B. „Wackelkandidaten üben" aus der Deck-Statistik). Fallback: alle.
+      const cardsParam =
+        typeof window !== "undefined"
+          ? new URLSearchParams(window.location.search).get("cards")
+          : null;
+      const wanted = cardsParam ? new Set(cardsParam.split(",").filter(Boolean)) : null;
+      const subset = wanted ? studyable.filter((x) => wanted.has(x.id)) : studyable;
+      const pool = subset.length > 0 ? subset : studyable;
+      poolRef.current = pool;
+      setCards(pool);
       setError(null);
     } catch (e) {
       setError(isApiError(e) ? e.message : "Karten konnten nicht geladen werden.");
