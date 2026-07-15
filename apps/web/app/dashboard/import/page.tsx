@@ -55,10 +55,18 @@ export default function ImportPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [usage, setUsage] = useState<AiUsageResponse | null>(null);
+  // Desktop erkennt man am „feinen" Zeiger (Maus). „Foto aufnehmen" (Kamera)
+  // ist nur am Handy sinnvoll — am Desktop wird das capture-Attribut ignoriert
+  // und es öffnet nur der Datei-Dialog (dann identisch zu „Bild wählen").
+  const [coarsePointer, setCoarsePointer] = useState(false);
 
   const photoInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
+  // Stabiler Idempotenz-Schlüssel PRO Inhalt: ein Retry mit demselben Inhalt
+  // nutzt denselben Schlüssel → der Server gibt das gecachte Ergebnis zurück
+  // (kein zweiter LP-Abzug). Neuer Inhalt → neuer Schlüssel.
+  const attemptRef = useRef<{ sig: string; key: string } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -72,6 +80,12 @@ export default function ImportPage() {
     return () => {
       active = false;
     };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.matchMedia) {
+      setCoarsePointer(window.matchMedia("(pointer: coarse)").matches);
+    }
   }, []);
 
   const cost = usage
@@ -196,19 +210,38 @@ export default function ImportPage() {
     if (!userId) return;
 
     setBusy(true);
+    // Stabiler Schlüssel pro Inhalt: derselbe Inhalt erneut → derselbe Schlüssel
+    // → der Server gibt sein gecachtes Ergebnis zurück (kein zweiter Abzug).
+    // Anderer Inhalt → neuer Schlüssel.
+    const sig =
+      mode === "text"
+        ? `t:${text.trim()}`
+        : mode === "url"
+          ? `u:${url.trim()}`
+          : mode === "pdf"
+            ? `p:${pdfBase64 ?? ""}`
+            : `i:${imageBase64 ?? ""}`;
+    if (!attemptRef.current || attemptRef.current.sig !== sig) {
+      const key =
+        typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `imp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      attemptRef.current = { sig, key };
+    }
+    const idemKey = attemptRef.current.key;
     let beforeIds = new Set<string>();
     try {
       const before = await listDecks(userId);
       beforeIds = new Set(before.decks.map((d) => d.id));
 
       if (mode === "text") {
-        await scanText(userId, text.trim());
+        await scanText(userId, text.trim(), "de", idemKey);
       } else if (mode === "url") {
-        await importFromUrl(userId, url.trim());
+        await importFromUrl(userId, url.trim(), 4, "de", idemKey);
       } else if (mode === "photo" || mode === "gallery") {
-        await scanImage(userId, imageBase64!, "image/jpeg");
+        await scanImage(userId, imageBase64!, "image/jpeg", "de", idemKey);
       } else if (mode === "pdf") {
-        await importPdf(userId, pdfFileName ?? "Dokument.pdf", pdfBase64!);
+        await importPdf(userId, pdfFileName ?? "Dokument.pdf", pdfBase64!, "de", idemKey);
       }
     } catch (e) {
       if (isApiError(e) && e.status === 402) {
@@ -231,6 +264,7 @@ export default function ImportPage() {
     // Import erfolgreich (Lernpunkte verbraucht, Deck angelegt). Ein reiner
     // Nachlade-Fehler darf ab hier NICHT wie ein Fehlschlag aussehen — sonst
     // würde ein erneuter Klick doppelt importieren und abbuchen.
+    attemptRef.current = null; // erfolgreich → nächster Import bekommt neuen Schlüssel
     try {
       const created = await findNewDeck(beforeIds);
       router.push(created ? `/dashboard/deck/${created.id}` : "/dashboard");
@@ -290,25 +324,29 @@ export default function ImportPage() {
             )}
 
             <div className="source-grid">
-              <button
-                type="button"
-                className="source-card source-card--photo"
-                onClick={() => choose("photo")}
-              >
-                <span className="source-card__ic">
-                  <Camera size={22} />
-                </span>
-                <span className="source-card__body">
-                  <span className="source-card__title">Foto aufnehmen</span>
-                  <span className="source-card__hint">Buchseite, Tafel, Notizen</span>
-                </span>
-                {usage && (
-                  <span className="source-card__cost">
-                    <Zap size={12} /> {usage.lpCostAiScan} LP
+              {/* „Foto aufnehmen" nur am Handy (feiner Zeiger = Desktop-Maus →
+                  keine echte Kamera, capture wird ignoriert → wie „Bild wählen"). */}
+              {coarsePointer && (
+                <button
+                  type="button"
+                  className="source-card source-card--photo"
+                  onClick={() => choose("photo")}
+                >
+                  <span className="source-card__ic">
+                    <Camera size={22} />
                   </span>
-                )}
-                <ChevronRight size={20} className="source-card__chevron" />
-              </button>
+                  <span className="source-card__body">
+                    <span className="source-card__title">Foto aufnehmen</span>
+                    <span className="source-card__hint">Buchseite, Tafel, Notizen</span>
+                  </span>
+                  {usage && (
+                    <span className="source-card__cost">
+                      <Zap size={12} /> {usage.lpCostAiScan} LP
+                    </span>
+                  )}
+                  <ChevronRight size={20} className="source-card__chevron" />
+                </button>
+              )}
 
               <button
                 type="button"
@@ -319,8 +357,8 @@ export default function ImportPage() {
                   <ImageIcon size={22} />
                 </span>
                 <span className="source-card__body">
-                  <span className="source-card__title">Aus Galerie wählen</span>
-                  <span className="source-card__hint">Foto oder Screenshot</span>
+                  <span className="source-card__title">Bild wählen</span>
+                  <span className="source-card__hint">Foto, Screenshot oder Buchseite</span>
                 </span>
                 {usage && (
                   <span className="source-card__cost">
