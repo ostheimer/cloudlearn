@@ -16,6 +16,7 @@ import {
   type Deck,
 } from "@/lib/api";
 import { compressImageToJpeg, fileToBase64 } from "@/lib/files";
+import { photoImportCopy } from "@/lib/importPageCopy";
 import {
   ArrowLeft,
   ChevronRight,
@@ -290,8 +291,8 @@ export default function ImportPage() {
                   <Camera size={22} />
                 </span>
                 <span className="source-card__body">
-                  <span className="source-card__title">Foto aufnehmen</span>
-                  <span className="source-card__hint">Buchseite, Tafel, Notizen</span>
+                  <span className="source-card__title">{photoImportCopy.sourceTitle}</span>
+                  <span className="source-card__hint">{photoImportCopy.sourceHint}</span>
                 </span>
                 {usage && (
                   <span className="source-card__cost">
@@ -456,7 +457,7 @@ export default function ImportPage() {
                       onClick={openImagePicker}
                       disabled={busy || prepping}
                     >
-                      {mode === "photo" ? "Anderes Foto" : "Anderes Bild"}
+                      {mode === "photo" ? photoImportCopy.changeButton : "Anderes Bild"}
                     </button>
                   </div>
                 ) : (
@@ -469,12 +470,14 @@ export default function ImportPage() {
                     {prepping
                       ? "Bild wird vorbereitet…"
                       : mode === "photo"
-                        ? "Foto aufnehmen"
+                        ? photoImportCopy.emptyButton
                         : "Aus Galerie wählen"}
                   </button>
                 )}
                 <span className="muted" style={{ fontSize: "0.8rem" }}>
-                  Die KI liest das Bild und macht daraus Karten.
+                  {mode === "photo"
+                    ? photoImportCopy.helpText
+                    : "Die KI liest das Bild und macht daraus Karten."}
                 </span>
               </div>
             )}
