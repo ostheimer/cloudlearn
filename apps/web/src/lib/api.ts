@@ -528,6 +528,21 @@ export function getFriends(): Promise<{ friends: FriendProfile[] }> {
   return authed<{ friends: FriendProfile[] }>("/api/v1/friends");
 }
 
+// Freund per Code (der Einladungs-/Referral-Code) hinzufügen. Legt die
+// Freundschaft beidseitig an und schaltet einmalig den Referral-LP-Bonus frei.
+export interface AddFriendByCodeResponse {
+  added: boolean;
+  friend: { userId: string; displayName: string; avatarUrl: string | null };
+  lpGranted: number;
+  newBalance?: number;
+}
+export function addFriendByCode(code: string): Promise<AddFriendByCodeResponse> {
+  return authed<AddFriendByCodeResponse>("/api/v1/friends/by-code", {
+    method: "POST",
+    body: JSON.stringify({ code }),
+  });
+}
+
 // ─── Freunde-Streaks (gemeinsame Streaks) ──────────────────────────────────
 export interface FriendStreak {
   friendId: string;
