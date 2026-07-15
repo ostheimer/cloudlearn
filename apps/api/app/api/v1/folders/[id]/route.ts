@@ -15,7 +15,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     if (!auth) return jsonError(requestId, "UNAUTHORIZED", "Authentication required", 401);
 
     const { id } = await params;
-    const folder = await getFolderById(id);
+    const folder = await getFolderById(id, auth.userId);
     if (!folder) {
       return jsonError(requestId, "FOLDER_NOT_FOUND", "Folder not found", 404);
     }
@@ -34,7 +34,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     const body = await request.json();
     const { id } = await params;
-    const folder = await updateFolderForUser({ ...body, folderId: id });
+    // userId comes AFTER ...body so a body-supplied userId can't override the
+    // authenticated identity — updates are always scoped to the token's user.
+    const folder = await updateFolderForUser({ ...body, folderId: id, userId: auth.userId });
     if (!folder) {
       return jsonError(requestId, "FOLDER_NOT_FOUND", "Folder not found", 404);
     }
@@ -52,7 +54,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     if (!auth) return jsonError(requestId, "UNAUTHORIZED", "Authentication required", 401);
 
     const { id } = await params;
-    const ok = await deleteFolderForUser(id);
+    const ok = await deleteFolderForUser(id, auth.userId);
     if (!ok) {
       return jsonError(requestId, "FOLDER_NOT_FOUND", "Folder not found", 404);
     }

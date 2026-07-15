@@ -15,7 +15,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     if (!auth) return jsonError(requestId, "UNAUTHORIZED", "Authentication required", 401);
 
     const { id } = await params;
-    const course = await getCourseById(id);
+    const course = await getCourseById(id, auth.userId);
     if (!course) {
       return jsonError(requestId, "COURSE_NOT_FOUND", "Course not found", 404);
     }
@@ -34,7 +34,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     const body = await request.json();
     const { id } = await params;
-    const course = await updateCourseForUser({ ...body, courseId: id });
+    // userId comes AFTER ...body so a body-supplied userId can't override the
+    // authenticated identity — updates are always scoped to the token's user.
+    const course = await updateCourseForUser({ ...body, courseId: id, userId: auth.userId });
     if (!course) {
       return jsonError(requestId, "COURSE_NOT_FOUND", "Course not found", 404);
     }
@@ -52,7 +54,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     if (!auth) return jsonError(requestId, "UNAUTHORIZED", "Authentication required", 401);
 
     const { id } = await params;
-    const ok = await deleteCourseForUser(id);
+    const ok = await deleteCourseForUser(id, auth.userId);
     if (!ok) {
       return jsonError(requestId, "COURSE_NOT_FOUND", "Course not found", 404);
     }

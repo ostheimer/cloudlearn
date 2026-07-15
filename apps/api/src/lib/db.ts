@@ -954,12 +954,16 @@ export async function listCourses(userId: string): Promise<CourseRecord[]> {
   return (data ?? []).map(mapCourseRow);
 }
 
-export async function getCourse(courseId: string): Promise<CourseRecord | null> {
+// All course accessors are scoped to the owning user_id. The admin Supabase
+// client bypasses RLS, so ownership must be enforced here in code — otherwise a
+// user could read/modify/delete another user's course by guessing its id (IDOR).
+export async function getCourse(courseId: string, userId: string): Promise<CourseRecord | null> {
   const db = getDb();
   const { data, error } = await db
     .from("courses")
     .select()
     .eq("id", courseId)
+    .eq("user_id", userId)
     .maybeSingle();
   if (error || !data) return null;
   return mapCourseRow(data);
@@ -967,6 +971,7 @@ export async function getCourse(courseId: string): Promise<CourseRecord | null> 
 
 export async function updateCourse(
   courseId: string,
+  userId: string,
   updates: Partial<Pick<CourseRecord, "title" | "description" | "color">>
 ): Promise<CourseRecord | null> {
   const db = getDb();
@@ -978,19 +983,40 @@ export async function updateCourse(
     .from("courses")
     .update(dbUpdates)
     .eq("id", courseId)
+    .eq("user_id", userId)
     .select()
-    .single();
-  if (error) return null;
+    .maybeSingle();
+  if (error || !data) return null;
   return mapCourseRow(data);
 }
 
-export async function deleteCourse(courseId: string): Promise<boolean> {
+export async function deleteCourse(courseId: string, userId: string): Promise<boolean> {
   const db = getDb();
-  const { error } = await db.from("courses").delete().eq("id", courseId);
-  return !error;
+  // Scope the delete to the owner and read back the affected row so a
+  // not-owned (or missing) course yields false → the route answers 404.
+  const { data, error } = await db
+    .from("courses")
+    .delete()
+    .eq("id", courseId)
+    .eq("user_id", userId)
+    .select("id")
+    .maybeSingle();
+  return !error && !!data;
 }
 
-export async function addDeckToCourse(courseId: string, deckId: string, position = 0): Promise<boolean> {
+export async function addDeckToCourse(
+  courseId: string,
+  userId: string,
+  deckId: string,
+  position = 0
+): Promise<boolean> {
+  // Both the course AND the deck must belong to the caller: without the deck
+  // check a user could attach someone else's deck and read its metadata back
+  // through listDecksInCourse.
+  const course = await getCourse(courseId, userId);
+  if (!course) return false;
+  const deck = await getDeck(deckId, userId);
+  if (!deck) return false;
   const db = getDb();
   const { error } = await db
     .from("course_decks")
@@ -998,7 +1024,10 @@ export async function addDeckToCourse(courseId: string, deckId: string, position
   return !error;
 }
 
-export async function removeDeckFromCourse(courseId: string, deckId: string): Promise<boolean> {
+export async function removeDeckFromCourse(courseId: string, userId: string, deckId: string): Promise<boolean> {
+  // Only the course owner may unlink a deck from it.
+  const course = await getCourse(courseId, userId);
+  if (!course) return false;
   const db = getDb();
   const { error } = await db
     .from("course_decks")
@@ -1008,7 +1037,12 @@ export async function removeDeckFromCourse(courseId: string, deckId: string): Pr
   return !error;
 }
 
-export async function listDecksInCourse(courseId: string): Promise<DeckRecord[]> {
+// Returns null when the course isn't owned by userId (so the route can 404
+// without leaking existence); an empty array means the course is owned but has
+// no decks.
+export async function listDecksInCourse(courseId: string, userId: string): Promise<DeckRecord[] | null> {
+  const course = await getCourse(courseId, userId);
+  if (!course) return null;
   const db = getDb();
   const { data, error } = await db
     .from("course_decks")
@@ -1016,8 +1050,11 @@ export async function listDecksInCourse(courseId: string): Promise<DeckRecord[]>
     .eq("course_id", courseId)
     .order("position", { ascending: true });
   if (error) throw new Error(`listDecksInCourse: ${error.message}`);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data ?? []).filter((r: any) => r.decks && !r.decks.deleted_at).map((r: any) => mapDeckRow(r.decks));
+  return (data ?? [])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .filter((r: any) => r.decks && !r.decks.deleted_at && r.decks.user_id === userId)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .map((r: any) => mapDeckRow(r.decks));
 }
 
 export async function listCoursesForDeck(deckId: string): Promise<CourseRecord[]> {
@@ -1088,12 +1125,15 @@ export async function listFolders(userId: string): Promise<FolderRecord[]> {
   return (data ?? []).map(mapFolderRow);
 }
 
-export async function getFolder(folderId: string): Promise<FolderRecord | null> {
+// Folder accessors are scoped to the owning user_id for the same IDOR reason as
+// courses: the admin client bypasses RLS, so ownership is enforced here.
+export async function getFolder(folderId: string, userId: string): Promise<FolderRecord | null> {
   const db = getDb();
   const { data, error } = await db
     .from("folders")
     .select()
     .eq("id", folderId)
+    .eq("user_id", userId)
     .maybeSingle();
   if (error || !data) return null;
   return mapFolderRow(data);
@@ -1101,6 +1141,7 @@ export async function getFolder(folderId: string): Promise<FolderRecord | null> 
 
 export async function updateFolder(
   folderId: string,
+  userId: string,
   updates: Partial<Pick<FolderRecord, "title" | "parentId" | "color">>
 ): Promise<FolderRecord | null> {
   const db = getDb();
@@ -1112,19 +1153,33 @@ export async function updateFolder(
     .from("folders")
     .update(dbUpdates)
     .eq("id", folderId)
+    .eq("user_id", userId)
     .select()
-    .single();
-  if (error) return null;
+    .maybeSingle();
+  if (error || !data) return null;
   return mapFolderRow(data);
 }
 
-export async function deleteFolder(folderId: string): Promise<boolean> {
+export async function deleteFolder(folderId: string, userId: string): Promise<boolean> {
   const db = getDb();
-  const { error } = await db.from("folders").delete().eq("id", folderId);
-  return !error;
+  // Scope to the owner and read back the affected row so a not-owned (or
+  // missing) folder yields false → the route answers 404.
+  const { data, error } = await db
+    .from("folders")
+    .delete()
+    .eq("id", folderId)
+    .eq("user_id", userId)
+    .select("id")
+    .maybeSingle();
+  return !error && !!data;
 }
 
-export async function addDeckToFolder(folderId: string, deckId: string): Promise<boolean> {
+export async function addDeckToFolder(folderId: string, userId: string, deckId: string): Promise<boolean> {
+  // Both the folder AND the deck must belong to the caller (see addDeckToCourse).
+  const folder = await getFolder(folderId, userId);
+  if (!folder) return false;
+  const deck = await getDeck(deckId, userId);
+  if (!deck) return false;
   const db = getDb();
   const { error } = await db
     .from("folder_decks")
@@ -1132,7 +1187,10 @@ export async function addDeckToFolder(folderId: string, deckId: string): Promise
   return !error;
 }
 
-export async function removeDeckFromFolder(folderId: string, deckId: string): Promise<boolean> {
+export async function removeDeckFromFolder(folderId: string, userId: string, deckId: string): Promise<boolean> {
+  // Only the folder owner may unlink a deck from it.
+  const folder = await getFolder(folderId, userId);
+  if (!folder) return false;
   const db = getDb();
   const { error } = await db
     .from("folder_decks")
@@ -1142,15 +1200,22 @@ export async function removeDeckFromFolder(folderId: string, deckId: string): Pr
   return !error;
 }
 
-export async function listDecksInFolder(folderId: string): Promise<DeckRecord[]> {
+// Returns null when the folder isn't owned by userId (route → 404); an empty
+// array means the folder is owned but has no decks.
+export async function listDecksInFolder(folderId: string, userId: string): Promise<DeckRecord[] | null> {
+  const folder = await getFolder(folderId, userId);
+  if (!folder) return null;
   const db = getDb();
   const { data, error } = await db
     .from("folder_decks")
     .select("deck_id, decks(*)")
     .eq("folder_id", folderId);
   if (error) throw new Error(`listDecksInFolder: ${error.message}`);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data ?? []).filter((r: any) => r.decks && !r.decks.deleted_at).map((r: any) => mapDeckRow(r.decks));
+  return (data ?? [])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .filter((r: any) => r.decks && !r.decks.deleted_at && r.decks.user_id === userId)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .map((r: any) => mapDeckRow(r.decks));
 }
 
 export async function listFoldersForDeck(deckId: string): Promise<FolderRecord[]> {
