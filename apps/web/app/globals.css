@@ -3577,3 +3577,46 @@ a.lp-pill:hover {
 .cal-chip b {
   font-size: 1.15rem;
 }
+
+/* ── Statistik-Dashboard (/dashboard/stats) ─────────────────────────────── */
+.st-kpi {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+.st-row2 {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: stretch;
+}
+@media (max-width: 680px) {
+  .st-kpi { grid-template-columns: repeat(2, 1fr); }
+  .st-row2 { grid-template-columns: 1fr; }
+}
+.st-kpi-tile {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px 15px;
+}
+.st-kpi-tile b {
+  display: block;
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--ink);
+  line-height: 1.1;
+  margin-top: 4px;
+}
+.st-deck-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 11px 10px;
+  border-radius: 10px;
+  text-decoration: none;
+  color: inherit;
+  border-bottom: 1px solid var(--line-2);
+}
+.st-deck-row:last-child { border-bottom: none; }
+.st-deck-row:hover { background: var(--bg-soft); }
