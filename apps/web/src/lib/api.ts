@@ -344,14 +344,15 @@ function importIdempotencyKey(prefix: string): string {
 export function scanText(
   userId: string,
   text: string,
-  language = "de"
+  language = "de",
+  idempotencyKey?: string
 ): Promise<ScanResponse> {
   return authed<ScanResponse>("/api/v1/scan/process", {
     method: "POST",
     body: JSON.stringify({
       userId,
       extractedText: text,
-      idempotencyKey: importIdempotencyKey("scan"),
+      idempotencyKey: idempotencyKey ?? importIdempotencyKey("scan"),
       sourceLanguage: language,
     }),
   });
@@ -362,7 +363,8 @@ export function importFromUrl(
   userId: string,
   sourceUrl: string,
   maxImages = 4,
-  language = "de"
+  language = "de",
+  idempotencyKey?: string
 ): Promise<UrlImportResponse> {
   return authed<UrlImportResponse>("/api/v1/import/url", {
     method: "POST",
@@ -370,7 +372,7 @@ export function importFromUrl(
       userId,
       sourceUrl,
       maxImages,
-      idempotencyKey: importIdempotencyKey("import-url"),
+      idempotencyKey: idempotencyKey ?? importIdempotencyKey("import-url"),
       sourceLanguage: language,
     }),
   });
@@ -385,7 +387,8 @@ export function scanImage(
   userId: string,
   imageBase64: string,
   mimeType: "image/jpeg" | "image/png" | "image/webp" = "image/jpeg",
-  language = "de"
+  language = "de",
+  idempotencyKey?: string
 ): Promise<ScanResponse> {
   return authed<ScanResponse>("/api/v1/scan/process", {
     method: "POST",
@@ -393,7 +396,7 @@ export function scanImage(
       userId,
       imageBase64,
       imageMimeType: mimeType,
-      idempotencyKey: importIdempotencyKey("scan-img"),
+      idempotencyKey: idempotencyKey ?? importIdempotencyKey("scan-img"),
       sourceLanguage: language,
     }),
   });
@@ -408,7 +411,8 @@ export function importPdf(
   userId: string,
   fileName: string,
   fileBase64: string,
-  language = "de"
+  language = "de",
+  idempotencyKey?: string
 ): Promise<PdfImportResponse> {
   return authed<PdfImportResponse>("/api/v1/import/pdf", {
     method: "POST",
@@ -416,7 +420,7 @@ export function importPdf(
       userId,
       fileName,
       fileBase64,
-      idempotencyKey: importIdempotencyKey("import-pdf"),
+      idempotencyKey: idempotencyKey ?? importIdempotencyKey("import-pdf"),
       sourceLanguage: language,
     }),
   });
