@@ -91,3 +91,26 @@ export const useReviewSession = create<ReviewSessionState>((set, get) => ({
     return { cardId: current.id, rating };
   }
 }));
+
+// Cards the learner didn't know this session: those whose most recent rating was
+// "again" (a left swipe or the "Nochmal" button — both record "again"). Uses the
+// LAST rating per card so a card re-rated after "Zurück" (goBack) counts by its
+// final answer, not an earlier one. Pure, so the result screen's "X von Y
+// gewusst" and "only the missed ones" button are unit-testable.
+export function missedCardsFrom(
+  cards: ReviewCard[],
+  history: number[],
+  ratingHistory: ReviewRating[],
+): ReviewCard[] {
+  const lastRating = new Map<number, ReviewRating>();
+  history.forEach((cardIndex, k) => {
+    const rating = ratingHistory[k];
+    if (rating) lastRating.set(cardIndex, rating);
+  });
+  const missed: ReviewCard[] = [];
+  lastRating.forEach((rating, cardIndex) => {
+    const card = cards[cardIndex];
+    if (rating === "again" && card) missed.push(card);
+  });
+  return missed;
+}
