@@ -180,6 +180,7 @@ export default function StatsPage() {
           </h3>
           <span className="muted" style={{ fontSize: "0.8rem" }}>
             letzte {rangeDays} Tage
+            {learningDays >= 2 && " · Punkt antippen für Details"}
           </span>
         </div>
         {learningDays >= 2 ? (
@@ -196,9 +197,16 @@ export default function StatsPage() {
       {/* Karten pro Tag | Genauigkeit-Ring */}
       <div className="st-row2">
         <div className="panel">
-          <h3 className="h3" style={{ marginBottom: 6 }}>
-            Karten pro Tag
-          </h3>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 6 }}>
+            <h3 className="h3" style={{ margin: 0 }}>
+              Karten pro Tag
+            </h3>
+            {reviewsByDay.some((d) => d.count > 0) && (
+              <span className="muted" style={{ fontSize: "0.78rem" }}>
+                für Details antippen
+              </span>
+            )}
+          </div>
           {reviewsByDay.some((d) => d.count > 0) ? (
             <ActivityBars data={reviewsByDay} showAllDates={rangeDays === 7} height={210} />
           ) : (

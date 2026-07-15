@@ -23,6 +23,54 @@ export function shortDay(iso: string): string {
   return `${p[2]}.`;
 }
 
+const SHORT_WEEKDAYS = ["So.", "Mo.", "Di.", "Mi.", "Do.", "Fr.", "Sa."] as const;
+/** "Fr. 10.07." — Wochentag (an UTC-Mittag, zeitzonensicher) + Datum. */
+function dayTitle(iso: string): string {
+  const d = shortDate(iso);
+  const nums = iso.split("-").map(Number);
+  if (nums.length < 3 || nums.some((x) => Number.isNaN(x))) return d;
+  const [y, m, day] = nums;
+  const wd = SHORT_WEEKDAYS[new Date(Date.UTC(y ?? 0, (m ?? 1) - 1, day ?? 1, 12)).getUTCDay()] ?? "";
+  return `${wd} ${d}`;
+}
+
+/** Kleine Detail-Sprechblase am angetippten Punkt/Balken (x horizontal geklemmt). */
+function ChartCallout({
+  x,
+  y,
+  W,
+  padL,
+  padR,
+  line1,
+  line2,
+}: {
+  x: number;
+  y: number;
+  W: number;
+  padL: number;
+  padR: number;
+  line1: string;
+  line2: string;
+}) {
+  const cw = 134;
+  const ch = 44;
+  let bx = x - cw / 2;
+  bx = Math.max(padL, Math.min(bx, W - padR - cw));
+  let by = y - ch - 12;
+  if (by < 2) by = y + 14;
+  return (
+    <g style={{ pointerEvents: "none" }}>
+      <rect x={bx} y={by} width={cw} height={ch} rx={8} fill="var(--surface)" stroke="var(--line)" strokeWidth={1} />
+      <text x={bx + cw / 2} y={by + 18} textAnchor="middle" fontSize={12} fontWeight={600} fill="var(--ink)">
+        {line1}
+      </text>
+      <text x={bx + cw / 2} y={by + 34} textAnchor="middle" fontSize={12} fill="var(--ink-3)">
+        {line2}
+      </text>
+    </g>
+  );
+}
+
 /** Misst die tatsächliche Breite des Containers (Chart füllt die Karte). */
 function useMeasuredWidth(): [React.RefObject<HTMLDivElement | null>, number] {
   const ref = useRef<HTMLDivElement | null>(null);
@@ -97,6 +145,8 @@ export function AccuracyTrendChart({
   height?: number;
 }) {
   const [ref, W] = useMeasuredWidth();
+  const [sel, setSel] = useState<number | null>(null);
+  useEffect(() => setSel(null), [data]);
   const H = height;
   const PAD_L = 38;
   const PAD_R = 14;
@@ -160,9 +210,25 @@ export function AccuracyTrendChart({
           points={line}
         />
         {data.map((d, i) => (
-          <circle key={i} cx={xFor(i)} cy={yFor(d.accuracy)} r={4.5} fill="var(--brand)">
-            <title>{`${shortDate(d.date)}: ${Math.round(d.accuracy * 100)}%`}</title>
-          </circle>
+          <circle
+            key={i}
+            cx={xFor(i)}
+            cy={yFor(d.accuracy)}
+            r={sel === i ? 6.5 : 4.5}
+            fill={sel === i ? "var(--brand-600)" : "var(--brand)"}
+          />
+        ))}
+        {/* Unsichtbare, größere Tap-Ziele je Punkt */}
+        {data.map((d, i) => (
+          <circle
+            key={`hit${i}`}
+            cx={xFor(i)}
+            cy={yFor(d.accuracy)}
+            r={14}
+            fill="transparent"
+            style={{ cursor: "pointer" }}
+            onClick={() => setSel(sel === i ? null : i)}
+          />
         ))}
         {last && (
           <text
@@ -199,6 +265,17 @@ export function AccuracyTrendChart({
                 </text>
               </>
             )}
+        {sel !== null && sel < n && data[sel] && (
+          <ChartCallout
+            x={xFor(sel)}
+            y={yFor(data[sel]!.accuracy)}
+            W={W}
+            padL={PAD_L}
+            padR={PAD_R}
+            line1={dayTitle(data[sel]!.date)}
+            line2={`${Math.round(data[sel]!.accuracy * 100)}% richtig`}
+          />
+        )}
       </svg>
     </div>
   );
@@ -215,6 +292,8 @@ export function ActivityBars({
   height?: number;
 }) {
   const [ref, W] = useMeasuredWidth();
+  const [sel, setSel] = useState<number | null>(null);
+  useEffect(() => setSel(null), [data]);
   const H = height;
   const PAD_L = 30;
   const PAD_R = 10;
@@ -241,9 +320,14 @@ export function ActivityBars({
           const y = PAD_T + plotH - drawH;
           return (
             <g key={i}>
-              <rect x={x} y={y} width={barW} height={drawH} rx={2.5} fill="var(--brand)">
-                <title>{`${shortDate(d.date)}: ${d.count}`}</title>
-              </rect>
+              <rect
+                x={x}
+                y={y}
+                width={barW}
+                height={drawH}
+                rx={2.5}
+                fill={sel === i ? "var(--brand-600)" : "var(--brand)"}
+              />
               {!dense && d.count > 0 && (
                 <text x={x + barW / 2} y={y - 4} textAnchor="middle" fontSize={11} fill="var(--ink-3)">
                   {d.count}
@@ -252,6 +336,19 @@ export function ActivityBars({
             </g>
           );
         })}
+        {/* Unsichtbare Tap-Ziele über die volle Slot-Höhe — jeder Tag ist antippbar */}
+        {data.map((d, i) => (
+          <rect
+            key={`hit${i}`}
+            x={PAD_L + i * slot}
+            y={PAD_T}
+            width={slot}
+            height={plotH}
+            fill="transparent"
+            style={{ cursor: "pointer" }}
+            onClick={() => setSel(sel === i ? null : i)}
+          />
+        ))}
         {data.map((d, i) => {
           const show = dense ? i % 5 === 0 : true;
           if (!show) return null;
@@ -268,6 +365,17 @@ export function ActivityBars({
             </text>
           );
         })}
+        {sel !== null && sel < n && data[sel] && (
+          <ChartCallout
+            x={PAD_L + sel * slot + slot / 2}
+            y={PAD_T + plotH - Math.max((data[sel]!.count / maxCount) * plotH, data[sel]!.count > 0 ? 2 : 0)}
+            W={W}
+            padL={PAD_L}
+            padR={PAD_R}
+            line1={dayTitle(data[sel]!.date)}
+            line2={`${data[sel]!.count} ${data[sel]!.count === 1 ? "Karte" : "Karten"}`}
+          />
+        )}
       </svg>
     </div>
   );
