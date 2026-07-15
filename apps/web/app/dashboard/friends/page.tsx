@@ -144,11 +144,11 @@ export default function FriendsPage() {
       </div>
 
       <Link
-        href="/dashboard/profile"
+        href="/dashboard/friends/add"
         className="btn btn-primary btn-block"
         style={{ textDecoration: "none", gap: 8, marginBottom: 16 }}
       >
-        <UserPlus size={18} /> Freund einladen
+        <UserPlus size={18} /> Freund hinzufügen
       </Link>
 
       {msg && (
@@ -382,8 +382,8 @@ export default function FriendsPage() {
               </div>
               <h3>Noch keine Freunde</h3>
               <p>
-                Teile deinen Einladungs-Code (unter „Freund einladen"), dann könnt ihr gemeinsam einen
-                Streak halten.
+                Tippe oben auf „Freund hinzufügen" — teile deinen Code oder gib den einer Freundin ein,
+                dann könnt ihr gemeinsam einen Streak halten.
               </p>
             </div>
           )}
