@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { getReferralInfo, addFriendByCode, isApiError } from "@/lib/api";
 import { ArrowLeft, Copy, Gift, Share, UserPlus, Zap, CheckCircle } from "@/components/icons";
@@ -14,6 +15,11 @@ export default function FriendAddPage() {
   const [copied, setCopied] = useState(false);
   const [addedName, setAddedName] = useState<string | null>(null);
   const [errMsg, setErrMsg] = useState<string | null>(null);
+  const router = useRouter();
+  const goBack = () => {
+    if (typeof window !== "undefined" && window.history.length > 1) router.back();
+    else router.push("/dashboard/friends");
+  };
 
   const loadInfo = useCallback(() => {
     getReferralInfo()
@@ -89,13 +95,21 @@ export default function FriendAddPage() {
     <>
       <div className="lib-head">
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <Link
-            href="/dashboard/friends"
-            aria-label="Zurück zu den Freunden"
-            style={{ color: "var(--ink-2)", display: "inline-flex" }}
+          <button
+            type="button"
+            onClick={goBack}
+            aria-label="Zurück"
+            style={{
+              color: "var(--ink-2)",
+              display: "inline-flex",
+              background: "none",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+            }}
           >
             <ArrowLeft size={22} />
-          </Link>
+          </button>
           <div>
             <h1>Freund hinzufügen</h1>
             <p className="muted" style={{ marginTop: 4 }}>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import {
   getStats,
@@ -44,6 +45,11 @@ export default function StreakCalendarPage() {
   const [calendar, setCalendar] = useState<StreakCalendarResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const router = useRouter();
+  const goBack = () => {
+    if (typeof window !== "undefined" && window.history.length > 1) router.back();
+    else router.push("/dashboard/home");
+  };
 
   // Stats einmal laden (Chips); die Kalenderdaten je Monat separat.
   useEffect(() => {
@@ -91,13 +97,21 @@ export default function StreakCalendarPage() {
     <>
       <div className="lib-head">
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <Link
-            href="/dashboard/home"
-            aria-label="Zurück zur Startseite"
-            style={{ color: "var(--ink-2)", display: "inline-flex" }}
+          <button
+            type="button"
+            onClick={goBack}
+            aria-label="Zurück"
+            style={{
+              color: "var(--ink-2)",
+              display: "inline-flex",
+              background: "none",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+            }}
           >
             <ArrowLeft size={22} />
-          </Link>
+          </button>
           <div>
             <h1>Streak-Kalender</h1>
             <p className="muted" style={{ marginTop: 4 }}>
