@@ -52,6 +52,7 @@ export default function ProfilePage() {
 
   const [copied, setCopied] = useState(false);
   const [pwSent, setPwSent] = useState(false);
+  const [pwErr, setPwErr] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -75,7 +76,12 @@ export default function ProfilePage() {
 
   async function handlePassword() {
     if (!email) return;
-    await resetPassword(email);
+    setPwErr(null);
+    const { error } = await resetPassword(email);
+    if (error) {
+      setPwErr(error);
+      return;
+    }
     setPwSent(true);
   }
 
@@ -164,7 +170,9 @@ export default function ProfilePage() {
           <div className="pf-row">
             <div className="pf-row__t">
               <b>Passwort</b>
-              <span>Setzt dein Passwort per E-Mail zurück</span>
+              <span style={pwErr ? { color: "#dc2626" } : undefined}>
+                {pwErr ?? "Setzt dein Passwort per E-Mail zurück"}
+              </span>
             </div>
             <button type="button" className="btn btn-ghost" onClick={handlePassword}>
               {pwSent ? "E-Mail gesendet" : "Ändern"}
