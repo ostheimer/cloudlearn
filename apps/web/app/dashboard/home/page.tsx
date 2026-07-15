@@ -7,6 +7,7 @@ import {
   getLpBalance,
   getFriendStreaks,
   listDecks,
+  buyStreakRepair,
   isApiError,
   type StatsResponse,
   type FriendStreak,
@@ -23,6 +24,8 @@ import {
   Shield,
   Zap,
   Camera,
+  HeartCrack,
+  HeartHandshake,
 } from "@/components/icons";
 
 // Startseite im Geist der App-Home: Streak (mit Freeze + Kalender-Link),
@@ -36,6 +39,8 @@ export default function HomePage() {
   const [recentDeck, setRecentDeck] = useState<{ id: string; title: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [repairing, setRepairing] = useState(false);
+  const [repairMsg, setRepairMsg] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -97,6 +102,38 @@ export default function HomePage() {
 
   const shownDeck = stats?.lastStudiedDeck ?? recentDeck;
 
+  const repairAvailable = stats?.repairAvailable ?? false;
+  const repairBrokenStreak = stats?.repairBrokenStreak ?? 0;
+  const repairCost = stats?.repairCost ?? 40;
+
+  // Gerissenen Streak gegen LP zurückholen. Preis/Berechtigung entscheidet der
+  // Server; danach Werte neu laden, damit Banner und LP-Pille stimmen.
+  const handleRepair = async () => {
+    if (
+      !window.confirm(
+        `Deinen ${repairBrokenStreak}-Tage-Streak für ${repairCost} LP zurückholen?`
+      )
+    )
+      return;
+    setRepairing(true);
+    setRepairMsg(null);
+    try {
+      await buyStreakRepair();
+      await load();
+    } catch (e) {
+      const code = isApiError(e) ? e.code : undefined;
+      setRepairMsg(
+        code === "INSUFFICIENT_LP"
+          ? "Dafür reichen deine LP noch nicht."
+          : code === "NO_REPAIR"
+            ? "Diese Reparatur ist nicht mehr möglich."
+            : "Zurückholen fehlgeschlagen. Versuch es später noch einmal."
+      );
+    } finally {
+      setRepairing(false);
+    }
+  };
+
   const tileStyle: CSSProperties = {
     display: "flex",
     flexDirection: "column",
@@ -147,6 +184,64 @@ export default function HomePage() {
         <p className="muted" style={{ fontSize: "0.85rem", margin: 0 }}>
           Konnte deine Werte gerade nicht laden — versuch es später nochmal.
         </p>
+      )}
+
+      {/* Streak-Reparatur — nur wenn ein frisch gerissener Streak zurückholbar ist */}
+      {repairAvailable && (
+        <div
+          style={{
+            background: "rgba(220,38,38,0.10)",
+            border: "1px solid rgba(220,38,38,0.45)",
+            borderRadius: 14,
+            padding: "14px 16px",
+            display: "grid",
+            gap: 10,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span
+              style={{
+                width: 42,
+                height: 42,
+                borderRadius: 999,
+                background: "var(--surface)",
+                color: "#dc2626",
+                display: "grid",
+                placeItems: "center",
+                flex: "none",
+              }}
+              aria-hidden
+            >
+              <HeartCrack size={22} />
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 700 }}>Streak gerissen</div>
+              <div style={{ fontSize: "0.85rem", color: "var(--ink-3)" }}>
+                Dein {repairBrokenStreak}-Tage-Streak ist weg
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="btn btn-primary btn-block"
+            onClick={handleRepair}
+            disabled={repairing}
+            style={{ gap: 8 }}
+          >
+            {repairing ? (
+              "Bitte warten…"
+            ) : (
+              <>
+                <HeartHandshake size={16} /> Für {repairCost} LP zurückholen
+              </>
+            )}
+          </button>
+          {repairMsg && (
+            <div style={{ fontSize: "0.85rem", color: "#dc2626", textAlign: "center" }}>
+              {repairMsg}
+            </div>
+          )}
+        </div>
       )}
 
       {/* Streak + Tagesziel — am Desktop nebeneinander, am Handy gestapelt */}
