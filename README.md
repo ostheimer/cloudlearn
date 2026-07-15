@@ -601,6 +601,8 @@ Die initiale Migration oben ist nur das Basisschema. Die vollständige, maßgebl
 │   └── POST   /sync         # FSRS-Daten synchronisieren (Device <-> Server)
 ├── /stats
 │   └── GET    /             # Lernstatistiken
+├── /daily-goal
+│   └── PATCH  /             # Tagesziel setzen (Karten pro Tag)
 ├── /usage
 │   └── GET    /             # LP-/Nutzungsstatus des Nutzers
 ├── /lp
