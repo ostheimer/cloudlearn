@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
 import { Modal } from "@/components/app/modal";
@@ -39,13 +39,14 @@ type Mode = {
   Icon: typeof Layers;
   color: string;
   path?: string; // Unterpfad relativ zum Deck, wenn im Web verfügbar
+  min: number; // benötigte Textkarten, damit der Modus wirklich starten kann
 };
 const MODES: Mode[] = [
-  { key: "flip", title: "Karteikarten", sub: "Klassisch umdrehen & bewerten", Icon: Layers, color: "#6366f1", path: "learn" },
-  { key: "mcq", title: "Multiple Choice", sub: "Antwort aus Optionen wählen", Icon: ListChecks, color: "#8b5cf6", path: "quiz" },
-  { key: "match", title: "Zuordnen", sub: "Begriffe & Definitionen paaren", Icon: Match, color: "#3b82f6", path: "match" },
-  { key: "cloze", title: "Lückentext", sub: "Fehlendes aktiv ergänzen", Icon: Pencil, color: "#d97706", path: "cloze" },
-  { key: "test", title: "Test", sub: "Klausur mit Prozent-Ergebnis", Icon: FileText, color: "#dc2626", path: "test" },
+  { key: "flip", title: "Karteikarten", sub: "Klassisch umdrehen & bewerten", Icon: Layers, color: "#6366f1", path: "learn", min: 1 },
+  { key: "mcq", title: "Multiple Choice", sub: "Antwort aus Optionen wählen", Icon: ListChecks, color: "#8b5cf6", path: "quiz", min: 2 },
+  { key: "match", title: "Zuordnen", sub: "Begriffe & Definitionen paaren", Icon: Match, color: "#3b82f6", path: "match", min: 2 },
+  { key: "cloze", title: "Lückentext", sub: "Fehlendes aktiv ergänzen", Icon: Pencil, color: "#d97706", path: "cloze", min: 1 },
+  { key: "test", title: "Test", sub: "Klausur mit Prozent-Ergebnis", Icon: FileText, color: "#dc2626", path: "test", min: 1 },
   // Occlusion wird separat als eigene Kachel gerendert (bedingt: aktiv nur mit Bild-Karten).
 ];
 
@@ -59,6 +60,11 @@ export default function DeckDetailPage() {
   const params = useParams<{ id: string }>();
   const deckId = params.id;
   const { userId } = useAuth();
+  const router = useRouter();
+  const goBack = () => {
+    if (typeof window !== "undefined" && window.history.length > 1) router.back();
+    else router.push("/dashboard");
+  };
 
   const [details, setDetails] = useState<DeckDetails | null>(null);
   const [cards, setCards] = useState<Card[]>([]);
@@ -121,13 +127,19 @@ export default function DeckDetailPage() {
   // Bild-Occlusion-Karten sind ein eigener Typ: sie gehören nur in den
   // Occlusion-Modus, nicht in die normale Kartenliste oder die Textmodi.
   const textCards = cards.filter((c) => c.type !== "occlusion");
-  const hasOcclusion = cards.some((c) => c.type === "occlusion");
+  const occlusionCards = cards.filter((c) => c.type === "occlusion");
+  const hasOcclusion = occlusionCards.length > 0;
 
   return (
     <div className="deck-detail">
-      <Link href="/dashboard" className="crumb">
-        <ArrowLeft size={16} /> Bibliothek
-      </Link>
+      <button
+        type="button"
+        onClick={goBack}
+        className="crumb"
+        style={{ background: "none", border: "none", cursor: "pointer" }}
+      >
+        <ArrowLeft size={16} /> Zurück
+      </button>
 
       <div className="detail-head">
         <div>
@@ -136,6 +148,8 @@ export default function DeckDetailPage() {
           </h1>
           <p className="muted" style={{ marginTop: 4 }}>
             {textCards.length} {textCards.length === 1 ? "Karte" : "Karten"}
+            {occlusionCards.length > 0 &&
+              ` · ${occlusionCards.length} Bild-${occlusionCards.length === 1 ? "Karte" : "Karten"}`}
           </p>
         </div>
         <button
@@ -160,41 +174,52 @@ export default function DeckDetailPage() {
             Wie möchtest du lernen?
           </h2>
           <div className="mode-list">
-            {MODES.map((m) => {
-              const inner = (
-                <>
-                  <span
-                    className="mode-card__ic"
-                    style={{ background: `${m.color}22`, color: m.color }}
-                    aria-hidden
+            {/* Textmodi nur zeigen, wenn es Textkarten gibt; jeder Modus ist nur
+                aktiv, wenn genug Karten da sind — sonst ausgegraut statt in einen
+                Leerbildschirm zu führen. */}
+            {textCards.length > 0 &&
+              MODES.map((m) => {
+                const enabled = textCards.length >= m.min;
+                const inner = (
+                  <>
+                    <span
+                      className="mode-card__ic"
+                      style={
+                        enabled
+                          ? { background: `${m.color}22`, color: m.color }
+                          : { background: "var(--bg-softer)", color: "var(--ink-3)" }
+                      }
+                      aria-hidden
+                    >
+                      <m.Icon size={20} />
+                    </span>
+                    <span className="mode-card__body">
+                      <span className="mode-card__title">{m.title}</span>
+                      <span className="mode-card__sub">
+                        {enabled ? m.sub : `Braucht mindestens ${m.min} Karten`}
+                      </span>
+                    </span>
+                    {enabled ? (
+                      <ChevronRight size={20} className="mode-card__chevron" />
+                    ) : (
+                      <span className="mode-card__badge">zu wenige</span>
+                    )}
+                  </>
+                );
+                return enabled ? (
+                  <Link
+                    key={m.key}
+                    href={`/dashboard/deck/${deckId}/${m.path}`}
+                    className="mode-card"
                   >
-                    <m.Icon size={20} />
-                  </span>
-                  <span className="mode-card__body">
-                    <span className="mode-card__title">{m.title}</span>
-                    <span className="mode-card__sub">{m.sub}</span>
-                  </span>
-                  {m.path ? (
-                    <ChevronRight size={20} className="mode-card__chevron" />
-                  ) : (
-                    <span className="mode-card__badge">in der App</span>
-                  )}
-                </>
-              );
-              return m.path ? (
-                <Link
-                  key={m.key}
-                  href={`/dashboard/deck/${deckId}/${m.path}`}
-                  className="mode-card"
-                >
-                  {inner}
-                </Link>
-              ) : (
-                <div key={m.key} className="mode-card mode-card--soon" aria-disabled="true">
-                  {inner}
-                </div>
-              );
-            })}
+                    {inner}
+                  </Link>
+                ) : (
+                  <div key={m.key} className="mode-card mode-card--soon" aria-disabled="true">
+                    {inner}
+                  </div>
+                );
+              })}
             {/* Occlusion-Kachel: aktiv (grün) → lernen, wenn das Deck Bild-Karten hat;
                 sonst ausgegraut → Editor, um erst ein Bild hinzuzufügen. */}
             <Link
@@ -242,8 +267,9 @@ export default function DeckDetailPage() {
           </button>
         </div>
       ) : (
-        textCards.length > 0 && (
         <>
+          {textCards.length > 0 && (
+          <>
           <h2 className="h3" style={{ margin: "0 0 10px" }}>
             Karten
           </h2>
@@ -285,8 +311,40 @@ export default function DeckDetailPage() {
             </div>
           ))}
           </div>
+          </>
+          )}
+          {occlusionCards.length > 0 && (
+            <>
+              <h2 className="h3" style={{ margin: "16px 0 10px" }}>
+                Bild-Karten (Occlusion)
+              </h2>
+              <div className="card-list">
+                {occlusionCards.map((card, i) => (
+                  <div key={card.id} className="card-row">
+                    <span className="card-row__num" aria-hidden>
+                      <ImageIcon size={16} />
+                    </span>
+                    <div className="card-row__faces">
+                      <div className="card-row__front">
+                        {card.back || card.front || `Bild-Karte ${i + 1}`}
+                      </div>
+                    </div>
+                    <div className="card-row__actions">
+                      <button
+                        type="button"
+                        className="icon-btn"
+                        aria-label="Bild-Karte löschen"
+                        onClick={() => setModal({ type: "delete", card })}
+                      >
+                        <Trash size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </>
-        )
       )}
 
       {(modal?.type === "add" || modal?.type === "edit") && (
