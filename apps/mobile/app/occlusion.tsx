@@ -10,8 +10,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { AlertTriangle, ImagePlus, Pencil, Trash2, Trophy, X, Zap } from "lucide-react-native";
+import { AlertTriangle, ImagePlus, Pencil, Trash2, X, Zap } from "lucide-react-native";
 import { useColors, spacing, radius, typography } from "../src/theme";
+import { StudyResult } from "../src/components/StudyResult";
 import { useSessionStore } from "../src/store/sessionStore";
 import { listCardsInDeck, reviewCard, earnLp, deleteCard } from "../src/lib/api";
 import {
@@ -269,40 +270,35 @@ export default function OcclusionStudyScreen() {
   }
 
   if (done) {
-    return wrap(
-      <ScrollView contentContainerStyle={{ flexGrow: 1, alignItems: "center", justifyContent: "center", gap: spacing.md, padding: spacing.xl }}>
-        <Trophy size={56} color={colors.warning} />
-        <Text style={{ fontSize: typography.xl, fontWeight: typography.bold, color: colors.text }}>Session geschafft!</Text>
-        <Text style={{ color: colors.textSecondary, textAlign: "center" }}>
-          Du hast {total} {total === 1 ? "Bereich" : "Bereiche"} durchgegangen — {correct} davon sicher gewusst.
-        </Text>
-        {earned !== null && earned > 0 && (
-          <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.xs, backgroundColor: colors.successLight, paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: radius.full }}>
-            <Zap size={15} color={colors.success} />
-            <Text style={{ color: colors.success, fontWeight: typography.semibold }}>+{earned} Lernpunkte</Text>
-          </View>
-        )}
-        {earned === 0 && earnCapReached && (
-          <Text style={{ color: colors.textSecondary, fontSize: typography.sm, textAlign: "center" }}>
-            Heutiges Lernpunkte-Limit erreicht — morgen gibt es wieder welche.
-          </Text>
-        )}
-        <View style={{ flexDirection: "row", gap: spacing.sm, flexWrap: "wrap", justifyContent: "center", marginTop: spacing.sm }}>
-          {wrong.length > 0 && (
-            <TouchableOpacity onPress={restartWrong} style={{ backgroundColor: colors.primary, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderRadius: radius.md }}>
-              <Text style={{ color: "#fff", fontWeight: typography.semibold }}>Nur nicht gewusste ({wrong.length})</Text>
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity onPress={restart} style={{ backgroundColor: wrong.length > 0 ? colors.surfaceSecondary : colors.primary, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderRadius: radius.md }}>
-            <Text style={{ color: wrong.length > 0 ? colors.text : "#fff", fontWeight: typography.semibold }}>
-              {wrong.length > 0 ? "Nochmal alle" : "Nochmal lernen"}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={goToDeck} style={{ backgroundColor: colors.surfaceSecondary, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderRadius: radius.md }}>
-            <Text style={{ color: colors.text, fontWeight: typography.semibold }}>Zurück zum Deck</Text>
-          </TouchableOpacity>
+    const lpAccessory =
+      earned !== null && earned > 0 ? (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.xs, backgroundColor: colors.successLight, paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: radius.full }}>
+          <Zap size={15} color={colors.success} />
+          <Text style={{ color: colors.success, fontWeight: typography.semibold }}>+{earned} Lernpunkte</Text>
         </View>
-      </ScrollView>,
+      ) : earned === 0 && earnCapReached ? (
+        <Text style={{ color: colors.textSecondary, fontSize: typography.sm, textAlign: "center" }}>
+          Heutiges Lernpunkte-Limit erreicht — morgen gibt es wieder welche.
+        </Text>
+      ) : null;
+    return wrap(
+      <StudyResult
+        headline={`${correct} von ${total}`}
+        subtitle={wrong.length > 0 ? `gewusst · ${wrong.length} noch üben` : "alles gewusst — stark!"}
+        accessory={lpAccessory}
+        actions={[
+          ...(wrong.length > 0
+            ? [{ label: `Nur die nicht gewussten (${wrong.length})`, onPress: restartWrong, variant: "primary" as const }]
+            : []),
+          {
+            label: "Alle nochmal",
+            onPress: restart,
+            variant: wrong.length > 0 ? ("secondary" as const) : ("primary" as const),
+            reload: true,
+          },
+          { label: "Zurück zum Deck", onPress: goToDeck, variant: "ghost" as const },
+        ]}
+      />,
     );
   }
 

@@ -1,10 +1,11 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { CheckCircle2, RotateCcw } from "lucide-react-native";
+import { StudyResult } from "../src/components/StudyResult";
 import {
   useReviewSession,
+  missedCardsFrom,
   type ReviewRating,
 } from "../src/features/review/reviewSession";
 import { useSessionStore } from "../src/store/sessionStore";
@@ -34,12 +35,20 @@ export default function PracticeScreen() {
     index,
     revealed,
     completed,
-    swipedLeft,
-    swipedRight,
+    history,
+    ratingHistory,
     start,
     reveal,
     rateCurrent,
   } = useReviewSession();
+
+  // Not-known cards this round (last rating "again") — for the result summary
+  // and the "only the missed ones" button. Same helper as the flashcard screen.
+  const missedCards = useMemo(
+    () => missedCardsFrom(cards, history, ratingHistory),
+    [cards, history, ratingHistory],
+  );
+  const knownCount = Math.max(0, cards.length - missedCards.length);
   const enqueueOfflineReview = useOfflineQueueStore((s) => s.enqueue);
   const setUsage = useUsageStore((s) => s.setUsage);
   const [saveError, setSaveError] = useState(false);
@@ -205,88 +214,32 @@ export default function PracticeScreen() {
               </TouchableOpacity>
             </View>
           ) : completed ? (
-            <View
-              style={{
-                flex: 1,
-                justifyContent: "center",
-                alignItems: "center",
-                gap: spacing.lg,
-              }}
-            >
-              <View
-                style={{
-                  width: 72,
-                  height: 72,
-                  borderRadius: 36,
-                  backgroundColor: c.successLight,
-                  justifyContent: "center",
-                  alignItems: "center",
-                }}
-              >
-                <CheckCircle2 size={36} color={c.success} />
-              </View>
-              <Text
-                style={{
-                  fontSize: typography.xl,
-                  fontWeight: typography.semibold,
-                  textAlign: "center",
-                  color: c.text,
-                }}
-              >
-                Runde geschafft!
-              </Text>
-              <Text
-                style={{
-                  color: c.textSecondary,
-                  textAlign: "center",
-                  fontSize: typography.base,
-                }}
-              >
-                {swipedRight} gemerkt · {swipedLeft} nochmal
-              </Text>
-              <TouchableOpacity
-                onPress={() => start(cards)}
-                activeOpacity={0.8}
-                style={{
-                  backgroundColor: c.primary,
-                  borderRadius: radius.md,
-                  paddingHorizontal: spacing.xxl,
-                  paddingVertical: 14,
-                  flexDirection: "row",
-                  gap: spacing.sm,
-                  alignItems: "center",
-                }}
-              >
-                <RotateCcw size={18} color="#fff" />
-                <Text
-                  style={{
-                    color: "#fff",
-                    fontWeight: typography.semibold,
-                    fontSize: typography.base,
-                  }}
-                >
-                  Nochmal üben
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => router.back()}
-                activeOpacity={0.8}
-                style={{
-                  paddingHorizontal: spacing.xxl,
-                  paddingVertical: spacing.sm,
-                }}
-              >
-                <Text
-                  style={{
-                    color: c.textSecondary,
-                    fontWeight: typography.semibold,
-                    fontSize: typography.base,
-                  }}
-                >
-                  Fertig
-                </Text>
-              </TouchableOpacity>
-            </View>
+            <StudyResult
+              headline={`${knownCount} von ${cards.length}`}
+              subtitle={
+                missedCards.length > 0
+                  ? `gewusst · ${missedCards.length} noch üben`
+                  : "alles gewusst — stark!"
+              }
+              actions={[
+                ...(missedCards.length > 0
+                  ? [
+                      {
+                        label: `Nur die nicht gewussten (${missedCards.length})`,
+                        onPress: () => start(missedCards),
+                        variant: "primary" as const,
+                      },
+                    ]
+                  : []),
+                {
+                  label: "Alle nochmal",
+                  onPress: () => start(cards),
+                  variant: missedCards.length > 0 ? ("secondary" as const) : ("primary" as const),
+                  reload: true,
+                },
+                { label: "Fertig", onPress: () => router.back(), variant: "ghost" as const },
+              ]}
+            />
           ) : (
             <View style={{ flex: 1, gap: spacing.md }}>
               {/* Progress */}
