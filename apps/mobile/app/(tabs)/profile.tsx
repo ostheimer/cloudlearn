@@ -374,7 +374,7 @@ export default function ProfileScreen() {
 
         {/* Referral */}
         <TouchableOpacity
-          onPress={() => (userId ? router.push("/referral") : router.push("/auth"))}
+          onPress={() => (userId ? router.push("/friend-add") : router.push("/auth"))}
           activeOpacity={0.8}
           style={{
             backgroundColor: c.surface, borderRadius: radius.lg, padding: spacing.lg,

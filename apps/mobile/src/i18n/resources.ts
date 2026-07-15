@@ -415,7 +415,7 @@ export const resources = {
       // Referral
       "referral.title": "Freunde einladen",
       "referral.profileButton": "Freunde einladen",
-      "referral.profileButtonSubtitle": "+50 LP pro geworbenen Freund",
+      "referral.profileButtonSubtitle": "Freunde hinzufügen, gemeinsam lernen, LP verdienen",
       "referral.bonusTitle": "Gegenseitig belohnen",
       "referral.bonusDesc": "Du erhältst {{sender}} LP, dein Freund {{receiver}} LP – für jede erfolgreiche Einladung.",
       "referral.statUsers": "Eingeladene\nFreunde",
@@ -867,7 +867,7 @@ export const resources = {
       // Referral
       "referral.title": "Invite friends",
       "referral.profileButton": "Invite friends",
-      "referral.profileButtonSubtitle": "+50 LP per referred friend",
+      "referral.profileButtonSubtitle": "Add friends, learn together, earn LP",
       "referral.bonusTitle": "Reward each other",
       "referral.bonusDesc": "You get {{sender}} LP, your friend gets {{receiver}} LP – for every successful invite.",
       "referral.statUsers": "Invited\nfriends",

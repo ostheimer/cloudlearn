@@ -4,6 +4,9 @@ import { jsonError, jsonOk, normalizeError } from "@/lib/http";
 import { createRequestContext } from "@/lib/observability";
 import { getAuthUser } from "@/lib/auth";
 import { createSupabaseAdminClient } from "@/lib/supabase";
+import { LP_EARN_RULES, REFERRAL_SENDER_CAP } from "@/lib/featureGates";
+
+const REFERRAL_FAILURES = ["already_referred", "code_not_found", "self", "claimer_not_found"];
 
 // Codes are the existing referral codes (8-char uppercase). Restrict to
 // [A-Z0-9] so the value is safe to match exactly and can't smuggle wildcards.
@@ -49,6 +52,28 @@ export async function POST(request: NextRequest) {
     );
     if (error) throw new Error(`addFriendByCode: ${error.message}`);
 
+    // Adding a friend by code also grants the one-time referral LP bonus (this
+    // merges the old separate "Empfehlung einlösen" flow). Best-effort: the
+    // atomic claim_referral guards already_referred/self, so a second friend
+    // simply adds no LP — the friendship above always stands regardless.
+    let lpGranted = 0;
+    let newBalance: number | undefined;
+    try {
+      const { data: claim } = await db.rpc("claim_referral", {
+        p_claimer: auth.userId,
+        p_code: body.data.code,
+        p_referrer_bonus: LP_EARN_RULES.referralSender,
+        p_claimer_bonus: LP_EARN_RULES.referralReceiver,
+        p_referrer_cap: REFERRAL_SENDER_CAP,
+      });
+      if (claim && !REFERRAL_FAILURES.includes(claim.status)) {
+        lpGranted = claim.claimerBonus ?? 0;
+        newBalance = claim.newBalance;
+      }
+    } catch {
+      // LP is a bonus, never a blocker — the friendship is already created.
+    }
+
     return jsonOk(requestId, {
       added: true,
       friend: {
@@ -56,6 +81,8 @@ export async function POST(request: NextRequest) {
         displayName: (friend.display_name as string | null) ?? "Lernbuddy",
         avatarUrl: (friend.avatar_url as string | null) ?? null,
       },
+      lpGranted,
+      newBalance,
     });
   } catch (error) {
     const normalized = normalizeError(error);
