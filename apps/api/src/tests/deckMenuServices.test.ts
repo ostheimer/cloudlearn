@@ -61,13 +61,13 @@ describe.skipIf(!HAS_DB)("deck menu services — integration tests (Supabase)", 
 
     const course = await createCourseForUser({ userId, title: "Deck-Kurs Test" });
 
-    const added = await addDeckToCourseForUser(course.id, testDeckId);
+    const added = await addDeckToCourseForUser(course.id, userId, testDeckId);
     expect(added).toBe(true);
 
-    const decks = await listDecksInCourseForUser(course.id);
-    expect(decks.some((d) => d.id === testDeckId)).toBe(true);
+    const decks = await listDecksInCourseForUser(course.id, userId);
+    expect(decks?.some((d) => d.id === testDeckId)).toBe(true);
 
-    const removed = await removeDeckFromCourseForUser(course.id, testDeckId);
+    const removed = await removeDeckFromCourseForUser(course.id, userId, testDeckId);
     expect(removed).toBe(true);
   });
 
@@ -92,13 +92,13 @@ describe.skipIf(!HAS_DB)("deck menu services — integration tests (Supabase)", 
 
     const folder = await createFolderForUser({ userId, title: "Deck-Ordner Test" });
 
-    const added = await addDeckToFolderForUser(folder.id, testDeckId);
+    const added = await addDeckToFolderForUser(folder.id, userId, testDeckId);
     expect(added).toBe(true);
 
-    const decks = await listDecksInFolderForUser(folder.id);
-    expect(decks.some((d) => d.id === testDeckId)).toBe(true);
+    const decks = await listDecksInFolderForUser(folder.id, userId);
+    expect(decks?.some((d) => d.id === testDeckId)).toBe(true);
 
-    const removed = await removeDeckFromFolderForUser(folder.id, testDeckId);
+    const removed = await removeDeckFromFolderForUser(folder.id, userId, testDeckId);
     expect(removed).toBe(true);
   });
 

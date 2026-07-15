@@ -19,7 +19,11 @@ export async function GET(request: NextRequest, { params }: Params) {
     if (!auth) return jsonError(requestId, "UNAUTHORIZED", "Authentication required", 401);
 
     const { id } = await params;
-    const decks = await listDecksInCourseForUser(id);
+    const decks = await listDecksInCourseForUser(id, auth.userId);
+    // null = course not owned by the caller → 404 (don't leak existence).
+    if (decks === null) {
+      return jsonError(requestId, "COURSE_NOT_FOUND", "Course not found", 404);
+    }
     return jsonOk(requestId, { requestId, decks });
   } catch (error) {
     const normalized = normalizeError(error);
@@ -39,9 +43,11 @@ export async function POST(request: NextRequest, { params }: Params) {
     if (!deckId) {
       return jsonError(requestId, "VALIDATION_ERROR", "deckId is required", 422);
     }
-    const ok = await addDeckToCourseForUser(id, deckId, position ?? 0);
+    const ok = await addDeckToCourseForUser(id, auth.userId, deckId, position ?? 0);
     if (!ok) {
-      return jsonError(requestId, "ADD_FAILED", "Could not add deck to course", 400);
+      // Course or deck not owned by the caller — 404 (don't reveal which, or
+      // whether the resource exists).
+      return jsonError(requestId, "COURSE_NOT_FOUND", "Course not found", 404);
     }
     return jsonOk(requestId, { requestId, added: true }, 201);
   } catch (error) {
@@ -62,9 +68,10 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     if (!deckId) {
       return jsonError(requestId, "VALIDATION_ERROR", "deckId query parameter is required", 422);
     }
-    const ok = await removeDeckFromCourseForUser(id, deckId);
+    const ok = await removeDeckFromCourseForUser(id, auth.userId, deckId);
     if (!ok) {
-      return jsonError(requestId, "REMOVE_FAILED", "Could not remove deck from course", 400);
+      // Course not owned by the caller → 404 (don't leak existence).
+      return jsonError(requestId, "COURSE_NOT_FOUND", "Course not found", 404);
     }
     return jsonOk(requestId, { requestId, removed: true });
   } catch (error) {
