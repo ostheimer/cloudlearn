@@ -245,7 +245,7 @@ export default function LeaderboardScreen() {
           )}
           {activeTab === "friends" && (
             <TouchableOpacity
-              onPress={() => router.push("/referral")}
+              onPress={() => router.push("/friend-add")}
               style={{ marginTop: spacing.lg, backgroundColor: colors.primary, borderRadius: radius.md, paddingHorizontal: spacing.xl, paddingVertical: spacing.md }}
             >
               <Text style={{ color: "#fff", fontWeight: typography.semibold }}>{t("leaderboard.inviteFriends")}</Text>

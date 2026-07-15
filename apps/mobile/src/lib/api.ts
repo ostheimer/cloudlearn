@@ -903,6 +903,9 @@ export async function removeFriend(friendId: string): Promise<{ removed: boolean
 export interface AddFriendByCodeResponse {
   added: boolean;
   friend: { userId: string; displayName: string; avatarUrl: string | null };
+  // One-time referral LP bonus granted by the same action (0 if already used).
+  lpGranted: number;
+  newBalance?: number;
 }
 
 // Add a friend by their share code (the referral code, reused as a friend code).

@@ -10,32 +10,55 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { ArrowLeft, Share2, UserPlus } from "lucide-react-native";
+import { ArrowLeft, Copy, Gift, Share2, UserPlus, Zap } from "lucide-react-native";
+import * as Clipboard from "expo-clipboard";
 import { useColors, spacing, radius, typography } from "../src/theme";
 import { useSessionStore } from "../src/store/sessionStore";
+import { useUsageStore } from "../src/store/usageStore";
 import { getReferralInfo, addFriendByCode, isApiError } from "../src/lib/api";
 
+// One screen for "add a friend by code" — creates the friendship AND grants the
+// one-time referral LP bonus, replacing the old separate "Empfehlung einlösen"
+// screen. Inviting an already-added friend to a shared streak lives elsewhere
+// (the Freunde-Streak area).
 export default function FriendAddScreen() {
   const router = useRouter();
   const colors = useColors();
   const userId = useSessionStore((s) => s.userId);
+  const setUsage = useUsageStore((s) => s.setUsage);
 
   const [myCode, setMyCode] = useState<string | null>(null);
+  const [referredCount, setReferredCount] = useState(0);
+  const [lpFromReferrals, setLpFromReferrals] = useState(0);
   const [input, setInput] = useState("");
   const [adding, setAdding] = useState(false);
+  const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
+  const loadInfo = useCallback(() => {
     if (!userId) return;
     getReferralInfo()
-      .then((r) => setMyCode(r.referralCode))
+      .then((r) => {
+        setMyCode(r.referralCode);
+        setReferredCount(r.referredCount);
+        setLpFromReferrals(r.lpEarnedFromReferrals);
+      })
       .catch(() => { /* code just stays hidden */ });
   }, [userId]);
+
+  useEffect(() => { loadInfo(); }, [loadInfo]);
+
+  const copyCode = useCallback(async () => {
+    if (!myCode) return;
+    await Clipboard.setStringAsync(myCode);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [myCode]);
 
   const share = useCallback(async () => {
     if (!myCode) return;
     try {
       await Share.share({
-        message: `Füge mich auf clearn hinzu, dann halten wir einen gemeinsamen Lern-Streak! Mein Code: ${myCode}`,
+        message: `Füge mich auf clearn hinzu, dann halten wir einen gemeinsamen Lern-Streak und bekommen beide LP! Mein Code: ${myCode}`,
       });
     } catch {
       // user cancelled the share sheet
@@ -49,11 +72,16 @@ export default function FriendAddScreen() {
     try {
       const res = await addFriendByCode(code);
       setInput("");
+      if (res.lpGranted > 0 && res.newBalance != null) {
+        setUsage({ lpBalance: res.newBalance });
+      }
+      const lpNote = res.lpGranted > 0 ? ` Ihr habt beide LP bekommen (+${res.lpGranted} für dich).` : "";
       Alert.alert(
         "Freund hinzugefügt",
-        `${res.friend.displayName} ist jetzt dein Freund. Ihr könnt einen gemeinsamen Streak starten!`,
+        `${res.friend.displayName} ist jetzt dein Freund.${lpNote} Ihr könnt einen gemeinsamen Streak starten!`,
         [{ text: "Super", onPress: () => router.back() }]
       );
+      loadInfo();
     } catch (err) {
       const message =
         isApiError(err) && err.code === "CODE_NOT_FOUND"
@@ -67,7 +95,7 @@ export default function FriendAddScreen() {
     } finally {
       setAdding(false);
     }
-  }, [input, router]);
+  }, [input, router, setUsage, loadInfo]);
 
   const canAdd = input.trim().length >= 4 && !adding;
 
@@ -82,6 +110,27 @@ export default function FriendAddScreen() {
           <Text style={{ fontSize: typography.xxl, fontWeight: typography.bold, color: colors.text }}>
             Freund hinzufügen
           </Text>
+        </View>
+
+        {/* LP bonus explainer */}
+        <View
+          style={{
+            backgroundColor: colors.successLight ?? colors.surfaceSecondary,
+            borderRadius: radius.lg,
+            padding: spacing.lg,
+            flexDirection: "row",
+            gap: spacing.md,
+          }}
+        >
+          <Gift size={22} color={colors.success} />
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: typography.base, fontWeight: typography.semibold, color: colors.text }}>
+              Zusammen lernen lohnt sich
+            </Text>
+            <Text style={{ fontSize: typography.sm, color: colors.textSecondary, marginTop: 2, lineHeight: 20 }}>
+              Fügst du eine Freundin per Code hinzu, bekommt ihr beim ersten Mal LP: du 25, deine Freundin 50 — und ihr könnt sofort einen Streak starten.
+            </Text>
+          </View>
         </View>
 
         {/* Your own share code */}
@@ -104,27 +153,46 @@ export default function FriendAddScreen() {
           ) : (
             <ActivityIndicator color={colors.primary} />
           )}
-          <TouchableOpacity
-            onPress={share}
-            disabled={!myCode}
-            activeOpacity={0.8}
-            style={{
-              alignSelf: "stretch",
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: spacing.sm,
-              backgroundColor: colors.primaryLight,
-              borderRadius: radius.md,
-              paddingVertical: spacing.md,
-              opacity: myCode ? 1 : 0.5,
-            }}
-          >
-            <Share2 size={16} color={colors.primary} />
-            <Text style={{ fontSize: typography.base, fontWeight: typography.semibold, color: colors.primary }}>
-              Code teilen
-            </Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: "row", gap: spacing.md, alignSelf: "stretch" }}>
+            <TouchableOpacity
+              onPress={copyCode}
+              disabled={!myCode}
+              activeOpacity={0.8}
+              style={{
+                flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm,
+                backgroundColor: copied ? colors.successLight : colors.surfaceSecondary,
+                borderRadius: radius.md, paddingVertical: spacing.md, opacity: myCode ? 1 : 0.5,
+              }}
+            >
+              <Copy size={16} color={copied ? colors.success : colors.textSecondary} />
+              <Text style={{ fontSize: typography.sm, fontWeight: typography.semibold, color: copied ? colors.success : colors.textSecondary }}>
+                {copied ? "Kopiert" : "Kopieren"}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={share}
+              disabled={!myCode}
+              activeOpacity={0.8}
+              style={{
+                flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm,
+                backgroundColor: colors.primary, borderRadius: radius.md, paddingVertical: spacing.md,
+                opacity: myCode ? 1 : 0.5,
+              }}
+            >
+              <Share2 size={16} color={colors.textInverse} />
+              <Text style={{ fontSize: typography.sm, fontWeight: typography.semibold, color: colors.textInverse }}>
+                Teilen
+              </Text>
+            </TouchableOpacity>
+          </View>
+          {referredCount > 0 || lpFromReferrals > 0 ? (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+              <Zap size={13} color={colors.textTertiary} />
+              <Text style={{ fontSize: typography.xs, color: colors.textTertiary }}>
+                {referredCount} geworben · {lpFromReferrals} LP verdient
+              </Text>
+            </View>
+          ) : null}
         </View>
 
         {/* Divider */}
@@ -148,14 +216,9 @@ export default function FriendAddScreen() {
             autoCorrect={false}
             maxLength={20}
             style={{
-              borderWidth: 1,
-              borderColor: colors.border,
-              borderRadius: radius.md,
-              padding: spacing.md,
-              fontSize: typography.lg,
-              letterSpacing: 2,
-              color: colors.text,
-              backgroundColor: colors.surface,
+              borderWidth: 1, borderColor: colors.border, borderRadius: radius.md,
+              padding: spacing.md, fontSize: typography.lg, letterSpacing: 2,
+              color: colors.text, backgroundColor: colors.surface,
             }}
           />
           <TouchableOpacity
@@ -163,13 +226,8 @@ export default function FriendAddScreen() {
             disabled={!canAdd}
             activeOpacity={0.8}
             style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: spacing.sm,
-              backgroundColor: colors.primary,
-              borderRadius: radius.md,
-              paddingVertical: spacing.md,
+              flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm,
+              backgroundColor: colors.primary, borderRadius: radius.md, paddingVertical: spacing.md,
               opacity: canAdd ? 1 : 0.5,
             }}
           >
