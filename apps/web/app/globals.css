@@ -2851,6 +2851,46 @@ a.mode-card:hover {
   font-size: 0.85rem;
 }
 
+/* Bild-Karten (Occlusion): erste Spalte trägt statt der Nummer ein
+   Vorschaubild mit markierter Stelle. */
+.card-row--img {
+  grid-template-columns: 64px 1fr auto;
+}
+
+.card-row__thumb {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-4);
+}
+
+.occ-shot {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.delete-preview {
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  padding: 6px;
+  margin: 0 0 14px;
+}
+
+.occ-shot--lg {
+  width: 100%;
+  height: auto;
+  max-height: 220px;
+}
+
 .card-row__faces {
   display: grid;
   gap: 8px;
