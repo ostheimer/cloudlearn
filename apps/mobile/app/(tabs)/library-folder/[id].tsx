@@ -30,6 +30,7 @@ import {
   type Deck,
   type Folder,
 } from "../../../src/lib/api";
+import { excludeOcclusionCards } from "../../../src/lib/occlusion";
 import { useColors, spacing, radius, typography, shadows } from "../../../src/theme";
 import { createDetailStackOptions } from "../../../src/navigation/detailStackOptions";
 import { filterDueCardsByDeckIds } from "../../../src/lib/learnFilters";
@@ -161,7 +162,14 @@ export default function FolderDetailScreen() {
     setStartingLearn(true);
     try {
       const { cards } = await getDueCards(userId);
-      const filtered = filterDueCardsByDeckIds(cards, decks.map((d) => d.id));
+      // Occlusion cards can't be studied as flashcards (see excludeOcclusionCards).
+      // They must be dropped HERE too: this screen pre-fills the review store and
+      // pushes to /learn, which then keeps the given cards instead of re-loading —
+      // so the learn screen's own filter would never run.
+      const filtered = filterDueCardsByDeckIds(
+        excludeOcclusionCards(cards),
+        decks.map((d) => d.id)
+      );
       if (filtered.length === 0) {
         Alert.alert(t("learn.noDueCards"), t("learn.noDueCardsMessage"));
         return;
