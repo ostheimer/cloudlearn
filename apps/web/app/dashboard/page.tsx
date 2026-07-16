@@ -11,12 +11,21 @@ import {
   deleteDeck,
   duplicateDeck,
   shareDeck,
+  listFolders,
+  createFolder,
+  updateFolder,
+  deleteFolder,
+  listDecksInFolder,
+  addDeckToFolder,
   isApiError,
   type Deck,
+  type Folder,
 } from "@/lib/api";
+import { descendantFolders, folderPath, joinTitles } from "@/lib/folders";
 import {
   Search,
   Layers,
+  Folder as FolderIcon,
   MoreHorizontal,
   Play,
   Pencil,
@@ -27,16 +36,27 @@ import {
   Sparkles,
 } from "@/components/icons";
 
+type TabKey = "decks" | "folders";
+
 type ModalState =
   | { type: "create" }
   | { type: "rename"; deck: Deck }
   | { type: "delete"; deck: Deck }
   | { type: "share"; deck: Deck; url: string }
+  | { type: "addToFolder"; deck: Deck }
+  // forDeck: set when the dialog was opened from "Zu Ordner hinzufügen" with no
+  // folders yet — the new folder then takes that deck straight away.
+  | { type: "createFolder"; forDeck?: Deck }
+  | { type: "renameFolder"; folder: Folder }
+  | { type: "deleteFolder"; folder: Folder }
   | null;
 
 export default function LibraryPage() {
   const { userId } = useAuth();
   const [decks, setDecks] = useState<Deck[]>([]);
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [folderCounts, setFolderCounts] = useState<Record<string, number>>({});
+  const [tab, setTab] = useState<TabKey>("decks");
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [openMenu, setOpenMenu] = useState<string | null>(null);
@@ -58,9 +78,33 @@ export default function LibraryPage() {
     }
   }, [userId]);
 
+  const loadFolders = useCallback(async () => {
+    if (!userId) return;
+    try {
+      const { folders: fetched } = await listFolders();
+      setFolders(fetched);
+      // The folder list carries no deck count, so ask per folder. Users have a
+      // handful of folders; a failed count shows as "—" rather than breaking.
+      const counts = await Promise.all(
+        fetched.map(async (f) => {
+          try {
+            const { decks: inFolder } = await listDecksInFolder(f.id);
+            return [f.id, inFolder.length] as const;
+          } catch {
+            return [f.id, -1] as const;
+          }
+        })
+      );
+      setFolderCounts(Object.fromEntries(counts));
+    } catch {
+      setPageError("Ordner konnten nicht geladen werden.");
+    }
+  }, [userId]);
+
   useEffect(() => {
     loadDecks();
-  }, [loadDecks]);
+    loadFolders();
+  }, [loadDecks, loadFolders]);
 
   useEffect(() => {
     if (!openMenu) return;
@@ -79,37 +123,76 @@ export default function LibraryPage() {
     );
   }, [decks, query]);
 
+  const filteredFolders = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const sorted = [...folders].sort((a, b) => a.title.localeCompare(b.title, "de"));
+    if (!q) return sorted;
+    return sorted.filter((f) => f.title.toLowerCase().includes(q));
+  }, [folders, query]);
+
   return (
     <>
       <div className="lib-head">
         <div>
           <h1>Meine Bibliothek</h1>
           <p className="muted" style={{ marginTop: 4 }}>
-            {decks.length} {decks.length === 1 ? "Deck" : "Decks"}
+            {tab === "decks"
+              ? `${decks.length} ${decks.length === 1 ? "Deck" : "Decks"}`
+              : `${folders.length} ${folders.length === 1 ? "Ordner" : "Ordner"}`}
           </p>
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <Link href="/dashboard/import" className="btn btn-ghost">
             <Sparkles size={16} /> Scan
           </Link>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => setModal({ type: "create" })}
-          >
-            + Neues Deck
-          </button>
+          {tab === "decks" ? (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setModal({ type: "create" })}
+            >
+              + Neues Deck
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setModal({ type: "createFolder" })}
+            >
+              + Neuer Ordner
+            </button>
+          )}
         </div>
       </div>
 
       <div className="toolbar">
+        <div className="segmented" role="tablist" aria-label="Bibliothek">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === "decks"}
+            className={tab === "decks" ? "active" : undefined}
+            onClick={() => setTab("decks")}
+          >
+            Decks
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === "folders"}
+            className={tab === "folders" ? "active" : undefined}
+            onClick={() => setTab("folders")}
+          >
+            Ordner
+          </button>
+        </div>
         <div className="input-icon">
           <span aria-hidden>
             <Search size={16} />
           </span>
           <input
             className="input"
-            placeholder="Decks durchsuchen…"
+            placeholder={tab === "decks" ? "Decks durchsuchen…" : "Ordner durchsuchen…"}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -125,6 +208,38 @@ export default function LibraryPage() {
 
       {loading ? (
         <div className="spinner" />
+      ) : tab === "folders" ? (
+        filteredFolders.length === 0 ? (
+          <FolderEmptyState
+            hasFolders={folders.length > 0}
+            onCreate={() => setModal({ type: "createFolder" })}
+          />
+        ) : (
+          <div className="deck-grid">
+            {filteredFolders.map((folder) => (
+              <FolderCard
+                key={folder.id}
+                folder={folder}
+                path={folderPath(folder, folders)}
+                count={folderCounts[folder.id]}
+                menuOpen={openMenu === folder.id}
+                onToggleMenu={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setOpenMenu((cur) => (cur === folder.id ? null : folder.id));
+                }}
+                onRename={() => {
+                  setOpenMenu(null);
+                  setModal({ type: "renameFolder", folder });
+                }}
+                onDelete={() => {
+                  setOpenMenu(null);
+                  setModal({ type: "deleteFolder", folder });
+                }}
+              />
+            ))}
+          </div>
+        )
       ) : filtered.length === 0 ? (
         <EmptyState hasDecks={decks.length > 0} onCreate={() => setModal({ type: "create" })} />
       ) : (
@@ -142,6 +257,10 @@ export default function LibraryPage() {
               onRename={() => {
                 setOpenMenu(null);
                 setModal({ type: "rename", deck });
+              }}
+              onAddToFolder={() => {
+                setOpenMenu(null);
+                setModal({ type: "addToFolder", deck });
               }}
               onDuplicate={async () => {
                 setOpenMenu(null);
@@ -233,6 +352,71 @@ export default function LibraryPage() {
       {modal?.type === "share" && (
         <ShareModal url={modal.url} title={modal.deck.title} onClose={() => setModal(null)} />
       )}
+
+      {modal?.type === "createFolder" && (
+        <CreateOrRenameModal
+          title="Neuer Ordner"
+          confirmLabel="Erstellen"
+          label="Ordnername"
+          placeholder="z. B. Schule"
+          onClose={() => setModal(null)}
+          onSubmit={async (value) => {
+            if (!userId) return;
+            const forDeck = modal.forDeck;
+            const { folder } = await createFolder(userId, value);
+            if (forDeck) await addDeckToFolder(folder.id, forDeck.id);
+            setModal(null);
+            await loadFolders();
+          }}
+        />
+      )}
+
+      {modal?.type === "renameFolder" && (
+        <CreateOrRenameModal
+          title="Ordner umbenennen"
+          confirmLabel="Speichern"
+          label="Ordnername"
+          initial={modal.folder.title}
+          onClose={() => setModal(null)}
+          onSubmit={async (value) => {
+            await updateFolder(modal.folder.id, { title: value });
+            setModal(null);
+            await loadFolders();
+          }}
+        />
+      )}
+
+      {modal?.type === "deleteFolder" && (
+        <DeleteFolderModal
+          folder={modal.folder}
+          folders={folders}
+          onClose={() => setModal(null)}
+          onConfirm={async () => {
+            const id = modal.folder.id;
+            setModal(null);
+            try {
+              await deleteFolder(id);
+            } catch {
+              setPageError("Ordner konnte nicht gelöscht werden.");
+            }
+            await loadFolders();
+          }}
+        />
+      )}
+
+      {modal?.type === "addToFolder" && (
+        <AddToFolderModal
+          deck={modal.deck}
+          folders={folders}
+          onClose={() => setModal(null)}
+          onPick={async (folderId) => {
+            await addDeckToFolder(folderId, modal.deck.id);
+            setModal(null);
+            await loadFolders();
+          }}
+          onCreateFolder={() => setModal({ type: "createFolder", forDeck: modal.deck })}
+        />
+      )}
     </>
   );
 }
@@ -242,6 +426,7 @@ function DeckCard({
   menuOpen,
   onToggleMenu,
   onRename,
+  onAddToFolder,
   onDuplicate,
   onShare,
   onDelete,
@@ -250,6 +435,7 @@ function DeckCard({
   menuOpen: boolean;
   onToggleMenu: (e: React.MouseEvent) => void;
   onRename: () => void;
+  onAddToFolder: () => void;
   onDuplicate: () => void;
   onShare: () => void;
   onDelete: () => void;
@@ -294,6 +480,9 @@ function DeckCard({
             <button type="button" onClick={onRename}>
               <Pencil size={15} /> Umbenennen
             </button>
+            <button type="button" onClick={onAddToFolder}>
+              <FolderIcon size={15} /> Zu Ordner hinzufügen
+            </button>
             <button type="button" onClick={onDuplicate}>
               <Copy size={15} /> Duplizieren
             </button>
@@ -307,6 +496,234 @@ function DeckCard({
         )}
       </div>
     </div>
+  );
+}
+
+function FolderCard({
+  folder,
+  path,
+  count,
+  menuOpen,
+  onToggleMenu,
+  onRename,
+  onDelete,
+}: {
+  folder: Folder;
+  path: string[];
+  count: number | undefined;
+  menuOpen: boolean;
+  onToggleMenu: (e: React.MouseEvent) => void;
+  onRename: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div style={{ position: "relative" }}>
+      <Link href={`/dashboard/folder/${folder.id}`} className="deck-card">
+        <div className="deck-card__top">
+          <span className="deck-card__badge" aria-hidden>
+            <FolderIcon size={18} />
+          </span>
+        </div>
+        {path.length > 0 && (
+          <div
+            className="muted"
+            style={{ fontSize: "0.78rem", marginBottom: 2 }}
+            title={`Liegt in ${path.join(" / ")}`}
+          >
+            {path.join(" / ")}
+          </div>
+        )}
+        <div className="deck-card__title">{folder.title}</div>
+        <div className="deck-card__meta">
+          <span>
+            {count === undefined
+              ? "Wird geladen…"
+              : count < 0
+                ? "Anzahl unbekannt"
+                : `${count} ${count === 1 ? "Deck" : "Decks"}`}
+          </span>
+        </div>
+      </Link>
+
+      <div className="pop" style={{ position: "absolute", top: 12, right: 12 }}>
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label="Ordner-Optionen"
+          aria-expanded={menuOpen}
+          onClick={onToggleMenu}
+        >
+          <MoreHorizontal size={18} />
+        </button>
+        {menuOpen && (
+          <div className="menu" role="menu" onClick={(e) => e.stopPropagation()}>
+            <Link href={`/dashboard/folder/${folder.id}`} role="menuitem">
+              <FolderIcon size={15} /> Öffnen
+            </Link>
+            <button type="button" onClick={onRename}>
+              <Pencil size={15} /> Umbenennen
+            </button>
+            <button type="button" className="danger" onClick={onDelete}>
+              <Trash size={15} /> Löschen
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FolderEmptyState({
+  hasFolders,
+  onCreate,
+}: {
+  hasFolders: boolean;
+  onCreate: () => void;
+}) {
+  return (
+    <div className="empty-state">
+      <div className="ic" aria-hidden>
+        <FolderIcon size={30} />
+      </div>
+      <h3>{hasFolders ? "Keine Treffer" : "Noch keine Ordner"}</h3>
+      <p>
+        {hasFolders
+          ? "Für deine Suche gibt es keinen passenden Ordner."
+          : "Sortiere deine Decks in Ordner — zum Beispiel einen pro Fach."}
+      </p>
+      {!hasFolders && (
+        <button type="button" className="btn btn-primary" onClick={onCreate}>
+          + Neuer Ordner
+        </button>
+      )}
+    </div>
+  );
+}
+
+function DeleteFolderModal({
+  folder,
+  folders,
+  onClose,
+  onConfirm,
+}: {
+  folder: Folder;
+  folders: Folder[];
+  onClose: () => void;
+  onConfirm: () => Promise<void>;
+}) {
+  // parent_id cascades in the database, so subfolders go with it. Name them —
+  // the flat list gives no other clue that they belong together.
+  const doomed = descendantFolders(folder.id, folders);
+  return (
+    <Modal title="Ordner löschen" onClose={onClose}>
+      <p className="muted">
+        Soll „{folder.title}" wirklich gelöscht werden?
+        {doomed.length > 0 && (
+          <>
+            {" "}
+            {joinTitles(doomed.map((f) => f.title))}{" "}
+            {doomed.length === 1 ? "wird" : "werden"} mitgelöscht.
+          </>
+        )}{" "}
+        Deine Decks und Karten bleiben erhalten.
+      </p>
+      <div className="modal__actions">
+        <button type="button" className="btn btn-ghost" onClick={onClose}>
+          Abbrechen
+        </button>
+        <button
+          type="button"
+          className="btn btn-primary"
+          style={{ background: "#dc2626", boxShadow: "none" }}
+          onClick={onConfirm}
+        >
+          Löschen
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+function AddToFolderModal({
+  deck,
+  folders,
+  onClose,
+  onPick,
+  onCreateFolder,
+}: {
+  deck: Deck;
+  folders: Folder[];
+  onClose: () => void;
+  onPick: (folderId: string) => Promise<void>;
+  onCreateFolder: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const sorted = useMemo(
+    () => [...folders].sort((a, b) => a.title.localeCompare(b.title, "de")),
+    [folders]
+  );
+
+  return (
+    <Modal title="Zu Ordner hinzufügen" onClose={onClose}>
+      <p className="muted">In welchen Ordner soll „{deck.title}" gelegt werden?</p>
+      {sorted.length === 0 ? (
+        <>
+          <p className="muted">
+            Du hast noch keine Ordner. Leg einen an — „{deck.title}" kommt gleich hinein.
+          </p>
+          <button type="button" className="btn btn-primary" onClick={onCreateFolder}>
+            + Neuer Ordner
+          </button>
+        </>
+      ) : (
+        <div style={{ display: "grid", gap: 8 }}>
+          {sorted.map((f) => {
+            const path = folderPath(f, folders);
+            return (
+              <button
+                key={f.id}
+                type="button"
+                className="btn btn-ghost"
+                style={{ justifyContent: "flex-start", textAlign: "left" }}
+                disabled={busy}
+                onClick={async () => {
+                  setBusy(true);
+                  setError(null);
+                  try {
+                    await onPick(f.id);
+                  } catch {
+                    setError("Das hat nicht geklappt. Bitte versuche es erneut.");
+                    setBusy(false);
+                  }
+                }}
+              >
+                <FolderIcon size={16} />
+                <span>
+                  {path.length > 0 && (
+                    <span className="muted" style={{ fontSize: "0.78rem" }}>
+                      {path.join(" / ")} /{" "}
+                    </span>
+                  )}
+                  {f.title}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {error && (
+        <div className="form-error" role="alert">
+          <AlertTriangle size={16} />
+          <span>{error}</span>
+        </div>
+      )}
+      <div className="modal__actions">
+        <button type="button" className="btn btn-ghost" onClick={onClose} disabled={busy}>
+          Abbrechen
+        </button>
+      </div>
+    </Modal>
   );
 }
 
@@ -346,12 +763,16 @@ function CreateOrRenameModal({
   title,
   confirmLabel,
   initial = "",
+  label = "Titel",
+  placeholder = "z. B. Biologie · Zellorganellen",
   onClose,
   onSubmit,
 }: {
   title: string;
   confirmLabel: string;
   initial?: string;
+  label?: string;
+  placeholder?: string;
   onClose: () => void;
   onSubmit: (value: string) => Promise<void>;
 }) {
@@ -384,14 +805,14 @@ function CreateOrRenameModal({
     <Modal title={title} onClose={onClose}>
       <form onSubmit={submit} style={{ display: "grid", gap: 16 }}>
         <div className="field">
-          <label htmlFor="deck-title">Titel</label>
+          <label htmlFor="deck-title">{label}</label>
           <input
             id="deck-title"
             ref={inputRef}
             className="input"
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            placeholder="z. B. Biologie · Zellorganellen"
+            placeholder={placeholder}
             disabled={busy}
             maxLength={120}
           />

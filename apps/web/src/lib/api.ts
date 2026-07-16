@@ -620,3 +620,65 @@ export function leaveFriendStreak(friendId: string): Promise<{ left: boolean }> 
     { method: "DELETE" }
   );
 }
+
+// ─── Ordner ─────────────────────────────────────────────────────────────────
+
+export interface Folder {
+  id: string;
+  userId: string;
+  title: string;
+  parentId: string | null;
+  color: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function listFolders(): Promise<{ folders: Folder[] }> {
+  return authed<{ folders: Folder[] }>("/api/v1/folders");
+}
+
+export function createFolder(
+  userId: string,
+  title: string,
+  parentId?: string
+): Promise<{ folder: Folder }> {
+  return authed<{ folder: Folder }>("/api/v1/folders", {
+    method: "POST",
+    body: JSON.stringify({ userId, title, parentId }),
+  });
+}
+
+export function updateFolder(
+  folderId: string,
+  updates: { title?: string; parentId?: string | null }
+): Promise<{ folder: Folder }> {
+  return authed<{ folder: Folder }>(`/api/v1/folders/${folderId}`, {
+    method: "PATCH",
+    body: JSON.stringify(updates),
+  });
+}
+
+export function deleteFolder(folderId: string): Promise<{ deleted: boolean }> {
+  return authed<{ deleted: boolean }>(`/api/v1/folders/${folderId}`, { method: "DELETE" });
+}
+
+export function listDecksInFolder(folderId: string): Promise<{ decks: Deck[] }> {
+  return authed<{ decks: Deck[] }>(`/api/v1/folders/${folderId}/decks`);
+}
+
+export function addDeckToFolder(folderId: string, deckId: string): Promise<{ added: boolean }> {
+  return authed<{ added: boolean }>(`/api/v1/folders/${folderId}/decks`, {
+    method: "POST",
+    body: JSON.stringify({ deckId }),
+  });
+}
+
+export function removeDeckFromFolder(
+  folderId: string,
+  deckId: string
+): Promise<{ removed: boolean }> {
+  return authed<{ removed: boolean }>(
+    `/api/v1/folders/${folderId}/decks?deckId=${encodeURIComponent(deckId)}`,
+    { method: "DELETE" }
+  );
+}
