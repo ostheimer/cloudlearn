@@ -40,16 +40,6 @@ export function occlusionTarget(card: Card): OcclusionRegion | null {
   return isRegion(target) ? target : null;
 }
 
-/**
- * Alle übrigen Stellen desselben Bildes — für die große Ansicht, damit man
- * sieht, wo die gesuchte Stelle unter den anderen sitzt.
- */
-export function occlusionOthers(card: Card): OcclusionRegion[] {
-  const parsed = parseRegions(card);
-  if (!parsed) return [];
-  return parsed.regions.filter((r, i) => i !== parsed.hideIndex && isRegion(r));
-}
-
 // Ohne die echten Maße säße eine Regions-Markierung falsch, sobald das Bild
 // nicht quadratisch ist: die Koordinaten sind Anteile des BILDES, nicht des
 // Rahmens, in den es gezeichnet wird.
