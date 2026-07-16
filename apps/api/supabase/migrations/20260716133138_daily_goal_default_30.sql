@@ -1,3 +1,13 @@
+-- ANGEWENDET auf Prod am 2026-07-16 (Version 20260716133138 = Anwendungszeit,
+-- daher der Dateiname: per MCP apply_migration eingespielt, das die Uhrzeit statt
+-- der Repo-Version einträgt — Datei danach angeglichen, damit Repo und DB
+-- übereinstimmen und niemand sie versehentlich erneut einspielt).
+--
+-- Zusätzlich zu dieser Struktur-Änderung wurden auf Laras ausdrücklichen Wunsch
+-- ALLE bestehenden Profile auf 30 gesetzt (4 Zeilen von 10 → 30; 2 hatten
+-- bereits 30). Das war ein einmaliger Daten-Eingriff, bewusst NICHT Teil dieser
+-- Migration.
+
 -- Tagesziel: Standard für neue Profile von 10 auf 30 Karten.
 --
 -- Der Standard steckte allein in der Spalte selbst (`daily_goal int NOT NULL
