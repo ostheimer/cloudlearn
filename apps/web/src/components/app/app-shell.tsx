@@ -15,7 +15,9 @@ type NavItem = {
 };
 
 // App-Reihenfolge, an die Web-Bereiche angepasst (kein „Home"/„Lernen" — die
-// gibt es im Web nicht). Die ersten vier stehen oben; alle fünf unten am Handy.
+// gibt es im Web noch nicht). Ab Tablet-Breite stehen alle Einträge in der
+// linken Seitenleiste (Profil unten abgesetzt, wie in App-Web-Versionen
+// üblich); am Handy erscheinen alle als untere Tab-Leiste.
 const NAV: NavItem[] = [
   { href: "/dashboard", label: "Bibliothek", Icon: Layers, exact: true },
   { href: "/dashboard/import", label: "Scan", Icon: Sparkles, exact: false },
@@ -51,48 +53,59 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="app-shell">
-      <header className="app-topbar">
-        <div className="container app-topbar__inner">
-          <Link href="/dashboard" className="brand">
-            <span className="brand__mark" aria-hidden>
-              <GraduationCap size={20} />
-            </span>
-            clearn.ai
-          </Link>
+      {/* Seitenleiste — ab Tablet-Breite; am Handy übernimmt die Tab-Leiste */}
+      <aside className="app-sidebar">
+        <Link href="/dashboard" className="brand app-sidebar__brand">
+          <span className="brand__mark" aria-hidden>
+            <GraduationCap size={20} />
+          </span>
+          <span className="app-sidebar__label">clearn.ai</span>
+        </Link>
 
-          {/* Obere Navigation — nur am Desktop */}
-          <nav className="app-nav" aria-label="Navigation">
-            {NAV.slice(0, 4).map((item) => (
-              <Link key={item.href} href={item.href} className={isActive(item) ? "active" : ""}>
-                <item.Icon size={17} /> {item.label}
-              </Link>
-            ))}
-          </nav>
+        <nav className="app-sidebar__nav" aria-label="Navigation">
+          {NAV.slice(0, -1).map((item) => (
+            <Link key={item.href} href={item.href} className={isActive(item) ? "active" : ""}>
+              <item.Icon size={19} />
+              <span className="app-sidebar__label">{item.label}</span>
+            </Link>
+          ))}
+        </nav>
 
-          {/* Konto — am Desktop das Personen-Symbol oben rechts */}
-          <Link
-            href={profile.href}
-            className={`avatar${isActive(profile) ? " active" : ""}`}
-            aria-label="Profil"
-          >
-            <User size={20} />
+        <div className="app-sidebar__foot">
+          <Link href={profile.href} className={isActive(profile) ? "active" : ""}>
+            <profile.Icon size={19} />
+            <span className="app-sidebar__label">{profile.label}</span>
           </Link>
         </div>
-      </header>
+      </aside>
 
-      <main className="app-main">
-        <div className="container">{children}</div>
-      </main>
+      <div className="app-shell__body">
+        {/* Obere Logo-Leiste — nur am Handy */}
+        <header className="app-topbar">
+          <div className="container app-topbar__inner">
+            <Link href="/dashboard" className="brand">
+              <span className="brand__mark" aria-hidden>
+                <GraduationCap size={20} />
+              </span>
+              clearn.ai
+            </Link>
+          </div>
+        </header>
 
-      {/* Untere Tab-Leiste — nur am Handy (wie die App) */}
-      <nav className="app-tabbar" aria-label="Navigation">
-        {NAV.map((item) => (
-          <Link key={item.href} href={item.href} className={isActive(item) ? "active" : ""}>
-            <item.Icon size={22} />
-            <span>{item.tabLabel ?? item.label}</span>
-          </Link>
-        ))}
-      </nav>
+        <main className="app-main">
+          <div className="container container--app">{children}</div>
+        </main>
+
+        {/* Untere Tab-Leiste — nur am Handy (wie die App) */}
+        <nav className="app-tabbar" aria-label="Navigation">
+          {NAV.map((item) => (
+            <Link key={item.href} href={item.href} className={isActive(item) ? "active" : ""}>
+              <item.Icon size={22} />
+              <span>{item.tabLabel ?? item.label}</span>
+            </Link>
+          ))}
+        </nav>
+      </div>
     </div>
   );
 }

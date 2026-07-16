@@ -6,6 +6,7 @@ import { useAuth } from "@/components/app/auth-context";
 import { Modal } from "@/components/app/modal";
 import {
   listDecks,
+  getDueCards,
   createDeck,
   updateDeck,
   deleteDeck,
@@ -25,6 +26,7 @@ import {
   Trash,
   AlertTriangle,
   Sparkles,
+  ChevronRight,
 } from "@/components/icons";
 
 type ModalState =
@@ -42,12 +44,23 @@ export default function LibraryPage() {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [modal, setModal] = useState<ModalState>(null);
   const [pageError, setPageError] = useState<string | null>(null);
+  // Fällige Karten je Deck („N fällig"-Pille wie in der App) — best effort:
+  // ein Fehler beim Fällig-Abruf darf die Liste nicht kaputt machen.
+  const [dueByDeck, setDueByDeck] = useState<Record<string, number>>({});
 
   const loadDecks = useCallback(async () => {
     if (!userId) return;
     try {
-      const { decks: fetched } = await listDecks(userId);
+      const [{ decks: fetched }, due] = await Promise.all([
+        listDecks(userId),
+        getDueCards(userId).catch(() => ({ cards: [] })),
+      ]);
       setDecks(fetched);
+      const counts: Record<string, number> = {};
+      for (const card of due.cards) {
+        counts[card.deckId] = (counts[card.deckId] ?? 0) + 1;
+      }
+      setDueByDeck(counts);
       setPageError(null);
     } catch (e) {
       setPageError(
@@ -128,11 +141,12 @@ export default function LibraryPage() {
       ) : filtered.length === 0 ? (
         <EmptyState hasDecks={decks.length > 0} onCreate={() => setModal({ type: "create" })} />
       ) : (
-        <div className="deck-grid">
+        <div className="deck-list">
           {filtered.map((deck) => (
-            <DeckCard
+            <DeckRow
               key={deck.id}
               deck={deck}
+              dueCount={dueByDeck[deck.id] ?? 0}
               menuOpen={openMenu === deck.id}
               onToggleMenu={(e) => {
                 e.preventDefault();
@@ -237,8 +251,9 @@ export default function LibraryPage() {
   );
 }
 
-function DeckCard({
+function DeckRow({
   deck,
+  dueCount,
   menuOpen,
   onToggleMenu,
   onRename,
@@ -247,6 +262,7 @@ function DeckCard({
   onDelete,
 }: {
   deck: Deck;
+  dueCount: number;
   menuOpen: boolean;
   onToggleMenu: (e: React.MouseEvent) => void;
   onRename: () => void;
@@ -256,27 +272,32 @@ function DeckCard({
 }) {
   const count = deck.cardCount ?? 0;
   return (
-    <div style={{ position: "relative" }}>
-      <Link href={`/dashboard/deck/${deck.id}`} className="deck-card">
-        <div className="deck-card__top">
-          <span className="deck-card__badge" aria-hidden>
-            <Layers size={18} />
-          </span>
-        </div>
-        <div className="deck-card__title">{deck.title}</div>
-        <div className="deck-card__meta">
-          <span>
-            {count} {count === 1 ? "Karte" : "Karten"}
-          </span>
-          {deck.tags.slice(0, 2).map((t) => (
-            <span key={t} className="tag">
-              {t}
+    <div className="deck-row-wrap">
+      <Link href={`/dashboard/deck/${deck.id}`} className="deck-row">
+        <span className="deck-row__badge" aria-hidden>
+          <Layers size={18} />
+        </span>
+        <span className="deck-row__body">
+          <span className="deck-row__title">{deck.title}</span>
+          <span className="deck-row__meta">
+            <span>
+              {count} {count === 1 ? "Karte" : "Karten"}
             </span>
-          ))}
-        </div>
+            {dueCount > 0 && <span className="deck-row__due">{dueCount} fällig</span>}
+            {deck.tags.slice(0, 2).map((t) => (
+              <span key={t} className="tag">
+                {t}
+              </span>
+            ))}
+          </span>
+        </span>
       </Link>
 
-      <div className="pop" style={{ position: "absolute", top: 12, right: 12 }}>
+      <span className="deck-row__chevron" aria-hidden>
+        <ChevronRight size={18} />
+      </span>
+
+      <div className="pop deck-row__actions">
         <button
           type="button"
           className="icon-btn"
