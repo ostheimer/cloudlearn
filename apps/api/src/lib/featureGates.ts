@@ -70,7 +70,10 @@ export const TIER_LIMITS: Record<SubscriptionTier, TierLimits> = {
 };
 
 export const LP_EARN_RULES = {
-  perReviewSession: 5,
+  // LP per rewarded chunk. With CARDS_PER_SESSION_CHUNK = 1 this reads as
+  // "1 LP per reviewed card", capped by lpEarnCapPerDay. Anything above the
+  // daily cap expires at settlement — it is not carried into the next day.
+  perReviewSession: 1,
   dailyGoalBonus: 10,
   streakDay7: 25,
   streakDay30: 100,
