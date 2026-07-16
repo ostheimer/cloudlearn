@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
 import { Modal } from "@/components/app/modal";
+import { OcclusionShot } from "@/components/app/occlusion-shot";
+import { getCardImages, occlusionTarget, type CardImage } from "@/lib/card-images";
 import {
   getDeckDetails,
   listCardsInDeck,
@@ -71,6 +73,8 @@ export default function DeckDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modal, setModal] = useState<CardModal>(null);
+  const [cardImages, setCardImages] = useState<Record<string, CardImage | null>>({});
+  const fetchedPaths = useRef<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     if (!deckId) return;
@@ -92,6 +96,38 @@ export default function DeckDetailPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Bilder nachladen, sobald die Karten da sind — die Liste soll darauf nicht
+  // warten. Die Abhängigkeit ist die Menge der Pfade (dedupliziert, sortiert),
+  // nicht `cards`: mehrere Karten teilen sich ein Bild, also darf weder ein
+  // Stern-Klick noch das Löschen einer von zehn Karten neue signierte URLs
+  // holen — ein geändertes href lädt das Bild sonst komplett neu.
+  const occlusionPaths = Array.from(
+    new Set(
+      cards
+        .filter((c) => c.type === "occlusion" && c.sourceImageUrl)
+        .map((c) => c.sourceImageUrl as string)
+    )
+  )
+    .sort()
+    .join("|");
+
+  useEffect(() => {
+    if (!occlusionPaths) return;
+    // Schon geholte Pfade nicht erneut signieren: kommt ein neues Bild dazu,
+    // sollen die übrigen Vorschaubilder stehen bleiben.
+    const missing = occlusionPaths.split("|").filter((p) => !fetchedPaths.current.has(p));
+    if (missing.length === 0) return;
+    let active = true;
+    getCardImages(missing).then((loaded) => {
+      if (!active) return;
+      missing.forEach((p) => fetchedPaths.current.add(p));
+      setCardImages((prev) => ({ ...prev, ...loaded }));
+    });
+    return () => {
+      active = false;
+    };
+  }, [occlusionPaths]);
 
   async function toggleStar(card: Card) {
     setCards((prev) =>
@@ -129,6 +165,20 @@ export default function DeckDetailPage() {
   const textCards = cards.filter((c) => c.type !== "occlusion");
   const occlusionCards = cards.filter((c) => c.type === "occlusion");
   const hasOcclusion = occlusionCards.length > 0;
+
+  // Für den Lösch-Dialog: das Bild der betroffenen Karte und wie viele andere
+  // Karten am selben Bild hängen (pro markierter Stelle entsteht eine Karte).
+  const deletingCard = modal?.type === "delete" ? modal.card : null;
+  const deleteImage =
+    deletingCard?.type === "occlusion" && deletingCard.sourceImageUrl
+      ? cardImages[deletingCard.sourceImageUrl]
+      : null;
+  const siblingCount =
+    deletingCard?.type === "occlusion" && deletingCard.sourceImageUrl
+      ? occlusionCards.filter(
+          (c) => c.sourceImageUrl === deletingCard.sourceImageUrl && c.id !== deletingCard.id
+        ).length
+      : 0;
 
   return (
     <div className="deck-detail">
@@ -319,28 +369,41 @@ export default function DeckDetailPage() {
                 Bild-Karten (Occlusion)
               </h2>
               <div className="card-list">
-                {occlusionCards.map((card, i) => (
-                  <div key={card.id} className="card-row">
-                    <span className="card-row__num" aria-hidden>
-                      <ImageIcon size={16} />
-                    </span>
-                    <div className="card-row__faces">
-                      <div className="card-row__front">
-                        {card.back || card.front || `Bild-Karte ${i + 1}`}
+                {occlusionCards.map((card, i) => {
+                  const img = card.sourceImageUrl ? cardImages[card.sourceImageUrl] : null;
+                  return (
+                    <div key={card.id} className="card-row card-row--img">
+                      {/* Platzhalter und Bild sind gleich groß — die Zeile
+                          springt beim Nachladen also nicht. */}
+                      <span className="card-row__thumb" aria-hidden>
+                        {img ? (
+                          <OcclusionShot
+                            img={img}
+                            region={occlusionTarget(card)}
+                            className="occ-shot"
+                          />
+                        ) : (
+                          <ImageIcon size={18} />
+                        )}
+                      </span>
+                      <div className="card-row__faces">
+                        <div className="card-row__front">
+                          {card.back || card.front || `Bild-Karte ${i + 1}`}
+                        </div>
+                      </div>
+                      <div className="card-row__actions">
+                        <button
+                          type="button"
+                          className="icon-btn"
+                          aria-label="Bild-Karte löschen"
+                          onClick={() => setModal({ type: "delete", card })}
+                        >
+                          <Trash size={16} />
+                        </button>
                       </div>
                     </div>
-                    <div className="card-row__actions">
-                      <button
-                        type="button"
-                        className="icon-btn"
-                        aria-label="Bild-Karte löschen"
-                        onClick={() => setModal({ type: "delete", card })}
-                      >
-                        <Trash size={16} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </>
           )}
@@ -365,8 +428,36 @@ export default function DeckDetailPage() {
       )}
 
       {modal?.type === "delete" && (
-        <Modal title="Karte löschen" onClose={() => setModal(null)}>
-          <p className="muted">Soll diese Karte wirklich gelöscht werden?</p>
+        <Modal
+          title={modal.card.type === "occlusion" ? "Bild-Karte löschen" : "Karte löschen"}
+          onClose={() => setModal(null)}
+        >
+          {modal.card.type === "occlusion" ? (
+            <>
+              {deleteImage && (
+                <div className="delete-preview">
+                  <OcclusionShot
+                    img={deleteImage}
+                    region={occlusionTarget(modal.card)}
+                    className="occ-shot occ-shot--lg"
+                  />
+                </div>
+              )}
+              <p>Soll diese Bild-Karte wirklich gelöscht werden?</p>
+              {modal.card.back && (
+                <p className="muted">Gesuchte Stelle: {modal.card.back}</p>
+              )}
+              {siblingCount > 0 && (
+                <p className="muted">
+                  Das Bild und die{" "}
+                  {siblingCount === 1 ? "andere Karte" : `${siblingCount} anderen Karten`} dazu
+                  bleiben erhalten.
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="muted">Soll diese Karte wirklich gelöscht werden?</p>
+          )}
           <div className="modal__actions">
             <button type="button" className="btn btn-ghost" onClick={() => setModal(null)}>
               Abbrechen
