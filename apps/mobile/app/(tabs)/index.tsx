@@ -403,10 +403,15 @@ export default function HomeScreen() {
                   width: 48,
                   height: 48,
                   borderRadius: 24,
-                  backgroundColor: streak > 0 ? colors.warning : colors.surfaceSecondary,
+                  // Tint the circle via alpha on the colour itself, NOT via
+                  // `opacity` on this View: opacity applies to children too, so
+                  // it faded the flame to 25% as well — and since the flame is
+                  // the same warning colour as the circle, it vanished entirely.
+                  // The streak circle looked empty. (`${colour}40` = 25%, the
+                  // same tint pattern the swipe counters use.)
+                  backgroundColor: streak > 0 ? `${colors.warning}40` : colors.surfaceSecondary,
                   justifyContent: "center",
                   alignItems: "center",
-                  opacity: streak > 0 ? 0.25 : 1,
                 }}
               >
                 <Flame
