@@ -616,7 +616,7 @@ Die initiale Migration oben ist nur das Basisschema. Die vollständige, maßgebl
 │   └── GET    /friends      # Freunde-Leaderboard
 ├── /friends
 │   ├── GET    /             # Freundesliste
-│   ├── POST   /             # Freundschaft hinzufügen
+│   ├── POST   /by-code      # Freundschaft per geteiltem Code hinzufügen
 │   └── DELETE /             # Freundschaft entfernen
 ├── /push
 │   ├── POST   /register     # Expo-Push-Token registrieren

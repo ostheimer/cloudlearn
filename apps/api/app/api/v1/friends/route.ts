@@ -5,9 +5,12 @@ import { createRequestContext } from "@/lib/observability";
 import { getAuthUser } from "@/lib/auth";
 import { createSupabaseAdminClient } from "@/lib/supabase";
 
-const addFriendSchema = z.object({
-  friendId: z.string().uuid(),
-});
+// Adding a friend goes through POST /api/v1/friends/by-code only: the share
+// code is the capability you deliberately hand out. A raw-UUID add was
+// removed — every friend already learns your UUID from GET /friends, so it let
+// a removed friend re-add themselves instantly and made unfriending
+// unenforceable.
+const friendIdSchema = z.string().uuid();
 
 // GET /api/v1/friends — list all friends with LP/streak
 export async function GET(request: NextRequest) {
@@ -52,46 +55,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/v1/friends — add a friend by userId (typically after referral)
-export async function POST(request: NextRequest) {
-  const { requestId } = createRequestContext(request.headers);
-  try {
-    const auth = await getAuthUser(request);
-    if (!auth) return jsonError(requestId, "UNAUTHORIZED", "Authentication required", 401);
-
-    const body = addFriendSchema.safeParse(await request.json());
-    if (!body.success) return jsonError(requestId, "INVALID_REQUEST", body.error.message, 400);
-
-    const { friendId } = body.data;
-    if (friendId === auth.userId) {
-      return jsonError(requestId, "SELF_FRIEND", "Cannot add yourself as a friend", 400);
-    }
-
-    const db = createSupabaseAdminClient();
-    if (!db) return jsonError(requestId, "DB_UNAVAILABLE", "Database not configured", 503);
-
-    // Verify friend exists
-    const { data: friendProfile } = await db
-      .from("profiles")
-      .select("id")
-      .eq("id", friendId)
-      .maybeSingle();
-
-    if (!friendProfile) return jsonError(requestId, "USER_NOT_FOUND", "User not found", 404);
-
-    // Add bidirectional connection (upsert to avoid duplicate errors)
-    await db.from("friend_connections").upsert([
-      { user_id: auth.userId, friend_id: friendId },
-      { user_id: friendId, friend_id: auth.userId },
-    ], { onConflict: "user_id,friend_id" });
-
-    return jsonOk(requestId, { added: true, friendId });
-  } catch (error) {
-    const normalized = normalizeError(error);
-    return jsonError(requestId, normalized.code, normalized.message, normalized.status);
-  }
-}
-
 // DELETE /api/v1/friends?friendId=... — remove a friend
 export async function DELETE(request: NextRequest) {
   const { requestId } = createRequestContext(request.headers);
@@ -102,7 +65,7 @@ export async function DELETE(request: NextRequest) {
     // Validate as UUID before use — friendId is interpolated into a PostgREST
     // `.or()` filter on the service-role client, so unvalidated input could
     // smuggle extra filter syntax into the query.
-    const friendIdParam = addFriendSchema.shape.friendId.safeParse(
+    const friendIdParam = friendIdSchema.safeParse(
       new URL(request.url).searchParams.get("friendId")
     );
     if (!friendIdParam.success) {
