@@ -415,6 +415,12 @@ export async function listDueCards(
     .select()
     .eq("user_id", userId)
     .is("deleted_at", null)
+    // "Due" means "due for a flashcard round" — that is what this list feeds
+    // (/learn/due) and what the due counts on the home screen and the deck
+    // badges promise. Occlusion cards are learned only in the Bild-Abdecken
+    // mode (their front is a placeholder, unanswerable without the image), so
+    // counting them here would show a number the learner cannot act on.
+    .neq("card_type", "occlusion")
     .lte("fsrs_due", nowIso)
     .order("fsrs_due", { ascending: true });
   if (error) throw new Error(`listDueCards: ${error.message}`);

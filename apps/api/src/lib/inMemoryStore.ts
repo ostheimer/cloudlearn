@@ -165,6 +165,9 @@ export function listDueCards(userId: string, nowIso: string): CardRecord[] {
   const now = new Date(nowIso).getTime();
   return [...cards.values()]
     .filter((card) => card.userId === userId && !card.deletedAt)
+    // Mirrors the db.ts query: occlusion cards are learned only in the
+    // Bild-Abdecken mode, so they never count as "due" for a flashcard round.
+    .filter((card) => card.type !== "occlusion")
     .filter((card) => new Date(card.fsrsDue).getTime() <= now)
     .sort((a, b) => new Date(a.fsrsDue).getTime() - new Date(b.fsrsDue).getTime());
 }
