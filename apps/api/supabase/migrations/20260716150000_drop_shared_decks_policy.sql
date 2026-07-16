@@ -1,0 +1,26 @@
+-- Sicherheitsloch: „shared_decks_visible" gab JEDEM Lesezugriff auf jedes Deck,
+-- das irgendwann einmal einen Teilen-Link bekommen hat — ohne Login und ohne den
+-- Link zu kennen. Angelegt in 20260212120000_add_courses_folders_sharing.sql als:
+--
+--   create policy "shared_decks_visible" on decks
+--     for select using (share_token is not null);
+--
+-- `share_token is not null` prüft nur, DASS das Deck einen Token hat, nicht dass
+-- der Anfragende ihn kennt. RLS-Policies werden ODER-verknüpft, deshalb hebelte
+-- diese Regel die korrekte „users_own_decks" (auth.uid() = user_id) komplett aus.
+--
+-- Gemessen am 16.07.2026 gegen Produktion: mit dem anon-Schlüssel — der öffentlich
+-- im Web-Bundle ausgeliefert wird (apps/web/src/lib/supabase-browser.ts) — waren
+-- 25 fremde Decks mit is_public = false lesbar, samt Titel, user_id und share_token.
+-- Der Token ist dabei nicht nur Metadatum, sondern der Schlüssel zum Deck:
+-- /decks/share/[token] und /decks/share/[token]/import geben damit die Karten heraus.
+--
+-- Die Regel wird nicht gebraucht und kann ersatzlos weg:
+--   * Weder Web noch App lesen `decks` direkt mit dem anon-Schlüssel — der Browser-
+--     Client macht nur Storage (Occlusion-Bilder) und Login.
+--   * Das Teilen läuft vollständig über die API, die den service_role-Schlüssel
+--     benutzt und RLS ohnehin umgeht. getDeckByShareToken bleibt unverändert.
+--
+-- „public_decks_visible" (is_public = true) bleibt bewusst bestehen: bewusst
+-- öffentlich gestellte Decks sollen weiterhin für alle lesbar sein.
+drop policy if exists "shared_decks_visible" on decks;

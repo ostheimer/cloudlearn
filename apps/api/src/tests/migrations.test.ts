@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -223,5 +223,42 @@ describe("supabase migrations", () => {
 
     expect(cascadingProfileReferences.length).toBeGreaterThanOrEqual(10);
     expect(sql).toContain("friend_id  uuid        not null references profiles(id) on delete cascade");
+  });
+
+  it("drops the shared_decks_visible policy that exposed every tokened deck to anon", () => {
+    const migrationPath = join(
+      apiRoot,
+      "supabase/migrations/20260716150000_drop_shared_decks_policy.sql",
+    );
+    const sql = readFileSync(migrationPath, "utf-8");
+
+    // Exactly one policy goes, and it's the token rule — public_decks_visible
+    // (deliberately-public decks) and users_own_decks must survive untouched.
+    const drops = sql.match(/drop\s+policy[^;]*;/gi) ?? [];
+    expect(drops).toHaveLength(1);
+    expect(drops[0]).toContain('drop policy if exists "shared_decks_visible" on decks');
+  });
+
+  it("never leaves a decks select policy that grants read on merely HAVING a share_token", () => {
+    // `share_token is not null` says the deck HAS a token, not that the caller
+    // KNOWS it — and policies are OR'ed, so such a rule silently overrides
+    // users_own_decks and publishes every once-shared deck to anon. Reading the
+    // migrations in apply order and requiring the last word on the policy to be
+    // a DROP keeps a future migration from quietly reintroducing it.
+    const migrationDir = join(apiRoot, "supabase/migrations");
+    const statements = readdirSync(migrationDir)
+      .filter((file) => file.endsWith(".sql"))
+      .sort() // filenames are timestamps → lexical order is apply order
+      .flatMap((file) =>
+        // Comments quote the policy to explain it; only real statements count.
+        (readFileSync(join(migrationDir, file), "utf-8")
+          .replace(/--[^\n]*/g, "")
+          .match(/(?:create|drop)\s+policy[^;]*"shared_decks_visible"[^;]*;/gi) ?? [])
+          .map((statement) => ({ file, statement: statement.toLowerCase() })),
+      );
+
+    expect(statements.length).toBeGreaterThanOrEqual(2); // the original CREATE + our DROP
+    expect(statements[0]?.statement).toMatch(/^create\s+policy/);
+    expect(statements.at(-1)?.statement).toMatch(/^drop\s+policy/);
   });
 });
