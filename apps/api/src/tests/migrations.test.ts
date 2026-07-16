@@ -228,7 +228,7 @@ describe("supabase migrations", () => {
   it("drops the shared_decks_visible policy that exposed every tokened deck to anon", () => {
     const migrationPath = join(
       apiRoot,
-      "supabase/migrations/20260716150000_drop_shared_decks_policy.sql",
+      "supabase/migrations/20260716145829_drop_shared_decks_policy.sql",
     );
     const sql = readFileSync(migrationPath, "utf-8");
 
