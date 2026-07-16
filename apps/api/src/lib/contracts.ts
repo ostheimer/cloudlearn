@@ -2,6 +2,9 @@ import { z } from "zod";
 
 export const cardTypeSchema = z.enum(["basic", "cloze", "mcq", "matching", "occlusion"]);
 export const difficultySchema = z.enum(["easy", "medium", "hard"]);
+// Tag rules without a default, so partial-update schemas can reuse the validation
+// without inheriting flashcardSchema's `.default([])` — see updateCardSchema.
+export const cardTagsSchema = z.array(z.string().min(1).max(40)).max(10);
 
 // One rectangular occlusion region on the card image (percent 0-1).
 export const occlusionRegionSchema = z.object({
@@ -17,7 +20,7 @@ export const flashcardSchema = z.object({
   back: z.string().min(1).max(1000),
   type: cardTypeSchema.default("basic"),
   difficulty: difficultySchema.default("medium"),
-  tags: z.array(z.string().min(1).max(40)).max(10).default([]),
+  tags: cardTagsSchema.default([]),
   // Storage path of the card image (Occlusion & future image cards).
   sourceImageUrl: z.string().max(1000).optional(),
   // Free-form per-card data. For Occlusion: { regions: OcclusionRegion[], hideIndex: number }.

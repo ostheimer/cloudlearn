@@ -1,5 +1,6 @@
-import { flashcardSchema } from "@/lib/contracts";
+import { cardTagsSchema, cardTypeSchema, difficultySchema, flashcardSchema } from "@/lib/contracts";
 import { z } from "zod";
+import type { CardRecord } from "@/lib/db";
 import { createCard, getDeck, listCardsForDeck, softDeleteCard, updateCard } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import { getSubscriptionStatus } from "./subscriptionService";
@@ -11,14 +12,21 @@ const createCardSchema = z.object({
   card: flashcardSchema,
 });
 
+// A PATCH must touch ONLY the fields the caller actually sent. Deliberately does
+// NOT reuse `flashcardSchema.shape.*`: those carry `.default(...)`, and in zod v4
+// `.default(x).optional()` still fills in `x` when the key is absent (unlike v3,
+// where the optional wrapper short-circuited first). Reusing them made every
+// update silently write type="basic"/difficulty="medium"/tags=[], downgrading
+// occlusion/cloze cards to basic on an unrelated change such as starring.
+// Reuse the default-free base schemas instead so absent keys stay `undefined`.
 const updateCardSchema = z.object({
   userId: z.string().uuid(),
   cardId: z.string().uuid(),
   front: z.string().min(1).optional(),
   back: z.string().min(1).optional(),
-  type: flashcardSchema.shape.type.optional(),
-  difficulty: flashcardSchema.shape.difficulty.optional(),
-  tags: flashcardSchema.shape.tags.optional(),
+  type: cardTypeSchema.optional(),
+  difficulty: difficultySchema.optional(),
+  tags: cardTagsSchema.optional(),
   starred: z.boolean().optional(),
 });
 
@@ -35,14 +43,11 @@ export async function createCardForUser(input: unknown) {
 
 export async function updateCardForUser(input: unknown) {
   const parsed = updateCardSchema.parse(input);
-  const updates: Partial<{
-    front: string;
-    back: string;
-    type: "basic" | "cloze" | "mcq" | "matching" | "occlusion";
-    difficulty: "easy" | "medium" | "hard";
-    tags: string[];
-    starred: boolean;
-  }> = {};
+  // Mirrors updateCard's own parameter type, so the allowed card types cannot
+  // drift from the contract as they're extended.
+  const updates: Partial<
+    Pick<CardRecord, "front" | "back" | "type" | "difficulty" | "tags" | "starred">
+  > = {};
   if (parsed.front !== undefined) updates.front = parsed.front;
   if (parsed.back !== undefined) updates.back = parsed.back;
   if (parsed.type !== undefined) updates.type = parsed.type;
