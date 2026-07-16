@@ -146,7 +146,13 @@ export function AccuracyTrendChart({
 }) {
   const [ref, W] = useMeasuredWidth();
   const [sel, setSel] = useState<number | null>(null);
-  useEffect(() => setSel(null), [data]);
+  const [hov, setHov] = useState<number | null>(null);
+  // Maus drüberfahren zeigt sofort; ein Klick „pinnt" die Sprechblase fest.
+  const active = hov ?? sel;
+  useEffect(() => {
+    setSel(null);
+    setHov(null);
+  }, [data]);
   const H = height;
   const PAD_L = 38;
   const PAD_R = 14;
@@ -214,11 +220,11 @@ export function AccuracyTrendChart({
             key={i}
             cx={xFor(i)}
             cy={yFor(d.accuracy)}
-            r={sel === i ? 6.5 : 4.5}
-            fill={sel === i ? "var(--brand-600)" : "var(--brand)"}
+            r={active === i ? 6.5 : 4.5}
+            fill={active === i ? "var(--brand-600)" : "var(--brand)"}
           />
         ))}
-        {/* Unsichtbare, größere Tap-Ziele je Punkt */}
+        {/* Unsichtbare, größere Ziele je Punkt: Hover zeigt, Klick pinnt fest */}
         {data.map((d, i) => (
           <circle
             key={`hit${i}`}
@@ -227,6 +233,8 @@ export function AccuracyTrendChart({
             r={14}
             fill="transparent"
             style={{ cursor: "pointer" }}
+            onMouseEnter={() => setHov(i)}
+            onMouseLeave={() => setHov(null)}
             onClick={() => setSel(sel === i ? null : i)}
           />
         ))}
@@ -265,15 +273,15 @@ export function AccuracyTrendChart({
                 </text>
               </>
             )}
-        {sel !== null && sel < n && data[sel] && (
+        {active !== null && active < n && data[active] && (
           <ChartCallout
-            x={xFor(sel)}
-            y={yFor(data[sel]!.accuracy)}
+            x={xFor(active)}
+            y={yFor(data[active]!.accuracy)}
             W={W}
             padL={PAD_L}
             padR={PAD_R}
-            line1={dayTitle(data[sel]!.date)}
-            line2={`${Math.round(data[sel]!.accuracy * 100)}% richtig`}
+            line1={dayTitle(data[active]!.date)}
+            line2={`${Math.round(data[active]!.accuracy * 100)}% richtig`}
           />
         )}
       </svg>
@@ -293,7 +301,13 @@ export function ActivityBars({
 }) {
   const [ref, W] = useMeasuredWidth();
   const [sel, setSel] = useState<number | null>(null);
-  useEffect(() => setSel(null), [data]);
+  const [hov, setHov] = useState<number | null>(null);
+  // Maus drüberfahren zeigt sofort; ein Klick „pinnt" die Sprechblase fest.
+  const active = hov ?? sel;
+  useEffect(() => {
+    setSel(null);
+    setHov(null);
+  }, [data]);
   const H = height;
   const PAD_L = 30;
   const PAD_R = 10;
@@ -326,7 +340,7 @@ export function ActivityBars({
                 width={barW}
                 height={drawH}
                 rx={2.5}
-                fill={sel === i ? "var(--brand-600)" : "var(--brand)"}
+                fill={active === i ? "var(--brand-600)" : "var(--brand)"}
               />
               {!dense && d.count > 0 && (
                 <text x={x + barW / 2} y={y - 4} textAnchor="middle" fontSize={11} fill="var(--ink-3)">
@@ -336,7 +350,8 @@ export function ActivityBars({
             </g>
           );
         })}
-        {/* Unsichtbare Tap-Ziele über die volle Slot-Höhe — jeder Tag ist antippbar */}
+        {/* Unsichtbare Ziele über die volle Slot-Höhe — jeder Tag reagiert auf
+            Maus-Hover (zeigt sofort) und Klick/Tipp (pinnt fest). */}
         {data.map((d, i) => (
           <rect
             key={`hit${i}`}
@@ -346,6 +361,8 @@ export function ActivityBars({
             height={plotH}
             fill="transparent"
             style={{ cursor: "pointer" }}
+            onMouseEnter={() => setHov(i)}
+            onMouseLeave={() => setHov(null)}
             onClick={() => setSel(sel === i ? null : i)}
           />
         ))}
@@ -365,15 +382,19 @@ export function ActivityBars({
             </text>
           );
         })}
-        {sel !== null && sel < n && data[sel] && (
+        {active !== null && active < n && data[active] && (
           <ChartCallout
-            x={PAD_L + sel * slot + slot / 2}
-            y={PAD_T + plotH - Math.max((data[sel]!.count / maxCount) * plotH, data[sel]!.count > 0 ? 2 : 0)}
+            x={PAD_L + active * slot + slot / 2}
+            y={
+              PAD_T +
+              plotH -
+              Math.max((data[active]!.count / maxCount) * plotH, data[active]!.count > 0 ? 2 : 0)
+            }
             W={W}
             padL={PAD_L}
             padR={PAD_R}
-            line1={dayTitle(data[sel]!.date)}
-            line2={`${data[sel]!.count} ${data[sel]!.count === 1 ? "Karte" : "Karten"}`}
+            line1={dayTitle(data[active]!.date)}
+            line2={`${data[active]!.count} ${data[active]!.count === 1 ? "Karte" : "Karten"}`}
           />
         )}
       </svg>

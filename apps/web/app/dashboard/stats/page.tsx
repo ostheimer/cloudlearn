@@ -180,7 +180,7 @@ export default function StatsPage() {
           </h3>
           <span className="muted" style={{ fontSize: "0.8rem" }}>
             letzte {rangeDays} Tage
-            {learningDays >= 2 && " · Punkt antippen für Details"}
+            {learningDays >= 2 && " · Punkt drüberfahren für Details"}
           </span>
         </div>
         {learningDays >= 2 ? (
@@ -203,7 +203,7 @@ export default function StatsPage() {
             </h3>
             {reviewsByDay.some((d) => d.count > 0) && (
               <span className="muted" style={{ fontSize: "0.78rem" }}>
-                für Details antippen
+                für Details drüberfahren oder antippen
               </span>
             )}
           </div>
