@@ -57,7 +57,7 @@ function makeDbMock(responses: QueryResponse[]) {
     calls.push({ method: "from", args: [table] });
     const response = queue.shift() ?? { data: null, error: null };
     const builder: Record<string, unknown> = {};
-    for (const method of ["select", "insert", "update", "delete", "upsert", "eq", "is", "order"]) {
+    for (const method of ["select", "insert", "update", "delete", "upsert", "eq", "neq", "is", "order"]) {
       builder[method] = (...args: unknown[]) => {
         calls.push({ method, args });
         return builder;
@@ -80,6 +80,8 @@ function makeDbMock(responses: QueryResponse[]) {
 }
 
 const eqArgs = (calls: RecordedCall[]) => calls.filter((c) => c.method === "eq").map((c) => c.args);
+const neqArgs = (calls: RecordedCall[]) => calls.filter((c) => c.method === "neq").map((c) => c.args);
+const selectArgs = (calls: RecordedCall[]) => calls.filter((c) => c.method === "select").map((c) => c.args[0]);
 const fromTables = (calls: RecordedCall[]) => calls.filter((c) => c.method === "from").map((c) => c.args[0]);
 
 const courseDbRow = {
@@ -272,6 +274,24 @@ describe("listDecksInCourse — requires course ownership", () => {
     const decks = await listDecksInCourse(COURSE_ID, USER_ID);
     expect(decks?.map((d) => d.id)).toEqual([DECK_ID]);
   });
+
+  it("carries cardCount through the embed instead of leaving it undefined", async () => {
+    const { db, calls } = makeDbMock([
+      { data: courseDbRow, error: null },
+      { data: [{ deck_id: DECK_ID, position: 0, decks: { ...deckDbRow, cards: [{ count: 7 }] } }], error: null },
+    ]);
+    mockedCreateDb.mockReturnValue(db);
+
+    const decks = await listDecksInCourse(COURSE_ID, USER_ID);
+
+    expect(decks?.[0]?.cardCount).toBe(7);
+    // mapDeckRow reads row.cards[0].count — without the nested embed the count
+    // never arrives and every deck reports "undefined" cards.
+    expect(selectArgs(calls)).toContain("deck_id, position, decks(*, cards(count))");
+    // Occlusion cards are their own mode and must not inflate the count (listDecks
+    // filters them the same way, one level up).
+    expect(neqArgs(calls)).toContainEqual(["decks.cards.card_type", "occlusion"]);
+  });
 });
 
 // ─── Folders (symmetric with courses) ────────────────────────────────────────
@@ -404,5 +424,33 @@ describe("listDecksInFolder — requires folder ownership", () => {
 
     expect(await listDecksInFolder(FOLDER_ID, USER_ID)).toBeNull();
     expect(fromTables(calls)).toEqual(["folders"]);
+  });
+
+  it("carries cardCount through the embed instead of leaving it undefined", async () => {
+    const { db, calls } = makeDbMock([
+      { data: folderDbRow, error: null },
+      { data: [{ deck_id: DECK_ID, decks: { ...deckDbRow, cards: [{ count: 7 }] } }], error: null },
+    ]);
+    mockedCreateDb.mockReturnValue(db);
+
+    const decks = await listDecksInFolder(FOLDER_ID, USER_ID);
+
+    expect(decks?.[0]?.cardCount).toBe(7);
+    expect(selectArgs(calls)).toContain("deck_id, decks(*, cards(count))");
+    expect(neqArgs(calls)).toContainEqual(["decks.cards.card_type", "occlusion"]);
+  });
+
+  it("reports 0 (not undefined) for a deck holding only occlusion cards", async () => {
+    // The filter empties the embed but PostgREST still returns the aggregate, so
+    // the deck says "0 Karten" rather than falling back to "wird gezählt…".
+    const { db } = makeDbMock([
+      { data: folderDbRow, error: null },
+      { data: [{ deck_id: DECK_ID, decks: { ...deckDbRow, cards: [{ count: 0 }] } }], error: null },
+    ]);
+    mockedCreateDb.mockReturnValue(db);
+
+    const decks = await listDecksInFolder(FOLDER_ID, USER_ID);
+
+    expect(decks?.[0]?.cardCount).toBe(0);
   });
 });
