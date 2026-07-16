@@ -178,7 +178,9 @@ export default function DeckDetailPage() {
     countParts.push(
       `${occlusionCards.length} Bild-${occlusionCards.length === 1 ? "Karte" : "Karten"}`
     );
-  const cardCountLabel = countParts.length > 0 ? countParts.join(" · ") : "Noch keine Karten";
+  // Beim leeren Deck sagt der Leerzustand darunter schon „Noch keine Karten" —
+  // der Untertitel bliebe nur eine Dopplung.
+  const cardCountLabel = countParts.length > 0 ? countParts.join(" · ") : null;
 
   // Für den Lösch-Dialog: das Bild der betroffenen Karte und wie viele andere
   // Karten am selben Bild hängen (pro markierter Stelle entsteht eine Karte).
@@ -210,9 +212,11 @@ export default function DeckDetailPage() {
           <h1 style={{ fontSize: "clamp(1.5rem, 4vw, 2rem)", fontWeight: 800 }}>
             {details?.title}
           </h1>
-          <p className="muted" style={{ marginTop: 4 }}>
-            {cardCountLabel}
-          </p>
+          {cardCountLabel && (
+            <p className="muted" style={{ marginTop: 4 }}>
+              {cardCountLabel}
+            </p>
+          )}
         </div>
         <button
           type="button"

@@ -2737,9 +2737,17 @@ a.mode-card:hover {
   flex: none;
 }
 
-.icon-btn:hover {
+.icon-btn:hover:not(:disabled) {
   background: var(--bg-softer);
   color: var(--ink);
+}
+
+/* Ohne das sieht ein abgeschalteter Icon-Button aus wie ein aktiver: `color`
+   ist gesetzt, der Grauton des Browsers greift also nicht — er hellte beim
+   Überfahren sogar auf und reagierte dann nicht. */
+.icon-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 /* ---------- Empty & loading states ---------- */
