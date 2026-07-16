@@ -5,8 +5,12 @@
  * glue with a lightweight chainable Supabase mock.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { inviteFriendStreak, remindFriendStreak } from "@/services/friendStreakService";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+  clampDisplayName,
+  inviteFriendStreak,
+  remindFriendStreak,
+} from "@/services/friendStreakService";
 import { createSupabaseAdminClient } from "@/lib/supabase";
 import { sendExpoPushNotification } from "@/services/notificationService";
 
@@ -23,21 +27,74 @@ function chain(result: unknown) {
   return obj;
 }
 
+/**
+ * friend_streaks serves two different queries, so a canned result won't do:
+ *  - `.select().eq().eq().maybeSingle()` → the streak row.
+ *  - `.update().eq().eq().or().select()` → the push brake's conditional claim.
+ *
+ * The claim is the thing under test, so the mock simulates it for real against
+ * an in-memory stamp per direction: the update only "matches" when the stamp is
+ * unset or older than the day start in the `.or()` filter — exactly what the
+ * single atomic UPDATE does in Postgres. Stamps persist across calls on one
+ * mockDb(), so a test can nudge twice and observe the brake.
+ */
+function friendStreaksTable(
+  streakRow: { status: string; invited_by: string } | null,
+  stamps: Record<string, string | null>
+) {
+  const obj: Record<string, unknown> = {};
+  let updatePayload: Record<string, string> | null = null;
+  let orFilter: string | null = null;
+
+  for (const m of ["select", "eq", "delete"]) obj[m] = () => obj;
+  obj.update = (payload: Record<string, string>) => {
+    updatePayload = payload;
+    return obj;
+  };
+  obj.or = (filter: string) => {
+    orFilter = filter;
+    return obj;
+  };
+  obj.maybeSingle = () => Promise.resolve({ data: streakRow });
+
+  function resolve() {
+    if (!updatePayload || !orFilter) return { data: streakRow };
+    // Filter shape: `<col>.is.null,<col>.lt.<iso>`
+    const [nullPart, ltPart] = (orFilter as string).split(",");
+    const column = nullPart!.replace(".is.null", "");
+    const dayStart = ltPart!.slice(ltPart!.indexOf(".lt.") + 4);
+    const current = stamps[column] ?? null;
+    // ISO-8601 UTC strings sort chronologically, so a string compare matches
+    // what Postgres does with timestamptz.
+    if (current !== null && current >= dayStart) return { data: [] };
+    stamps[column] = updatePayload[column]!;
+    return { data: [{ user_low: "low" }] };
+  }
+  obj.then = (onF: (v: unknown) => unknown) => Promise.resolve(resolve()).then(onF);
+  return obj;
+}
+
 function mockDb(opts: {
   rpcResult?: string;
   streakRow?: { status: string; invited_by: string } | null;
   tokens?: string[];
   name?: string | null;
+  stamps?: Record<string, string | null>;
 }) {
+  const stamps: Record<string, string | null> = opts.stamps ?? {};
   const rpc = vi.fn().mockResolvedValue({ data: opts.rpcResult ?? null, error: null });
   const from = vi.fn((table: string) => {
     if (table === "push_tokens") return chain({ data: (opts.tokens ?? []).map((t) => ({ token: t })) });
     if (table === "profiles") return chain({ data: { display_name: opts.name ?? null } });
-    if (table === "friend_streaks") return chain({ data: opts.streakRow ?? null });
+    if (table === "friend_streaks") return friendStreaksTable(opts.streakRow ?? null, stamps);
     return chain({ data: null });
   });
   vi.mocked(createSupabaseAdminClient).mockReturnValue({ rpc, from } as never);
-  return { rpc, from };
+  return { rpc, from, stamps };
+}
+
+function pushBodies(): string[] {
+  return vi.mocked(sendExpoPushNotification).mock.calls.map((c) => c[0][0]!.body as string);
 }
 
 const A = "user-a";
@@ -113,5 +170,145 @@ describe("remindFriendStreak — active nudge vs. accept nudge", () => {
 
     expect(res.sent).toBe(false);
     expect(sendExpoPushNotification).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The push brake: one push per sender → recipient per local day. Without it any
+ * friend can fire unlimited pushes carrying self-chosen display-name text.
+ */
+describe("push brake — max one push per pair per local day", () => {
+  beforeEach(() => vi.clearAllMocks());
+  afterEach(() => vi.useRealTimers());
+
+  it("a second remind on the same day sends nothing and reports sent:false", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-16T09:00:00Z"));
+    mockDb({ streakRow: { status: "active", invited_by: A }, tokens: ["ExpoTok[B]"], name: "Lara" });
+
+    const first = await remindFriendStreak(A, B);
+    vi.setSystemTime(new Date("2026-07-16T18:30:00Z")); // same Berlin day
+    const second = await remindFriendStreak(A, B);
+
+    expect(first.sent).toBe(true);
+    expect(second.sent).toBe(false);
+    expect(sendExpoPushNotification).toHaveBeenCalledTimes(1);
+  });
+
+  it("the next day the reminder works again", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-16T09:00:00Z"));
+    mockDb({ streakRow: { status: "active", invited_by: A }, tokens: ["ExpoTok[B]"], name: "Lara" });
+
+    const first = await remindFriendStreak(A, B);
+    vi.setSystemTime(new Date("2026-07-17T09:00:00Z"));
+    const nextDay = await remindFriendStreak(A, B);
+
+    expect(first.sent).toBe(true);
+    expect(nextDay.sent).toBe(true);
+    expect(sendExpoPushNotification).toHaveBeenCalledTimes(2);
+  });
+
+  it("invite then remind on the same day pushes only once (re-inviting can't bypass)", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-16T09:00:00Z"));
+    mockDb({
+      rpcResult: "invited",
+      streakRow: { status: "pending", invited_by: A },
+      tokens: ["ExpoTok[B]"],
+      name: "Lara",
+    });
+
+    await inviteFriendStreak(A, B);
+    const reminded = await remindFriendStreak(A, B);
+
+    expect(reminded.sent).toBe(false);
+    expect(sendExpoPushNotification).toHaveBeenCalledTimes(1);
+    expect(pushBodies()[0]).toContain("lädt dich"); // the invite push, not the nudge
+  });
+
+  it("the brake is per direction — B may still nudge A after A nudged B", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-16T09:00:00Z"));
+    mockDb({ streakRow: { status: "active", invited_by: A }, tokens: ["ExpoTok[X]"], name: "Lara" });
+
+    const aToB = await remindFriendStreak(A, B);
+    const bToA = await remindFriendStreak(B, A);
+
+    expect(aToB.sent).toBe(true);
+    expect(bToA.sent).toBe(true);
+    expect(sendExpoPushNotification).toHaveBeenCalledTimes(2);
+  });
+
+  it("an ineligible nudge does not burn the day's slot", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-16T09:00:00Z"));
+    // Pending invite sent by B: A may not nudge…
+    const db = mockDb({
+      streakRow: { status: "pending", invited_by: B },
+      tokens: ["ExpoTok[B]"],
+      name: "Lara",
+    });
+
+    const blocked = await remindFriendStreak(A, B);
+
+    expect(blocked.sent).toBe(false);
+    expect(db.stamps).toEqual({}); // …and nothing was stamped
+  });
+});
+
+describe("clampDisplayName — display_name is unvalidated client text", () => {
+  it("keeps a normal name unchanged", () => {
+    expect(clampDisplayName("Lara", "Fallback")).toBe("Lara");
+  });
+
+  it("falls back for empty, whitespace-only and non-string values", () => {
+    expect(clampDisplayName("   ", "Fallback")).toBe("Fallback");
+    expect(clampDisplayName(null, "Fallback")).toBe("Fallback");
+    expect(clampDisplayName(undefined, "Fallback")).toBe("Fallback");
+    expect(clampDisplayName(42, "Fallback")).toBe("Fallback");
+  });
+
+  it("strips newlines and control characters so a name can't fake push lines", () => {
+    const clamped = clampDisplayName("Lara\n\nGratis LP\rhier", "Fallback");
+    expect(clamped).toBe("Lara Gratis LP hier");
+    expect(clamped).not.toMatch(/[\n\r]/);
+  });
+
+  it("strips zero-width and bidi-override spoofing characters", () => {
+    expect(clampDisplayName("La​ra‮", "Fallback")).toBe("La ra");
+  });
+
+  it("truncates to 40 characters including the ellipsis", () => {
+    const clamped = clampDisplayName("A".repeat(80), "Fallback");
+    expect(clamped).toHaveLength(40);
+    expect(clamped.endsWith("…")).toBe(true);
+    expect(clamped).toBe(`${"A".repeat(39)}…`);
+  });
+
+  it("leaves a name of exactly 40 characters alone", () => {
+    const exact = "B".repeat(40);
+    expect(clampDisplayName(exact, "Fallback")).toBe(exact);
+  });
+});
+
+describe("push body uses the clamped name", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("an overlong, newline-laden display name is truncated and sanitised", async () => {
+    const evil = "  Lara\nGRATIS LP: klick evil.example jetzt sofort und hol dir alles ab!  ";
+    mockDb({ streakRow: { status: "active", invited_by: A }, tokens: ["ExpoTok[B]"], name: evil });
+
+    const res = await remindFriendStreak(A, B);
+    const body = pushBodies()[0]!;
+    const suffix = " hat heute gelernt. Lern auch du, damit eure Flamme weiterbrennt!";
+
+    expect(res.sent).toBe(true);
+    expect(body).not.toMatch(/[\n\r]/);
+    expect(body).toContain("Lara GRATIS LP");
+    expect(body).not.toContain("hol dir alles ab"); // tail cut off
+    expect(body).toBe(`Lara GRATIS LP: klick evil.example jetz…${suffix}`);
+    // The interpolated name is clamped to 40 chars; the rest is our own text.
+    expect(body).toHaveLength(40 + suffix.length);
   });
 });

@@ -32,6 +32,7 @@ vi.mock("@/lib/observability", () => ({
   createRequestContext: () => ({ requestId: "req-friends-1" }),
 }));
 
+import * as friendsRoute from "../../app/api/v1/friends/route";
 import { DELETE } from "../../app/api/v1/friends/route";
 import { getAuthUser } from "@/lib/auth";
 import { createSupabaseAdminClient } from "@/lib/supabase";
@@ -108,5 +109,25 @@ describe("DELETE /api/v1/friends – friendId must be a UUID (#205 M8)", () => {
 
     expect(response.status).toBe(401);
     expect(mockedCreateDb).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The raw-UUID friend add is gone. It created a mutual friendship from a bare
+ * `friendId` with no consent, no code and no block list — and every friend
+ * already learns your UUID from GET /friends, so a removed friend could re-add
+ * themselves at once and regain sight of lpBalance/currentStreak. Adding a
+ * friend now goes only through POST /friends/by-code, where the shared code is
+ * the capability you deliberately hand out. With no POST export, the App Router
+ * answers POST /api/v1/friends with 405.
+ */
+describe("POST /api/v1/friends – consent-bypassing raw add is removed", () => {
+  it("exports no POST handler", () => {
+    expect("POST" in friendsRoute).toBe(false);
+  });
+
+  it("still exports the actively used GET and DELETE handlers", () => {
+    expect(typeof friendsRoute.GET).toBe("function");
+    expect(typeof friendsRoute.DELETE).toBe("function");
   });
 });
