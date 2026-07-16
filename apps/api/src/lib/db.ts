@@ -1460,6 +1460,10 @@ export async function getDeckWobblyCards(
     .eq("user_id", userId)
     .eq("cards.deck_id", deckId)
     .is("cards.deleted_at", null)
+    // Wackelkandidaten are offered as a flashcard round, but an occlusion card's
+    // front is only a placeholder ("Was ist an der markierten Stelle?") — without
+    // its image it cannot be practised outside the Bild-Abdecken mode.
+    .neq("cards.card_type", "occlusion")
     .lt("rating", CORRECT_RATING_MIN);
   if (error) throw new Error(`getDeckWobblyCards: ${error.message}`);
 

@@ -8,6 +8,8 @@ import {
   isRegionLargeEnough,
   parseOcclusionCard,
   groupOcclusionCards,
+  isOcclusionCard,
+  excludeOcclusionCards,
   type OcclusionRegion,
   type OcclusionStudyItem,
 } from "./occlusion";
@@ -199,6 +201,29 @@ describe("parseOcclusionCard", () => {
     });
     expect(item?.hideIndex).toBe(0);
     expect(item?.label).toBe("Blüte");
+  });
+});
+
+describe("isOcclusionCard / excludeOcclusionCards", () => {
+  const basic = { id: "b1", type: "basic", front: "le chien", back: "der Hund" };
+  const occ = { id: "o1", type: "occlusion", front: "Bild-Occlusion: Was ist an der markierten Stelle?", back: "Bereich 7" };
+
+  it("recognises occlusion cards by type", () => {
+    expect(isOcclusionCard(occ)).toBe(true);
+    expect(isOcclusionCard(basic)).toBe(false);
+    // A card without a type (older rows default to "basic" server-side) is kept.
+    expect(isOcclusionCard({})).toBe(false);
+  });
+
+  it("keeps every normal card and drops the occlusion ones", () => {
+    const kept = excludeOcclusionCards([basic, occ, { ...basic, id: "b2" }]);
+    expect(kept.map((c) => c.id)).toEqual(["b1", "b2"]);
+  });
+
+  it("leaves a deck without occlusion cards untouched, and empties an all-occlusion one", () => {
+    expect(excludeOcclusionCards([basic]).map((c) => c.id)).toEqual(["b1"]);
+    expect(excludeOcclusionCards([occ, { ...occ, id: "o2" }])).toEqual([]);
+    expect(excludeOcclusionCards([])).toEqual([]);
   });
 });
 

@@ -55,6 +55,7 @@ import {
   updateCard,
 } from "../../src/lib/api";
 import { useUsageStore } from "../../src/store/usageStore";
+import { excludeOcclusionCards } from "../../src/lib/occlusion";
 import { summarizeCardMedia } from "../../src/lib/cardMedia";
 import { cleanTerm } from "../../src/lib/cardTerms";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
@@ -284,9 +285,12 @@ function AuthenticatedLearnScreen({
     try {
       await syncPendingReviewOperations(userId).catch(() => null);
       // Deck mode: study every card of one deck. Tab mode: study globally-due cards.
-      const { cards: fetched } = deckId
+      const { cards: raw } = deckId
         ? await listCardsInDeck(deckId)
         : await getDueCards(userId);
+      // Occlusion cards are unanswerable here — their front is a placeholder and
+      // the image only exists in the Bild-Abdecken mode, so skip them.
+      const fetched = excludeOcclusionCards(raw);
       // Deck setup may restrict the session to a chosen source (all / starred /
       // wobbly). The global tab (no deckId/source) always studies the full pile.
       const loaded =
