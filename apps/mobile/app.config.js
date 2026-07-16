@@ -60,14 +60,16 @@ module.exports = ({ config }) => {
     runtimeVersion,
     updates: {
       ...config.updates,
-      // OTA is enabled for preview too. The old `IS_PREVIEW ? false` guard was
-      // there because a stale update could boot on a newer native binary — but
-      // that mismatch is structurally impossible under the fingerprint policy
-      // set above: an update only ever lands on a build whose native fingerprint
-      // matches it. Change something native and the fingerprint changes, so the
-      // old bundle is never served to the new binary — a fresh build is required
-      // instead. Only JS-only changes ship over the air.
-      enabled: config.updates?.enabled ?? true,
+      // Preview builds should always boot their embedded bundle first, otherwise
+      // a stale OTA update can crash a newer native binary during startup.
+      //
+      // Do NOT flip this on together with expo-updates without solving the
+      // fingerprint problem first: build b5263d5e (16.07.) died in the
+      // "Configure expo-updates" phase because the fingerprint runtimeVersion
+      // resolves differently on this pnpm monorepo locally vs. on EAS
+      // (expoConfigPlugins pulls in @babel/* files from the pnpm store), so EAS
+      // refused the build — updates published here could never match it.
+      enabled: IS_PREVIEW ? false : config.updates?.enabled ?? true,
     },
     ios: {
       ...config.ios,
