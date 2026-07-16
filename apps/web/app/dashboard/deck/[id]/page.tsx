@@ -190,6 +190,13 @@ export default function DeckDetailPage() {
 
   const viewingCard = modal?.type === "view" ? modal.card : null;
   const viewImage = viewingCard?.sourceImageUrl ? cardImages[viewingCard.sourceImageUrl] : null;
+  const viewTarget = viewingCard ? occlusionTarget(viewingCard) : null;
+  const viewOthers = viewingCard ? occlusionOthers(viewingCard) : [];
+  // Noch nicht geholt (Eintrag fehlt) ist etwas anderes als fehlgeschlagen
+  // (Eintrag ist null) — sonst behaupten wir einen Fehler, der keiner ist.
+  const viewLoading = Boolean(
+    viewingCard?.sourceImageUrl && !(viewingCard.sourceImageUrl in cardImages)
+  );
 
   // Für den Lösch-Dialog: das Bild der betroffenen Karte und wie viele andere
   // Karten am selben Bild hängen (pro markierter Stelle entsteht eine Karte).
@@ -481,23 +488,38 @@ export default function DeckDetailPage() {
           onClose={() => setModal(null)}
         >
           {viewImage ? (
-            <div className="delete-preview">
-              <OcclusionShot
-                img={viewImage}
-                region={occlusionTarget(modal.card)}
-                others={occlusionOthers(modal.card)}
-                className="occ-shot occ-shot--lg"
-              />
-            </div>
+            <>
+              <div className="delete-preview">
+                <OcclusionShot
+                  img={viewImage}
+                  region={viewTarget}
+                  others={viewOthers}
+                  className="occ-shot occ-shot--lg"
+                />
+              </div>
+              {/* Der Satz darf nur behaupten, was auch gezeichnet wurde: ohne
+                  Stelle zeichnet OcclusionShot nur das nackte Bild. */}
+              {viewTarget ? (
+                <p className="muted">
+                  Die gesuchte Stelle ist umrandet
+                  {viewOthers.length === 1 &&
+                    ", die eine übrige Stelle dieses Bildes ist blass angedeutet"}
+                  {viewOthers.length > 1 &&
+                    `, die ${viewOthers.length} übrigen Stellen dieses Bildes sind blass angedeutet`}
+                  .
+                </p>
+              ) : (
+                <p className="muted">Zu dieser Karte ist keine Stelle hinterlegt.</p>
+              )}
+            </>
+          ) : viewLoading ? (
+            <div className="spinner" />
           ) : (
-            <p className="muted">Das Bild konnte nicht geladen werden.</p>
+            <>
+              <p className="muted">Das Bild konnte nicht geladen werden.</p>
+              {modal.card.back && <p className="muted">Gesuchte Stelle: {modal.card.back}</p>}
+            </>
           )}
-          <p className="muted">
-            Die gesuchte Stelle ist umrandet
-            {occlusionOthers(modal.card).length > 0 &&
-              `, die ${occlusionOthers(modal.card).length} übrigen Stellen dieses Bildes sind blass angedeutet`}
-            .
-          </p>
           <div className="modal__actions">
             <button
               type="button"
