@@ -9,6 +9,12 @@
  *   GET /api/v1/stats/decks — per-deck summaries for ALL of the user's decks
  *     in one call (decks without answers included with answersTotal 0).
  *
+ * #235: the 30-day history is a Pro ("advanced statistics") feature on BOTH
+ * routes. Free users keep their full deck statistics but are clamped to the
+ * 7-day window — clamped, never rejected. The whitelist tests below run as a
+ * Pro user so the `days` logic is exercised in isolation; dedicated blocks
+ * cover the free-tier clamp.
+ *
  * `@/lib/http` is mocked with light Response-shaped fakes so the test never
  * has to load `next/server` (same pattern as statsRoute.test.ts).
  */
@@ -40,6 +46,7 @@ vi.mock("@/lib/db", () => ({
   getDeckWobblyCards: vi.fn(),
   getDeckReviewSummaries: vi.fn(),
 }));
+vi.mock("@/services/subscriptionService", () => ({ getSubscriptionStatus: vi.fn() }));
 
 import { GET as getDeckStatsRoute } from "../../app/api/v1/decks/[id]/stats/route";
 import { GET as getDeckSummariesRoute } from "../../app/api/v1/stats/decks/route";
@@ -50,15 +57,28 @@ import {
   getDeckWobblyCards,
   getDeckReviewSummaries,
 } from "@/lib/db";
+import { getSubscriptionStatus } from "@/services/subscriptionService";
 
 const mockedGetAuthUser = vi.mocked(getAuthUser);
 const mockedGetDeck = vi.mocked(getDeck);
 const mockedGetDeckReviewStats = vi.mocked(getDeckReviewStats);
 const mockedGetDeckWobblyCards = vi.mocked(getDeckWobblyCards);
 const mockedGetDeckReviewSummaries = vi.mocked(getDeckReviewSummaries);
+const mockedGetSubscriptionStatus = vi.mocked(getSubscriptionStatus);
 
 const AUTH_USER_ID = "11111111-1111-4111-8111-111111111111";
 const DECK_ID = "22222222-2222-4222-8222-222222222222";
+
+// The tier always comes from the server-side subscription lookup, never from
+// the request — mirrors statsRoute.test.ts.
+function mockTier(tier: "free" | "pro" | "lifetime") {
+  mockedGetSubscriptionStatus.mockResolvedValue({
+    userId: AUTH_USER_ID,
+    tier,
+    isActive: tier !== "free",
+    expiresAt: null,
+  } as never);
+}
 
 const DECK = {
   id: DECK_ID,
@@ -100,6 +120,16 @@ const SUMMARIES = [
   { deckId: "33333333-3333-4333-8333-333333333333", title: "Latein", answersTotal: 0, accuracyRate: 0 },
 ];
 
+// One trend point per day of the requested window — lets a test assert the
+// window the route really used by the length of the series it hands back.
+function seriesOfLength(days: number) {
+  return Array.from({ length: days }, (_unused, index) => ({
+    date: `2026-07-${String(index + 1).padStart(2, "0")}`,
+    accuracy: 0.8,
+    count: 3,
+  }));
+}
+
 function deckStatsRequest(days?: string) {
   const query = days === undefined ? "" : `?days=${encodeURIComponent(days)}`;
   return new Request(`http://localhost/api/v1/decks/${DECK_ID}/stats${query}`, {
@@ -125,6 +155,9 @@ describe("GET /api/v1/decks/:id/stats", () => {
     mockedGetDeck.mockResolvedValue(DECK);
     mockedGetDeckReviewStats.mockResolvedValue(DECK_REVIEW_STATS);
     mockedGetDeckWobblyCards.mockResolvedValue(WOBBLY_CARDS);
+    // Whitelist behaviour is about the `days` logic, not the tier — run it as
+    // Pro so the 30-day window is not clamped away (#235).
+    mockTier("pro");
   });
 
   it("returns 401 without a valid token and queries nothing", async () => {
@@ -216,6 +249,7 @@ describe("GET /api/v1/stats/decks", () => {
       email: "lara@example.com",
     });
     mockedGetDeckReviewSummaries.mockResolvedValue(SUMMARIES);
+    mockTier("pro");
   });
 
   it("returns 401 without a valid token and queries nothing", async () => {
@@ -234,5 +268,168 @@ describe("GET /api/v1/stats/decks", () => {
     expect(response.status).toBe(200);
     expect(body.decks).toEqual(SUMMARIES);
     expect(mockedGetDeckReviewSummaries).toHaveBeenCalledWith(AUTH_USER_ID, 30);
+  });
+});
+
+describe("GET /api/v1/decks/:id/stats – advanced-stats gate (#235)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedGetAuthUser.mockResolvedValue({
+      userId: AUTH_USER_ID,
+      email: "lara@example.com",
+    });
+    mockedGetDeck.mockResolvedValue(DECK);
+    mockedGetDeckWobblyCards.mockResolvedValue(WOBBLY_CARDS);
+    // The trend series length follows the window the route actually queried, so
+    // the assertions below prove the clamp reaches the data, not just the call.
+    mockedGetDeckReviewStats.mockImplementation(
+      async (_userId: string, _deckId: string, days = 30) => ({
+        answersTotal: 40,
+        answersCorrect: 28,
+        accuracyByDay: seriesOfLength(days),
+      }),
+    );
+  });
+
+  it("clamps a free user's ?days=30 down to the basic 7-day window", async () => {
+    mockTier("free");
+
+    const response = await getDeckStatsRoute(deckStatsRequest("30"), deckParams());
+    const body = (await response.json()) as { accuracyByDay: unknown[] };
+
+    expect(response.status).toBe(200);
+    expect(mockedGetDeckReviewStats).toHaveBeenCalledWith(AUTH_USER_ID, DECK_ID, 7);
+    expect(body.accuracyByDay).toHaveLength(7);
+  });
+
+  it("clamps a free user with no days param to 7 days (not the historic 30)", async () => {
+    mockTier("free");
+
+    await getDeckStatsRoute(deckStatsRequest(), deckParams());
+
+    expect(mockedGetDeckReviewStats).toHaveBeenCalledWith(AUTH_USER_ID, DECK_ID, 7);
+  });
+
+  it("leaves a free user's ?days=7 at 7 (nothing to clamp)", async () => {
+    mockTier("free");
+
+    const response = await getDeckStatsRoute(deckStatsRequest("7"), deckParams());
+
+    expect(response.status).toBe(200);
+    expect(mockedGetDeckReviewStats).toHaveBeenCalledWith(AUTH_USER_ID, DECK_ID, 7);
+  });
+
+  it("clamps a free user's non-whitelisted ?days=999 to 7 as well", async () => {
+    mockTier("free");
+
+    await getDeckStatsRoute(deckStatsRequest("999"), deckParams());
+
+    expect(mockedGetDeckReviewStats).toHaveBeenCalledWith(AUTH_USER_ID, DECK_ID, 7);
+  });
+
+  it("keeps a pro user's ?days=30 at the full 30-day window", async () => {
+    mockTier("pro");
+
+    const response = await getDeckStatsRoute(deckStatsRequest("30"), deckParams());
+    const body = (await response.json()) as { accuracyByDay: unknown[] };
+
+    expect(response.status).toBe(200);
+    expect(mockedGetDeckReviewStats).toHaveBeenCalledWith(AUTH_USER_ID, DECK_ID, 30);
+    expect(body.accuracyByDay).toHaveLength(30);
+  });
+
+  it("treats lifetime like pro (advancedStats: true)", async () => {
+    mockTier("lifetime");
+
+    await getDeckStatsRoute(deckStatsRequest("30"), deckParams());
+
+    expect(mockedGetDeckReviewStats).toHaveBeenCalledWith(AUTH_USER_ID, DECK_ID, 30);
+  });
+
+  it("clamps rather than rejects: a free user still gets their deck stats", async () => {
+    mockTier("free");
+
+    const response = await getDeckStatsRoute(deckStatsRequest("30"), deckParams());
+    const body = (await response.json()) as Record<string, unknown>;
+
+    // No 402/PAYWALL_REQUIRED — the documented design is clamp, not reject.
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({
+      deck: { id: DECK_ID, title: "Bio Zellatmung" },
+      answersTotal: 40,
+      answersCorrect: 28,
+      wobblyCards: WOBBLY_CARDS,
+    });
+  });
+
+  it("never takes the tier from the request (client cannot claim pro)", async () => {
+    mockTier("free");
+
+    // A crafted request that tries to pass itself off as Pro every way it can.
+    const spoofed = new Request(
+      `http://localhost/api/v1/decks/${DECK_ID}/stats?days=30&tier=pro`,
+      { method: "GET", headers: { "x-subscription-tier": "pro" } },
+    ) as never;
+    await getDeckStatsRoute(spoofed, deckParams());
+
+    // Tier came from getSubscriptionStatus(userId) alone → still clamped.
+    expect(mockedGetSubscriptionStatus).toHaveBeenCalledWith(AUTH_USER_ID);
+    expect(mockedGetDeckReviewStats).toHaveBeenCalledWith(AUTH_USER_ID, DECK_ID, 7);
+  });
+});
+
+describe("GET /api/v1/stats/decks – advanced-stats gate (#235)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedGetAuthUser.mockResolvedValue({
+      userId: AUTH_USER_ID,
+      email: "lara@example.com",
+    });
+    mockedGetDeckReviewSummaries.mockResolvedValue(SUMMARIES);
+  });
+
+  it("clamps the hardcoded 30-day window to 7 for a free user", async () => {
+    mockTier("free");
+
+    const response = await getDeckSummariesRoute(summariesRequest());
+
+    expect(response.status).toBe(200);
+    expect(mockedGetDeckReviewSummaries).toHaveBeenCalledWith(AUTH_USER_ID, 7);
+  });
+
+  it("clamps rather than rejects: a free user still gets every summary", async () => {
+    mockTier("free");
+
+    const response = await getDeckSummariesRoute(summariesRequest());
+    const body = (await response.json()) as { decks: unknown };
+
+    // No 402/PAYWALL_REQUIRED — same clamp-not-reject design as /api/v1/stats.
+    expect(response.status).toBe(200);
+    expect(body.decks).toEqual(SUMMARIES);
+  });
+
+  it("keeps the full 30-day window for a pro user", async () => {
+    mockTier("pro");
+
+    await getDeckSummariesRoute(summariesRequest());
+
+    expect(mockedGetDeckReviewSummaries).toHaveBeenCalledWith(AUTH_USER_ID, 30);
+  });
+
+  it("treats lifetime like pro (advancedStats: true)", async () => {
+    mockTier("lifetime");
+
+    await getDeckSummariesRoute(summariesRequest());
+
+    expect(mockedGetDeckReviewSummaries).toHaveBeenCalledWith(AUTH_USER_ID, 30);
+  });
+
+  it("resolves the tier server-side from the authenticated user id", async () => {
+    mockTier("free");
+
+    await getDeckSummariesRoute(summariesRequest());
+
+    expect(mockedGetSubscriptionStatus).toHaveBeenCalledWith(AUTH_USER_ID);
+    expect(mockedGetDeckReviewSummaries).toHaveBeenCalledWith(AUTH_USER_ID, 7);
   });
 });

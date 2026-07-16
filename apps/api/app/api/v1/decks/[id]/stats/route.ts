@@ -3,6 +3,8 @@ import { jsonError, jsonOk, normalizeError } from "@/lib/http";
 import { createRequestContext } from "@/lib/observability";
 import { getAuthUser } from "@/lib/auth";
 import { getDeck, getDeckReviewStats, getDeckWobblyCards } from "@/lib/db";
+import { getSubscriptionStatus } from "@/services/subscriptionService";
+import { effectiveStatsWindowDays } from "@/lib/limits";
 
 interface Params {
   params: Promise<{ id: string }>;
@@ -35,8 +37,14 @@ export async function GET(request: NextRequest, { params }: Params) {
     // old clients that send no `?days=` keep their full 30-day series (mirrors
     // the /api/v1/stats fix in #253). Only the accuracy trend is windowed; the
     // Wackelkandidaten stay all-time.
-    const days: 7 | 30 =
+    const requestedDays: 7 | 30 =
       new URL(request.url).searchParams.get("days") === "7" ? 7 : 30;
+
+    // Advanced statistics (the 30-day history) is a Pro feature (#235). Free
+    // users keep the full deck stats but are clamped to the 7-day window — the
+    // tier is resolved server-side, never taken from the request.
+    const { tier } = await getSubscriptionStatus(auth.userId);
+    const days = effectiveStatsWindowDays(tier, requestedDays);
 
     const [stats, wobblyCards] = await Promise.all([
       getDeckReviewStats(auth.userId, id, days),
