@@ -17,15 +17,10 @@ import type { CardImage, OcclusionRegion } from "@/lib/card-images";
 export function OcclusionShot({
   img,
   region,
-  others,
   className,
 }: {
   img: CardImage;
   region: OcclusionRegion | null;
-  /** Übrige Stellen des Bildes, blass angedeutet — zeigt in der großen Ansicht,
-   *  wo die gesuchte Stelle im Ganzen sitzt. Im 64px-Vorschaubild weglassen:
-   *  dort wäre es nur Gekritzel. */
-  others?: OcclusionRegion[];
   className?: string;
 }) {
   // useId liefert IDs mit Doppelpunkten — die sind in url(#…) nicht erlaubt.
@@ -67,21 +62,14 @@ export function OcclusionShot({
             fill="rgba(15, 23, 42, 0.55)"
             mask={`url(#${maskId})`}
           />
-          {others?.map((r, i) => (
-            <rect
-              key={i}
-              x={r.x * W}
-              y={r.y * 100}
-              width={r.w * W}
-              height={r.h * 100}
-              rx="1"
-              fill="none"
-              stroke="var(--amber)"
-              strokeWidth={stroke * 0.5}
-              strokeDasharray={`${stroke * 1.6} ${stroke * 1.2}`}
-              opacity={0.55}
-            />
-          ))}
+          {/* Der Rahmen liegt auf der Kante zwischen ausgesparter (hell) und
+              abgedunkelter Fläche — eine einzelne Farbe scheitert daher immer an
+              einer der beiden Seiten. Gemessen auf einem hellen Foto: Amber kam
+              auf 1,97:1, Weiß auf 1,09:1 innen, Indigo auf 1,48:1 außen; nötig
+              sind 3:1. Eine helle Linie mit dunklem Saum bringt ihren Kontrast
+              selbst mit (17,85:1 zueinander) und hält auf jedem Bild.
+              Feste Farben, kein Token: das Foto darunter kennt keinen
+              Hell-/Dunkelmodus, also darf die Markierung auch keinen kennen. */}
           <rect
             x={region.x * W}
             y={region.y * 100}
@@ -89,8 +77,19 @@ export function OcclusionShot({
             height={region.h * 100}
             rx="1"
             fill="none"
-            stroke="var(--amber)"
-            strokeWidth={stroke}
+            stroke="#0f172a"
+            strokeWidth={stroke * 2.4}
+            opacity={0.9}
+          />
+          <rect
+            x={region.x * W}
+            y={region.y * 100}
+            width={region.w * W}
+            height={region.h * 100}
+            rx="1"
+            fill="none"
+            stroke="#ffffff"
+            strokeWidth={stroke * 0.9}
           />
         </>
       )}

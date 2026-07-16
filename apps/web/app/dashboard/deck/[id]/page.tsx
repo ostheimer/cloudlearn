@@ -6,12 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
 import { Modal } from "@/components/app/modal";
 import { OcclusionShot } from "@/components/app/occlusion-shot";
-import {
-  getCardImages,
-  occlusionOthers,
-  occlusionTarget,
-  type CardImage,
-} from "@/lib/card-images";
+import { getCardImages, occlusionTarget, type CardImage } from "@/lib/card-images";
 import {
   getDeckDetails,
   listCardsInDeck,
@@ -188,29 +183,33 @@ export default function DeckDetailPage() {
   // der Untertitel bliebe nur eine Dopplung.
   const cardCountLabel = countParts.length > 0 ? countParts.join(" · ") : null;
 
+  // Wie viele andere Karten hängen am selben Bild? Gezählt werden KARTEN, nicht
+  // Regionen: extraData.regions führt gelöschte Stellen weiter mit, die Zahl
+  // wäre sonst zu hoch, sobald eine Karte fehlt.
+  const siblingsOf = (card: Card | null) =>
+    card?.type === "occlusion" && card.sourceImageUrl
+      ? occlusionCards.filter(
+          (c) => c.sourceImageUrl === card.sourceImageUrl && c.id !== card.id
+        ).length
+      : 0;
+
   const viewingCard = modal?.type === "view" ? modal.card : null;
   const viewImage = viewingCard?.sourceImageUrl ? cardImages[viewingCard.sourceImageUrl] : null;
   const viewTarget = viewingCard ? occlusionTarget(viewingCard) : null;
-  const viewOthers = viewingCard ? occlusionOthers(viewingCard) : [];
+  const viewSiblings = siblingsOf(viewingCard);
   // Noch nicht geholt (Eintrag fehlt) ist etwas anderes als fehlgeschlagen
   // (Eintrag ist null) — sonst behaupten wir einen Fehler, der keiner ist.
   const viewLoading = Boolean(
     viewingCard?.sourceImageUrl && !(viewingCard.sourceImageUrl in cardImages)
   );
 
-  // Für den Lösch-Dialog: das Bild der betroffenen Karte und wie viele andere
-  // Karten am selben Bild hängen (pro markierter Stelle entsteht eine Karte).
+  // Für den Lösch-Dialog: das Bild der betroffenen Karte.
   const deletingCard = modal?.type === "delete" ? modal.card : null;
   const deleteImage =
     deletingCard?.type === "occlusion" && deletingCard.sourceImageUrl
       ? cardImages[deletingCard.sourceImageUrl]
       : null;
-  const siblingCount =
-    deletingCard?.type === "occlusion" && deletingCard.sourceImageUrl
-      ? occlusionCards.filter(
-          (c) => c.sourceImageUrl === deletingCard.sourceImageUrl && c.id !== deletingCard.id
-        ).length
-      : 0;
+  const siblingCount = siblingsOf(deletingCard);
 
   return (
     <div className="deck-detail">
@@ -493,23 +492,22 @@ export default function DeckDetailPage() {
                 <OcclusionShot
                   img={viewImage}
                   region={viewTarget}
-                  others={viewOthers}
                   className="occ-shot occ-shot--lg"
                 />
               </div>
               {/* Der Satz darf nur behaupten, was auch gezeichnet wurde: ohne
                   Stelle zeichnet OcclusionShot nur das nackte Bild. */}
               {viewTarget ? (
-                <p className="muted">
-                  Die gesuchte Stelle ist umrandet
-                  {viewOthers.length === 1 &&
-                    ", die eine übrige Stelle dieses Bildes ist blass angedeutet"}
-                  {viewOthers.length > 1 &&
-                    `, die ${viewOthers.length} übrigen Stellen dieses Bildes sind blass angedeutet`}
-                  .
-                </p>
+                <p className="muted">Die gesuchte Stelle ist umrandet.</p>
               ) : (
                 <p className="muted">Zu dieser Karte ist keine Stelle hinterlegt.</p>
+              )}
+              {viewSiblings > 0 && (
+                <p className="muted">
+                  {viewSiblings === 1
+                    ? "Zu diesem Bild gehört noch eine weitere Karte."
+                    : `Zu diesem Bild gehören noch ${viewSiblings} weitere Karten.`}
+                </p>
               )}
             </>
           ) : viewLoading ? (
