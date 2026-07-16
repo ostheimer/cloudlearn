@@ -69,13 +69,6 @@ export default function FolderDetailPage() {
       .filter((d) => !inFolder.has(d.id))
       .sort((a, b) => a.title.localeCompare(b.title, "de"));
   }, [allDecks, decks]);
-  // listDecksInFolder selects decks(*) without the cards(count) embed that
-  // listDecks carries, so its decks arrive with cardCount undefined. Take the
-  // count from the full deck list instead of rendering a wrong "0 Karten".
-  const cardCounts = useMemo(
-    () => new Map(allDecks.map((d) => [d.id, d.cardCount])),
-    [allDecks]
-  );
 
   function goBack() {
     if (typeof window !== "undefined" && window.history.length > 1) router.back();
@@ -154,9 +147,7 @@ export default function FolderDetailPage() {
         </div>
       ) : (
         <div className="deck-grid">
-          {decks.map((deck) => {
-            const count = cardCounts.get(deck.id) ?? deck.cardCount;
-            return (
+          {decks.map((deck) => (
             <div key={deck.id} style={{ position: "relative" }}>
               <Link href={`/dashboard/deck/${deck.id}`} className="deck-card">
                 <div className="deck-card__top">
@@ -167,9 +158,9 @@ export default function FolderDetailPage() {
                 <div className="deck-card__title">{deck.title}</div>
                 <div className="deck-card__meta">
                   <span>
-                    {count === undefined
+                    {deck.cardCount === undefined
                       ? "Karten werden gezählt…"
-                      : `${count} ${count === 1 ? "Karte" : "Karten"}`}
+                      : `${deck.cardCount} ${deck.cardCount === 1 ? "Karte" : "Karten"}`}
                   </span>
                 </div>
               </Link>
@@ -192,8 +183,7 @@ export default function FolderDetailPage() {
                 <Trash size={18} />
               </button>
             </div>
-            );
-          })}
+          ))}
         </div>
       )}
 
