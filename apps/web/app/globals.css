@@ -2861,8 +2861,35 @@ a.mode-card:hover {
 
 /* Bild-Karten (Occlusion): erste Spalte trägt statt der Nummer ein
    Vorschaubild mit markierter Stelle. */
+/* Die Zeile teilt sich in einen großen Antipp-Knopf (Bild + Text) und die
+   Aktionen. So bleibt der Papierkorb außerhalb der Trefferfläche. */
 .card-row--img {
-  grid-template-columns: 64px 1fr auto;
+  grid-template-columns: 1fr auto;
+}
+
+.card-row__tap {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 14px;
+  align-items: center;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.card-row__tap:hover .card-row__front {
+  color: var(--brand-600);
+}
+
+.card-row__tap:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 3px;
+  border-radius: var(--r-sm);
 }
 
 .card-row__thumb {

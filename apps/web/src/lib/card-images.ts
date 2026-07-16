@@ -16,20 +16,38 @@ export type CardImage = { url: string; aspect: number };
 
 const FALLBACK_ASPECT = 4 / 3;
 
+function isRegion(r: unknown): r is OcclusionRegion {
+  const c = r as OcclusionRegion | undefined;
+  if (!c) return false;
+  return [c.x, c.y, c.w, c.h].every((n) => typeof n === "number" && Number.isFinite(n));
+}
+
+function parseRegions(card: Card): { regions: OcclusionRegion[]; hideIndex: number } | null {
+  const ed = card.extraData as { regions?: unknown; hideIndex?: unknown } | undefined;
+  if (!Array.isArray(ed?.regions)) return null;
+  const hideIndex = typeof ed?.hideIndex === "number" ? ed.hideIndex : 0;
+  return { regions: ed.regions as OcclusionRegion[], hideIndex };
+}
+
 /**
  * Die eine Stelle, die genau diese Karte abfragt. Jede Occlusion-Karte trägt
  * die volle Regionsliste des Bildes und zeigt per hideIndex auf ihre eigene —
  * nur damit lassen sich die Karten zu einem Bild auseinanderhalten.
  */
 export function occlusionTarget(card: Card): OcclusionRegion | null {
-  const ed = card.extraData as { regions?: unknown; hideIndex?: unknown } | undefined;
-  const regions = Array.isArray(ed?.regions) ? (ed.regions as OcclusionRegion[]) : null;
-  const hideIndex = typeof ed?.hideIndex === "number" ? ed.hideIndex : 0;
-  const target = regions?.[hideIndex];
-  if (!target) return null;
-  const nums = [target.x, target.y, target.w, target.h];
-  if (!nums.every((n) => typeof n === "number" && Number.isFinite(n))) return null;
-  return target;
+  const parsed = parseRegions(card);
+  const target = parsed?.regions[parsed.hideIndex];
+  return isRegion(target) ? target : null;
+}
+
+/**
+ * Alle übrigen Stellen desselben Bildes — für die große Ansicht, damit man
+ * sieht, wo die gesuchte Stelle unter den anderen sitzt.
+ */
+export function occlusionOthers(card: Card): OcclusionRegion[] {
+  const parsed = parseRegions(card);
+  if (!parsed) return [];
+  return parsed.regions.filter((r, i) => i !== parsed.hideIndex && isRegion(r));
 }
 
 // Ohne die echten Maße säße eine Regions-Markierung falsch, sobald das Bild

@@ -6,7 +6,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
 import { Modal } from "@/components/app/modal";
 import { OcclusionShot } from "@/components/app/occlusion-shot";
-import { getCardImages, occlusionTarget, type CardImage } from "@/lib/card-images";
+import {
+  getCardImages,
+  occlusionOthers,
+  occlusionTarget,
+  type CardImage,
+} from "@/lib/card-images";
 import {
   getDeckDetails,
   listCardsInDeck,
@@ -59,6 +64,7 @@ type CardModal =
   | { type: "add" }
   | { type: "edit"; card: Card }
   | { type: "delete"; card: Card }
+  | { type: "view"; card: Card }
   | null;
 
 export default function DeckDetailPage() {
@@ -181,6 +187,16 @@ export default function DeckDetailPage() {
   // Beim leeren Deck sagt der Leerzustand darunter schon „Noch keine Karten" —
   // der Untertitel bliebe nur eine Dopplung.
   const cardCountLabel = countParts.length > 0 ? countParts.join(" · ") : null;
+
+  const viewingCard = modal?.type === "view" ? modal.card : null;
+  const viewImage = viewingCard?.sourceImageUrl ? cardImages[viewingCard.sourceImageUrl] : null;
+  const viewTarget = viewingCard ? occlusionTarget(viewingCard) : null;
+  const viewOthers = viewingCard ? occlusionOthers(viewingCard) : [];
+  // Noch nicht geholt (Eintrag fehlt) ist etwas anderes als fehlgeschlagen
+  // (Eintrag ist null) — sonst behaupten wir einen Fehler, der keiner ist.
+  const viewLoading = Boolean(
+    viewingCard?.sourceImageUrl && !(viewingCard.sourceImageUrl in cardImages)
+  );
 
   // Für den Lösch-Dialog: das Bild der betroffenen Karte und wie viele andere
   // Karten am selben Bild hängen (pro markierter Stelle entsteht eine Karte).
@@ -381,32 +397,55 @@ export default function DeckDetailPage() {
           )}
           {occlusionCards.length > 0 && (
             <>
-              <h2 className="h3" style={{ margin: "16px 0 10px" }}>
-                Bild-Karten (Occlusion)
-              </h2>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "baseline",
+                  gap: 12,
+                  margin: "16px 0 10px",
+                }}
+              >
+                <h2 className="h3" style={{ margin: 0 }}>
+                  Bild-Karten (Occlusion)
+                </h2>
+                <span className="muted" style={{ fontSize: "0.78rem" }}>
+                  zum Vergrößern antippen
+                </span>
+              </div>
               <div className="card-list">
                 {occlusionCards.map((card, i) => {
                   const img = card.sourceImageUrl ? cardImages[card.sourceImageUrl] : null;
+                  const label = card.back || card.front || `Bild-Karte ${i + 1}`;
                   return (
                     <div key={card.id} className="card-row card-row--img">
-                      {/* Platzhalter und Bild sind gleich groß — die Zeile
-                          springt beim Nachladen also nicht. */}
-                      <span className="card-row__thumb" aria-hidden>
-                        {img ? (
-                          <OcclusionShot
-                            img={img}
-                            region={occlusionTarget(card)}
-                            className="occ-shot"
-                          />
-                        ) : (
-                          <ImageIcon size={18} />
-                        )}
-                      </span>
-                      <div className="card-row__faces">
-                        <div className="card-row__front">
-                          {card.back || card.front || `Bild-Karte ${i + 1}`}
-                        </div>
-                      </div>
+                      {/* Eigener Knopf statt Klick auf die ganze Zeile: so bleibt
+                          der Papierkorb außerhalb der Trefferfläche (sonst löscht
+                          ein Vergrößern-Tipp daneben) und Tastatur/Vorlesen
+                          funktionieren ohne Nachbau. */}
+                      <button
+                        type="button"
+                        className="card-row__tap"
+                        aria-label={`${label} vergrößern`}
+                        onClick={() => setModal({ type: "view", card })}
+                      >
+                        {/* Platzhalter und Bild sind gleich groß — die Zeile
+                            springt beim Nachladen also nicht. */}
+                        <span className="card-row__thumb" aria-hidden>
+                          {img ? (
+                            <OcclusionShot
+                              img={img}
+                              region={occlusionTarget(card)}
+                              className="occ-shot"
+                            />
+                          ) : (
+                            <ImageIcon size={18} />
+                          )}
+                        </span>
+                        <span className="card-row__faces">
+                          <span className="card-row__front">{label}</span>
+                        </span>
+                      </button>
                       <div className="card-row__actions">
                         <button
                           type="button"
@@ -441,6 +480,59 @@ export default function DeckDetailPage() {
             await load();
           }}
         />
+      )}
+
+      {modal?.type === "view" && (
+        <Modal
+          title={modal.card.back || "Bild-Karte"}
+          onClose={() => setModal(null)}
+        >
+          {viewImage ? (
+            <>
+              <div className="delete-preview">
+                <OcclusionShot
+                  img={viewImage}
+                  region={viewTarget}
+                  others={viewOthers}
+                  className="occ-shot occ-shot--lg"
+                />
+              </div>
+              {/* Der Satz darf nur behaupten, was auch gezeichnet wurde: ohne
+                  Stelle zeichnet OcclusionShot nur das nackte Bild. */}
+              {viewTarget ? (
+                <p className="muted">
+                  Die gesuchte Stelle ist umrandet
+                  {viewOthers.length === 1 &&
+                    ", die eine übrige Stelle dieses Bildes ist blass angedeutet"}
+                  {viewOthers.length > 1 &&
+                    `, die ${viewOthers.length} übrigen Stellen dieses Bildes sind blass angedeutet`}
+                  .
+                </p>
+              ) : (
+                <p className="muted">Zu dieser Karte ist keine Stelle hinterlegt.</p>
+              )}
+            </>
+          ) : viewLoading ? (
+            <div className="spinner" />
+          ) : (
+            <>
+              <p className="muted">Das Bild konnte nicht geladen werden.</p>
+              {modal.card.back && <p className="muted">Gesuchte Stelle: {modal.card.back}</p>}
+            </>
+          )}
+          <div className="modal__actions">
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setModal({ type: "delete", card: modal.card })}
+            >
+              Löschen
+            </button>
+            <button type="button" className="btn btn-primary" onClick={() => setModal(null)}>
+              Schließen
+            </button>
+          </div>
+        </Modal>
       )}
 
       {modal?.type === "delete" && (
