@@ -44,7 +44,9 @@ type ModalState =
   | { type: "delete"; deck: Deck }
   | { type: "share"; deck: Deck; url: string }
   | { type: "addToFolder"; deck: Deck }
-  | { type: "createFolder" }
+  // forDeck: set when the dialog was opened from "Zu Ordner hinzufügen" with no
+  // folders yet — the new folder then takes that deck straight away.
+  | { type: "createFolder"; forDeck?: Deck }
   | { type: "renameFolder"; folder: Folder }
   | { type: "deleteFolder"; folder: Folder }
   | null;
@@ -360,7 +362,9 @@ export default function LibraryPage() {
           onClose={() => setModal(null)}
           onSubmit={async (value) => {
             if (!userId) return;
-            await createFolder(userId, value);
+            const forDeck = modal.forDeck;
+            const { folder } = await createFolder(userId, value);
+            if (forDeck) await addDeckToFolder(folder.id, forDeck.id);
             setModal(null);
             await loadFolders();
           }}
@@ -410,7 +414,7 @@ export default function LibraryPage() {
             setModal(null);
             await loadFolders();
           }}
-          onCreateFolder={() => setModal({ type: "createFolder" })}
+          onCreateFolder={() => setModal({ type: "createFolder", forDeck: modal.deck })}
         />
       )}
     </>
@@ -664,17 +668,14 @@ function AddToFolderModal({
     <Modal title="Zu Ordner hinzufügen" onClose={onClose}>
       <p className="muted">In welchen Ordner soll „{deck.title}" gelegt werden?</p>
       {sorted.length === 0 ? (
-        <p className="muted">
-          Du hast noch keine Ordner.{" "}
-          <button
-            type="button"
-            className="btn btn-ghost"
-            style={{ padding: "4px 10px" }}
-            onClick={onCreateFolder}
-          >
+        <>
+          <p className="muted">
+            Du hast noch keine Ordner. Leg einen an — „{deck.title}" kommt gleich hinein.
+          </p>
+          <button type="button" className="btn btn-primary" onClick={onCreateFolder}>
             + Neuer Ordner
           </button>
-        </p>
+        </>
       ) : (
         <div style={{ display: "grid", gap: 8 }}>
           {sorted.map((f) => {
