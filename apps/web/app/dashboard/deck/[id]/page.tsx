@@ -48,7 +48,10 @@ const MODES: Mode[] = [
   { key: "mcq", title: "Multiple Choice", sub: "Antwort aus Optionen wählen", Icon: ListChecks, color: "#8b5cf6", path: "quiz", min: 2 },
   { key: "match", title: "Zuordnen", sub: "Begriffe & Definitionen paaren", Icon: Match, color: "#3b82f6", path: "match", min: 2 },
   { key: "cloze", title: "Lückentext", sub: "Fehlendes aktiv ergänzen", Icon: Pencil, color: "#d97706", path: "cloze", min: 1 },
-  { key: "test", title: "Test", sub: "Klausur mit Prozent-Ergebnis", Icon: FileText, color: "#dc2626", path: "test", min: 1 },
+  // min 2: unter zwei Karten findet buildTestQuestions keine falsche Antwort
+  // (canChoose braucht 2 Antworten), es gäbe also nur Schreibfragen — und bei
+  // „nur Multiple Choice" gar keine.
+  { key: "test", title: "Test", sub: "Klausur mit Prozent-Ergebnis", Icon: FileText, color: "#dc2626", path: "test", min: 2 },
   // Occlusion wird separat als eigene Kachel gerendert (bedingt: aktiv nur mit Bild-Karten).
 ];
 
@@ -166,6 +169,17 @@ export default function DeckDetailPage() {
   const occlusionCards = cards.filter((c) => c.type === "occlusion");
   const hasOcclusion = occlusionCards.length > 0;
 
+  // Nur nennen, was es wirklich gibt: „0 Karten · 10 Bild-Karten" liest sich,
+  // als wäre das Deck leer.
+  const countParts: string[] = [];
+  if (textCards.length > 0)
+    countParts.push(`${textCards.length} ${textCards.length === 1 ? "Karte" : "Karten"}`);
+  if (occlusionCards.length > 0)
+    countParts.push(
+      `${occlusionCards.length} Bild-${occlusionCards.length === 1 ? "Karte" : "Karten"}`
+    );
+  const cardCountLabel = countParts.length > 0 ? countParts.join(" · ") : "Noch keine Karten";
+
   // Für den Lösch-Dialog: das Bild der betroffenen Karte und wie viele andere
   // Karten am selben Bild hängen (pro markierter Stelle entsteht eine Karte).
   const deletingCard = modal?.type === "delete" ? modal.card : null;
@@ -197,9 +211,7 @@ export default function DeckDetailPage() {
             {details?.title}
           </h1>
           <p className="muted" style={{ marginTop: 4 }}>
-            {textCards.length} {textCards.length === 1 ? "Karte" : "Karten"}
-            {occlusionCards.length > 0 &&
-              ` · ${occlusionCards.length} Bild-${occlusionCards.length === 1 ? "Karte" : "Karten"}`}
+            {cardCountLabel}
           </p>
         </div>
         <button

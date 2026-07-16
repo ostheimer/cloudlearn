@@ -8,6 +8,7 @@ import {
   type StatsResponse,
   type StreakCalendarResponse,
 } from "@/lib/api";
+import { getSupabase } from "@/lib/supabase-browser";
 import { ArrowLeft, Award, ChevronLeft, ChevronRight, Flame, Shield } from "@/components/icons";
 
 // Lokales Kalenderdatum (sv-SE rendert YYYY-MM-DD) passt zu den Server-Streak-
@@ -44,6 +45,9 @@ export default function StreakCalendarPage() {
   const [calendar, setCalendar] = useState<StreakCalendarResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  // Vor der Anmeldung gab es nichts zu lernen — dort endet das Zurückblättern.
+  // Das Datum steht in der Supabase-Session, dafür braucht es keinen API-Call.
+  const [signupMonth, setSignupMonth] = useState<string | null>(null);
   const router = useRouter();
   const goBack = () => {
     if (typeof window !== "undefined" && window.history.length > 1) router.back();
@@ -72,10 +76,33 @@ export default function StreakCalendarPage() {
     loadMonth(month);
   }, [month, loadMonth]);
 
+  useEffect(() => {
+    let active = true;
+    // getSession statt getUser: das Anmeldedatum steht schon lokal in der
+    // Session und ändert sich nie — dafür lohnt kein Netzwerk-Aufruf.
+    getSupabase()
+      .auth.getSession()
+      .then(({ data }) => {
+        const created = data.session?.user.created_at;
+        // created_at ist UTC; für eine Monatsgrenze reicht das — im Zweifel
+        // ist ein Monat mehr erlaubt, nie einer zu wenig.
+        if (active && created) setSignupMonth(created.slice(0, 7));
+      })
+      .catch(() => {
+        // Ohne Datum bleibt das Zurückblättern offen wie bisher.
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const today = todayLocalDate();
   const learned = new Set(calendar?.learnedDays ?? []);
   const frozen = new Set(calendar?.frozenDays ?? []);
   const atCurrentMonth = month >= currentMonth;
+  // Solange das Anmeldedatum nicht da ist, bleibt der Pfeil aktiv — lieber
+  // einmal zu weit blättern als einen Pfeil, der grundlos klemmt.
+  const atSignupMonth = signupMonth !== null && month <= signupMonth;
 
   const [y, m] = month.split("-").map(Number);
   const monthLabel = new Date(y ?? 0, (m ?? 1) - 1, 1).toLocaleDateString("de-DE", {
@@ -165,6 +192,7 @@ export default function StreakCalendarPage() {
             type="button"
             className="icon-btn"
             aria-label="Vorheriger Monat"
+            disabled={atSignupMonth}
             onClick={() => setMonth((prev) => shiftMonth(prev, -1))}
           >
             <ChevronLeft size={22} />
