@@ -47,6 +47,10 @@ import {
   type Deck,
 } from "../../src/lib/api";
 import { summarizeCardMedia } from "../../src/lib/cardMedia";
+import {
+  getStableImportAttemptKey,
+  type ImportAttemptKey,
+} from "../../src/features/ocr/importAttemptIdempotency";
 import { useUsageStore } from "../../src/store/usageStore";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
 import { LpInsufficientModal } from "../../src/components/LpInsufficientModal";
@@ -110,6 +114,7 @@ export default function ScanScreen() {
   const [pdfPageCount, setPdfPageCount] = useState<number | null>(null);
 
   const cameraRef = useRef<CameraView>(null);
+  const importAttemptRef = useRef<ImportAttemptKey | null>(null);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const colors = useColors();
 
@@ -201,6 +206,16 @@ export default function ScanScreen() {
     return "image/jpeg";
   };
 
+  const getImportAttemptKey = (signature: string, prefix: string): string => {
+    const attempt = getStableImportAttemptKey(
+      importAttemptRef.current,
+      signature,
+      prefix
+    );
+    importAttemptRef.current = attempt;
+    return attempt.key;
+  };
+
   const readPickedPdfAsBase64 = async (
     asset: DocumentPicker.DocumentPickerAsset
   ): Promise<string> => {
@@ -268,7 +283,11 @@ export default function ScanScreen() {
     setPdfFileName("");
     setPdfPageCount(null);
     try {
-      const result = await scanImage(userId, base64, mimeType);
+      const idempotencyKey = getImportAttemptKey(
+        `scan-img:${mimeType}:${base64}`,
+        "scan-img"
+      );
+      const result = await scanImage(userId, base64, mimeType, "de", idempotencyKey);
       setCards(result.cards);
       setModel(result.model);
       setDeckTitle(result.deckTitle ?? "");
@@ -305,7 +324,11 @@ export default function ScanScreen() {
     setPdfPageCount(null);
 
     try {
-      const result = await importPdf(userId, fileName, fileBase64);
+      const idempotencyKey = getImportAttemptKey(
+        `import-pdf:${fileName}:${fileBase64}`,
+        "import-pdf"
+      );
+      const result = await importPdf(userId, fileName, fileBase64, "de", idempotencyKey);
       setCards(result.cards);
       setModel(result.model);
       setDeckTitle(result.deckTitle ?? "");
@@ -342,7 +365,9 @@ export default function ScanScreen() {
     setPdfFileName("");
     setPdfPageCount(null);
     try {
-      const result = await scanText(userId, editedText);
+      const text = editedText.trim();
+      const idempotencyKey = getImportAttemptKey(`scan:${text}`, "scan");
+      const result = await scanText(userId, text, "de", idempotencyKey);
       setCards(result.cards);
       setModel(result.model);
       setDeckTitle(result.deckTitle ?? "");
@@ -384,7 +409,11 @@ export default function ScanScreen() {
     setPdfPageCount(null);
 
     try {
-      const result = await importFromUrl(userId, normalizedUrl, 4);
+      const idempotencyKey = getImportAttemptKey(
+        `import-url:${normalizedUrl}`,
+        "import-url"
+      );
+      const result = await importFromUrl(userId, normalizedUrl, 4, "de", idempotencyKey);
       setCards(result.cards);
       setModel(result.model);
       setDeckTitle(result.deckTitle ?? "");
@@ -521,6 +550,7 @@ export default function ScanScreen() {
     setSourceUrl("");
     setPdfFileName("");
     setPdfPageCount(null);
+    importAttemptRef.current = null;
   };
 
   // --- Camera View ---

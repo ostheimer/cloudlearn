@@ -110,6 +110,10 @@ async function requestAuthenticated<T>(
   return request<T>(path, options, { requiresAuth: true });
 }
 
+function importIdempotencyKey(prefix: string): string {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 // --- Types ---
 
 export interface Flashcard {
@@ -273,15 +277,15 @@ export interface DeleteAccountResponse {
 export async function scanText(
   userId: string,
   text: string,
-  language = "de"
+  language = "de",
+  idempotencyKey?: string
 ): Promise<ScanResponse> {
-  const idempotencyKey = `scan-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
   return requestAuthenticated<ScanResponse>("/api/v1/scan/process", {
     method: "POST",
     body: JSON.stringify({
       userId,
       extractedText: text,
-      idempotencyKey,
+      idempotencyKey: idempotencyKey ?? importIdempotencyKey("scan"),
       sourceLanguage: language,
     }),
   });
@@ -291,16 +295,16 @@ export async function scanImage(
   userId: string,
   imageBase64: string,
   mimeType: "image/jpeg" | "image/png" | "image/webp" = "image/jpeg",
-  language = "de"
+  language = "de",
+  idempotencyKey?: string
 ): Promise<ScanResponse> {
-  const idempotencyKey = `scan-img-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
   return requestAuthenticated<ScanResponse>("/api/v1/scan/process", {
     method: "POST",
     body: JSON.stringify({
       userId,
       imageBase64,
       imageMimeType: mimeType,
-      idempotencyKey,
+      idempotencyKey: idempotencyKey ?? importIdempotencyKey("scan-img"),
       sourceLanguage: language,
     }),
   });
@@ -310,16 +314,16 @@ export async function importFromUrl(
   userId: string,
   sourceUrl: string,
   maxImages = 4,
-  language = "de"
+  language = "de",
+  idempotencyKey?: string
 ): Promise<UrlImportResponse> {
-  const idempotencyKey = `import-url-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
   return requestAuthenticated<UrlImportResponse>("/api/v1/import/url", {
     method: "POST",
     body: JSON.stringify({
       userId,
       sourceUrl,
       maxImages,
-      idempotencyKey,
+      idempotencyKey: idempotencyKey ?? importIdempotencyKey("import-url"),
       sourceLanguage: language,
     }),
   });
@@ -329,16 +333,16 @@ export async function importPdf(
   userId: string,
   fileName: string,
   fileBase64: string,
-  language = "de"
+  language = "de",
+  idempotencyKey?: string
 ): Promise<PdfImportResponse> {
-  const idempotencyKey = `import-pdf-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
   return requestAuthenticated<PdfImportResponse>("/api/v1/import/pdf", {
     method: "POST",
     body: JSON.stringify({
       userId,
       fileName,
       fileBase64,
-      idempotencyKey,
+      idempotencyKey: idempotencyKey ?? importIdempotencyKey("import-pdf"),
       sourceLanguage: language,
     }),
   });
