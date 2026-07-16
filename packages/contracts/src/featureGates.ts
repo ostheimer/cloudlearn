@@ -79,7 +79,7 @@ export const TIER_LIMITS: Record<SubscriptionTier, TierLimits> = {
 };
 
 export const LP_EARN_RULES = {
-  perReviewSession: 5,    // LP per completed review session (min 5 cards)
+  perReviewSession: 1,    // LP per reviewed card (chunk size 1, see lpService)
   dailyGoalBonus: 10,     // extra LP when daily goal is hit
   streakDay7: 25,         // streak milestone bonus
   streakDay30: 100,

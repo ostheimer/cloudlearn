@@ -75,7 +75,9 @@ describe("featureGates – LP economy", () => {
   });
 
   it("LP_EARN_RULES are defined and sensible", () => {
-    expect(LP_EARN_RULES.perReviewSession).toBe(5);
+    // 1 LP per reviewed card (chunk size 1). Was 5 LP per 5-card chunk, which
+    // paid 0 for a 3-card session and deferred the remainder.
+    expect(LP_EARN_RULES.perReviewSession).toBe(1);
     expect(LP_EARN_RULES.dailyGoalBonus).toBe(10);
     expect(LP_EARN_RULES.streakDay7).toBe(25);
     expect(LP_EARN_RULES.streakDay30).toBe(100);
@@ -303,8 +305,8 @@ describe("earnLp — session only, via earn_session_lp", () => {
       "earn_session_lp",
       expect.objectContaining({
         p_user: "user-1",
-        p_lp_per_chunk: LP_EARN_RULES.perReviewSession, // 5
-        p_cards_per_chunk: 5,
+        p_lp_per_chunk: LP_EARN_RULES.perReviewSession, // 1
+        p_cards_per_chunk: 1,
         p_earn_cap: TIER_LIMITS.free.lpEarnCapPerDay,
       }),
     );
@@ -323,7 +325,7 @@ describe("earnLp — session only, via earn_session_lp", () => {
 
     const params = db.rpc.mock.calls[0]![1] as Record<string, unknown>;
     expect(params).not.toHaveProperty("p_raw_grant"); // old client-derived grant is gone
-    expect(params.p_cards_per_chunk).toBe(5); // fixed, server-owned — never from the client
+    expect(params.p_cards_per_chunk).toBe(1); // fixed, server-owned — never from the client
   });
 
   it("reports capReached when earn_session_lp returns cap_reached=true", async () => {

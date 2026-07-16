@@ -203,8 +203,10 @@ export interface EarnResult {
   capReached: boolean;
 }
 
-// Number of reviewed cards that make up one rewardable "session" chunk.
-const CARDS_PER_SESSION_CHUNK = 5;
+// Reviewed cards per rewardable chunk. 1 means: every card pays immediately.
+// Was 5, which made 3 reviewed cards worth 0 LP and pushed the remainder into
+// an open balance — hard to explain and easy to mistake for a bug.
+const CARDS_PER_SESSION_CHUNK = 1;
 
 function mapEarnRow(data: unknown): EarnResult {
   const row = Array.isArray(data) ? data[0] : data;
