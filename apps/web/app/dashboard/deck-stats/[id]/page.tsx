@@ -130,7 +130,7 @@ export default function DeckStatsPage() {
           <div style={{ flex: 1, minWidth: 220 }}>
             <div className="muted" style={{ fontSize: "0.8rem", marginBottom: 4 }}>
               Verlauf — letzte {rangeDays} Tage
-              {learningDays >= 2 && " · Punkt antippen für Details"}
+              {learningDays >= 2 && " · Punkt drüberfahren für Details"}
             </div>
             {learningDays >= 2 ? (
               <AccuracyTrendChart data={accuracyByDay} showAllDates={rangeDays === 7} />
