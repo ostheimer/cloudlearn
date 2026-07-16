@@ -309,7 +309,10 @@ export function ActivityBars({
     setHov(null);
   }, [data]);
   const H = height;
-  const PAD_L = 30;
+  // Anders als die Trendlinie braucht dieses Diagramm links keinen Platz für
+  // eine Achse: die Zahl steht über jedem Balken, der Höchstwert oben. Die 30px
+  // waren von dort geerbt und blieben leer.
+  const PAD_L = 10;
   const PAD_R = 10;
   const PAD_T = 20;
   const PAD_B = 22;
