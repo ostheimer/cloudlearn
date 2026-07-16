@@ -65,12 +65,15 @@ export async function getCardImages(
   const entries = await Promise.all(
     unique.map(async (path) => {
       try {
-        // Das Feld heißt sourceImageUrl, enthält aber normalerweise einen
-        // Storage-Pfad. Steht dort doch eine fertige URL, direkt nehmen.
-        const url = path.startsWith("http")
-          ? path
-          : (await supabase.storage.from(CARD_IMAGE_BUCKET).createSignedUrl(path, expiresInSeconds))
-              .data?.signedUrl ?? null;
+        // Das Feld heißt sourceImageUrl, enthält aber einen Storage-Pfad.
+        // Fremde http-Werte werden bewusst NICHT geladen: das Feld ist nur
+        // `string` (kein Format erzwungen), auch KI-erzeugte Karten schreiben
+        // hinein — eine externe URL würde beim Öffnen des Decks den fremden
+        // Server anpingen. Nicht-Pfade ergeben den Platzhalter.
+        const { data } = await supabase.storage
+          .from(CARD_IMAGE_BUCKET)
+          .createSignedUrl(path, expiresInSeconds);
+        const url = data?.signedUrl ?? null;
         if (!url) return [path, null] as const;
         return [path, { url, aspect: await measureAspect(url) }] as const;
       } catch {

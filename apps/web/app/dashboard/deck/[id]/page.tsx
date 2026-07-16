@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
 import { Modal } from "@/components/app/modal";
 import { OcclusionShot } from "@/components/app/occlusion-shot";
@@ -74,6 +74,7 @@ export default function DeckDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [modal, setModal] = useState<CardModal>(null);
   const [cardImages, setCardImages] = useState<Record<string, CardImage | null>>({});
+  const fetchedPaths = useRef<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     if (!deckId) return;
@@ -97,19 +98,31 @@ export default function DeckDetailPage() {
   }, [load]);
 
   // Bilder nachladen, sobald die Karten da sind — die Liste soll darauf nicht
-  // warten. Die Abhängigkeit ist bewusst die Pfad-Liste und nicht `cards`:
-  // sonst würden schon ein Stern-Klick neue signierte URLs holen und die
-  // Vorschaubilder neu laden lassen.
-  const occlusionPaths = cards
-    .filter((c) => c.type === "occlusion" && c.sourceImageUrl)
-    .map((c) => c.sourceImageUrl as string)
+  // warten. Die Abhängigkeit ist die Menge der Pfade (dedupliziert, sortiert),
+  // nicht `cards`: mehrere Karten teilen sich ein Bild, also darf weder ein
+  // Stern-Klick noch das Löschen einer von zehn Karten neue signierte URLs
+  // holen — ein geändertes href lädt das Bild sonst komplett neu.
+  const occlusionPaths = Array.from(
+    new Set(
+      cards
+        .filter((c) => c.type === "occlusion" && c.sourceImageUrl)
+        .map((c) => c.sourceImageUrl as string)
+    )
+  )
+    .sort()
     .join("|");
 
   useEffect(() => {
     if (!occlusionPaths) return;
+    // Schon geholte Pfade nicht erneut signieren: kommt ein neues Bild dazu,
+    // sollen die übrigen Vorschaubilder stehen bleiben.
+    const missing = occlusionPaths.split("|").filter((p) => !fetchedPaths.current.has(p));
+    if (missing.length === 0) return;
     let active = true;
-    getCardImages(occlusionPaths.split("|")).then((loaded) => {
-      if (active) setCardImages((prev) => ({ ...prev, ...loaded }));
+    getCardImages(missing).then((loaded) => {
+      if (!active) return;
+      missing.forEach((p) => fetchedPaths.current.add(p));
+      setCardImages((prev) => ({ ...prev, ...loaded }));
     });
     return () => {
       active = false;
@@ -436,8 +449,9 @@ export default function DeckDetailPage() {
               )}
               {siblingCount > 0 && (
                 <p className="muted">
-                  Das Bild und die {siblingCount === 1 ? "andere Karte" : `${siblingCount} anderen Karten`} dazu
-                  {siblingCount === 1 ? " bleibt" : " bleiben"} erhalten.
+                  Das Bild und die{" "}
+                  {siblingCount === 1 ? "andere Karte" : `${siblingCount} anderen Karten`} dazu
+                  bleiben erhalten.
                 </p>
               )}
             </>
