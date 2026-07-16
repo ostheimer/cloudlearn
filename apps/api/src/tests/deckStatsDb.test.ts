@@ -44,7 +44,7 @@ function makeDbMock(responses: QueryResponse[]) {
     calls.push({ method: "from", args: [table] });
     const response = queue.shift() ?? { count: 0, data: [], error: null };
     const builder: Record<string, unknown> = {};
-    for (const method of ["select", "eq", "gte", "lt", "is", "order", "limit"]) {
+    for (const method of ["select", "eq", "neq", "gte", "lt", "is", "order", "limit"]) {
       builder[method] = (...args: unknown[]) => {
         calls.push({ method, args });
         return builder;
@@ -196,6 +196,18 @@ describe("getDeckWobblyCards – most-wrong cards, ordered", () => {
     const eqCalls = calls.filter((c) => c.method === "eq").map((c) => c.args);
     expect(eqCalls).toContainEqual(["user_id", USER_ID]);
     expect(eqCalls).toContainEqual(["cards.deck_id", DECK_ID]);
+  });
+
+  it("skips occlusion cards — they cannot be practised as flashcards", async () => {
+    const { db, calls } = makeDbMock([{ data: [], error: null }]);
+    mockedCreateDb.mockReturnValue(db);
+
+    await getDeckWobblyCards(USER_ID, DECK_ID, 5);
+
+    expect(calls.find((c) => c.method === "neq")?.args).toEqual([
+      "cards.card_type",
+      "occlusion",
+    ]);
   });
 });
 

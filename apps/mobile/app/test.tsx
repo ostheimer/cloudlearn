@@ -29,6 +29,7 @@ import {
   Plus,
 } from "lucide-react-native";
 import { listCardsInDeck, type Card } from "../src/lib/api";
+import { excludeOcclusionCards } from "../src/lib/occlusion";
 import { isAnswerCorrect } from "../src/lib/answerCheck";
 import {
   buildTestQuestions,
@@ -136,7 +137,7 @@ export default function TestScreen() {
     setLoadError(false);
     try {
       const { cards: fetched } = await listCardsInDeck(deckId);
-      setAllCards(fetched);
+      setAllCards(excludeOcclusionCards(fetched));
       // Wobbly ids power the "Nur Wackelkandidaten" source. They are optional —
       // never fail the mode (or show the retry) if the stats endpoint is down.
       try {

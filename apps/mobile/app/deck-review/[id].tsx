@@ -11,6 +11,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { ArrowRight, Layers, RotateCcw } from "lucide-react-native";
 import LearnScreen from "../(tabs)/learn";
 import { listCardsInDeck, type Card } from "../../src/lib/api";
+import { excludeOcclusionCards } from "../../src/lib/occlusion";
 import { fetchDeckStats } from "../../src/lib/statsApi";
 import {
   CardSourcePicker,
@@ -42,7 +43,7 @@ export default function DeckReviewScreen() {
     setLoadError(false);
     try {
       const { cards: fetched } = await listCardsInDeck(id);
-      setAllCards(fetched);
+      setAllCards(excludeOcclusionCards(fetched));
       // Wobbly ids power the "Nur Wackelkandidaten" source. Optional — never
       // fail the setup (or show the retry) if the stats endpoint is down.
       try {

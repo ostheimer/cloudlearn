@@ -23,6 +23,7 @@ import {
   Pencil,
 } from "lucide-react-native";
 import { listCardsInDeck, type Card } from "../src/lib/api";
+import { excludeOcclusionCards } from "../src/lib/occlusion";
 import { summarizeCardMedia } from "../src/lib/cardMedia";
 import { isAnswerCorrect } from "../src/lib/answerCheck";
 import { cleanTerm } from "../src/lib/cardTerms";
@@ -119,7 +120,7 @@ export default function ClozeScreen() {
     setLoadError(false);
     try {
       const { cards: fetched } = await listCardsInDeck(deckId);
-      const usable = fetched.filter(hasTypeable);
+      const usable = excludeOcclusionCards(fetched).filter(hasTypeable);
       setAllCards(usable);
       // Wobbly ids power the "Nur Wackelkandidaten" source. Optional — never
       // fail the mode (or show the retry) if the stats endpoint is down.

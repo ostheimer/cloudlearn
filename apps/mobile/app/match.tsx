@@ -21,6 +21,7 @@ import {
   CheckCircle2,
 } from "lucide-react-native";
 import { listCardsInDeck, type Card } from "../src/lib/api";
+import { excludeOcclusionCards } from "../src/lib/occlusion";
 import { cleanTerm } from "../src/lib/cardTerms";
 import { fetchDeckStats } from "../src/lib/statsApi";
 import {
@@ -100,7 +101,7 @@ export default function MatchScreen() {
     setLoadError(false);
     try {
       const { cards: fetched } = await listCardsInDeck(deckId);
-      setCards(fetched);
+      setCards(excludeOcclusionCards(fetched));
       // Wobbly ids power the "Nur Wackelkandidaten" source. Optional — never
       // fail the mode (or show the retry) if the stats endpoint is down.
       try {

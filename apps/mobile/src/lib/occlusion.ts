@@ -94,6 +94,20 @@ export function base64ToBytes(base64: string): Uint8Array {
   return out.slice(0, p);
 }
 
+// An occlusion card only makes sense inside the Bild-Abdecken mode: its front is
+// a generic prompt ("Was ist an der markierten Stelle?") and its back a region
+// label ("Bereich 7"). Without the image and the masked box it cannot be
+// answered at all — and as a quiz option a bare region label is nonsense that
+// also skews the score. So every OTHER study mode (Karteikarten, Quiz, Test,
+// Lücken, Zuordnen) filters these out with excludeOcclusionCards().
+export function isOcclusionCard(card: { type?: string | undefined }): boolean {
+  return card.type === "occlusion";
+}
+
+export function excludeOcclusionCards<T extends { type?: string | undefined }>(cards: T[]): T[] {
+  return cards.filter((card) => !isOcclusionCard(card));
+}
+
 // Smallest box (as a fraction of the image) that counts as a real region — a
 // tap or tiny drag is ignored. Same threshold the web editor uses.
 export const MIN_REGION_SIZE = 0.04;
