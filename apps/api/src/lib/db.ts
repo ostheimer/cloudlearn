@@ -730,11 +730,18 @@ export async function getReviewStats(
   }
   const windowStart = `${dayKeys[0]}T00:00:00.000Z`;
 
-  // Reviews today
+  // Reviews today — SPEIST DEN TAGESZIEL-BALKEN (reviewsToday / dailyGoal auf
+  // Home, App und Web). Prüfungen zählen hier bewusst NICHT mit: „Beim Test
+  // sollte man keine Lernpunkte bekommen oder etwas bei Tagesziel, da man ja im
+  // Prinzip nicht gelernt hat."
+  //
+  // Nur DIESE Zählung filtert. Die drei darunter (Woche, gesamt, Trefferquote)
+  // sind Statistik und sollen Prüfungen mitzählen — dort gilt „ein Topf".
   const { count: todayCount } = await db
     .from("review_logs")
     .select("*", { count: "exact", head: true })
     .eq("user_id", userId)
+    .neq("mode", "test")
     .gte("reviewed_at", todayStart);
 
   // Reviews this week

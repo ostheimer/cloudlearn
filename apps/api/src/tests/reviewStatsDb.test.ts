@@ -39,7 +39,10 @@ function makeDbMock(responses: QueryResponse[]) {
     calls.push({ method: "from", args: [table] });
     const response = queue.shift() ?? { count: 0, data: [], error: null };
     const builder: Record<string, unknown> = {};
-    for (const method of ["select", "eq", "gte", "lte", "order", "limit"]) {
+    // "neq" gehört dazu, seit die Tagesziel-Zählung Prüfungen ausschließt.
+    // Fehlt eine Methode hier, wirft der Aufruf „is not a function" — schon
+    // einmal so passiert (#334).
+    for (const method of ["select", "eq", "neq", "gte", "lte", "order", "limit"]) {
       builder[method] = (...args: unknown[]) => {
         calls.push({ method, args });
         return builder;
@@ -171,5 +174,23 @@ describe("getReviewStats – 7/30-day window + durationMsByDay", () => {
     expect(stats.reviewsThisWeek).toBe(12);
     expect(stats.reviewsTotal).toBe(200);
     expect(stats.accuracyRate).toBe(0.75); // 150 / 200
+  });
+
+  it("keeps test-mode reviews out of the daily goal — but inside the statistics", async () => {
+    // Laras Regel: „Beim Test sollte man keine Lernpunkte bekommen oder etwas
+    // bei Tagesziel, da man ja im Prinzip nicht gelernt hat." reviewsToday
+    // speist den Tagesziel-Balken (reviewsToday / dailyGoal auf Home).
+    //
+    // Statistik dagegen bleibt „ein Topf": Woche, Gesamt und Trefferquote
+    // zählen Prüfungen mit — dort ist die Prüfung sogar die ehrlichste Zahl.
+    const { db, calls } = makeDbMock(statsResponses(DAILY_ROWS));
+    mockedCreateDb.mockReturnValue(db);
+
+    await getReviewStats(USER_ID, 30);
+
+    // Nur die ERSTE Abfrage (heute) darf Prüfungen ausschließen.
+    const neqCalls = calls.filter((c) => c.method === "neq");
+    expect(neqCalls).toHaveLength(1);
+    expect(neqCalls[0]?.args).toEqual(["mode", "test"]);
   });
 });
