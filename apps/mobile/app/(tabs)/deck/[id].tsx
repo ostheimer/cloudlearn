@@ -920,7 +920,32 @@ export default function DeckDetailScreen() {
                   <ImagePlus size={18} color={colors.success} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={studyModeTitleStyle}>Occlusion</Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+                    <Text style={studyModeTitleStyle}>Occlusion</Text>
+                    {/* Statisches Pro-Schild — sagt allen vorab „das ist Pro",
+                        statt es erst beim Speichern zu verraten (#364). Bewusst
+                        OHNE Tarif-Abfrage: so kann es niemanden fälschlich
+                        sperren und kostet keine Anfrage bei jedem Deck-Öffnen.
+                        Durchgesetzt wird die Sperre serverseitig (#352). */}
+                    <View
+                      style={{
+                        backgroundColor: colors.accentLight,
+                        borderRadius: radius.full,
+                        paddingHorizontal: spacing.sm,
+                        paddingVertical: 2,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: typography.xs,
+                          fontWeight: typography.bold,
+                          color: colors.accent,
+                        }}
+                      >
+                        Pro
+                      </Text>
+                    </View>
+                  </View>
                   <Text style={studyModeDescStyle}>Bildteile verdecken & abfragen</Text>
                 </View>
                 <ChevronRight size={18} color={colors.textTertiary} />
