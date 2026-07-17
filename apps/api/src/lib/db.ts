@@ -159,6 +159,9 @@ export async function listDecks(userId: string): Promise<DeckRecord[]> {
     // des Decks (der eingebettete Zähler filtert sie deshalb aus). Decks, die nur
     // Bild-Karten haben, erscheinen weiterhin mit Zähler 0.
     .neq("cards.card_type", "occlusion")
+    // Karten werden per softDeleteCard nur mit deleted_at markiert; ohne diesen
+    // Filter zählt der Embed sie mit und das Deck meldet dauerhaft zu viele Karten.
+    .is("cards.deleted_at", null)
     .eq("user_id", userId)
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
@@ -1057,6 +1060,7 @@ export async function listDecksInCourse(courseId: string, userId: string): Promi
     // weil cards eine Ebene tiefer hängt: course_decks → decks → cards.
     .select("deck_id, position, decks(*, cards(count))")
     .neq("decks.cards.card_type", "occlusion")
+    .is("decks.cards.deleted_at", null)
     .eq("course_id", courseId)
     .order("position", { ascending: true });
   if (error) throw new Error(`listDecksInCourse: ${error.message}`);
@@ -1222,6 +1226,7 @@ export async function listDecksInFolder(folderId: string, userId: string): Promi
     // als „Karten" des Decks, der Filterpfad geht über folder_decks → decks → cards.
     .select("deck_id, decks(*, cards(count))")
     .neq("decks.cards.card_type", "occlusion")
+    .is("decks.cards.deleted_at", null)
     .eq("folder_id", folderId);
   if (error) throw new Error(`listDecksInFolder: ${error.message}`);
   return (data ?? [])
