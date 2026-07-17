@@ -173,6 +173,27 @@ describe("supabase migrations", () => {
     });
   });
 
+  it("stops paying LP for test-mode reviews (decoupling step 6)", () => {
+    const migrationPath = join(
+      apiRoot,
+      "supabase/migrations/20260717170000_lp_skips_test_mode.sql",
+    );
+    const sql = readFileSync(migrationPath, "utf-8");
+
+    // Die eine Aenderung: Pruefungen zaehlen nicht mehr mit.
+    expect(sql).toContain("WHERE user_id = p_user AND mode <> 'test'");
+
+    // quiz und match zaehlen bewusst WEITER mit ("wenigstens irgendetwas").
+    // Wer sie hier ausschliesst, nimmt Nutzern LP weg, die sie bekommen sollen.
+    expect(sql).not.toContain("mode not in ('test', 'quiz'");
+    expect(sql).not.toContain("mode = 'flashcard'");
+
+    // Die Schutzmechanismen duerfen dabei nicht verlorengehen.
+    expect(sql).toContain("FOR UPDATE");                       // Zeilensperre
+    expect(sql).toContain("lp_rewarded_review_count = v_rewarded + v_consumed"); // Wasserzeichen
+    expect(sql).toContain("v_remaining := greatest(p_earn_cap - v_earned, 0)");  // Tageskappe
+  });
+
   it("persists the per-user Mathpix budget with an atomic consume function", () => {
     const migrationPath = join(
       apiRoot,
