@@ -333,7 +333,7 @@ export default function ProfilePage() {
               </div>
             </div>
           )}
-          <button type="button" className="pf-danger pf-danger--plain" onClick={handleSignOut}>
+          <button type="button" className="pf-signout" onClick={handleSignOut}>
             <LogOut size={18} /> Abmelden
           </button>
         </div>

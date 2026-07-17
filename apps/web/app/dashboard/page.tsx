@@ -38,6 +38,10 @@ import {
 
 type TabKey = "decks" | "folders";
 
+// Interne Etiketten, die die API beim KI-Import ans Deck hängt — in der
+// Datenbank bleiben sie erhalten (Suche/App nutzen sie), angezeigt werden sie nicht.
+const TECH_TAGS = new Set(["scan", "auto", "auto-generated"]);
+
 type ModalState =
   | { type: "create" }
   | { type: "rename"; deck: Deck }
@@ -460,6 +464,10 @@ function DeckCard({
   onDelete: () => void;
 }) {
   const count = deck.cardCount ?? 0;
+  // Technische Tags aus dem Scan-Flow („scan", „auto-generated") sind nicht für
+  // Nutzeraugen gedacht — stattdessen ein freundliches KI-Abzeichen zeigen.
+  const isAiCreated = deck.tags.some((t) => TECH_TAGS.has(t.toLowerCase()));
+  const visibleTags = deck.tags.filter((t) => !TECH_TAGS.has(t.toLowerCase()));
   return (
     <div style={{ position: "relative" }}>
       <Link href={`/dashboard/deck/${deck.id}`} className="deck-card">
@@ -473,7 +481,12 @@ function DeckCard({
           <span>
             {count} {count === 1 ? "Karte" : "Karten"}
           </span>
-          {deck.tags.slice(0, 2).map((t) => (
+          {isAiCreated && (
+            <span className="tag tag--ai">
+              <Sparkles size={11} /> KI-erstellt
+            </span>
+          )}
+          {visibleTags.slice(0, 2).map((t) => (
             <span key={t} className="tag">
               {t}
             </span>
