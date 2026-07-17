@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { useLocalSearchParams, Stack } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useLocalSearchParams, useFocusEffect, Stack } from "expo-router";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -22,7 +22,13 @@ import {
   Check,
   Pencil,
 } from "lucide-react-native";
-import { listCardsInDeck, type Card } from "../src/lib/api";
+import { listCardsInDeck, reviewCard, earnLp, isApiError, type Card } from "../src/lib/api";
+import {
+  createReviewSyncOperation,
+  useOfflineQueueStore,
+} from "../src/features/sync/offlineQueueStore";
+import { useSessionStore } from "../src/store/sessionStore";
+import { useUsageStore } from "../src/store/usageStore";
 import { excludeOcclusionCards } from "../src/lib/occlusion";
 import { summarizeCardMedia } from "../src/lib/cardMedia";
 import { isAnswerCorrect } from "../src/lib/answerCheck";
@@ -85,6 +91,14 @@ export default function ClozeScreen() {
     deckId: string;
     deckTitle: string;
   }>();
+
+  const userId = useSessionStore((state) => state.userId);
+  const setUsage = useUsageStore((s) => s.setUsage);
+  const enqueueOfflineReview = useOfflineQueueStore((state) => state.enqueue);
+  // Zählt, ob seit der letzten Abrechnung überhaupt etwas passiert ist. Der
+  // Server leitet die Menge ohnehin aus den gespeicherten Wiederholungen ab —
+  // ein Aufruf am Ende genügt und kann nicht doppelt gutschreiben.
+  const reviewedSinceEarnRef = useRef(0);
 
   const [allCards, setAllCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
@@ -166,28 +180,78 @@ export default function ClozeScreen() {
     setResults((prev) => prev.map((r, j) => (j === i ? value : r)));
   };
 
+  // Der Lückentext zählt für die Planung, weil die Antwort getippt wird — sie
+  // lässt sich nicht raten wie eine angeklickte Option. Web macht das längst
+  // (deck/[id]/cloze/page.tsx), der App fehlte es. Fehlschläge wandern in die
+  // Offline-Warteschlange, damit Lernen ohne Netz nicht verloren geht.
+  const review = useCallback(
+    async (cardId: string, rating: "good" | "again") => {
+      if (!userId) return;
+      const queued = createReviewSyncOperation({ userId, cardId, rating });
+      reviewedSinceEarnRef.current += 1;
+      try {
+        await reviewCard(userId, cardId, rating, queued.payload);
+      } catch (error) {
+        // Offline oder Serverfehler: für später aufheben. Bei 4xx würde ein
+        // erneuter Versuch genauso abgelehnt — dann lieber fallen lassen.
+        if (!isApiError(error) || error.status >= 500) enqueueOfflineReview(queued);
+      }
+    },
+    [userId, enqueueOfflineReview]
+  );
+
   const handleCheck = () => {
     if (revealed || !current || !parsed) return;
     const correct = isAnswerCorrect(input, parsed.answer, { strict });
     setResultAt(idx, { input, correct, overridden: false });
+    void review(current.id, correct ? "good" : "again");
   };
 
   // "Weiß ich nicht": reveal the answer, count it wrong (goes to the retry pile).
   const handleDontKnow = () => {
     if (revealed || !current) return;
     setResultAt(idx, { input, correct: false, overridden: false });
+    void review(current.id, "again");
   };
 
   // Self-graded override: the learner decides a wrong-marked answer counts —
   // also retroactively when navigating back to an earlier card.
   const handleOverride = () => {
-    if (!currentResult || wasCorrect) return;
+    if (!currentResult || wasCorrect || !current) return;
     setResultAt(idx, { ...currentResult, overridden: true });
+    void review(current.id, "good");
   };
+
+  // Am Rundenende einmal abrechnen. Die Menge holt sich der Server aus den
+  // Wiederholungen, die er wirklich gespeichert hat (earn_session_lp ist
+  // wiederholungsfest) — ein Aufruf reicht und kann nicht zu viel gutschreiben.
+  const collectSessionLp = useCallback(async () => {
+    if (reviewedSinceEarnRef.current === 0 || !userId) return;
+    reviewedSinceEarnRef.current = 0;
+    try {
+      const result = await earnLp("session");
+      if (result.granted > 0) setUsage({ lpBalance: result.newBalance });
+    } catch {
+      // LP-Gutschrift best-effort
+    }
+  }, [userId, setUsage]);
+
+  // Auch abrechnen, wenn die Runde vorzeitig verlassen wird — sonst bekäme nur
+  // Punkte, wer bis zur letzten Karte durchhält. Karteikarten und Üben machen
+  // es genauso (#153); der Wächter verhindert leere Aufrufe, und der Server ist
+  // ohnehin wiederholungsfest.
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        void collectSessionLp();
+      };
+    }, [collectSessionLp])
+  );
 
   const handleNext = () => {
     if (idx + 1 >= round.length) {
       setPhase("summary");
+      void collectSessionLp();
       return;
     }
     setIdx((i) => i + 1);
