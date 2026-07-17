@@ -7,6 +7,14 @@ const webRoot = join(dirname(fileURLToPath(import.meta.url)), "../..");
 
 const lpModePages = [
   {
+    // Kein Screen, sondern der geteilte Karteikarten-Ablauf hinter der Deck- UND
+    // der Ordner-Lernseite — die LP-Logik hängt hier für beide.
+    name: "learn-session (geteilt)",
+    path: "src/components/app/learn-session.tsx",
+    restartGuard: "async function startRound(next: Card[]) {\n    await awardSession(total);",
+    awardCalls: ["void awardSession(total)", "await awardSession(reviewedCount)"],
+  },
+  {
     name: "quiz",
     path: "app/dashboard/deck/[id]/quiz/page.tsx",
     restartGuard:

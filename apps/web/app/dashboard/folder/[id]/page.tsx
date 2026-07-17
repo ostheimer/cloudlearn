@@ -11,6 +11,7 @@ import {
   listDecksInFolder,
   addDeckToFolder,
   removeDeckFromFolder,
+  getDueCards,
   isApiError,
   type Deck,
   type Folder,
@@ -22,6 +23,7 @@ import {
   Folder as FolderIcon,
   AlertTriangle,
   Trash,
+  Play,
 } from "@/components/icons";
 
 export default function FolderDetailPage() {
@@ -37,6 +39,9 @@ export default function FolderDetailPage() {
   const [notFound, setNotFound] = useState(false);
   const [pageError, setPageError] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
+  // undefined = still counting. The button stays usable either way; only its
+  // label waits for the number.
+  const [dueCount, setDueCount] = useState<number | undefined>(undefined);
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -47,6 +52,18 @@ export default function FolderDetailPage() {
       setDecks(inFolder);
       setAllDecks(mine);
       setPageError(null);
+
+      // How many of this folder's cards are due today. getDueCards is global,
+      // so filter by the folder's decks — same source the learn page uses, so
+      // the number on the button matches the round it starts.
+      try {
+        const ids = new Set(inFolder.map((d) => d.id));
+        const { cards: due } = await getDueCards(userId);
+        setDueCount(due.filter((c) => ids.has(c.deckId) && c.type !== "occlusion").length);
+      } catch {
+        // A missing count must not break the page — the button just says „Fällige lernen".
+        setDueCount(undefined);
+      }
     } catch (e) {
       // The API answers 404 for a folder that isn't the caller's, so a missing
       // folder and someone else's folder look the same here — by design.
@@ -69,6 +86,12 @@ export default function FolderDetailPage() {
       .filter((d) => !inFolder.has(d.id))
       .sort((a, b) => a.title.localeCompare(b.title, "de"));
   }, [allDecks, decks]);
+  // The API's cardCount already excludes occlusion and deleted cards — the same
+  // ones the learn page drops — so this total matches the round it starts.
+  const totalCards = useMemo(
+    () => decks.reduce((sum, d) => sum + (d.cardCount ?? 0), 0),
+    [decks]
+  );
 
   function goBack() {
     if (typeof window !== "undefined" && window.history.length > 1) router.back();
@@ -113,17 +136,41 @@ export default function FolderDetailPage() {
           </h1>
           <p className="muted" style={{ marginTop: 4 }}>
             {decks.length} {decks.length === 1 ? "Deck" : "Decks"}
+            {totalCards > 0 && ` · ${totalCards} ${totalCards === 1 ? "Karte" : "Karten"}`}
           </p>
         </div>
         <button
           type="button"
-          className="btn btn-primary"
+          className="btn btn-ghost"
           onClick={() => setPicking(true)}
           disabled={loading}
         >
           + Decks hinzufügen
         </button>
       </div>
+
+      {!loading && totalCards > 0 && (
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 22 }}>
+          {/* Nothing due → „Alle lernen" is the only useful action, so it takes
+              the accent. Otherwise the loud button would be the dead one. */}
+          <Link
+            href={`/dashboard/folder/${folderId}/learn?mode=due`}
+            className={dueCount === 0 ? "btn btn-ghost" : "btn btn-primary"}
+            style={{ flex: "1 1 180px", justifyContent: "center" }}
+          >
+            {dueCount !== 0 && <Play size={16} />}
+            {dueCount === undefined ? "Fällige lernen" : `${dueCount} fällig lernen`}
+          </Link>
+          <Link
+            href={`/dashboard/folder/${folderId}/learn?mode=all`}
+            className={dueCount === 0 ? "btn btn-primary" : "btn btn-ghost"}
+            style={{ flex: "1 1 180px", justifyContent: "center" }}
+          >
+            {dueCount === 0 && <Play size={16} />}
+            Alle {totalCards} lernen
+          </Link>
+        </div>
+      )}
 
       {pageError && (
         <div className="form-error" role="alert" style={{ marginBottom: 18 }}>
