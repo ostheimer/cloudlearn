@@ -152,4 +152,71 @@ describe("storeReview", () => {
       })
     );
   });
+
+  it("clamps a reviewedAt from the future — in the log AND in the FSRS schedule", async () => {
+    dbMocks.findReviewByIdempotencyKey.mockResolvedValue(null);
+    dbMocks.getCard.mockResolvedValue(baseCard);
+    const now = new Date("2026-07-17T12:00:00.000Z");
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+
+    await storeReview(
+      {
+        userId,
+        cardId,
+        rating: "good",
+        reviewedAt: "2027-07-17T12:00:00.000Z", // ein Jahr voraus
+        idempotencyKey: "review-future-1",
+      },
+      "req-future-1"
+    );
+
+    // Der Eintrag trägt die geklemmte Zeit, nicht die behauptete.
+    expect(dbMocks.createReview).toHaveBeenCalledWith(
+      expect.objectContaining({ reviewedAt: now.toISOString() })
+    );
+    // Und die Planung rechnet mit derselben Zeit — sonst stünde in der
+    // Datenbank ein anderer Zeitpunkt als der, auf dem der Plan beruht.
+    const scheduled = dbMocks.updateCardFsrs.mock.calls[0]?.[2] as { fsrsDue: string };
+    expect(new Date(scheduled.fsrsDue).getTime()).toBeLessThan(
+      new Date("2027-01-01T00:00:00.000Z").getTime()
+    );
+    vi.useRealTimers();
+  });
+
+  it("leaves an offline reviewedAt from the past untouched", async () => {
+    dbMocks.findReviewByIdempotencyKey.mockResolvedValue(null);
+    dbMocks.getCard.mockResolvedValue(baseCard);
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-17T12:00:00.000Z"));
+    const offline = "2026-07-16T09:30:00.000Z"; // gestern im Zug gelernt
+
+    await storeReview(
+      { userId, cardId, rating: "good", reviewedAt: offline, idempotencyKey: "review-offline-1" },
+      "req-offline-1"
+    );
+
+    expect(dbMocks.createReview).toHaveBeenCalledWith(
+      expect.objectContaining({ reviewedAt: offline })
+    );
+    vi.useRealTimers();
+  });
+
+  it("tolerates a clock that runs a few minutes fast", async () => {
+    dbMocks.findReviewByIdempotencyKey.mockResolvedValue(null);
+    dbMocks.getCard.mockResolvedValue(baseCard);
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-17T12:00:00.000Z"));
+    const slightlyAhead = "2026-07-17T12:03:00.000Z"; // 3 Minuten vor
+
+    await storeReview(
+      { userId, cardId, rating: "good", reviewedAt: slightlyAhead, idempotencyKey: "review-skew-1" },
+      "req-skew-1"
+    );
+
+    expect(dbMocks.createReview).toHaveBeenCalledWith(
+      expect.objectContaining({ reviewedAt: slightlyAhead })
+    );
+    vi.useRealTimers();
+  });
 });

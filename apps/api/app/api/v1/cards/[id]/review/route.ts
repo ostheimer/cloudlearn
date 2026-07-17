@@ -2,7 +2,15 @@ import { type NextRequest } from "next/server";
 import { jsonError, jsonOk, normalizeError } from "@/lib/http";
 import { createRequestContext } from "@/lib/observability";
 import { getAuthUser } from "@/lib/auth";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { storeReview } from "@/services/reviewService";
+
+// Eine Wiederholung je Karte, von Hand — 300/Minute sind fünf pro Sekunde und
+// damit weit über allem, was Lernen erzeugen kann. Die Bremse zielt auf
+// automatisierte Fluten, nicht auf schnelle Nutzer: LP entstehen aus genau
+// diesen Zeilen, und ohne Bremse konnte man beliebig viele davon anlegen (#358).
+// Eigener Namensraum, damit sie sich das Kontingent nicht mit dem Scan teilt.
+const REVIEW_RATE_LIMIT_PER_MINUTE = 300;
 
 interface Params {
   params: Promise<{ id: string }>;
@@ -13,6 +21,10 @@ export async function POST(request: NextRequest, { params }: Params) {
   try {
     const auth = await getAuthUser(request);
     if (!auth) return jsonError(requestId, "UNAUTHORIZED", "Authentication required", 401);
+
+    if (!(await checkRateLimit(`review:${auth.userId}`, REVIEW_RATE_LIMIT_PER_MINUTE))) {
+      return jsonError(requestId, "RATE_LIMITED", "Rate limit exceeded", 429);
+    }
 
     const body = await request.json();
     const { id } = await params;
