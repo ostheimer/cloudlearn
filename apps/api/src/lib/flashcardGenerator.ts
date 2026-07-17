@@ -1,5 +1,6 @@
 import type { Flashcard } from "./contracts";
 import { getEnv } from "./env";
+import { normalizeTranslationDirection } from "./translationDirection";
 
 // Result type including AI-generated deck title
 export interface FlashcardGenerationResult {
@@ -20,40 +21,30 @@ export interface UrlImageInput {
 const SYSTEM_PROMPT = `You are an expert flashcard creator for students. Given study material (text or an image of study material), create high-quality flashcards AND a short, descriptive deck title.
 
 Rules:
-- Create 5-25 flashcards depending on content density (more content = more cards). Exception: for a VOCABULARY LIST the number of entries decides the card count (see below), even if that is fewer than 5 or more than 25
+- Create 5-25 flashcards depending on content density (more content = more cards)
 - Generate a concise deck title (2-5 words) that describes the topic of the material (e.g. "Zellbiologie Grundlagen", "Französische Revolution", "Lineare Algebra")
-- First decide what the source material is: (a) a VOCABULARY LIST (terms with their translations/meanings — e.g. a two-column word list) or (b) CONTENT material (explanatory text, facts, concepts)
-- For a VOCABULARY LIST: create ONLY "basic" cards (front = the bare term, back = the translation/meaning). Do NOT create cloze cards and do NOT wrap terms in questions or example sentences — every card must be a clean term/translation pair
-- For a VOCABULARY LIST: create EXACTLY ONE card per vocabulary entry — cover every entry, but do NOT invent additional practice/re-test cards and do NOT create duplicate cards for the same term (N entries -> N cards)
-- For CONTENT material: use question -> answer cards and you may mix in cloze cards
-- Each flashcard has: front (question), back (answer), type (basic/cloze), difficulty (easy/medium/hard), tags
-- For "basic" cards, pick the format that fits the item:
-  - Vocabulary (a word/term and its translation or meaning): the front is the bare term itself, the back is the translation/meaning. Do NOT turn it into a question — never write "Was bedeutet 'X'?", "Übersetze 'X'", or "What does X mean?". The front is just the term. Example: front="le record", back="der Rekord"
-  - Facts/concepts to recall: the front is a clear question, the back is the answer. Example: front="Wann begann der Zweite Weltkrieg?", back="1939"
-  Decide per card — a deck may contain both kinds.
+- Each flashcard has: front (question), back (answer), type (basic/cloze), difficulty (easy/medium/hard), tags, frontLang, backLang
+- For "basic" type: front is a clear question, back is the answer
 - For "cloze" type: front is a sentence with a blank (use "______" for the gap), back is ONLY the missing word/phrase
   Example cloze: front="Die Hauptstadt von Frankreich ist ______.", back="Paris"
   NEVER put the answer in the front text for cloze cards!
+- frontLang/backLang: ISO 639-1 two-letter code of the language on each side ("de", "fr", "en"). For non-translation cards both are the same code.
+- Vocabulary/translation material has no natural question side. Pick ONE direction for the WHOLE deck and keep it on EVERY card: if one card asks French → German, all of them must. Never mirror the layout of the source: a source row written "aus dem Diagramm geht hervor, dass — du diagramme il résulte que" still becomes front="du diagramme il résulte que", back="aus dem Diagramm geht hervor, dass" when the deck's direction is French → German.
 - Front: Max 500 chars. Back: Max 1000 chars.
 - Tags: relevant topic keywords, max 3 per card
 - Match the language of the input material (title too!)
 - Focus on key concepts, definitions, relationships, and processes
-- Vary difficulty levels; mix basic and cloze types only for CONTENT material — never for vocabulary lists
+- Vary difficulty levels, mix basic and cloze types
 
 Return ONLY valid JSON object (not array!), no markdown, no explanation:
-{"title":"Short Topic Title","cards":[{"front":"...","back":"...","type":"basic","difficulty":"medium","tags":["topic1"]}]}`;
+{"title":"Short Topic Title","cards":[{"front":"...","back":"...","type":"basic","difficulty":"medium","tags":["topic1"],"frontLang":"fr","backLang":"de"}]}`;
 
 const URL_IMPORT_PROMPT = `You are an expert flashcard creator. You will receive webpage text plus optional inline images with metadata.
 
 Rules:
-- Create 5-25 flashcards depending on content density. Exception: for a VOCABULARY LIST the number of entries decides the card count (see below), even if that is fewer than 5 or more than 25
+- Create 5-25 flashcards depending on content density
 - Generate a concise deck title (2-5 words) in the same language as the source
 - Each card has: front, back, type (basic/cloze), difficulty, tags
-- First decide what the source material is: (a) a VOCABULARY LIST (terms with their translations/meanings — e.g. a two-column word list) or (b) CONTENT material (explanatory text, facts, concepts)
-- For a VOCABULARY LIST: create ONLY "basic" cards (front = the bare term, back = the translation/meaning). Do NOT create cloze cards and do NOT wrap terms in questions or example sentences — every card must be a clean term/translation pair
-- For a VOCABULARY LIST: create EXACTLY ONE card per vocabulary entry — cover every entry, but do NOT invent additional practice/re-test cards and do NOT create duplicate cards for the same term (N entries -> N cards)
-- For CONTENT material: use question -> answer cards and you may mix in cloze cards
-- For vocabulary items (a term and its translation/meaning), the front is the bare term and the back the translation — never phrase it as "Was bedeutet 'X'?". For facts/concepts, use a clear question -> answer.
 - Use high-value concepts, definitions, and relationships
 - If images are provided, prioritize component-identification questions over branding questions
 - Create at least 2 image-based cards when possible
@@ -67,9 +58,11 @@ Rules:
 - Keep markdown image URL exactly as provided in metadata; do not invent URLs
 - Keep front <= 500 chars and back <= 1000 chars
 - Keep answers concise and factual
+- frontLang/backLang: ISO 639-1 two-letter code of the language on each side ("de", "fr", "en"). For non-translation cards both are the same code.
+- Vocabulary/translation material has no natural question side. Pick ONE direction for the WHOLE deck and keep it on EVERY card, regardless of how the source lists the pairs.
 
 Return ONLY valid JSON object (not array!), no markdown wrapper:
-{"title":"Short Topic Title","cards":[{"front":"...","back":"...","type":"basic","difficulty":"medium","tags":["topic1"]}]}`;
+{"title":"Short Topic Title","cards":[{"front":"...","back":"...","type":"basic","difficulty":"medium","tags":["topic1"],"frontLang":"de","backLang":"de"}]}`;
 
 interface GeminiContent {
   parts: Array<{ text: string } | { inline_data: { mime_type: string; data: string } }>;
@@ -251,7 +244,7 @@ async function callGemini(
   if (Array.isArray(parsed)) {
     // Legacy array format — generate a fallback title
     if (parsed.length === 0) throw new Error("Gemini returned empty card list");
-    return { title: deriveTitle(parsed), cards: parsed };
+    return { title: deriveTitle(parsed), cards: normalizeTranslationDirection(parsed) };
   }
 
   if (parsed && typeof parsed === "object" && Array.isArray(parsed.cards)) {
@@ -259,7 +252,7 @@ async function callGemini(
       ? parsed.title.trim()
       : deriveTitle(parsed.cards);
     if (parsed.cards.length === 0) throw new Error("Gemini returned empty card list");
-    return { title, cards: parsed.cards };
+    return { title, cards: normalizeTranslationDirection(parsed.cards) };
   }
 
   throw new Error("Gemini returned invalid flashcard format");
@@ -301,9 +294,7 @@ function heuristicFlashcards(text: string, language: string): FlashcardGeneratio
     return {
       front: `${prefix} ${index + 1}?`,
       back: line,
-      // Always "basic": the front is a plain question without a blank, so a
-      // "cloze" label would be wrong (and vocab-like lines must stay pairs).
-      type: "basic" as const,
+      type: (index % 3 === 0 ? "cloze" : "basic") as "basic" | "cloze",
       difficulty: "medium" as const,
       tags: ["auto-generated", language],
     };
