@@ -33,6 +33,11 @@ import {
 
 const SECONDS_PER_QUESTION = 30;
 
+// Wie viele Antworten beim Abgeben gleichzeitig zum Server gehen. Klein genug,
+// dass eine künftige Bremse auf der Review-Route nicht anschlägt, groß genug,
+// dass auch eine lange Prüfung in Sekundenbruchteilen durch ist.
+const REVIEW_CHUNK_SIZE = 25;
+
 type Answer = { mc: number | null; tf: boolean | null; text: string };
 type Graded = { correct: boolean; overridden: boolean };
 
@@ -213,23 +218,39 @@ export default function TestPage() {
   const startTest = useCallback(() => buildAndStart(cards), [buildAndStart, cards]);
 
   const submit = useCallback(() => {
+    const toSend: Array<{ cardId: string; rating: "good" | "again" }> = [];
     const result: Graded[] = questions.map((q, i) => {
       const a = answers[i] ?? { mc: null, tf: null, text: "" };
       let correct = false;
       if (q.type === "mc") correct = a.mc === q.correctIndex;
       else if (q.type === "trueFalse") correct = a.tf === q.tfIsCorrect;
       else correct = isAnswerCorrect(a.text, q.expected, { strict });
-      if (userId) {
-        const reviewPromise = reviewCard(userId, q.cardId, correct ? "good" : "again").catch(() => {});
-        pendingReviewsRef.current.push(reviewPromise);
-      }
+      if (userId) toSend.push({ cardId: q.cardId, rating: correct ? "good" : "again" });
       return { correct, overridden: false };
     });
     setGraded(result);
-    const reviewedCount = getSessionReviewedCount(
-      questions.length,
-      pendingReviewsRef.current.length,
-    );
+
+    // Abgeben feuerte bisher ALLE Antworten in derselben Millisekunde los (ein
+    // map ohne await). Bei einer 100-Fragen-Prüfung sind das 100 gleichzeitige
+    // Anfragen — die erste Bremse auf der Review-Route (#358) würde davon einen
+    // Teil abweisen und die Antworten wären still weg. Deshalb in Häppchen, mit
+    // Warten dazwischen. Für die Nutzerin ändert sich nichts: das Ergebnis
+    // erscheint sofort, das Senden läuft dahinter weiter.
+    if (toSend.length > 0 && userId) {
+      const flush = (async () => {
+        for (let i = 0; i < toSend.length; i += REVIEW_CHUNK_SIZE) {
+          const chunk = toSend.slice(i, i + REVIEW_CHUNK_SIZE);
+          await Promise.allSettled(
+            chunk.map((r) => reviewCard(userId, r.cardId, r.rating).catch(() => {}))
+          );
+        }
+      })();
+      // Ein Eintrag für den ganzen Schwung: awardSession wartet darauf, bevor
+      // es abrechnet — die Wiederholungen müssen erst gespeichert sein.
+      pendingReviewsRef.current.push(flush);
+    }
+
+    const reviewedCount = getSessionReviewedCount(questions.length, toSend.length);
     void awardSession(reviewedCount);
     setPhase("result");
   }, [questions, answers, strict, userId, awardSession]);
