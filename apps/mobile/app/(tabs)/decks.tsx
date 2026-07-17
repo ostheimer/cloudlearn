@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   Plus,
+  ScanLine,
   Search,
   Layers,
   ChevronRight,
@@ -28,7 +29,6 @@ import {
   type CardSearchResult,
   updateDeck,
   deleteDeck,
-  createDeck,
   listCourses,
   createCourse,
   updateCourseApi,
@@ -235,30 +235,6 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
 
   // --- Deck actions ---
 
-  const handleCreateDeck = () => {
-    Alert.prompt(
-      t("library.newDeck"),
-      t("library.newDeckPrompt"),
-      [
-        { text: t("common.cancel"), style: "cancel" },
-        {
-          text: t("library.create"),
-          onPress: async (title: string | undefined) => {
-            if (!title?.trim() || !userId) return;
-            try {
-              await createDeck(userId, title.trim());
-              loadDecks();
-            } catch {
-              Alert.alert(t("common.error"), t("library.createDeckError"));
-            }
-          },
-        },
-      ],
-      "plain-text",
-      "",
-      "default"
-    );
-  };
 
   const handleDeckLongPress = (deck: Deck) => {
     Alert.alert(deck.title, t("library.deckLongPressPrompt"), [
@@ -537,8 +513,11 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
     }
   };
 
+  // Decks are made by scanning, not by naming: a deck without cards is a dead
+  // end, so this jumps straight to the scan flow, which creates the deck itself.
+  // Courses and folders are just containers, so a name is all they need.
   const handleCreate = () => {
-    if (activeTab === "decks") handleCreateDeck();
+    if (activeTab === "decks") router.push("/(tabs)/scan");
     else if (activeTab === "courses") handleCreateCourse();
     else handleCreateFolder();
   };
@@ -881,9 +860,13 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
               gap: spacing.xs,
             }}
           >
-            <Plus size={16} color={colors.textInverse} strokeWidth={3} />
+            {activeTab === "decks" ? (
+              <ScanLine size={16} color={colors.textInverse} strokeWidth={3} />
+            ) : (
+              <Plus size={16} color={colors.textInverse} strokeWidth={3} />
+            )}
             <Text style={{ color: colors.textInverse, fontWeight: typography.bold, fontSize: typography.base }}>
-              {t("common.new")}
+              {activeTab === "decks" ? t("common.scan") : t("common.new")}
             </Text>
           </TouchableOpacity>
         </View>
