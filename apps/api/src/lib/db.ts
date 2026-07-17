@@ -155,10 +155,11 @@ export async function listDecks(userId: string): Promise<DeckRecord[]> {
   const { data, error } = await db
     .from("decks")
     .select("*, cards(count)")
-    // Bild-Occlusion-Karten sind ein eigener Modus und zählen nicht als „Karten"
-    // des Decks (der eingebettete Zähler filtert sie deshalb aus). Decks, die nur
-    // Bild-Karten haben, erscheinen weiterhin mit Zähler 0.
+    // Bild-Occlusion-Karten sind ein eigener Modus, gelöschte Karten sind weg.
+    // Der eingebettete Zähler filtert beides aus; Decks ohne zählbare Karten
+    // erscheinen weiterhin mit Zähler 0.
     .neq("cards.card_type", "occlusion")
+    .is("cards.deleted_at", null)
     .eq("user_id", userId)
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
@@ -1052,11 +1053,12 @@ export async function listDecksInCourse(courseId: string, userId: string): Promi
   const db = getDb();
   const { data, error } = await db
     .from("course_decks")
-    // Zähler wie in listDecks: Bild-Occlusion-Karten sind ein eigener Modus und
-    // zählen nicht als „Karten" des Decks. Der Filterpfad ist hier zweistufig,
-    // weil cards eine Ebene tiefer hängt: course_decks → decks → cards.
+    // Zähler wie in listDecks: Nur aktive Nicht-Occlusion-Karten zählen. Der
+    // Filterpfad ist hier zweistufig, weil cards eine Ebene tiefer hängt:
+    // course_decks → decks → cards.
     .select("deck_id, position, decks(*, cards(count))")
     .neq("decks.cards.card_type", "occlusion")
+    .is("decks.cards.deleted_at", null)
     .eq("course_id", courseId)
     .order("position", { ascending: true });
   if (error) throw new Error(`listDecksInCourse: ${error.message}`);
@@ -1218,10 +1220,11 @@ export async function listDecksInFolder(folderId: string, userId: string): Promi
   const db = getDb();
   const { data, error } = await db
     .from("folder_decks")
-    // Zähler wie in listDecks / listDecksInCourse: Occlusion-Karten zählen nicht
-    // als „Karten" des Decks, der Filterpfad geht über folder_decks → decks → cards.
+    // Zähler wie in listDecks / listDecksInCourse: Nur aktive Nicht-Occlusion-
+    // Karten zählen, der Filterpfad geht über folder_decks → decks → cards.
     .select("deck_id, decks(*, cards(count))")
     .neq("decks.cards.card_type", "occlusion")
+    .is("decks.cards.deleted_at", null)
     .eq("folder_id", folderId);
   if (error) throw new Error(`listDecksInFolder: ${error.message}`);
   return (data ?? [])

@@ -16,6 +16,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/supabase", () => ({ createSupabaseAdminClient: vi.fn() }));
 
 import {
+  listDecks,
   getCourse,
   updateCourse,
   deleteCourse,
@@ -81,6 +82,7 @@ function makeDbMock(responses: QueryResponse[]) {
 
 const eqArgs = (calls: RecordedCall[]) => calls.filter((c) => c.method === "eq").map((c) => c.args);
 const neqArgs = (calls: RecordedCall[]) => calls.filter((c) => c.method === "neq").map((c) => c.args);
+const isArgs = (calls: RecordedCall[]) => calls.filter((c) => c.method === "is").map((c) => c.args);
 const selectArgs = (calls: RecordedCall[]) => calls.filter((c) => c.method === "select").map((c) => c.args[0]);
 const fromTables = (calls: RecordedCall[]) => calls.filter((c) => c.method === "from").map((c) => c.args[0]);
 
@@ -114,6 +116,20 @@ const deckDbRow = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+});
+
+describe("listDecks — cardCount ignores deleted cards", () => {
+  it("filters soft-deleted cards out of the embedded card count", async () => {
+    const { db, calls } = makeDbMock([{ data: [{ ...deckDbRow, cards: [{ count: 2 }] }], error: null }]);
+    mockedCreateDb.mockReturnValue(db);
+
+    const decks = await listDecks(USER_ID);
+
+    expect(decks[0]?.cardCount).toBe(2);
+    expect(selectArgs(calls)).toContain("*, cards(count)");
+    expect(neqArgs(calls)).toContainEqual(["cards.card_type", "occlusion"]);
+    expect(isArgs(calls)).toContainEqual(["cards.deleted_at", null]);
+  });
 });
 
 // ─── Courses ─────────────────────────────────────────────────────────────────
@@ -291,6 +307,7 @@ describe("listDecksInCourse — requires course ownership", () => {
     // Occlusion cards are their own mode and must not inflate the count (listDecks
     // filters them the same way, one level up).
     expect(neqArgs(calls)).toContainEqual(["decks.cards.card_type", "occlusion"]);
+    expect(isArgs(calls)).toContainEqual(["decks.cards.deleted_at", null]);
   });
 });
 
@@ -438,6 +455,7 @@ describe("listDecksInFolder — requires folder ownership", () => {
     expect(decks?.[0]?.cardCount).toBe(7);
     expect(selectArgs(calls)).toContain("deck_id, decks(*, cards(count))");
     expect(neqArgs(calls)).toContainEqual(["decks.cards.card_type", "occlusion"]);
+    expect(isArgs(calls)).toContainEqual(["decks.cards.deleted_at", null]);
   });
 
   it("reports 0 (not undefined) for a deck holding only occlusion cards", async () => {
