@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
-import { createCard, deleteCard, isApiError } from "@/lib/api";
+import { createCard, deleteCard, isApiError, getLpBalance } from "@/lib/api";
 import { getSupabase } from "@/lib/supabase-browser";
 import { ArrowLeft, ImageIcon, X, Trash, Check, AlertTriangle } from "@/components/icons";
 
@@ -20,6 +20,10 @@ const EXT_BY_MIME: Record<string, string> = {
 
 type Region = { x: number; y: number; w: number; h: number; label: string };
 
+// Ergebnis der Tarif-Abfrage beim Öffnen. "unknown" deckt beides ab: läuft noch
+// UND fehlgeschlagen. Nur ein bestätigtes "free" sperrt — siehe proGate unten.
+type ProGate = "unknown" | "free" | "pro";
+
 export default function OcclusionEditorPage() {
   const params = useParams<{ id: string }>();
   const deckId = params.id;
@@ -33,7 +37,32 @@ export default function OcclusionEditorPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Occlusion ist serverseitig eine Pro-Funktion (#352). Bisher merkte man das
+  // erst beim Speichern — nach Bild wählen und allen Kästchen (#364).
+  const [proGate, setProGate] = useState<ProGate>("unknown");
+
   const stageRef = useRef<HTMLDivElement>(null);
+
+  // Tarif beim Öffnen abfragen — BEWUSST fail-open: nur ein bestätigtes "free"
+  // sperrt. Fehler oder "läuft noch" bleiben "unknown" und lassen den Editor
+  // normal arbeiten; jemanden auszusperren, der bezahlt hat, wäre schlimmer als
+  // der bisherige Zustand. Durchgesetzt wird die Sperre ohnehin weiterhin
+  // serverseitig (402 beim Speichern), es entweicht also nichts.
+  // getLpBalance() ist der vorhandene Weg zum Tarif im Web — die Profil-Seite
+  // liest ihn schon genauso (app/dashboard/profile/page.tsx).
+  useEffect(() => {
+    let cancelled = false;
+    getLpBalance()
+      .then((u) => {
+        if (!cancelled) setProGate(u.tier === "free" ? "free" : "pro");
+      })
+      .catch(() => {
+        if (!cancelled) setProGate("unknown");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function pickImage(f: File) {
     setFile(f);
@@ -136,6 +165,24 @@ export default function OcclusionEditorPage() {
       }
       setSaving(false);
     }
+  }
+
+  // Bestätigt "free" → Editor gar nicht erst anbieten. Wortlaut wie die
+  // Speichern-Meldung aus #370. Bewusst KEIN Kauf-Knopf: das Web hat gar keinen
+  // Kaufweg (#368), gekauft wird nur in der App.
+  if (proGate === "free") {
+    return (
+      <div className="empty-state">
+        <div className="ic" aria-hidden>
+          <ImageIcon size={30} />
+        </div>
+        <h3>Pro-Funktion</h3>
+        <p>Bild-Occlusion ist eine Pro-Funktion — Pro gibt es in der clearn-App.</p>
+        <Link href={`/dashboard/deck/${deckId}`} className="btn btn-primary">
+          Zurück zum Deck
+        </Link>
+      </div>
+    );
   }
 
   const drawBox = draw

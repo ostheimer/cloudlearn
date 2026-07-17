@@ -14,7 +14,7 @@ import { GestureDetector, Gesture } from "react-native-gesture-handler";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
-import { Camera, ImagePlus, Trash2, Check, AlertTriangle } from "lucide-react-native";
+import { Camera, ImagePlus, Trash2, Check, AlertTriangle, Sparkles } from "lucide-react-native";
 import { useColors, spacing, radius, typography } from "../src/theme";
 import { useSessionStore } from "../src/store/sessionStore";
 import {
@@ -36,10 +36,15 @@ import {
   removeCardImage,
   getCardImageSignedUrl,
 } from "../src/lib/occlusionStorage";
-import { createCard, deleteCard, isApiError } from "../src/lib/api";
+import { createCard, deleteCard, isApiError, getSubscriptionStatus } from "../src/lib/api";
 
 type PickedImage = { uri: string; base64: string; width: number; height: number; mime: string };
 type Point = { nx: number; ny: number };
+
+// Ergebnis der Tarif-Abfrage beim Öffnen des Editors.
+// "unknown" deckt beides ab: läuft noch UND fehlgeschlagen. Nur ein bestätigtes
+// "free" sperrt — siehe proGateState unten.
+type ProGateState = "unknown" | "free" | "pro";
 
 // Longest side a picked image is scaled down to before display/upload. Keeps
 // memory low and the file well under the 5 MB card-image storage limit (#207).
@@ -90,6 +95,11 @@ export default function OcclusionEditorScreen() {
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Occlusion ist serverseitig eine Pro-Funktion (#352). Bisher merkte man das
+  // erst beim Speichern — nach Bild wählen und allen Kästchen (#364). Darum
+  // fragen wir den Tarif schon beim Öffnen ab.
+  const [proGate, setProGate] = useState<ProGateState>("unknown");
+
   // When editing: the stored image path being reused (no re-upload) and the
   // card ids to delete once the new region set is saved.
   const existingPathRef = useRef<string | null>(null);
@@ -115,6 +125,28 @@ export default function OcclusionEditorScreen() {
   useEffect(() => {
     vpRef.current = viewport;
   }, [viewport]);
+
+  // Tarif beim Öffnen abfragen — BEWUSST fail-open: nur ein bestätigtes "free"
+  // sperrt. Fehler, Netzproblem oder "läuft noch" bleiben "unknown" und lassen
+  // den Editor ganz normal arbeiten. Jemanden auszusperren, der bezahlt hat,
+  // wäre schlimmer als der bisherige Zustand — durchgesetzt wird die Sperre
+  // ohnehin weiterhin serverseitig (402 beim Speichern), es entweicht nichts.
+  // Absichtlich NICHT useUsageStore: dessen tier ist per Default "free" und
+  // evtl. noch gar nicht geladen — das würde Pro-Nutzer fälschlich sperren.
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    getSubscriptionStatus()
+      .then((res) => {
+        if (!cancelled) setProGate(res.status.tier === "free" ? "free" : "pro");
+      })
+      .catch(() => {
+        if (!cancelled) setProGate("unknown");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   // Editing an existing image: load it from storage (signed URL) and pre-fill
   // its regions. base64 stays "" → save() reuses the stored image, no re-upload.
@@ -363,21 +395,59 @@ export default function OcclusionEditorScreen() {
   const canSave = !!image && regions.length > 0 && !!deckId && !saving;
   const pct = (n: number) => `${n * 100}%` as const;
 
+  const screenOptions = {
+    title: "Bild-Abdecken",
+    headerBackTitle: "Zurück",
+    headerTintColor: colors.primary,
+    headerStyle: { backgroundColor: colors.background },
+    // Disable the iOS swipe-back on this screen: a horizontal drawing drag
+    // (especially near the left edge) was triggering the navigator's
+    // back-swipe and popping the editor mid-marking (#207). Use the
+    // header "Zurück" button to leave instead.
+    gestureEnabled: false,
+  };
+
+  // Bestätigt "free" → Editor gar nicht erst anbieten. Bisher durfte man Bild
+  // wählen und jedes Kästchen ziehen, und erst das Speichern schlug fehl (#364).
+  // BEWUSST kein automatisches router.push zur Paywall: das würde beim
+  // Zurücktippen sofort wieder feuern (Paywall → zurück → Editor → Paywall).
+  // Hinweis + Knopf lassen die Wahl.
+  if (proGate === "free") {
+    return (
+      <>
+        {/* Hier wird nicht gezeichnet — also darf die Wisch-zurück-Geste (oben
+            wegen #207 aus) auf diesem Hinweis wieder an sein. */}
+        <Stack.Screen options={{ ...screenOptions, gestureEnabled: true }} />
+        <SafeAreaView edges={["bottom"]} style={{ flex: 1, backgroundColor: colors.background }}>
+          <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md, padding: spacing.xl }}>
+            <View style={{ width: 56, height: 56, borderRadius: radius.full, backgroundColor: colors.accentLight, alignItems: "center", justifyContent: "center" }}>
+              <Sparkles size={26} color={colors.accent} />
+            </View>
+            <Text style={{ fontSize: typography.lg, fontWeight: typography.semibold, color: colors.text, textAlign: "center" }}>
+              Bild-Abdecken ist eine Pro-Funktion
+            </Text>
+            <Text style={{ fontSize: typography.sm, color: colors.textSecondary, textAlign: "center", lineHeight: 20 }}>
+              Mit Pro verdeckst du Teile eines Bildes und fragst sie ab — ideal für Diagramme,
+              Skizzen und Landkarten.
+            </Text>
+            <TouchableOpacity
+              onPress={() => router.push("/paywall")}
+              activeOpacity={0.85}
+              style={{ alignSelf: "stretch", alignItems: "center", justifyContent: "center", backgroundColor: colors.primary, paddingVertical: spacing.lg, paddingHorizontal: spacing.xl, borderRadius: radius.md, marginTop: spacing.sm }}
+            >
+              <Text style={{ color: "#ffffff", fontWeight: typography.semibold, fontSize: typography.base }}>
+                Pro ansehen
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </>
+    );
+  }
+
   return (
     <>
-      <Stack.Screen
-        options={{
-          title: "Bild-Abdecken",
-          headerBackTitle: "Zurück",
-          headerTintColor: colors.primary,
-          headerStyle: { backgroundColor: colors.background },
-          // Disable the iOS swipe-back on this screen: a horizontal drawing drag
-          // (especially near the left edge) was triggering the navigator's
-          // back-swipe and popping the editor mid-marking (#207). Use the
-          // header "Zurück" button to leave instead.
-          gestureEnabled: false,
-        }}
-      />
+      <Stack.Screen options={screenOptions} />
       <SafeAreaView edges={["bottom"]} style={{ flex: 1, backgroundColor: colors.background }}>
         <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, gap: spacing.md }}>
           <View style={{ alignItems: "center", gap: spacing.xs }}>
