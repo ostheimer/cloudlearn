@@ -36,6 +36,40 @@ function buildReviewResponse(requestId: string, card: CardRecord): ReviewRespons
 
 type ReviewMode = z.infer<typeof reviewModeSchema>;
 
+/**
+ * Modi, in denen die Antwort AUS DEM KOPF produziert wird — Tippen oder
+ * Selbstbewerten. Nur sie dürfen den Wiederhol-Plan bewegen.
+ *
+ * Nicht dabei: quiz und match (die Antwort steht zur Auswahl da, ein Treffer
+ * kann geraten sein) und test (misst, statt zu lernen — Produktentscheidung).
+ * Würde Raten als „gewusst" gebucht, schöbe FSRS die Karte in die Zukunft,
+ * obwohl der Lernende sie nicht kann: der Plan verschlechtert sich unsichtbar.
+ * Das war der Kern von #210.
+ */
+const RECALL_MODES: readonly ReviewMode[] = ["flashcard", "practice", "cloze", "occlusion"];
+
+/**
+ * Darf diese Wiederholung den Plan bewegen?
+ *
+ * Ein FEHLER zählt immer, aus jedem Modus: Wer falsch antwortet, kann die Karte
+ * sicher nicht — egal, ob er getippt oder geklickt hat. Das ist das wertvollste
+ * Signal überhaupt und darf nicht verlorengehen, nur weil es aus einer Prüfung
+ * stammt. Ein Treffer dagegen beweist im Rate-Modus nichts.
+ *
+ * „Nicht gewusst" ist hier again|hard, also rating < 3 — dieselbe Grenze, die
+ * die Statistik für ihre Trefferquote zieht (`gte("rating", 3)`, db.ts). Zwei
+ * Stellen mit unterschiedlichen Definitionen von „richtig" wären ein Fehler,
+ * der erst auffällt, wenn die Zahlen auseinanderlaufen.
+ *
+ * Der Eintrag selbst wird IMMER geschrieben — Streak, Freunde-Streak und
+ * Statistik hängen daran und sollen auch bei einer Prüfung zählen. Übersprungen
+ * wird ausschließlich die Neuplanung der Karte.
+ */
+function movesTheSchedule(mode: ReviewMode, rating: "again" | "hard" | "good" | "easy"): boolean {
+  if (rating === "again" || rating === "hard") return true;
+  return RECALL_MODES.includes(mode);
+}
+
 // Uhren gehen auseinander; ein paar Minuten Vorlauf sind kein Betrugsversuch.
 const CLOCK_SKEW_TOLERANCE_MS = 5 * 60 * 1000;
 
@@ -115,6 +149,26 @@ export async function storeReview(
   updateStreakAfterReview(parsed.userId).catch(() => {});
   // Advance any shared friend streaks whose partner also studied today (#237)
   markFriendStreakDay(parsed.userId).catch(() => {});
+
+  // Ab hier nur noch die Neuplanung. Alles Vorherige (Eintrag, Streak,
+  // Freunde-Streak) ist bereits passiert und gilt für JEDEN Modus — eine
+  // Prüfung soll den Streak halten und in der Statistik auftauchen, auch wenn
+  // sie den Plan nicht anfassen darf.
+  //
+  // Solange kein Client einen Modus schickt, ist mode immer "flashcard" und
+  // diese Bedingung damit immer wahr: der Schritt ist nachweislich wirkungslos,
+  // bis Schritt 7 die Oberflächen umstellt.
+  if (!movesTheSchedule(parsed.mode, parsed.rating)) {
+    logInfo("review_schedule_skipped", {
+      requestId,
+      userId: parsed.userId,
+      mode: parsed.mode,
+      rating: parsed.rating,
+    });
+    // Antwort aus der unveränderten Karte — der Client bekommt denselben
+    // Fälligkeitstermin zurück, den die Karte schon hatte.
+    return buildReviewResponse(requestId, card);
+  }
 
   // Reconstruct the FSRS card from persisted DB state (NOT a blank new card!)
   // This ensures the algorithm considers previous reviews for scheduling.
