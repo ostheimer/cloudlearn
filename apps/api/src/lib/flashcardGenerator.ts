@@ -209,7 +209,14 @@ async function callGemini(
     ],
     generationConfig: {
       temperature: 0.4,
-      maxOutputTokens: 4096,
+      // gemini-3-flash is a thinking model and its thinking tokens are billed
+      // against maxOutputTokens, before a single card is written. Measured
+      // thinking on one vocab sheet swung between 1357 and 7005 tokens run to
+      // run, so a 4096 ceiling truncated the JSON mid-string at random — the
+      // scan then died in JSON.parse. This is a ceiling, not a reservation:
+      // unused tokens cost nothing, so keep ample room for the worst-case
+      // thinking plus ~2000 tokens of cards.
+      maxOutputTokens: 16384,
       responseMimeType: "application/json",
     },
   };
