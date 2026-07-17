@@ -57,6 +57,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import DeckActionSheet from "../../../src/components/DeckActionSheet";
 import CoursePickerModal from "../../../src/components/CoursePickerModal";
 import FolderPickerModal from "../../../src/components/FolderPickerModal";
+import { isOcclusionCard } from "../../../src/lib/occlusion";
+import { buildDeckCountLabel } from "../../../src/lib/deckCountLabel";
 import DeckEditModal from "../../../src/components/DeckEditModal";
 import DeckDetailsModal from "../../../src/components/DeckDetailsModal";
 
@@ -385,6 +387,14 @@ export default function DeckDetailScreen() {
 
   const [cards, setCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // "20 Karten · 10 Bilder". The library counts the same way (server side), so
+  // both agree — before this, the library said 20 (text only) while this header
+  // said 30 (everything): same deck, two numbers. The card LIST below still
+  // shows every card, image ones included, so they stay manageable.
+  const imageCardCount = cards.filter(isOcclusionCard).length;
+  const textCardCount = cards.length - imageCardCount;
+  const deckCountLabel = buildDeckCountLabel(textCardCount, imageCardCount);
   const [refreshing, setRefreshing] = useState(false);
 
   // Card editor state
@@ -755,9 +765,7 @@ export default function DeckDetailScreen() {
                 fontWeight: typography.medium,
               }}
             >
-              {loading
-                ? "Lade..."
-                : `${cards.length} Karte${cards.length !== 1 ? "n" : ""}`}
+              {loading ? "Lade..." : deckCountLabel}
             </Text>
             <TouchableOpacity
               onPress={handleAddCard}

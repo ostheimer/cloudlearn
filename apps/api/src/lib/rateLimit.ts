@@ -13,7 +13,17 @@ import { createSupabaseAdminClient } from "./supabase";
 export async function checkRateLimit(
   key: string,
   limitPerMinute: number,
-  windowSeconds = 60
+  windowSeconds = 60,
+  /**
+   * Gewicht dieser Anfrage. Standard 1 = ein Aufruf zählt einmal.
+   *
+   * Nötig, weil ein Aufruf mehr als eine Handlung tragen kann: /learn/sync
+   * schiebt bis zu 500 Wiederholungen in EINEM Request und würde als ein
+   * einziger Zugriff zählen — die Bremse auf dem Einzelweg wäre damit
+   * umgehbar. Der Sync zieht deshalb sein Gewicht in Höhe der enthaltenen
+   * Wiederholungen aus demselben Topf.
+   */
+  cost = 1
 ): Promise<boolean> {
   const db = createSupabaseAdminClient();
   if (!db) return true;
@@ -22,6 +32,7 @@ export async function checkRateLimit(
     p_key: key,
     p_limit: limitPerMinute,
     p_window_seconds: windowSeconds,
+    p_cost: cost,
   });
 
   if (error) {

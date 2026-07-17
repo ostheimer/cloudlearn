@@ -17,6 +17,7 @@ import {
   type Folder,
 } from "@/lib/api";
 import { folderPath } from "@/lib/folders";
+import { deckCountLabel } from "@/lib/deck-count-label";
 import {
   ArrowLeft,
   Layers,
@@ -217,7 +218,8 @@ export default function FolderDetailPage() {
                   <span>
                     {deck.cardCount === undefined
                       ? "Karten werden gezählt…"
-                      : `${deck.cardCount} ${deck.cardCount === 1 ? "Karte" : "Karten"}`}
+                      : (deckCountLabel(deck.cardCount, deck.imageCardCount) ??
+                        "Noch keine Karten")}
                   </span>
                   {(dueByDeck[deck.id] ?? 0) > 0 && (
                     <span className="tag tag--due">{dueByDeck[deck.id]} fällig</span>

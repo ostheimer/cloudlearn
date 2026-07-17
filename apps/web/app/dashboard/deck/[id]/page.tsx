@@ -7,6 +7,7 @@ import { useAuth } from "@/components/app/auth-context";
 import { Modal } from "@/components/app/modal";
 import { OcclusionShot } from "@/components/app/occlusion-shot";
 import { getCardImages, occlusionTarget, type CardImage } from "@/lib/card-images";
+import { deckCountLabel } from "@/lib/deck-count-label";
 import {
   getDeckDetails,
   listCardsInDeck,
@@ -170,18 +171,9 @@ export default function DeckDetailPage() {
   const occlusionCards = cards.filter((c) => c.type === "occlusion");
   const hasOcclusion = occlusionCards.length > 0;
 
-  // Nur nennen, was es wirklich gibt: „0 Karten · 10 Bild-Karten" liest sich,
-  // als wäre das Deck leer.
-  const countParts: string[] = [];
-  if (textCards.length > 0)
-    countParts.push(`${textCards.length} ${textCards.length === 1 ? "Karte" : "Karten"}`);
-  if (occlusionCards.length > 0)
-    countParts.push(
-      `${occlusionCards.length} Bild-${occlusionCards.length === 1 ? "Karte" : "Karten"}`
-    );
-  // Beim leeren Deck sagt der Leerzustand darunter schon „Noch keine Karten" —
-  // der Untertitel bliebe nur eine Dopplung.
-  const cardCountLabel = countParts.length > 0 ? countParts.join(" · ") : null;
+  // Dieselbe Regel wie Deck-Liste und Ordner-Seite (deck-count-label): Teile mit
+  // null weglassen, leeres Deck → kein Label (der Leerzustand sagt es schon).
+  const cardCountLabel = deckCountLabel(textCards.length, occlusionCards.length);
 
   // Wie viele andere Karten hängen am selben Bild? Gezählt werden KARTEN, nicht
   // Regionen: extraData.regions führt gelöschte Stellen weiter mit, die Zahl
@@ -319,7 +311,25 @@ export default function DeckDetailPage() {
                 <ImageIcon size={20} />
               </span>
               <span className="mode-card__body">
-                <span className="mode-card__title">Occlusion</span>
+                <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span className="mode-card__title">Occlusion</span>
+                  {/* Statisches Pro-Schild — sagt allen vorab „das ist Pro", statt
+                      es erst beim Speichern zu verraten (#364). Bewusst OHNE
+                      Tarif-Abfrage: so kann es niemanden fälschlich sperren und
+                      kostet keine Anfrage bei jedem Deck-Öffnen.
+                      Es ist ein Schild, keine Sperre: der Link führt weiter wie
+                      bisher — Free-Nutzerinnen empfängt der Editor selbst mit dem
+                      Vorab-Hinweis (#376), durchgesetzt wird serverseitig (#352).
+                      Form: .mode-card__badge (das Schild dieser Zeile), Farbe wie
+                      das KI-Abzeichen aus #369 — inline, weil diese Kachel ihre
+                      Farben schon inline setzt (siehe .mode-card__ic darüber). */}
+                  <span
+                    className="mode-card__badge"
+                    style={{ background: "rgba(99, 102, 241, 0.12)", color: "var(--brand)" }}
+                  >
+                    Pro
+                  </span>
+                </span>
                 <span className="mode-card__sub">
                   {hasOcclusion
                     ? "Bildteile verdecken & abfragen"

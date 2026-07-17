@@ -1,4 +1,5 @@
 import { applyReview, createNewFsrsCard, reconstructFsrsCard } from "@/lib/domain";
+import { logInfo } from "@/lib/observability";
 import { reviewRequestSchema, type ReviewResponse } from "@/lib/contracts";
 import type { CardRecord } from "@/lib/db";
 import {
@@ -28,11 +29,42 @@ function buildReviewResponse(requestId: string, card: CardRecord): ReviewRespons
   };
 }
 
+// Uhren gehen auseinander; ein paar Minuten Vorlauf sind kein Betrugsversuch.
+const CLOCK_SKEW_TOLERANCE_MS = 5 * 60 * 1000;
+
+/**
+ * `reviewedAt` kommt aus dem Request-Body — das muss so bleiben, weil Lernen
+ * ohne Netz den echten Zeitpunkt braucht, sonst plant FSRS falsch. Ein
+ * Zeitpunkt in der ZUKUNFT ist aber nie legitim: entweder eine falsch gestellte
+ * Uhr oder der Versuch, sich Lerntage auf Vorrat zu buchen.
+ *
+ * Geklemmt, nicht abgelehnt: Der Offline-Sync verwirft abgelehnte Operationen
+ * endgültig (finalizeOperations), ein 4xx würde also echtes Lernen vernichten.
+ *
+ * Wie ALT ein Zeitstempel höchstens sein darf, ist bewusst noch offen — das
+ * wird erst in Prod gemessen (#358), bevor eine Grenze geraten wird.
+ */
+function clampReviewedAt(reviewedAt: string, requestId: string, userId: string): string {
+  const claimed = new Date(reviewedAt).getTime();
+  const now = Date.now();
+  if (!Number.isFinite(claimed) || claimed <= now + CLOCK_SKEW_TOLERANCE_MS) {
+    return reviewedAt;
+  }
+  logInfo("review_reviewed_at_in_future", {
+    requestId,
+    userId,
+    claimed: reviewedAt,
+    aheadMs: claimed - now,
+  });
+  return new Date(now).toISOString();
+}
+
 export async function storeReview(
   input: unknown,
   requestId: string
 ): Promise<ReviewResponse> {
   const parsed = reviewRequestSchema.parse(input);
+  const reviewedAt = clampReviewedAt(parsed.reviewedAt, requestId, parsed.userId);
   const existing = await findReviewByIdempotencyKey(
     parsed.userId,
     parsed.idempotencyKey
@@ -58,7 +90,7 @@ export async function storeReview(
     userId: parsed.userId,
     cardId: parsed.cardId,
     rating: parsed.rating,
-    reviewedAt: parsed.reviewedAt,
+    reviewedAt,
     idempotencyKey: parsed.idempotencyKey,
   };
 
@@ -95,7 +127,9 @@ export async function storeReview(
         fsrsLastReview: card.fsrsLastReview,
       });
 
-  const next = applyReview(fsrsCard, parsed.rating, new Date(parsed.reviewedAt));
+  // Dieselbe geklemmte Zeit wie im Eintrag — sonst plante FSRS weiter mit einem
+  // Zeitpunkt, den die Datenbank gar nicht kennt.
+  const next = applyReview(fsrsCard, parsed.rating, new Date(reviewedAt));
 
   const updatedCard = await updateCardFsrs(
     parsed.cardId,

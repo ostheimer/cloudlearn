@@ -23,6 +23,7 @@ import {
   type Folder,
 } from "@/lib/api";
 import { descendantFolders, folderPath, joinTitles } from "@/lib/folders";
+import { deckCountLabel } from "@/lib/deck-count-label";
 import {
   Search,
   Layers,
@@ -479,7 +480,9 @@ function DeckCard({
   onShare: () => void;
   onDelete: () => void;
 }) {
-  const count = deck.cardCount ?? 0;
+  // Bild-Karten müssen mitgenannt werden: Ohne sie meldete ein Deck, das nur
+  // Bild-Karten hat, hier „0 Karten" — es wirkte leer, obwohl die Karten da sind.
+  const count = deckCountLabel(deck.cardCount, deck.imageCardCount);
   // Technische Tags aus dem Scan-Flow („scan", „auto-generated") sind nicht für
   // Nutzeraugen gedacht — stattdessen ein freundliches KI-Abzeichen zeigen.
   const isAiCreated = deck.tags.some((t) => TECH_TAGS.has(t.toLowerCase()));
@@ -494,9 +497,7 @@ function DeckCard({
         </div>
         <div className="deck-card__title">{deck.title}</div>
         <div className="deck-card__meta">
-          <span>
-            {count} {count === 1 ? "Karte" : "Karten"}
-          </span>
+          <span>{count ?? "Noch keine Karten"}</span>
           {due > 0 && <span className="tag tag--due">{due} fällig</span>}
           {isAiCreated && (
             <span className="tag tag--ai">
