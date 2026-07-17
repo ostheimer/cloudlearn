@@ -262,11 +262,25 @@ export function getDueCards(userId: string): Promise<{ cards: Card[] }> {
   return authed<{ cards: Card[] }>(`/api/v1/learn/due?userId=${encodeURIComponent(userId)}`);
 }
 
+/**
+ * Aus welchem Modus eine Wiederholung stammt. Der Server entscheidet daran, wer
+ * sie mitzählt: Abruf-Modi bewegen den Lernplan, Rate-Modi nur bei Fehlern, und
+ * „test" gibt keine Lernpunkte. Ohne Angabe gilt „flashcard".
+ */
+export type ReviewMode =
+  | "flashcard"
+  | "practice"
+  | "cloze"
+  | "occlusion"
+  | "quiz"
+  | "match"
+  | "test";
+
 export function reviewCard(
   userId: string,
   cardId: string,
   rating: ReviewRating,
-  options?: { reviewedAt?: string; reviewDurationMs?: number }
+  options?: { reviewedAt?: string; reviewDurationMs?: number; mode?: ReviewMode }
 ): Promise<ReviewResponse> {
   const reviewedAt = options?.reviewedAt ?? new Date().toISOString();
   const idempotencyKey = `review-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -277,9 +291,13 @@ export function reviewCard(
     reviewedAt: string;
     idempotencyKey: string;
     reviewDurationMs?: number;
+    mode?: ReviewMode;
   } = { userId, cardId, rating, reviewedAt, idempotencyKey };
   if (options?.reviewDurationMs !== undefined) {
     body.reviewDurationMs = options.reviewDurationMs;
+  }
+  if (options?.mode !== undefined) {
+    body.mode = options.mode;
   }
   return authed<ReviewResponse>(`/api/v1/cards/${cardId}/review`, {
     method: "POST",
