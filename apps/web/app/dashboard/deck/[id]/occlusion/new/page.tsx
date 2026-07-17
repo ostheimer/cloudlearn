@@ -125,7 +125,15 @@ export default function OcclusionEditorPage() {
         await Promise.allSettled(createdIds.map((id) => deleteCard(id)));
       }
       await supabase.storage.from(BUCKET).remove([path]).catch(() => {});
-      setError(isApiError(e) ? e.message : e instanceof Error ? e.message : "Speichern fehlgeschlagen.");
+      if (isApiError(e) && e.status === 402) {
+        // Occlusion ist serverseitig eine Pro-Funktion (402/PAYWALL_REQUIRED).
+        // Die rohe englische Server-Meldung wäre hier eine Sackgasse: das Web
+        // hat gar keinen Kaufweg (#368), gekauft wird nur in der App — also
+        // sagen wir genau das, statt „Upgrade to unlock it." ins Leere (#364).
+        setError("Bild-Occlusion ist eine Pro-Funktion — Pro gibt es in der clearn-App.");
+      } else {
+        setError(isApiError(e) ? e.message : e instanceof Error ? e.message : "Speichern fehlgeschlagen.");
+      }
       setSaving(false);
     }
   }

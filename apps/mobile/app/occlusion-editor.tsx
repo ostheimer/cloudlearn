@@ -343,9 +343,19 @@ export default function OcclusionEditorScreen() {
         await Promise.allSettled(createdIds.map((id) => deleteCard(id)));
       }
       if (uploadedPath) await removeCardImage(uploadedPath).catch(() => {});
-      setError(
-        isApiError(e) ? e.message : e instanceof Error ? e.message : "Speichern fehlgeschlagen.",
-      );
+      // Occlusion ist eine Pro-Funktion: bei 402/PAYWALL_REQUIRED hat der
+      // request()-Helper (src/lib/api.ts) die Paywall bereits geöffnet — die
+      // ist die Botschaft. Die englische Server-Meldung zusätzlich in ein rotes
+      // Banner zu kippen, hinterlässt nach dem Schließen der Paywall nur einen
+      // Rätsel-Rest auf einem sonst deutschen Bildschirm (#364).
+      // Bewusst dieselbe Bedingung wie der globale Trigger: ein 402 mit einem
+      // anderen Code öffnet KEINE Paywall und muss darum sichtbar bleiben.
+      const paywallOpened = isApiError(e) && e.status === 402 && e.code === "PAYWALL_REQUIRED";
+      if (!paywallOpened) {
+        setError(
+          isApiError(e) ? e.message : e instanceof Error ? e.message : "Speichern fehlgeschlagen.",
+        );
+      }
       setSaving(false);
     }
   }
