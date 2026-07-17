@@ -325,7 +325,7 @@ export const resources = {
       "library.deleteFolderError": "Ordner konnte nicht gelöscht werden.",
       "library.card": "Karte",
       "library.cards": "Karten",
-      "library.images": "Bilder",
+      "library.noCards": "Noch keine Karten",
 
       // Course detail
       "courseDetail.rename": "Kurs umbenennen",
@@ -790,7 +790,7 @@ export const resources = {
       "library.deleteFolderError": "Could not delete folder.",
       "library.card": "card",
       "library.cards": "cards",
-      "library.images": "images",
+      "library.noCards": "No cards yet",
 
       // Course detail
       "courseDetail.rename": "Rename course",

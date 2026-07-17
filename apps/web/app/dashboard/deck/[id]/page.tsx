@@ -7,6 +7,7 @@ import { useAuth } from "@/components/app/auth-context";
 import { Modal } from "@/components/app/modal";
 import { OcclusionShot } from "@/components/app/occlusion-shot";
 import { getCardImages, occlusionTarget, type CardImage } from "@/lib/card-images";
+import { deckCountLabel } from "@/lib/deck-count-label";
 import {
   getDeckDetails,
   listCardsInDeck,
@@ -170,18 +171,9 @@ export default function DeckDetailPage() {
   const occlusionCards = cards.filter((c) => c.type === "occlusion");
   const hasOcclusion = occlusionCards.length > 0;
 
-  // Nur nennen, was es wirklich gibt: „0 Karten · 10 Bild-Karten" liest sich,
-  // als wäre das Deck leer.
-  const countParts: string[] = [];
-  if (textCards.length > 0)
-    countParts.push(`${textCards.length} ${textCards.length === 1 ? "Karte" : "Karten"}`);
-  if (occlusionCards.length > 0)
-    countParts.push(
-      `${occlusionCards.length} Bild-${occlusionCards.length === 1 ? "Karte" : "Karten"}`
-    );
-  // Beim leeren Deck sagt der Leerzustand darunter schon „Noch keine Karten" —
-  // der Untertitel bliebe nur eine Dopplung.
-  const cardCountLabel = countParts.length > 0 ? countParts.join(" · ") : null;
+  // Dieselbe Regel wie Deck-Liste und Ordner-Seite (deck-count-label): Teile mit
+  // null weglassen, leeres Deck → kein Label (der Leerzustand sagt es schon).
+  const cardCountLabel = deckCountLabel(textCards.length, occlusionCards.length);
 
   // Wie viele andere Karten hängen am selben Bild? Gezählt werden KARTEN, nicht
   // Regionen: extraData.regions führt gelöschte Stellen weiter mit, die Zahl

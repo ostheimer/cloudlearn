@@ -58,6 +58,7 @@ import DeckActionSheet from "../../../src/components/DeckActionSheet";
 import CoursePickerModal from "../../../src/components/CoursePickerModal";
 import FolderPickerModal from "../../../src/components/FolderPickerModal";
 import { isOcclusionCard } from "../../../src/lib/occlusion";
+import { buildDeckCountLabel } from "../../../src/lib/deckCountLabel";
 import DeckEditModal from "../../../src/components/DeckEditModal";
 import DeckDetailsModal from "../../../src/components/DeckDetailsModal";
 
@@ -393,12 +394,7 @@ export default function DeckDetailScreen() {
   // shows every card, image ones included, so they stay manageable.
   const imageCardCount = cards.filter(isOcclusionCard).length;
   const textCardCount = cards.length - imageCardCount;
-  const deckCountLabel = [
-    `${textCardCount} ${textCardCount === 1 ? "Karte" : "Karten"}`,
-    imageCardCount > 0 ? `${imageCardCount} ${imageCardCount === 1 ? "Bild" : "Bilder"}` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  const deckCountLabel = buildDeckCountLabel(textCardCount, imageCardCount);
   const [refreshing, setRefreshing] = useState(false);
 
   // Card editor state

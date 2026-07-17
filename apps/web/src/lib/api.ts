@@ -83,7 +83,10 @@ export interface Deck {
   userId: string;
   title: string;
   tags: string[];
+  /** Karten, die man normal lernt — ohne Bild-Occlusion (eigener Modus). */
   cardCount?: number;
+  /** Bild-Occlusion-Karten, getrennt gezählt („20 Karten · 10 Bild-Karten"). */
+  imageCardCount?: number;
   createdAt: string;
   updatedAt: string;
 }
