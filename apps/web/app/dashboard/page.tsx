@@ -365,8 +365,11 @@ export default function LibraryPage() {
             const forDeck = modal.forDeck;
             const { folder } = await createFolder(userId, value);
             if (forDeck) await addDeckToFolder(folder.id, forDeck.id);
+            // A fresh folder holds nothing but the deck we just put in it, so
+            // both the folder and its count are already known here.
+            setFolders((prev) => [...prev, folder]);
+            setFolderCounts((prev) => ({ ...prev, [folder.id]: forDeck ? 1 : 0 }));
             setModal(null);
-            await loadFolders();
           }}
         />
       )}
@@ -396,13 +399,18 @@ export default function LibraryPage() {
           onClose={() => setModal(null)}
           onConfirm={async () => {
             const id = modal.folder.id;
+            // parent_id cascades in the database, so the subfolders the dialog
+            // just named go too — drop the whole branch at once and only reload
+            // if the server disagrees.
+            const gone = new Set([id, ...descendantFolders(id, folders).map((f) => f.id)]);
             setModal(null);
+            setFolders((prev) => prev.filter((f) => !gone.has(f.id)));
             try {
               await deleteFolder(id);
             } catch {
               setPageError("Ordner konnte nicht gelöscht werden.");
+              await loadFolders();
             }
-            await loadFolders();
           }}
         />
       )}
@@ -415,7 +423,15 @@ export default function LibraryPage() {
           onPick={async (folderId) => {
             await addDeckToFolder(folderId, modal.deck.id);
             setModal(null);
-            await loadFolders();
+            // The picker also lists folders the deck is already in, and the
+            // server upserts — so the new count isn't reliably +1. Ask this one
+            // folder rather than reloading every folder's count.
+            try {
+              const { decks: inFolder } = await listDecksInFolder(folderId);
+              setFolderCounts((prev) => ({ ...prev, [folderId]: inFolder.length }));
+            } catch {
+              setFolderCounts((prev) => ({ ...prev, [folderId]: -1 }));
+            }
           }}
           onCreateFolder={() => setModal({ type: "createFolder", forDeck: modal.deck })}
         />
