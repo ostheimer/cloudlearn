@@ -120,6 +120,31 @@ describe("supabase migrations", () => {
     expect(sql).toContain("grant execute on function check_rate_limit(text, int, int) to service_role");
   });
 
+  it("lets the rate limit count weighted requests, so /learn/sync cannot bypass it", () => {
+    const migrationPath = join(
+      apiRoot,
+      "supabase/migrations/20260717150000_rate_limit_cost.sql",
+    );
+    const sql = readFileSync(migrationPath, "utf-8");
+
+    // Ohne p_cost zählte ein Sync-Paket mit 500 Wiederholungen als EIN Zugriff.
+    expect(sql).toContain("p_cost int default 1");
+
+    // Der Default hält den noch laufenden alten Code am Leben (drei Argumente
+    // → verhält sich exakt wie bisher). Deshalb ist Migration-vor-Deploy hier
+    // ungefährlich.
+    expect(sql).toContain("drop function if exists check_rate_limit(text, int, int)");
+    expect(sql).toContain(
+      "grant execute on function check_rate_limit(text, int, int, int) to service_role",
+    );
+
+    // Ein Gewicht von 0 (oder null) würde die Bremse aushebeln.
+    expect(sql).toContain("greatest(coalesce(p_cost, 1), 1)");
+
+    // Der atomare Check-and-increment darf dabei nicht verlorengehen.
+    expect(sql).toContain("on conflict (key) do update set");
+  });
+
   it("persists the per-user Mathpix budget with an atomic consume function", () => {
     const migrationPath = join(
       apiRoot,
