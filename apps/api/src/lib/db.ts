@@ -16,7 +16,14 @@ export interface DeckRecord {
   userId: string;
   title: string;
   tags: string[];
+  /** Cards you can study normally. Excludes Bild-Occlusion (own mode). */
   cardCount?: number;
+  /**
+   * Bild-Occlusion cards, counted separately so a deck can show "20 Karten ·
+   * 10 Bilder". Without it, a deck holding only image cards would report
+   * "0 Karten" and look broken — the cards are there, just in another mode.
+   */
+  imageCardCount?: number;
   deletedAt?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -166,7 +173,29 @@ export async function listDecks(userId: string): Promise<DeckRecord[]> {
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
   if (error) throw new Error(`listDecks: ${error.message}`);
-  return (data ?? []).map(mapDeckRow);
+
+  // Bild-Karten separat zählen. Sie im eingebetteten Zähler mitzuzählen ginge
+  // nicht: PostgREST kann dieselbe eingebettete Beziehung nicht zweimal
+  // unterschiedlich filtern. Deshalb EINE zusätzliche schlanke Abfrage (nicht
+  // pro Deck — kein N+1), die anschließend zugeordnet wird.
+  const { data: imageRows, error: imageError } = await db
+    .from("cards")
+    .select("deck_id")
+    .eq("user_id", userId)
+    .eq("card_type", "occlusion")
+    .is("deleted_at", null);
+  if (imageError) throw new Error(`listDecks (Bild-Karten): ${imageError.message}`);
+
+  const imagesByDeck = new Map<string, number>();
+  for (const row of (imageRows ?? []) as Array<{ deck_id: string | null }>) {
+    if (!row.deck_id) continue;
+    imagesByDeck.set(row.deck_id, (imagesByDeck.get(row.deck_id) ?? 0) + 1);
+  }
+
+  return (data ?? []).map((row) => {
+    const deck = mapDeckRow(row);
+    return { ...deck, imageCardCount: imagesByDeck.get(deck.id) ?? 0 };
+  });
 }
 
 export async function getDeck(

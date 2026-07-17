@@ -180,7 +180,10 @@ export interface Deck {
   userId: string;
   title: string;
   tags: string[];
+  /** Cards you can study normally — excludes Bild-Occlusion (own mode). */
   cardCount?: number;
+  /** Bild-Occlusion cards, counted separately ("20 Karten · 10 Bilder"). */
+  imageCardCount?: number;
   createdAt: string;
   updatedAt: string;
 }
