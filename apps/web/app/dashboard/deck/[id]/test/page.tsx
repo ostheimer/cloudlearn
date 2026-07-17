@@ -4,19 +4,13 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
-import { listCardsInDeck, reviewCard, earnLp, isApiError, type Card } from "@/lib/api";
+import { listCardsInDeck, reviewCard, isApiError, type Card } from "@/lib/api";
 import { isAnswerCorrect } from "@/lib/answerCheck";
 import {
   buildTestQuestions,
   type TestQuestion,
   type TestQuestionType,
 } from "@/lib/testQuestions";
-import {
-  beginSessionAward,
-  getSessionReviewedCount,
-  isSessionEarnFinalized,
-  type SessionAwardState,
-} from "@/lib/learn-session-lp";
 import {
   ArrowLeft,
   ChevronRight,
@@ -25,7 +19,6 @@ import {
   CheckCircle,
   Clock,
   Trophy,
-  Zap,
   RotateCw,
   AlertTriangle,
   FileText,
@@ -78,10 +71,9 @@ export default function TestPage() {
   // offene Karten für Wahr/Falsch bzw. Multiple Choice) — für den Hinweis im Spiel.
   const [fellBackToWritten, setFellBackToWritten] = useState(false);
 
-  const [earned, setEarned] = useState<number | null>(null);
-  const [earnCapReached, setEarnCapReached] = useState(false);
-  const awardStateRef = useRef<SessionAwardState>({ finalized: false, inFlight: null });
-  const pendingReviewsRef = useRef<Promise<unknown>[]>([]);
+  // Keine LP-Zustände mehr: die Prüfung rechnet nichts ab (Schritt 7). Die
+  // Wiederholungen werden weiterhin gesendet — sie tragen Streak und Statistik
+  // und holen falsch beantwortete Karten zurück.
   const inputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -138,44 +130,11 @@ export default function TestPage() {
   const scoredCount = graded.filter((g) => g.correct || g.overridden).length;
   const percent = questions.length > 0 ? Math.round((scoredCount / questions.length) * 100) : 0;
 
-  const awardSession = useCallback((count: number) => {
-    const state = awardStateRef.current;
-    return beginSessionAward(state, count, async () => {
-      try {
-        const maxAttempts = 3;
-        const retryDelayMs = 250;
-
-        for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-          if (attempt > 0) {
-            await new Promise((resolve) => window.setTimeout(resolve, retryDelayMs));
-          }
-
-          const pendingReviews = pendingReviewsRef.current;
-          pendingReviewsRef.current = [];
-          await Promise.allSettled(pendingReviews);
-
-          const res = await earnLp("session", count);
-          setEarned(res.granted);
-          setEarnCapReached(res.capReached);
-
-          if (isSessionEarnFinalized(res, count)) {
-            state.finalized = true;
-            break;
-          }
-        }
-      } catch {
-        /* LP-Gutschrift ist best-effort */
-      }
-    });
-  }, []);
-
   // Baut den Test aus den übergebenen Karten und geht direkt ins Spiel — die
   // gemeinsame Basis für „Nochmal" (alle Karten) und „Nur nicht gewusste"
-  // (Teilmenge, überspringt das Setup). Erst LP der abgeschlossenen Sitzung
-  // sichern, dann den Award-Zustand für die neue Runde zurücksetzen.
+  // (Teilmenge, überspringt das Setup).
   const buildAndStart = useCallback(
     async (sourceCards: Card[]) => {
-      await awardSession(questions.length);
       const types: TestQuestionType[] = [];
       if (typeTF) types.push("trueFalse");
       if (typeMC) types.push("mc");
@@ -198,8 +157,6 @@ export default function TestPage() {
         }
       }
       setFellBackToWritten(fellBack);
-      awardStateRef.current = { finalized: false, inFlight: null };
-      pendingReviewsRef.current = [];
       setQuestions(qs);
       setAnswers(qs.map(() => ({ mc: null, tf: null, text: "" })));
       setGraded([]);
@@ -208,11 +165,9 @@ export default function TestPage() {
       // Anzahl) — buildTestQuestions kann weniger liefern (z. B. Lücken-Karten bei
       // ausgeschaltetem „Schriftlich"). Nur im Zeit-Modus relevant.
       setRemaining(timed ? qs.length * SECONDS_PER_QUESTION : 0);
-      setEarned(null);
-      setEarnCapReached(false);
       setPhase("play");
     },
-    [count, usableCount, typeTF, typeMC, typeWritten, reverse, timed, awardSession, questions.length]
+    [count, usableCount, typeTF, typeMC, typeWritten, reverse, timed]
   );
 
   const startTest = useCallback(() => buildAndStart(cards), [buildAndStart, cards]);
@@ -241,19 +196,20 @@ export default function TestPage() {
         for (let i = 0; i < toSend.length; i += REVIEW_CHUNK_SIZE) {
           const chunk = toSend.slice(i, i + REVIEW_CHUNK_SIZE);
           await Promise.allSettled(
-            chunk.map((r) => reviewCard(userId, r.cardId, r.rating).catch(() => {}))
+            chunk.map((r) =>
+              reviewCard(userId, r.cardId, r.rating, { mode: "test" }).catch(() => {})
+            )
           );
         }
       })();
-      // Ein Eintrag für den ganzen Schwung: awardSession wartet darauf, bevor
-      // es abrechnet — die Wiederholungen müssen erst gespeichert sein.
-      pendingReviewsRef.current.push(flush);
+      // Niemand wartet mehr darauf: es wird nichts abgerechnet. Die
+      // Wiederholungen laufen im Hintergrund weiter — für Streak, Statistik und
+      // um falsch beantwortete Karten zurückzuholen.
+      void flush;
     }
 
-    const reviewedCount = getSessionReviewedCount(questions.length, toSend.length);
-    void awardSession(reviewedCount);
     setPhase("result");
-  }, [questions, answers, strict, userId, awardSession]);
+  }, [questions, answers, strict, userId]);
 
   // submit über eine Ref ansprechen, damit der Countdown-Effekt nicht bei jeder
   // Antwort neu startet.
@@ -298,12 +254,21 @@ export default function TestPage() {
 
   const overrideCorrect = (i: number) => {
     setGraded((prev) => prev.map((g, j) => (j === i ? { ...g, overridden: true } : g)));
-    // Selbstbewertung soll auch die SRS-Planung korrigieren (wie im Lückentext):
-    // die zuvor als „again" gebuchte Karte jetzt als „good" nachbewerten.
+    // „War doch richtig" korrigiert die STATISTIK (der Eintrag zählt als
+    // gewusst), aber NICHT mehr die Planung: mit mode:"test" bewegt ein Treffer
+    // den Plan nicht. Vorher war es anders gedacht — der Kommentar berief sich
+    // auf den Lückentext, wo Selbstbewertung tatsächlich planen darf, weil dort
+    // getippt wird.
+    //
+    // Folge: Eine in der Prüfung falsch beantwortete Karte bleibt früher
+    // fällig, auch wenn man sich nachträglich Recht gibt. Das ist gewollt: Die
+    // Prüfung hat gezeigt, dass die Antwort nicht saß — sie nochmal zu sehen
+    // schadet nicht. Ohne mode:"test" wäre ausgerechnet diese eine
+    // Nachbewertung als Karteikarte angekommen und hätte als einzige Regung der
+    // ganzen Prüfung den Plan bewegt.
     const card = questions[i];
     if (userId && card) {
-      const reviewPromise = reviewCard(userId, card.cardId, "good").catch(() => {});
-      pendingReviewsRef.current.push(reviewPromise);
+      void reviewCard(userId, card.cardId, "good", { mode: "test" }).catch(() => {});
     }
   };
 
@@ -493,16 +458,9 @@ export default function TestPage() {
           <p className="muted" style={{ margin: 0 }}>
             {scoredCount} von {questions.length} richtig
           </p>
-          {earned !== null && earned > 0 && (
-            <span className="lp-pill">
-              <Zap size={15} /> +{earned} Lernpunkte
-            </span>
-          )}
-          {earned === 0 && earnCapReached && (
-            <p className="muted" style={{ fontSize: "0.9rem" }}>
-              Heutiges Lernpunkte-Limit erreicht — morgen gibt es wieder welche.
-            </p>
-          )}
+          <p className="muted" style={{ margin: 0, fontSize: "0.85rem" }}>
+            Eine Prüfung misst — Lernpunkte gibt es beim Lernen.
+          </p>
         </div>
 
         <div className="cl-dir__lbl">Durchsicht</div>
