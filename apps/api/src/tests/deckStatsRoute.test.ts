@@ -12,10 +12,10 @@
  *     402/PAYWALL_REQUIRED, because shipped app builds auto-open the paywall
  *     on 402 and this is a passive view.
  *
- * #235: the 30-day history is a Pro ("advanced statistics") feature on the
- * per-deck route: free users keep their deck statistics but are clamped to the
- * 7-day window. The whitelist tests below run as a Pro user so the `days`
- * logic is exercised in isolation; dedicated blocks cover both tiers.
+ * Seit 17.07. ist auch die per-Deck-Route Pro-only (Laras Entscheidung):
+ * free users get 403/PRO_REQUIRED there as well — same code, same reasoning.
+ * The whitelist tests below run as a Pro user so the `days` logic is
+ * exercised in isolation; dedicated blocks cover both tiers.
  *
  * `@/lib/http` is mocked with light Response-shaped fakes so the test never
  * has to load `next/server` (same pattern as statsRoute.test.ts).
@@ -273,7 +273,7 @@ describe("GET /api/v1/stats/decks", () => {
   });
 });
 
-describe("GET /api/v1/decks/:id/stats – advanced-stats gate (#235)", () => {
+describe("GET /api/v1/decks/:id/stats – Pro-Gate (Deck-Statistik)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedGetAuthUser.mockResolvedValue({
@@ -283,7 +283,7 @@ describe("GET /api/v1/decks/:id/stats – advanced-stats gate (#235)", () => {
     mockedGetDeck.mockResolvedValue(DECK);
     mockedGetDeckWobblyCards.mockResolvedValue(WOBBLY_CARDS);
     // The trend series length follows the window the route actually queried, so
-    // the assertions below prove the clamp reaches the data, not just the call.
+    // the assertions below prove the window reaches the data, not just the call.
     mockedGetDeckReviewStats.mockImplementation(
       async (_userId: string, _deckId: string, days = 30) => ({
         answersTotal: 40,
@@ -293,40 +293,37 @@ describe("GET /api/v1/decks/:id/stats – advanced-stats gate (#235)", () => {
     );
   });
 
-  it("clamps a free user's ?days=30 down to the basic 7-day window", async () => {
+  it("rejects a free user with 403 PRO_REQUIRED and queries no stats", async () => {
     mockTier("free");
 
     const response = await getDeckStatsRoute(deckStatsRequest("30"), deckParams());
-    const body = (await response.json()) as { accuracyByDay: unknown[] };
+    const body = (await response.json()) as { code: string };
 
-    expect(response.status).toBe(200);
-    expect(mockedGetDeckReviewStats).toHaveBeenCalledWith(AUTH_USER_ID, DECK_ID, 7);
-    expect(body.accuracyByDay).toHaveLength(7);
+    expect(response.status).toBe(403);
+    expect(body.code).toBe("PRO_REQUIRED");
+    expect(mockedGetDeckReviewStats).not.toHaveBeenCalled();
+    expect(mockedGetDeckWobblyCards).not.toHaveBeenCalled();
   });
 
-  it("clamps a free user with no days param to 7 days (not the historic 30)", async () => {
+  it("does not use 402/PAYWALL_REQUIRED — shipped apps auto-open the paywall on 402", async () => {
     mockTier("free");
 
-    await getDeckStatsRoute(deckStatsRequest(), deckParams());
+    const response = await getDeckStatsRoute(deckStatsRequest(), deckParams());
+    const body = (await response.json()) as { code: string };
 
-    expect(mockedGetDeckReviewStats).toHaveBeenCalledWith(AUTH_USER_ID, DECK_ID, 7);
+    expect(response.status).not.toBe(402);
+    expect(body.code).not.toBe("PAYWALL_REQUIRED");
   });
 
-  it("leaves a free user's ?days=7 at 7 (nothing to clamp)", async () => {
+  it("keeps the ownership 404 ahead of the Pro gate (foreign decks look the same for every tier)", async () => {
     mockTier("free");
+    mockedGetDeck.mockResolvedValue(null);
 
-    const response = await getDeckStatsRoute(deckStatsRequest("7"), deckParams());
+    const response = await getDeckStatsRoute(deckStatsRequest(), deckParams());
+    const body = (await response.json()) as { code: string };
 
-    expect(response.status).toBe(200);
-    expect(mockedGetDeckReviewStats).toHaveBeenCalledWith(AUTH_USER_ID, DECK_ID, 7);
-  });
-
-  it("clamps a free user's non-whitelisted ?days=999 to 7 as well", async () => {
-    mockTier("free");
-
-    await getDeckStatsRoute(deckStatsRequest("999"), deckParams());
-
-    expect(mockedGetDeckReviewStats).toHaveBeenCalledWith(AUTH_USER_ID, DECK_ID, 7);
+    expect(response.status).toBe(404);
+    expect(body.code).toBe("DECK_NOT_FOUND");
   });
 
   it("keeps a pro user's ?days=30 at the full 30-day window", async () => {
@@ -340,28 +337,21 @@ describe("GET /api/v1/decks/:id/stats – advanced-stats gate (#235)", () => {
     expect(body.accuracyByDay).toHaveLength(30);
   });
 
+  it("still honours a pro user's ?days=7 choice", async () => {
+    mockTier("pro");
+
+    const response = await getDeckStatsRoute(deckStatsRequest("7"), deckParams());
+
+    expect(response.status).toBe(200);
+    expect(mockedGetDeckReviewStats).toHaveBeenCalledWith(AUTH_USER_ID, DECK_ID, 7);
+  });
+
   it("treats lifetime like pro (advancedStats: true)", async () => {
     mockTier("lifetime");
 
     await getDeckStatsRoute(deckStatsRequest("30"), deckParams());
 
     expect(mockedGetDeckReviewStats).toHaveBeenCalledWith(AUTH_USER_ID, DECK_ID, 30);
-  });
-
-  it("clamps rather than rejects: a free user still gets their deck stats", async () => {
-    mockTier("free");
-
-    const response = await getDeckStatsRoute(deckStatsRequest("30"), deckParams());
-    const body = (await response.json()) as Record<string, unknown>;
-
-    // No 402/PAYWALL_REQUIRED — the documented design is clamp, not reject.
-    expect(response.status).toBe(200);
-    expect(body).toMatchObject({
-      deck: { id: DECK_ID, title: "Bio Zellatmung" },
-      answersTotal: 40,
-      answersCorrect: 28,
-      wobblyCards: WOBBLY_CARDS,
-    });
   });
 
   it("never takes the tier from the request (client cannot claim pro)", async () => {
@@ -372,11 +362,12 @@ describe("GET /api/v1/decks/:id/stats – advanced-stats gate (#235)", () => {
       `http://localhost/api/v1/decks/${DECK_ID}/stats?days=30&tier=pro`,
       { method: "GET", headers: { "x-subscription-tier": "pro" } },
     ) as never;
-    await getDeckStatsRoute(spoofed, deckParams());
+    const response = await getDeckStatsRoute(spoofed, deckParams());
 
-    // Tier came from getSubscriptionStatus(userId) alone → still clamped.
+    // Tier came from getSubscriptionStatus(userId) alone → still rejected.
     expect(mockedGetSubscriptionStatus).toHaveBeenCalledWith(AUTH_USER_ID);
-    expect(mockedGetDeckReviewStats).toHaveBeenCalledWith(AUTH_USER_ID, DECK_ID, 7);
+    expect((response as { status: number }).status).toBe(403);
+    expect(mockedGetDeckReviewStats).not.toHaveBeenCalled();
   });
 });
 

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getDeckStats, isApiError, type DeckStats } from "@/lib/api";
-import { ArrowLeft, RotateCw } from "@/components/icons";
+import { ArrowLeft, Lock, RotateCw } from "@/components/icons";
 import { AccuracyRing, AccuracyTrendChart } from "@/components/app/stats-charts";
 
 export default function DeckStatsPage() {
@@ -16,6 +16,8 @@ export default function DeckStatsPage() {
   const [stats, setStats] = useState<DeckStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Die Deck-Statistik ist Pro-only; der Server meldet Free mit 403/PRO_REQUIRED.
+  const [proLocked, setProLocked] = useState(false);
 
   useEffect(() => {
     if (!deckId) return;
@@ -26,7 +28,9 @@ export default function DeckStatsPage() {
         if (active) setStats(s);
       })
       .catch((e) => {
-        if (active) setError(isApiError(e) ? e.message : "Deck-Statistik nicht verfügbar.");
+        if (!active) return;
+        if (isApiError(e) && (e.code === "PRO_REQUIRED" || e.status === 403)) setProLocked(true);
+        else setError(isApiError(e) ? e.message : "Deck-Statistik nicht verfügbar.");
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -42,6 +46,63 @@ export default function DeckStatsPage() {
   };
 
   if (loading && !stats) return <div className="spinner" />;
+
+  if (proLocked) {
+    return (
+      <>
+        <div className="lib-head">
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button
+              type="button"
+              onClick={goBack}
+              aria-label="Zurück"
+              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-2)", display: "inline-flex" }}
+            >
+              <ArrowLeft size={22} />
+            </button>
+            <div>
+              <h1 style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+                Deck-Statistik
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 4,
+                    background: "rgba(99, 102, 241, 0.12)",
+                    color: "var(--brand)",
+                    borderRadius: 999,
+                    padding: "3px 10px",
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                  }}
+                >
+                  <Lock size={12} /> Pro
+                </span>
+              </h1>
+              <p className="muted" style={{ marginTop: 4 }}>
+                Trefferquote, Verlauf und Wackelkandidaten je Deck
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="panel" style={{ maxWidth: 560 }}>
+          <div style={{ display: "grid", gap: 8 }}>
+            {[85, 70, 55].map((w) => (
+              <div
+                key={w}
+                style={{ height: 10, borderRadius: 5, background: "var(--bg-soft)", width: `${w}%` }}
+                aria-hidden
+              />
+            ))}
+          </div>
+          <p className="muted" style={{ margin: "14px 0 0", fontSize: "0.9rem" }}>
+            Sieh für jedes Deck, wie gut du triffst, wie sich deine Quote entwickelt und welche
+            Karten am meisten wackeln — die Deck-Statistik gibt es mit Pro in der clearn-App.
+          </p>
+        </div>
+      </>
+    );
+  }
 
   if (error && !stats) {
     return (

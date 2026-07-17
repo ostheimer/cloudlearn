@@ -42,6 +42,8 @@ export default function FolderDetailPage() {
   // undefined = still counting. The button stays usable either way; only its
   // label waits for the number.
   const [dueCount, setDueCount] = useState<number | undefined>(undefined);
+  // Fällige Karten je Deck ("N fällig"-Abzeichen auf den Kacheln).
+  const [dueByDeck, setDueByDeck] = useState<Record<string, number>>({});
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -59,7 +61,15 @@ export default function FolderDetailPage() {
       try {
         const ids = new Set(inFolder.map((d) => d.id));
         const { cards: due } = await getDueCards(userId);
-        setDueCount(due.filter((c) => ids.has(c.deckId) && c.type !== "occlusion").length);
+        const relevant = due.filter((c) => ids.has(c.deckId) && c.type !== "occlusion");
+        setDueCount(relevant.length);
+        // Dieselben Karten noch je Deck gezählt — fürs "N fällig"-Abzeichen
+        // auf den Kacheln (wie in der App-Bibliothek).
+        const counts: Record<string, number> = {};
+        for (const card of relevant) {
+          counts[card.deckId] = (counts[card.deckId] ?? 0) + 1;
+        }
+        setDueByDeck(counts);
       } catch {
         // A missing count must not break the page — the button just says „Fällige lernen".
         setDueCount(undefined);
@@ -209,6 +219,9 @@ export default function FolderDetailPage() {
                       ? "Karten werden gezählt…"
                       : `${deck.cardCount} ${deck.cardCount === 1 ? "Karte" : "Karten"}`}
                   </span>
+                  {(dueByDeck[deck.id] ?? 0) > 0 && (
+                    <span className="tag tag--due">{dueByDeck[deck.id]} fällig</span>
+                  )}
                 </div>
               </Link>
               <button
