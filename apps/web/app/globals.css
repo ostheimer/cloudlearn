@@ -2722,6 +2722,14 @@ a.mode-card:hover {
   font-weight: 700;
 }
 
+/* KI-erstellte Decks: freundliches Abzeichen statt technischer Tags wie „scan" */
+.tag--ai {
+  align-items: center;
+  gap: 4px;
+  background: rgba(99, 102, 241, 0.12);
+  color: var(--brand);
+}
+
 .icon-btn {
   width: 34px;
   height: 34px;
@@ -3470,9 +3478,16 @@ a.lp-pill:hover {
 .pf-danger:hover { background: rgba(239, 68, 68, 0.11); }
 .pf-danger__t b { font-size: 0.95rem; font-weight: 700; display: block; }
 .pf-danger__t span { font-size: 0.85rem; opacity: 0.9; }
-.pf-danger--plain { justify-content: center; font-weight: 700; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .pf-danger { color: #f87171; } }
 :root[data-theme="dark"] .pf-danger { color: #f87171; }
+
+/* Abmelden ist keine Gefahr-Aktion — neutral, nur „Konto löschen" bleibt rot */
+.pf-signout {
+  display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%;
+  font: inherit; font-weight: 700; cursor: pointer; border-radius: 14px; padding: 14px 18px;
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink-2);
+}
+.pf-signout:hover { background: var(--bg-soft); }
 
 /* Segmented control (Design hell/dunkel/system) */
 .seg {
