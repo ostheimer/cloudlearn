@@ -28,13 +28,10 @@ const lpModePages = [
       "const startRound = useCallback(async (cards: Card[]) => {\n    await awardSession(round.length);",
     awardCalls: ["void awardSession(reviewedCount)", "await awardSession(reviewedCount)"],
   },
-  {
-    name: "test",
-    path: "app/dashboard/deck/[id]/test/page.tsx",
-    restartGuard:
-      "const buildAndStart = useCallback(\n    async (sourceCards: Card[]) => {\n      await awardSession(questions.length);",
-    awardCalls: ["void awardSession(reviewedCount)", "await awardSession(questions.length)"],
-  },
+  // Der Test-Modus steht hier BEWUSST nicht mehr: Eine Prüfung misst, sie
+  // lehrt nicht — sie rechnet seit der Entkopplung (Schritt 7) keine
+  // Lernpunkte mehr ab. Ein eigener Test unten hält das fest, damit die
+  // LP-Verdrahtung nicht versehentlich zurückkehrt.
   {
     name: "occlusion",
     path: "app/dashboard/deck/[id]/occlusion/page.tsx",
@@ -62,4 +59,37 @@ describe("web session LP mode pages", () => {
       expect(source).not.toContain("awardedRef");
     },
   );
+});
+
+describe("web test mode measures instead of rewarding", () => {
+  const source = readFileSync(
+    join(webRoot, "app/dashboard/deck/[id]/test/page.tsx"),
+    "utf-8",
+  ).replace(/\r\n/g, "\n");
+
+  it("does not award LP at all", () => {
+    // „Beim Test sollte man keine Lernpunkte bekommen oder etwas bei Tagesziel,
+    // da man ja im Prinzip nicht gelernt hat." Das Tagesziel kommt automatisch
+    // mit: es zählt dieselben Zeilen, die der Server für LP überspringt.
+    expect(source).not.toContain("earnLp");
+    expect(source).not.toContain("awardSession");
+    expect(source).not.toContain("beginSessionAward");
+  });
+
+  it("labels every review as test — including the self-correction", () => {
+    // Ohne mode:"test" käme die eine Nachbewertung aus „Trotzdem als richtig
+    // zählen" als Karteikarte an und wäre die einzige Regung der ganzen
+    // Prüfung, die den Lernplan bewegt.
+    const reviewCalls = source.match(/reviewCard\([^;]*?\)/gs) ?? [];
+    expect(reviewCalls.length).toBeGreaterThan(0);
+    reviewCalls.forEach((call) => {
+      expect(call).toContain('mode: "test"');
+    });
+  });
+
+  it("still sends reviews — streak, statistics and wrong cards depend on them", () => {
+    // Der Eintrag entsteht weiter; nur die Neuplanung überspringt der Server
+    // (und auch die nur bei Treffern — Fehler holen die Karte zurück).
+    expect(source).toContain("reviewCard(");
+  });
 });
