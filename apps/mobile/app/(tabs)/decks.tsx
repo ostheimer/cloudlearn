@@ -569,6 +569,10 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
             {deck.cardCount !== undefined && (
               <Text style={{ fontSize: typography.xs, color: colors.textTertiary, marginTop: 1 }}>
                 {deck.cardCount} {deck.cardCount === 1 ? t("library.card") : t("library.cards")}
+                {/* Bild-Karten zählen nicht als „Karten" (eigener Modus), dürfen
+                    aber nicht verschwinden: sonst meldet ein reines Bilder-Deck
+                    „0 Karten" und wirkt kaputt. */}
+                {deck.imageCardCount ? ` · ${deck.imageCardCount} ${t("library.images")}` : ""}
               </Text>
             )}
           </View>
