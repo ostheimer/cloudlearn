@@ -41,6 +41,12 @@ import {
 } from "../src/components/cardSourcePicker";
 import { useColors, spacing, radius, typography, shadows } from "../src/theme";
 import { StudyResult } from "../src/components/StudyResult";
+import {
+  beginSessionAward,
+  getSessionReviewedCount,
+  isSessionEarnFinalized,
+  type SessionAwardState,
+} from "../src/lib/learn-session-lp";
 
 interface Prompt {
   prompt: string;
@@ -95,10 +101,9 @@ export default function ClozeScreen() {
   const userId = useSessionStore((state) => state.userId);
   const setUsage = useUsageStore((s) => s.setUsage);
   const enqueueOfflineReview = useOfflineQueueStore((state) => state.enqueue);
-  // Zählt, ob seit der letzten Abrechnung überhaupt etwas passiert ist. Der
-  // Server leitet die Menge ohnehin aus den gespeicherten Wiederholungen ab —
-  // ein Aufruf am Ende genügt und kann nicht doppelt gutschreiben.
-  const reviewedSinceEarnRef = useRef(0);
+  const awardStateRef = useRef<SessionAwardState>({ finalized: false, inFlight: null });
+  const pendingReviewsRef = useRef<Promise<unknown>[]>([]);
+  const sessionReviewsRef = useRef(0);
 
   const [allCards, setAllCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
@@ -185,19 +190,68 @@ export default function ClozeScreen() {
   // (deck/[id]/cloze/page.tsx), der App fehlte es. Fehlschläge wandern in die
   // Offline-Warteschlange, damit Lernen ohne Netz nicht verloren geht.
   const review = useCallback(
-    async (cardId: string, rating: "good" | "again") => {
+    (cardId: string, rating: "good" | "again") => {
       if (!userId) return;
+      sessionReviewsRef.current += 1;
       const queued = createReviewSyncOperation({ userId, cardId, rating });
-      reviewedSinceEarnRef.current += 1;
-      try {
-        await reviewCard(userId, cardId, rating, queued.payload);
-      } catch (error) {
+      const reviewPromise = reviewCard(userId, cardId, rating, queued.payload).catch((error) => {
         // Offline oder Serverfehler: für später aufheben. Bei 4xx würde ein
         // erneuter Versuch genauso abgelehnt — dann lieber fallen lassen.
         if (!isApiError(error) || error.status >= 500) enqueueOfflineReview(queued);
-      }
+      });
+      pendingReviewsRef.current.push(reviewPromise);
     },
-    [userId, enqueueOfflineReview]
+    [userId, enqueueOfflineReview],
+  );
+
+  const awardSession = useCallback(
+    (reviewedCount: number) => {
+      const state = awardStateRef.current;
+      return beginSessionAward(state, reviewedCount, async () => {
+        const maxAttempts = 3;
+        const retryDelayMs = 250;
+
+        for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+          if (attempt > 0) {
+            await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+          }
+
+          const pendingReviews = pendingReviewsRef.current;
+          pendingReviewsRef.current = [];
+          await Promise.allSettled(pendingReviews);
+
+          try {
+            const result = await earnLp("session");
+            if (result.granted > 0) setUsage({ lpBalance: result.newBalance });
+            if (isSessionEarnFinalized(result, reviewedCount)) {
+              state.finalized = true;
+              break;
+            }
+          } catch {
+            // LP-Gutschrift best-effort
+          }
+        }
+      });
+    },
+    [setUsage],
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      awardStateRef.current = { finalized: false, inFlight: null };
+      pendingReviewsRef.current = [];
+      sessionReviewsRef.current = 0;
+
+      return () => {
+        void (async () => {
+          const reviewedCount = getSessionReviewedCount(
+            sessionReviewsRef.current,
+            pendingReviewsRef.current.length,
+          );
+          await awardSession(reviewedCount);
+        })();
+      };
+    }, [awardSession]),
   );
 
   const handleCheck = () => {
@@ -222,36 +276,14 @@ export default function ClozeScreen() {
     void review(current.id, "good");
   };
 
-  // Am Rundenende einmal abrechnen. Die Menge holt sich der Server aus den
-  // Wiederholungen, die er wirklich gespeichert hat (earn_session_lp ist
-  // wiederholungsfest) — ein Aufruf reicht und kann nicht zu viel gutschreiben.
-  const collectSessionLp = useCallback(async () => {
-    if (reviewedSinceEarnRef.current === 0 || !userId) return;
-    reviewedSinceEarnRef.current = 0;
-    try {
-      const result = await earnLp("session");
-      if (result.granted > 0) setUsage({ lpBalance: result.newBalance });
-    } catch {
-      // LP-Gutschrift best-effort
-    }
-  }, [userId, setUsage]);
-
-  // Auch abrechnen, wenn die Runde vorzeitig verlassen wird — sonst bekäme nur
-  // Punkte, wer bis zur letzten Karte durchhält. Karteikarten und Üben machen
-  // es genauso (#153); der Wächter verhindert leere Aufrufe, und der Server ist
-  // ohnehin wiederholungsfest.
-  useFocusEffect(
-    useCallback(() => {
-      return () => {
-        void collectSessionLp();
-      };
-    }, [collectSessionLp])
-  );
-
   const handleNext = () => {
     if (idx + 1 >= round.length) {
       setPhase("summary");
-      void collectSessionLp();
+      const reviewedCount = getSessionReviewedCount(
+        sessionReviewsRef.current,
+        pendingReviewsRef.current.length,
+      );
+      void awardSession(reviewedCount);
       return;
     }
     setIdx((i) => i + 1);
