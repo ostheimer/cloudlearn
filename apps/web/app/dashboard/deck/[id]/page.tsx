@@ -319,7 +319,25 @@ export default function DeckDetailPage() {
                 <ImageIcon size={20} />
               </span>
               <span className="mode-card__body">
-                <span className="mode-card__title">Occlusion</span>
+                <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span className="mode-card__title">Occlusion</span>
+                  {/* Statisches Pro-Schild — sagt allen vorab „das ist Pro", statt
+                      es erst beim Speichern zu verraten (#364). Bewusst OHNE
+                      Tarif-Abfrage: so kann es niemanden fälschlich sperren und
+                      kostet keine Anfrage bei jedem Deck-Öffnen.
+                      Es ist ein Schild, keine Sperre: der Link führt weiter wie
+                      bisher — Free-Nutzerinnen empfängt der Editor selbst mit dem
+                      Vorab-Hinweis (#376), durchgesetzt wird serverseitig (#352).
+                      Form: .mode-card__badge (das Schild dieser Zeile), Farbe wie
+                      das KI-Abzeichen aus #369 — inline, weil diese Kachel ihre
+                      Farben schon inline setzt (siehe .mode-card__ic darüber). */}
+                  <span
+                    className="mode-card__badge"
+                    style={{ background: "rgba(99, 102, 241, 0.12)", color: "var(--brand)" }}
+                  >
+                    Pro
+                  </span>
+                </span>
                 <span className="mode-card__sub">
                   {hasOcclusion
                     ? "Bildteile verdecken & abfragen"
