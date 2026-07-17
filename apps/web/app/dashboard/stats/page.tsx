@@ -5,11 +5,12 @@ import { useEffect, useState, type ReactNode } from "react";
 import {
   getStats,
   getDeckSummaries,
+  getLpBalance,
   isApiError,
   type StatsResponse,
   type DeckSummary,
 } from "@/lib/api";
-import { BarChart, ChevronRight, Flame } from "@/components/icons";
+import { BarChart, ChevronRight, Flame, Lock } from "@/components/icons";
 import { AccuracyRing, AccuracyTrendChart, ActivityBars } from "@/components/app/stats-charts";
 
 function accColor(rate: number): string {
@@ -26,6 +27,10 @@ export default function StatsPage() {
   const [error, setError] = useState<string | null>(null);
   const [decks, setDecks] = useState<DeckSummary[] | null>(null);
   const [decksErr, setDecksErr] = useState(false);
+  // Deck-Vergleich ist Pro-only; der Server meldet das mit 403/PRO_REQUIRED.
+  const [proLocked, setProLocked] = useState(false);
+  const [tier, setTier] = useState<"free" | "pro" | "lifetime" | null>(null);
+  const [proHint, setProHint] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -41,9 +46,30 @@ export default function StatsPage() {
 
   useEffect(() => {
     let active = true;
+    // Free bekommt vom Server ohnehin nur 7 Tage — die Auswahl soll das ehrlich zeigen.
+    getLpBalance()
+      .then((u) => {
+        if (!active) return;
+        setTier(u.tier);
+        if (u.tier === "free") setRangeDays(7);
+      })
+      .catch(() => {
+        /* Tarif unbekannt — beim Deck-Vergleich entscheidet ohnehin der Server */
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
     getDeckSummaries()
       .then(({ decks }) => active && setDecks(decks))
-      .catch(() => active && setDecksErr(true));
+      .catch((e) => {
+        if (!active) return;
+        if (isApiError(e) && (e.code === "PRO_REQUIRED" || e.status === 403)) setProLocked(true);
+        else setDecksErr(true);
+      });
   }, []);
 
   if (loading && !stats) return <div className="spinner" />;
@@ -81,24 +107,41 @@ export default function StatsPage() {
       })
     : null;
 
-  const seg = (days: 7 | 30, label: string) => (
-    <button
-      type="button"
-      onClick={() => setRangeDays(days)}
-      style={{
-        padding: "5px 14px",
-        borderRadius: 999,
-        border: "none",
-        cursor: "pointer",
-        fontSize: "0.85rem",
-        fontWeight: 600,
-        background: rangeDays === days ? "var(--brand)" : "transparent",
-        color: rangeDays === days ? "#fff" : "var(--ink-3)",
-      }}
-    >
-      {label}
-    </button>
-  );
+  // Für Free ist das 30-Tage-Fenster Pro: Knopf zeigt ein Schloss, der Klick
+  // erklärt das ehrlich, statt heimlich 7-Tage-Daten als 30 auszugeben.
+  const seg = (days: 7 | 30, label: string) => {
+    const locked = days === 30 && tier === "free";
+    const active = rangeDays === days;
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          if (locked) {
+            setProHint(true);
+            return;
+          }
+          setProHint(false);
+          setRangeDays(days);
+        }}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 5,
+          padding: "5px 14px",
+          borderRadius: 999,
+          border: "none",
+          cursor: "pointer",
+          fontSize: "0.85rem",
+          fontWeight: 600,
+          background: active ? "var(--brand)" : "transparent",
+          color: active ? "#fff" : "var(--ink-3)",
+        }}
+      >
+        {label}
+        {locked && <Lock size={12} />}
+      </button>
+    );
+  };
 
   const ctxRow = (label: string, value: ReactNode) => (
     <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem" }}>
@@ -131,6 +174,12 @@ export default function StatsPage() {
           {seg(30, "30 Tage")}
         </div>
       </div>
+
+      {proHint && (
+        <p className="muted" style={{ fontSize: "0.85rem", margin: "-6px 0 0", textAlign: "right" }}>
+          Den 30-Tage-Rückblick gibt es mit Pro — freischalten in der clearn-App.
+        </p>
+      )}
 
       {/* KPI-Reihe */}
       <div className="st-kpi">
@@ -231,24 +280,58 @@ export default function StatsPage() {
         </div>
       </div>
 
-      {/* Pro Deck — volle Breite, klickbar */}
+      {/* Deck-Vergleich — Pro-only; Free sieht einen gesperrten Teaser */}
       <div className="panel">
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 }}>
           <div>
-            <span className="h3">Pro Deck</span>
-            <span className="muted" style={{ fontSize: "0.8rem", marginLeft: 8 }}>
-              schwächstes zuerst
-            </span>
+            <span className="h3">Deck-Vergleich</span>
+            {proLocked ? (
+              <span
+                style={{
+                  marginLeft: 8,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  background: "rgba(99, 102, 241, 0.12)",
+                  color: "var(--brand)",
+                  borderRadius: 999,
+                  padding: "2px 9px",
+                  fontSize: "0.72rem",
+                  fontWeight: 700,
+                  verticalAlign: 2,
+                }}
+              >
+                <Lock size={11} /> Pro
+              </span>
+            ) : (
+              <span className="muted" style={{ fontSize: "0.8rem", marginLeft: 8 }}>
+                schwächstes zuerst
+              </span>
+            )}
           </div>
-          {sortedDecks && sortedDecks.length > 0 && (
+          {!proLocked && sortedDecks && sortedDecks.length > 0 && (
             <span className="muted" style={{ fontSize: "0.78rem" }}>
               für Details antippen
             </span>
           )}
         </div>
-        {sortedDecks === null ? (
+        {proLocked ? (
+          <div style={{ display: "grid", gap: 8 }}>
+            {[85, 70, 55].map((w) => (
+              <div
+                key={w}
+                style={{ height: 10, borderRadius: 5, background: "var(--bg-soft)", width: `${w}%` }}
+                aria-hidden
+              />
+            ))}
+            <p className="muted" style={{ margin: "6px 0 0", fontSize: "0.9rem" }}>
+              Sieh pro Deck, wo du am schwächsten bist — den Deck-Vergleich gibt es mit Pro in der
+              clearn-App.
+            </p>
+          </div>
+        ) : sortedDecks === null ? (
           decksErr ? (
-            <p className="muted">Pro-Deck-Statistik konnte nicht geladen werden.</p>
+            <p className="muted">Der Deck-Vergleich konnte nicht geladen werden.</p>
           ) : (
             <div className="spinner" style={{ margin: "10px auto" }} />
           )

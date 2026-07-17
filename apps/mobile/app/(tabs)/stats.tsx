@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   ChevronRight,
   Layers,
+  Lock,
 } from "lucide-react-native";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
 import {
@@ -23,6 +24,7 @@ import {
   type DeckSummary,
   type StatsWithDuration,
 } from "../../src/lib/statsApi";
+import { ApiError, getLpBalance } from "../../src/lib/api";
 import {
   AccuracyRing,
   AccuracyTrendChart,
@@ -66,10 +68,14 @@ export default function StatsScreen() {
     null
   );
 
-  // ─── "Pro Deck" summaries (fixed 30-day window, weakest deck first) ──────
+  // ─── "Deck-Vergleich" summaries (Pro-only, weakest deck first) ───────────
   const [deckSummaries, setDeckSummaries] = useState<DeckSummary[] | null>(null);
   const [decksLoading, setDecksLoading] = useState(true);
   const [decksError, setDecksError] = useState(false);
+  // Der Server meldet Free mit 403/PRO_REQUIRED — dann zeigen wir den Teaser.
+  const [proLocked, setProLocked] = useState(false);
+  const [tier, setTier] = useState<"free" | "pro" | "lifetime" | null>(null);
+  const [proHint, setProHint] = useState(false);
 
   const loadDeckSummaries = useCallback(() => {
     let cancelled = false;
@@ -79,8 +85,13 @@ export default function StatsScreen() {
       .then((decks) => {
         if (!cancelled) setDeckSummaries(decks);
       })
-      .catch(() => {
-        if (!cancelled) setDecksError(true);
+      .catch((e) => {
+        if (cancelled) return;
+        if (e instanceof ApiError && (e.code === "PRO_REQUIRED" || e.status === 403)) {
+          setProLocked(true);
+        } else {
+          setDecksError(true);
+        }
       })
       .finally(() => {
         if (!cancelled) setDecksLoading(false);
@@ -91,6 +102,23 @@ export default function StatsScreen() {
   }, []);
 
   useEffect(() => loadDeckSummaries(), [loadDeckSummaries]);
+
+  // Free bekommt vom Server nur 7 Tage — die Auswahl soll das ehrlich zeigen.
+  useEffect(() => {
+    let cancelled = false;
+    getLpBalance()
+      .then((u) => {
+        if (cancelled) return;
+        setTier(u.tier);
+        if (u.tier === "free") setRangeDays(7);
+      })
+      .catch(() => {
+        /* Tarif unbekannt — beim Deck-Vergleich entscheidet ohnehin der Server */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -113,6 +141,13 @@ export default function StatsScreen() {
 
   const switchRange = (days: 7 | 30) => {
     if (days === rangeDays) return;
+    // Für Free ist das 30-Tage-Fenster Pro: ehrlicher Hinweis statt heimlich
+    // geklemmter 7-Tage-Daten unter einer 30-Tage-Überschrift.
+    if (days === 30 && tier === "free") {
+      setProHint(true);
+      return;
+    }
+    setProHint(false);
     setSelectedDate(null); // Auswahl gilt nur innerhalb eines Zeitraums
     setSelectedTrendIndex(null);
     setRangeDays(days);
@@ -381,6 +416,7 @@ export default function StatsScreen() {
         <View style={{ flexDirection: "row", gap: spacing.sm }}>
           {([7, 30] as const).map((days) => {
             const active = rangeDays === days;
+            const locked = days === 30 && tier === "free";
             return (
               <TouchableOpacity
                 key={days}
@@ -388,8 +424,11 @@ export default function StatsScreen() {
                 activeOpacity={0.8}
                 accessibilityRole="button"
                 accessibilityState={{ selected: active }}
+                accessibilityLabel={locked ? "30 Tage — mit Pro" : `${days} Tage`}
                 style={{
                   flex: 1,
+                  flexDirection: "row",
+                  gap: 5,
                   alignItems: "center",
                   justifyContent: "center",
                   paddingVertical: spacing.sm,
@@ -406,10 +445,22 @@ export default function StatsScreen() {
                 >
                   {days} Tage
                 </Text>
+                {locked && <Lock size={13} color={colors.textSecondary} />}
               </TouchableOpacity>
             );
           })}
         </View>
+        {proHint && (
+          <Text
+            style={{
+              fontSize: typography.xs,
+              color: colors.textSecondary,
+              textAlign: "right",
+            }}
+          >
+            Den 30-Tage-Rückblick gibt es mit Pro.
+          </Text>
+        )}
 
         {loading && !stats ? (
           <ActivityIndicator
@@ -655,9 +706,9 @@ export default function StatsScreen() {
           </View>
         ) : null}
 
-        {/* Pro Deck — Genauigkeit je Deck (feste 30-Tage-Sicht), das
+        {/* Deck-Vergleich — Genauigkeit je Deck (Pro-only, 30-Tage-Sicht), das
             schwächste Deck zuerst; Decks ohne Antworten ans Ende. Eine Zeile
-            antippen öffnet die Deck-Statistik. */}
+            antippen öffnet die Deck-Statistik. Free sieht einen Teaser. */}
         <View style={{ ...cardStyle, gap: spacing.sm }}>
           <View
             style={{
@@ -667,13 +718,76 @@ export default function StatsScreen() {
             }}
           >
             <Layers size={18} color={colors.primary} />
-            <Text style={cardTitleStyle}>Pro Deck</Text>
+            <Text style={cardTitleStyle}>Deck-Vergleich</Text>
+            {proLocked && (
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 4,
+                  backgroundColor: colors.surfaceSecondary,
+                  borderRadius: radius.full,
+                  paddingHorizontal: spacing.sm,
+                  paddingVertical: 2,
+                }}
+              >
+                <Lock size={12} color={colors.primary} />
+                <Text
+                  style={{
+                    fontSize: typography.xs,
+                    fontWeight: typography.semibold,
+                    color: colors.primary,
+                  }}
+                >
+                  Pro
+                </Text>
+              </View>
+            )}
           </View>
           <Text style={{ fontSize: typography.xs, color: colors.textTertiary }}>
             Genauigkeit der letzten 30 Tage — schwächstes Deck zuerst.
           </Text>
 
-          {decksLoading ? (
+          {proLocked ? (
+            <View style={{ gap: spacing.sm, paddingVertical: spacing.sm }}>
+              {[0.85, 0.7, 0.55].map((w) => (
+                <View
+                  key={w}
+                  style={{
+                    height: 9,
+                    borderRadius: 5,
+                    backgroundColor: colors.surfaceSecondary,
+                    width: `${w * 100}%`,
+                  }}
+                />
+              ))}
+              <Text style={{ fontSize: typography.sm, color: colors.textSecondary }}>
+                Sieh pro Deck, wo du am schwächsten bist — den Deck-Vergleich gibt es mit Pro.
+              </Text>
+              <TouchableOpacity
+                onPress={() => router.push("/paywall")}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                style={{
+                  alignSelf: "flex-start",
+                  backgroundColor: colors.primary,
+                  borderRadius: radius.full,
+                  paddingHorizontal: spacing.lg,
+                  paddingVertical: spacing.sm,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: typography.sm,
+                    fontWeight: typography.semibold,
+                    color: "#fff",
+                  }}
+                >
+                  Pro freischalten
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : decksLoading ? (
             <ActivityIndicator
               size="small"
               color={colors.primary}

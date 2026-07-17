@@ -8,12 +8,14 @@
  *
  *   GET /api/v1/stats/decks — per-deck summaries for ALL of the user's decks
  *     in one call (decks without answers included with answersTotal 0).
+ *     Pro-only ("Deck-Vergleich"): free users get 403/PRO_REQUIRED — 403, not
+ *     402/PAYWALL_REQUIRED, because shipped app builds auto-open the paywall
+ *     on 402 and this is a passive view.
  *
- * #235: the 30-day history is a Pro ("advanced statistics") feature on BOTH
- * routes. Free users keep their full deck statistics but are clamped to the
- * 7-day window — clamped, never rejected. The whitelist tests below run as a
- * Pro user so the `days` logic is exercised in isolation; dedicated blocks
- * cover the free-tier clamp.
+ * #235: the 30-day history is a Pro ("advanced statistics") feature on the
+ * per-deck route: free users keep their deck statistics but are clamped to the
+ * 7-day window. The whitelist tests below run as a Pro user so the `days`
+ * logic is exercised in isolation; dedicated blocks cover both tiers.
  *
  * `@/lib/http` is mocked with light Response-shaped fakes so the test never
  * has to load `next/server` (same pattern as statsRoute.test.ts).
@@ -378,7 +380,7 @@ describe("GET /api/v1/decks/:id/stats – advanced-stats gate (#235)", () => {
   });
 });
 
-describe("GET /api/v1/stats/decks – advanced-stats gate (#235)", () => {
+describe("GET /api/v1/stats/decks – Pro-Gate (Deck-Vergleich)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedGetAuthUser.mockResolvedValue({
@@ -388,31 +390,33 @@ describe("GET /api/v1/stats/decks – advanced-stats gate (#235)", () => {
     mockedGetDeckReviewSummaries.mockResolvedValue(SUMMARIES);
   });
 
-  it("clamps the hardcoded 30-day window to 7 for a free user", async () => {
+  it("rejects a free user with 403 PRO_REQUIRED and queries nothing", async () => {
     mockTier("free");
 
     const response = await getDeckSummariesRoute(summariesRequest());
+    const body = (await response.json()) as { code: string };
 
-    expect(response.status).toBe(200);
-    expect(mockedGetDeckReviewSummaries).toHaveBeenCalledWith(AUTH_USER_ID, 7);
+    expect(response.status).toBe(403);
+    expect(body.code).toBe("PRO_REQUIRED");
+    expect(mockedGetDeckReviewSummaries).not.toHaveBeenCalled();
   });
 
-  it("clamps rather than rejects: a free user still gets every summary", async () => {
+  it("does not use 402/PAYWALL_REQUIRED — shipped apps auto-open the paywall on 402", async () => {
     mockTier("free");
 
     const response = await getDeckSummariesRoute(summariesRequest());
-    const body = (await response.json()) as { decks: unknown };
+    const body = (await response.json()) as { code: string };
 
-    // No 402/PAYWALL_REQUIRED — same clamp-not-reject design as /api/v1/stats.
-    expect(response.status).toBe(200);
-    expect(body.decks).toEqual(SUMMARIES);
+    expect(response.status).not.toBe(402);
+    expect(body.code).not.toBe("PAYWALL_REQUIRED");
   });
 
   it("keeps the full 30-day window for a pro user", async () => {
     mockTier("pro");
 
-    await getDeckSummariesRoute(summariesRequest());
+    const response = await getDeckSummariesRoute(summariesRequest());
 
+    expect(response.status).toBe(200);
     expect(mockedGetDeckReviewSummaries).toHaveBeenCalledWith(AUTH_USER_ID, 30);
   });
 
@@ -430,6 +434,6 @@ describe("GET /api/v1/stats/decks – advanced-stats gate (#235)", () => {
     await getDeckSummariesRoute(summariesRequest());
 
     expect(mockedGetSubscriptionStatus).toHaveBeenCalledWith(AUTH_USER_ID);
-    expect(mockedGetDeckReviewSummaries).toHaveBeenCalledWith(AUTH_USER_ID, 7);
+    expect(mockedGetDeckReviewSummaries).not.toHaveBeenCalled();
   });
 });
