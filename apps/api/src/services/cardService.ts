@@ -4,7 +4,7 @@ import type { CardRecord } from "@/lib/db";
 import { createCard, getDeck, listCardsForDeck, softDeleteCard, updateCard } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import { getSubscriptionStatus } from "./subscriptionService";
-import { assertCardLimit } from "@/lib/limits";
+import { assertCardLimit, assertEntitlement } from "@/lib/limits";
 
 const createCardSchema = z.object({
   userId: z.string().uuid(),
@@ -36,6 +36,11 @@ export async function createCardForUser(input: unknown) {
   const deck = await getDeck(parsed.deckId, parsed.userId);
   if (!deck) throw new HttpError("Deck not found", 404, "DECK_NOT_FOUND");
   const { tier } = await getSubscriptionStatus(parsed.userId);
+  // Image occlusion is a Pro entitlement (#235) — enforce it server-side, not
+  // just by hiding the editor in the client. Only *creating* an occlusion card
+  // is gated: existing ones stay readable, reviewable and learnable for free
+  // users (e.g. after a downgrade), so nobody loses access to their own cards.
+  if (parsed.card.type === "occlusion") assertEntitlement(tier, "imageOcclusion");
   const existingCards = await listCardsForDeck(parsed.userId, parsed.deckId);
   assertCardLimit(tier, existingCards.length);
   return createCard(parsed.userId, parsed.deckId, parsed.card);
@@ -43,6 +48,16 @@ export async function createCardForUser(input: unknown) {
 
 export async function updateCardForUser(input: unknown) {
   const parsed = updateCardSchema.parse(input);
+  // Turning any card into an occlusion card is the same Pro action as creating
+  // one, so it needs the same gate — otherwise the create gate above would just
+  // be a create-basic-then-PATCH away. Only an explicit `type: "occlusion"`
+  // trips this: since the schema above dropped the `.default(...)` wrappers, an
+  // absent key stays `undefined`, so a plain `{ starred }` or text-only edit of
+  // an existing occlusion card never reaches the paywall.
+  if (parsed.type === "occlusion") {
+    const { tier } = await getSubscriptionStatus(parsed.userId);
+    assertEntitlement(tier, "imageOcclusion");
+  }
   // Mirrors updateCard's own parameter type, so the allowed card types cannot
   // drift from the contract as they're extended.
   const updates: Partial<

@@ -26,6 +26,9 @@ const dbMocks = vi.hoisted(() => ({
   listCardsForDeck: vi.fn(),
   softDeleteCard: vi.fn(),
   updateCard: vi.fn(),
+  // Reached only via the real subscriptionService, which the occlusion
+  // entitlement gate consults when an explicit `type: "occlusion"` is sent.
+  getSubscriptionTier: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -34,6 +37,7 @@ vi.mock("@/lib/db", () => ({
   listCardsForDeck: dbMocks.listCardsForDeck,
   softDeleteCard: dbMocks.softDeleteCard,
   updateCard: dbMocks.updateCard,
+  getSubscriptionTier: dbMocks.getSubscriptionTier,
 }));
 
 const userId = "6e5db9e4-7e48-4e11-8d8c-6ca90c18d42a";
@@ -51,6 +55,13 @@ describe("updateCardForUser — partial updates never fabricate fields", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     dbMocks.updateCard.mockResolvedValue({ id: cardId, userId });
+    // Free by default — none of the partial-update cases below are entitlement
+    // gated, so the tier is irrelevant to them (the one exception sets it).
+    dbMocks.getSubscriptionTier.mockResolvedValue({
+      tier: "free",
+      expiresAt: null,
+      isActive: false,
+    });
   });
 
   it("starring a card writes ONLY starred — no type/difficulty/tags", async () => {
@@ -127,6 +138,16 @@ describe("updateCardForUser — partial updates never fabricate fields", () => {
 
   it("accepts occlusion as an explicit type (contract parity)", async () => {
     const { updateCardForUser } = await import("@/services/cardService");
+    // Turning a card INTO an occlusion card is a Pro entitlement, so this needs
+    // an entitled tier to reach the update at all. The point of this test is
+    // unchanged: "occlusion" is a legal schema value that must be written
+    // through verbatim, without fabricating neighbouring fields. The free-tier
+    // rejection is pinned separately in occlusionEntitlement.test.ts.
+    dbMocks.getSubscriptionTier.mockResolvedValue({
+      tier: "pro",
+      expiresAt: null,
+      isActive: true,
+    });
 
     await updateCardForUser({ userId, cardId, type: "occlusion" });
 
