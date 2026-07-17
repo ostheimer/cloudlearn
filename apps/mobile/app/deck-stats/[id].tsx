@@ -11,6 +11,7 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import {
   AlertTriangle,
   Layers,
+  Lock,
   Play,
   RotateCcw,
   TrendingUp,
@@ -20,6 +21,7 @@ import {
   type DeckStats,
   type DeckWobblyCard,
 } from "../../src/lib/statsApi";
+import { ApiError } from "../../src/lib/api";
 import {
   AccuracyRing,
   AccuracyTrendChart,
@@ -42,6 +44,8 @@ export default function DeckStatsScreen() {
   const [stats, setStats] = useState<DeckStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  // Die Deck-Statistik ist Pro-only; der Server meldet Free mit 403/PRO_REQUIRED.
+  const [proLocked, setProLocked] = useState(false);
   // Angetippter Verlaufspunkt (Index in accuracyByDay) — gilt nur innerhalb
   // eines Zeitraums, wird beim Umschalten zurückgesetzt.
   const [selectedTrendIndex, setSelectedTrendIndex] = useState<number | null>(
@@ -57,8 +61,13 @@ export default function DeckStatsScreen() {
       .then((result) => {
         if (!cancelled) setStats(result);
       })
-      .catch(() => {
-        if (!cancelled) setError(true);
+      .catch((e) => {
+        if (cancelled) return;
+        if (e instanceof ApiError && (e.code === "PRO_REQUIRED" || e.status === 403)) {
+          setProLocked(true);
+        } else {
+          setError(true);
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -149,7 +158,76 @@ export default function DeckStatsScreen() {
             </Text>
           </View>
 
+          {/* Pro-Teaser: Free sieht statt Zahlen, was die Deck-Statistik bietet */}
+          {proLocked && (
+            <View style={{ ...cardStyle, gap: spacing.sm }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+                <TrendingUp size={18} color={colors.primary} />
+                <Text style={cardTitleStyle}>Deck-Statistik</Text>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 4,
+                    backgroundColor: colors.surfaceSecondary,
+                    borderRadius: radius.full,
+                    paddingHorizontal: spacing.sm,
+                    paddingVertical: 2,
+                  }}
+                >
+                  <Lock size={12} color={colors.primary} />
+                  <Text
+                    style={{
+                      fontSize: typography.xs,
+                      fontWeight: typography.semibold,
+                      color: colors.primary,
+                    }}
+                  >
+                    Pro
+                  </Text>
+                </View>
+              </View>
+              {[0.85, 0.7, 0.55].map((w) => (
+                <View
+                  key={w}
+                  style={{
+                    height: 9,
+                    borderRadius: 5,
+                    backgroundColor: colors.surfaceSecondary,
+                    width: `${w * 100}%`,
+                  }}
+                />
+              ))}
+              <Text style={{ fontSize: typography.sm, color: colors.textSecondary }}>
+                Trefferquote, Verlauf und Wackelkandidaten für dieses Deck gibt es mit Pro.
+              </Text>
+              <TouchableOpacity
+                onPress={() => router.push("/paywall")}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                style={{
+                  alignSelf: "flex-start",
+                  backgroundColor: colors.primary,
+                  borderRadius: radius.full,
+                  paddingHorizontal: spacing.lg,
+                  paddingVertical: spacing.sm,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: typography.sm,
+                    fontWeight: typography.semibold,
+                    color: "#fff",
+                  }}
+                >
+                  Pro freischalten
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           {/* Range switch: 7 / 30 days (identical to the main Statistik tab) */}
+          {!proLocked && (
           <View style={{ flexDirection: "row", gap: spacing.sm }}>
             {([7, 30] as const).map((days) => {
               const active = rangeDays === days;
@@ -184,8 +262,9 @@ export default function DeckStatsScreen() {
               );
             })}
           </View>
+          )}
 
-          {loading && !stats ? (
+          {proLocked ? null : loading && !stats ? (
             <ActivityIndicator
               size="large"
               color={colors.primary}

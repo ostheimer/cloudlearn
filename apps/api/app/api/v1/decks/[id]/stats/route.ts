@@ -4,19 +4,19 @@ import { createRequestContext } from "@/lib/observability";
 import { getAuthUser } from "@/lib/auth";
 import { getDeck, getDeckReviewStats, getDeckWobblyCards } from "@/lib/db";
 import { getSubscriptionStatus } from "@/services/subscriptionService";
-import { effectiveStatsWindowDays } from "@/lib/limits";
+import { getLimitsForTier } from "@/lib/featureGates";
 
 interface Params {
   params: Promise<{ id: string }>;
 }
 
 /**
- * GET /api/v1/decks/:id/stats — Statistik für EIN Deck (#246):
+ * GET /api/v1/decks/:id/stats — Statistik für EIN Deck (#246), Pro-only:
  * Antworten gesamt/richtig + Genauigkeits-Verlauf (gewähltes 7-/30-Tage-
  * Fenster, Standard 30) und die "Wackelkandidaten" (meist-falsch beantwortete
  * Karten, inkl. front/back, damit der Client eine Übungsrunde ohne weiteren
  * Fetch starten kann). Die Wackelkandidaten sind bewusst all-time, nicht
- * gefenstert.
+ * gefenstert. Free bekommt 403/PRO_REQUIRED (Laras Entscheidung 17.07.).
  */
 export async function GET(request: NextRequest, { params }: Params) {
   const { requestId } = createRequestContext(request.headers);
@@ -40,14 +40,18 @@ export async function GET(request: NextRequest, { params }: Params) {
     const requestedDays: 7 | 30 =
       new URL(request.url).searchParams.get("days") === "7" ? 7 : 30;
 
-    // Advanced statistics (the 30-day history) is a Pro feature (#235). Free
-    // users keep the full deck stats but are clamped to the 7-day window — the
-    // tier is resolved server-side, never taken from the request.
+    // Die Deck-Statistik ist Pro-only (advancedStats) — wie der Deck-Vergleich
+    // (/stats/decks): 403/PRO_REQUIRED statt 402, weil ausgelieferte
+    // App-Builds bei 402 automatisch die Paywall öffnen (passive Ansicht).
+    // Tier serverseitig, nie aus der Anfrage. Ownership-404 kommt davor, damit
+    // fremde Decks für jeden Tarif gleich aussehen.
     const { tier } = await getSubscriptionStatus(auth.userId);
-    const days = effectiveStatsWindowDays(tier, requestedDays);
+    if (!getLimitsForTier(tier).advancedStats) {
+      return jsonError(requestId, "PRO_REQUIRED", "Deck statistics are part of Pro.", 403);
+    }
 
     const [stats, wobblyCards] = await Promise.all([
-      getDeckReviewStats(auth.userId, id, days),
+      getDeckReviewStats(auth.userId, id, requestedDays),
       getDeckWobblyCards(auth.userId, id, 5),
     ]);
 

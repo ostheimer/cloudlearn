@@ -17,6 +17,7 @@ import {
   deleteFolder,
   listDecksInFolder,
   addDeckToFolder,
+  getDueCards,
   isApiError,
   type Deck,
   type Folder,
@@ -67,12 +68,24 @@ export default function LibraryPage() {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [modal, setModal] = useState<ModalState>(null);
   const [pageError, setPageError] = useState<string | null>(null);
+  // Fällige Karten je Deck ("N fällig"-Abzeichen, wie in der App).
+  const [dueByDeck, setDueByDeck] = useState<Record<string, number>>({});
 
   const loadDecks = useCallback(async () => {
     if (!userId) return;
     try {
-      const { decks: fetched } = await listDecks(userId);
+      // Das Abzeichen ist best-effort: eine scheiternde Fällig-Abfrage darf
+      // die Bibliothek nicht brechen (gleiche Logik wie im App-Deck-Tab).
+      const [{ decks: fetched }, due] = await Promise.all([
+        listDecks(userId),
+        getDueCards(userId).catch(() => ({ cards: [] })),
+      ]);
       setDecks(fetched);
+      const counts: Record<string, number> = {};
+      for (const card of due.cards) {
+        counts[card.deckId] = (counts[card.deckId] ?? 0) + 1;
+      }
+      setDueByDeck(counts);
       setPageError(null);
     } catch (e) {
       setPageError(
@@ -253,6 +266,7 @@ export default function LibraryPage() {
             <DeckCard
               key={deck.id}
               deck={deck}
+              due={dueByDeck[deck.id] ?? 0}
               menuOpen={openMenu === deck.id}
               onToggleMenu={(e) => {
                 e.preventDefault();
@@ -447,6 +461,7 @@ export default function LibraryPage() {
 
 function DeckCard({
   deck,
+  due,
   menuOpen,
   onToggleMenu,
   onRename,
@@ -456,6 +471,7 @@ function DeckCard({
   onDelete,
 }: {
   deck: Deck;
+  due: number;
   menuOpen: boolean;
   onToggleMenu: (e: React.MouseEvent) => void;
   onRename: () => void;
@@ -482,6 +498,7 @@ function DeckCard({
         <div className="deck-card__title">{deck.title}</div>
         <div className="deck-card__meta">
           <span>{count ?? "Noch keine Karten"}</span>
+          {due > 0 && <span className="tag tag--due">{due} fällig</span>}
           {isAiCreated && (
             <span className="tag tag--ai">
               <Sparkles size={11} /> KI-erstellt

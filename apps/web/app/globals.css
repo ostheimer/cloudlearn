@@ -2730,6 +2730,12 @@ a.mode-card:hover {
   color: var(--brand);
 }
 
+/* „N fällig" auf der Deck-Kachel — gleiche Indigo-Pille wie im App-Deck-Tab */
+.tag--due {
+  background: rgba(99, 102, 241, 0.12);
+  color: var(--brand);
+}
+
 .icon-btn {
   width: 34px;
   height: 34px;
