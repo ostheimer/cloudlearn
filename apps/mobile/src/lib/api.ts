@@ -254,7 +254,14 @@ export interface StatsResponse {
   reviewsToday: number;
   reviewsThisWeek: number;
   reviewsTotal: number;
+  // Accuracy over the last `statsWindowDays` days — not since the beginning.
   accuracyRate: number;
+  // Answers in that same window: the denominator behind accuracyRate. Tells
+  // "nothing studied in this window" (dash) from "all wrong" (0%). Optional
+  // while older API versions age out.
+  reviewsInWindow?: number;
+  // The window actually served (Free is clamped to 7) — for the label.
+  statsWindowDays?: 7 | 30;
   reviewsByDay: Array<{ date: string; count: number }>;
   accuracyByDay?: Array<{ date: string; accuracy: number; count: number }>;
   // Deck of the user's most recent review ("Zuletzt gelernt" on Home).

@@ -130,7 +130,14 @@ export interface StatsResponse {
   reviewsToday: number;
   reviewsThisWeek: number;
   reviewsTotal: number;
+  // Genauigkeit der letzten `statsWindowDays` Tage — nicht seit Anbeginn.
   accuracyRate: number;
+  // Antworten im selben Fenster: der Nenner hinter accuracyRate. Unterscheidet
+  // "nichts gelernt in dem Zeitraum" (Strich) von "alles falsch" (0 %).
+  // Optional während alte API-Versionen auslaufen.
+  reviewsInWindow?: number;
+  // Das tatsächlich gelieferte Fenster (Free wird auf 7 geklemmt), zum Beschriften.
+  statsWindowDays?: 7 | 30;
   reviewsByDay: Array<{ date: string; count: number }>;
   accuracyByDay?: Array<{ date: string; accuracy: number; count: number }>;
   // Streak-Freezes (LP-Store-Artikel), optional während alte API-Versionen auslaufen.

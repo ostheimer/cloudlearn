@@ -132,7 +132,17 @@ export default function HomeScreen() {
   const reviewsToday = stats?.reviewsToday ?? 0;
   const dailyGoal = stats?.dailyGoal ?? 30;
   const dailyProgress = dailyGoal > 0 ? Math.min(reviewsToday / dailyGoal, 1) : 0;
+  // "Genauigkeit" means the same here as on the Statistik screen: the last 30
+  // days (7 on a Free account) — the tile names the window underneath, since
+  // unlike Statistik it has no switch to reveal it.
   const accuracyPercent = Math.round((stats?.accuracyRate ?? 0) * 100);
+  const accuracyWindowDays = stats?.statsWindowDays ?? 30;
+  // Ask about answers IN THAT WINDOW. `reviewsTotal` counts forever, so after a
+  // long break it would still be > 0 and this tile would claim a hard "0%"
+  // where nothing was answered at all. Fall back to it only for older APIs
+  // that don't send the field (there, accuracyRate is the all-time value and
+  // reviewsTotal is its matching denominator).
+  const hasAccuracyData = (stats?.reviewsInWindow ?? stats?.reviewsTotal ?? 0) > 0;
 
   // Determine whether user has reviewed today. The device's local calendar
   // date (sv-SE renders YYYY-MM-DD) matches the server's local-day streak
@@ -770,7 +780,7 @@ export default function HomeScreen() {
                     color: colors.text,
                   }}
                 >
-                  {(stats?.reviewsTotal ?? 0) > 0 ? `${accuracyPercent}%` : "—"}
+                  {hasAccuracyData ? `${accuracyPercent}%` : "—"}
                 </Text>
                 <Text
                   style={{
@@ -780,6 +790,14 @@ export default function HomeScreen() {
                   }}
                 >
                   Genauigkeit
+                </Text>
+                <Text
+                  style={{
+                    fontSize: typography.xs,
+                    color: colors.textTertiary,
+                  }}
+                >
+                  letzte {accuracyWindowDays} Tage
                 </Text>
                 <View
                   style={{

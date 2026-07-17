@@ -705,6 +705,12 @@ export async function getReviewStats(
   reviewsToday: number;
   reviewsThisWeek: number;
   reviewsTotal: number;
+  /** Answers inside the chosen window — the denominator behind `accuracyRate`.
+   *  Clients need it to tell "no answers in this window" (show a dash) from
+   *  "answered, all wrong" (show 0%). `reviewsTotal` can't: it counts forever. */
+  reviewsInWindow: number;
+  /** Share of good+easy answers **within the chosen 7/30-day window**, not
+   *  all-time — see the counts below for why. */
   accuracyRate: number;
   reviewsByDay: Array<{ date: string; count: number }>;
   accuracyByDay: Array<{ date: string; accuracy: number; count: number }>;
@@ -757,16 +763,33 @@ export async function getReviewStats(
     .select("*", { count: "exact", head: true })
     .eq("user_id", userId);
 
-  // Accuracy (good+easy out of total)
-  const { count: goodCount } = await db
+  // Accuracy (good+easy) — over the SAME window as the by-day data below.
+  // The three counts above are all-time on purpose and say so in their names
+  // ("total", "this week"); accuracy doesn't. It is shown as a bare
+  // "Genauigkeit" beside the 7/30 switch, so an all-time value would sit
+  // there unmoved when the window changes — and unmoved as the user improves,
+  // since a long history drowns out any recent week.
+  //
+  // Counted by the database (`count: "exact"`) instead of summed from
+  // `dailyData`: that row fetch is subject to PostgREST's max-rows cap, so
+  // summing it would quietly go wrong exactly for the heaviest users.
+  const { count: windowTotalCount } = await db
     .from("review_logs")
     .select("*", { count: "exact", head: true })
     .eq("user_id", userId)
+    .gte("reviewed_at", windowStart);
+
+  const { count: windowGoodCount } = await db
+    .from("review_logs")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .gte("reviewed_at", windowStart)
     .gte("rating", 3); // 3=good, 4=easy
 
   const total = totalCount ?? 0;
-  const good = goodCount ?? 0;
-  const accuracyRate = total > 0 ? good / total : 0;
+  const windowTotal = windowTotalCount ?? 0;
+  const windowGood = windowGoodCount ?? 0;
+  const accuracyRate = windowTotal > 0 ? windowGood / windowTotal : 0;
 
   // Daily counts + learn time for the requested window (bar chart, trend,
   // per-day detail). `review_duration_ms` is nullable — treat null as 0.
@@ -812,6 +835,7 @@ export async function getReviewStats(
     reviewsToday: todayCount ?? 0,
     reviewsThisWeek: weekCount ?? 0,
     reviewsTotal: total,
+    reviewsInWindow: windowTotal,
     accuracyRate: Math.round(accuracyRate * 100) / 100,
     reviewsByDay,
     accuracyByDay,
