@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useAuth } from "@/components/app/auth-context";
-import { listCardsInDeck, earnLp, isApiError, type Card } from "@/lib/api";
+import { useCallback, useEffect, useState } from "react";
+import { listCardsInDeck, isApiError, type Card } from "@/lib/api";
 import {
   ArrowLeft,
   X,
@@ -13,15 +12,12 @@ import {
   Trophy,
   CheckCircle,
   RotateCw,
-  Zap,
   Star,
   StarFilled,
   AlertTriangle,
 } from "@/components/icons";
 
 const MAX_PAIRS = 6;
-// Ab so vielen Paaren schreibt der Server LP gut (wie learn/quiz/cloze).
-const LP_SESSION_MIN = 5;
 
 type Tile = { id: string; text: string; cardId: string; side: "front" | "back" };
 
@@ -46,7 +42,6 @@ export default function MatchPage() {
   const params = useParams<{ id: string }>();
   const deckId = params.id;
   const router = useRouter();
-  const { userId } = useAuth();
 
   const [cards, setCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,8 +62,6 @@ export default function MatchPage() {
   // („nicht gewusst"). Für die Wiederholung nur dieser Paare.
   const [missedIds, setMissedIds] = useState<Set<string>>(new Set());
 
-  const [earned, setEarned] = useState<number | null>(null);
-  const awardedRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!deckId) return;
@@ -97,17 +90,6 @@ export default function MatchPage() {
 
   const pairCount = Math.min(MAX_PAIRS, cards.length);
   const gamePairs = tiles.length / 2;
-
-  const awardSession = useCallback(async (count: number) => {
-    if (awardedRef.current || count < LP_SESSION_MIN) return;
-    awardedRef.current = true;
-    try {
-      const r = await earnLp("session", count);
-      setEarned(r.granted);
-    } catch {
-      /* LP-Gutschrift best-effort */
-    }
-  }, []);
 
   const startGameWith = useCallback(
     (sourceCards: Card[], withTimer: boolean) => {
@@ -138,8 +120,6 @@ export default function MatchPage() {
       setElapsed(0);
       setMissedIds(new Set());
       setIsNewBest(false);
-      awardedRef.current = false;
-      setEarned(null);
       setTimed(withTimer);
       setPhase("playing");
     },
@@ -158,7 +138,7 @@ export default function MatchPage() {
     return () => clearInterval(id);
   }, [phase, timed]);
 
-  // Abschluss erkennen: Bestzeit merken, LP gutschreiben, Ergebnis zeigen.
+  // Abschluss erkennen: Bestzeit merken, Ergebnis zeigen.
   useEffect(() => {
     if (phase !== "playing" || tiles.length === 0 || matched.size !== tiles.length) return;
     if (timed) {
@@ -172,9 +152,8 @@ export default function MatchPage() {
         }
       }
     }
-    void awardSession(tiles.length / 2);
     setPhase("finished");
-  }, [matched, tiles.length, phase, timed, elapsed, bestTime, deckId, awardSession]);
+  }, [matched, tiles.length, phase, timed, elapsed, bestTime, deckId]);
 
   function tap(tile: Tile) {
     if (matched.has(tile.id) || wrong) return;
@@ -359,11 +338,13 @@ export default function MatchPage() {
               Bestzeit: {formatTime(bestTime)}
             </p>
           )}
-          {earned !== null && earned > 0 && (
-            <span className="lp-pill">
-              <Zap size={15} /> +{earned} Lernpunkte
-            </span>
-          )}
+          {/* Keine LP-Plakette: Zuordnen erzeugt keine Wiederholungen, also
+              verdient es auch keine. Vorher rief die Seite trotzdem earnLp auf
+              und zeigte, was der Server aus dem Übertrag ausschüttete — LP aus
+              vorherigen Lern-Sitzungen, die hier nur falsch beschriftet waren. */}
+          <p className="muted" style={{ margin: 0, fontSize: "0.85rem" }}>
+            Zuordnen ist zum Aufwärmen — Lernpunkte gibt es beim Lernen.
+          </p>
           <div style={{ display: "grid", gap: 8, width: "100%", maxWidth: 320 }}>
             {showSubset && (
               <button
