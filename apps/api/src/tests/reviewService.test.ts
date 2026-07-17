@@ -284,4 +284,73 @@ describe("storeReview", () => {
 
     expect(dbMocks.createReview).not.toHaveBeenCalled();
   });
+
+  // ─── Schritt 5: welcher Modus darf den Plan bewegen? ──────────────────────
+  //
+  // Die Regel: Abruf-Modi immer, Rate-Modi nur bei Fehlern. Der EINTRAG wird in
+  // jedem Fall geschrieben (Streak/Statistik hängen daran) — übersprungen wird
+  // nur die Neuplanung.
+  const bewegtDenPlan: Array<[string, string, boolean, string]> = [
+    ["flashcard", "good", true, "Karteikarte gewusst — Selbstbewertung ist echter Abruf"],
+    ["cloze", "good", true, "Lückentext getippt — nicht ratbar"],
+    ["occlusion", "good", true, "Bild-Stelle erinnert"],
+    ["practice", "good", true, "Üben ist Abruf"],
+    ["quiz", "good", false, "angeklickt und getroffen — kann geraten sein (#210)"],
+    ["match", "good", false, "Paar gefunden — Auswahl steht da"],
+    ["test", "good", false, "Prüfung misst, sie lehrt nicht"],
+    ["quiz", "again", true, "falsch geklickt — sicher nicht gewusst"],
+    ["test", "again", true, "in der Prüfung falsch — das wertvollste Signal"],
+    ["match", "again", true, "Paar verwechselt"],
+    ["test", "hard", true, "nicht sicher gewusst (rating < 3, wie in der Statistik)"],
+  ];
+
+  bewegtDenPlan.forEach(([mode, rating, soll, warum]) => {
+    it(`${mode} + ${rating} ${soll ? "bewegt" : "bewegt NICHT"} den Plan — ${warum}`, async () => {
+      dbMocks.findReviewByIdempotencyKey.mockResolvedValue(null);
+      dbMocks.getCard.mockResolvedValue(baseCard);
+
+      await storeReview(
+        {
+          userId,
+          cardId,
+          rating,
+          reviewedAt: "2026-07-17T10:00:00.000Z",
+          idempotencyKey: `review-rule-${mode}-${rating}`,
+          mode,
+        },
+        `req-rule-${mode}-${rating}`
+      );
+
+      // Der Eintrag entsteht IMMER — sonst verlöre eine Prüfung den Streak.
+      expect(dbMocks.createReview).toHaveBeenCalled();
+      // Und der Streak wird IMMER angestoßen.
+      expect(dbMocks.updateStreakAfterReview).toHaveBeenCalledWith(userId);
+
+      if (soll) {
+        expect(dbMocks.updateCardFsrs).toHaveBeenCalled();
+      } else {
+        expect(dbMocks.updateCardFsrs).not.toHaveBeenCalled();
+      }
+    });
+  });
+
+  it("is a no-op today: without a mode from the client, everything still schedules", async () => {
+    // Solange keine Oberfläche einen Modus schickt, ist mode immer "flashcard".
+    // Dieser Test hält fest, dass Schritt 5 bis dahin niemanden trifft.
+    dbMocks.findReviewByIdempotencyKey.mockResolvedValue(null);
+    dbMocks.getCard.mockResolvedValue(baseCard);
+
+    await storeReview(
+      {
+        userId,
+        cardId,
+        rating: "good",
+        reviewedAt: "2026-07-17T10:00:00.000Z",
+        idempotencyKey: "review-noop-1",
+      },
+      "req-noop-1"
+    );
+
+    expect(dbMocks.updateCardFsrs).toHaveBeenCalled();
+  });
 });
