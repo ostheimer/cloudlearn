@@ -1,6 +1,11 @@
 import { applyReview, createNewFsrsCard, reconstructFsrsCard } from "@/lib/domain";
 import { logInfo } from "@/lib/observability";
-import { reviewRequestSchema, type ReviewResponse } from "@/lib/contracts";
+import {
+  reviewModeSchema,
+  reviewRequestSchema,
+  type ReviewResponse,
+} from "@/lib/contracts";
+import type { z } from "zod";
 import type { CardRecord } from "@/lib/db";
 import {
   createReview,
@@ -28,6 +33,8 @@ function buildReviewResponse(requestId: string, card: CardRecord): ReviewRespons
     state: card.fsrsState,
   };
 }
+
+type ReviewMode = z.infer<typeof reviewModeSchema>;
 
 // Uhren gehen auseinander; ein paar Minuten Vorlauf sind kein Betrugsversuch.
 const CLOCK_SKEW_TOLERANCE_MS = 5 * 60 * 1000;
@@ -86,12 +93,16 @@ export async function storeReview(
     reviewedAt: string;
     idempotencyKey: string;
     reviewDurationMs?: number;
+    mode: ReviewMode;
   } = {
     userId: parsed.userId,
     cardId: parsed.cardId,
     rating: parsed.rating,
     reviewedAt,
     idempotencyKey: parsed.idempotencyKey,
+    // Schickt der Client nichts, hat das Schema bereits auf "flashcard"
+    // gesetzt — der Wert ist hier also immer belegt.
+    mode: parsed.mode,
   };
 
   if (parsed.reviewDurationMs !== undefined) {

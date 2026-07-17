@@ -55,6 +55,9 @@ export interface ReviewRecord {
   reviewedAt: string;
   reviewDurationMs?: number;
   idempotencyKey: string;
+  /** Aus welchem Lernmodus die Wiederholung stammt (Default in der DB:
+   *  'flashcard'). Entscheidet in Schritt 5/6, wer sie mitzählt. */
+  mode?: "flashcard" | "practice" | "cloze" | "occlusion" | "quiz" | "match" | "test";
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -413,6 +416,9 @@ export async function createReview(
       reviewed_at: review.reviewedAt,
       review_duration_ms: review.reviewDurationMs ?? null,
       idempotency_key: review.idempotencyKey,
+      // Fehlt der Modus, greift der Spalten-Default 'flashcard' — so bleiben
+      // alte App-Builds (kein OTA) korrekt abgebildet.
+      ...(review.mode ? { mode: review.mode } : {}),
     })
     .select()
     .single();

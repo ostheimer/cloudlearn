@@ -80,13 +80,37 @@ export type UrlImportResponse = z.infer<typeof urlImportResponseSchema>;
 export const reviewRatingSchema = z.enum(["again", "hard", "good", "easy"]);
 export type ReviewRating = z.infer<typeof reviewRatingSchema>;
 
+/**
+ * Aus welchem Modus eine Wiederholung stammt. Nötig, weil ein Eintrag heute
+ * fünf Dinge gleichzeitig schaltet (Lernplan, LP, Streak, Tagesziel, Statistik)
+ * und die Regeln je Modus auseinandergehen.
+ *
+ * Nur eine Produktangabe, KEINE Sicherheitsgrenze: der Client bestimmt sie und
+ * könnte auch "flashcard" behaupten. Die tragende Verteidigung bleibt die
+ * Tageskappe.
+ */
+export const reviewModeSchema = z.enum([
+  "flashcard",
+  "practice",
+  "cloze",
+  "occlusion",
+  "quiz",
+  "match",
+  "test",
+]);
+
 export const reviewRequestSchema = z.object({
   userId: z.string().uuid(),
   cardId: z.string().uuid(),
   rating: reviewRatingSchema,
   reviewedAt: z.string().datetime(),
   reviewDurationMs: z.number().int().nonnegative().max(120_000).optional(),
-  idempotencyKey: z.string().min(8).max(128)
+  idempotencyKey: z.string().min(8).max(128),
+  // .default() OHNE .optional() — die Kombination war die Falle in #355: der
+  // Default greift dann nicht mehr und der Wert wird undefined. Alte Clients
+  // schicken kein mode; sie sollen als "flashcard" ankommen, weil sie
+  // ausschließlich aus zählenden Modi schreiben.
+  mode: reviewModeSchema.default("flashcard"),
 });
 
 export const fsrsStateSchema = z.enum(["new", "learning", "review", "relearning"]);

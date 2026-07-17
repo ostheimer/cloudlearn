@@ -219,4 +219,69 @@ describe("storeReview", () => {
     );
     vi.useRealTimers();
   });
+
+  it("defaults the mode to flashcard when an old client sends none", async () => {
+    // Alte App-Builds (kein OTA, #337) kennen das Feld nicht. Sie schreiben
+    // ausschließlich aus Karteikarten/Üben/Lückentext/Occlusion — also aus
+    // Modi, die für alles zählen sollen. "flashcard" bildet sie richtig ab.
+    dbMocks.findReviewByIdempotencyKey.mockResolvedValue(null);
+    dbMocks.getCard.mockResolvedValue(baseCard);
+
+    await storeReview(
+      {
+        userId,
+        cardId,
+        rating: "good",
+        reviewedAt: "2026-07-17T10:00:00.000Z",
+        idempotencyKey: "review-nomode-1",
+      },
+      "req-nomode-1"
+    );
+
+    expect(dbMocks.createReview).toHaveBeenCalledWith(
+      expect.objectContaining({ mode: "flashcard" })
+    );
+  });
+
+  it("passes a mode from the client through to the log", async () => {
+    dbMocks.findReviewByIdempotencyKey.mockResolvedValue(null);
+    dbMocks.getCard.mockResolvedValue(baseCard);
+
+    await storeReview(
+      {
+        userId,
+        cardId,
+        rating: "again",
+        reviewedAt: "2026-07-17T10:00:00.000Z",
+        idempotencyKey: "review-mode-1",
+        mode: "test",
+      },
+      "req-mode-1"
+    );
+
+    expect(dbMocks.createReview).toHaveBeenCalledWith(
+      expect.objectContaining({ mode: "test" })
+    );
+  });
+
+  it("rejects a mode that is not in the allowed list", async () => {
+    dbMocks.findReviewByIdempotencyKey.mockResolvedValue(null);
+    dbMocks.getCard.mockResolvedValue(baseCard);
+
+    await expect(
+      storeReview(
+        {
+          userId,
+          cardId,
+          rating: "good",
+          reviewedAt: "2026-07-17T10:00:00.000Z",
+          idempotencyKey: "review-badmode-1",
+          mode: "tippfehler",
+        },
+        "req-badmode-1"
+      )
+    ).rejects.toThrow();
+
+    expect(dbMocks.createReview).not.toHaveBeenCalled();
+  });
 });
