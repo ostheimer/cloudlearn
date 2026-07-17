@@ -41,9 +41,10 @@ function makeDbMock(responses: QueryResponse[]) {
     const response = queue.shift() ?? { count: 0, data: [], error: null };
     const builder: Record<string, unknown> = {};
     // "neq" gehört dazu, seit die Tagesziel-Zählung Prüfungen ausschließt.
+    // "range" seit die Tagesdaten geblättert werden (1000-Zeilen-Grenze).
     // Fehlt eine Methode hier, wirft der Aufruf „is not a function" — schon
     // einmal so passiert (#334).
-    for (const method of ["select", "eq", "neq", "gte", "lte", "order", "limit"]) {
+    for (const method of ["select", "eq", "neq", "gte", "lte", "order", "limit", "range"]) {
       builder[method] = (...args: unknown[]) => {
         calls.push({ method, args });
         return builder;
@@ -186,6 +187,55 @@ describe("getReviewStats – 7/30-day window + durationMsByDay", () => {
       "reviewed_at",
       "2026-07-07T00:00:00.000Z",
     ]);
+  });
+
+  it("pages the daily rows so a busy month doesn't lose its newest days", async () => {
+    // PostgREST returns at most 1000 rows per request and says nothing about
+    // the rest. These rows are sorted oldest-first, so an unpaged fetch stops
+    // inside the older day and today's 200 answers read as zero — the bar
+    // chart would show an empty column for a day that was actually studied.
+    const olderPage = Array.from({ length: 1000 }, () => ({
+      reviewed_at: "2026-07-12T08:00:00.000Z",
+      rating: 3,
+      review_duration_ms: 1000,
+    }));
+    const newestPage = Array.from({ length: 200 }, () => ({
+      reviewed_at: "2026-07-13T10:00:00.000Z",
+      rating: 3,
+      review_duration_ms: 1000,
+    }));
+    const { db, calls } = makeDbMock([
+      { count: 3, error: null },
+      { count: 12, error: null },
+      { count: 1200, error: null },
+      { count: 1200, error: null },
+      { count: 1200, error: null },
+      { data: olderPage, error: null },
+      { data: newestPage, error: null },
+    ]);
+    mockedCreateDb.mockReturnValue(db);
+
+    const stats = await getReviewStats(USER_ID, 30);
+
+    expect(stats.reviewsByDay.find((d) => d.date === "2026-07-12")?.count).toBe(1000);
+    expect(stats.reviewsByDay.find((d) => d.date === "2026-07-13")?.count).toBe(200);
+
+    // A full page must be followed by a request for the next one.
+    const ranges = calls.filter((c) => c.method === "range").map((c) => c.args);
+    expect(ranges).toEqual([
+      [0, 999],
+      [1000, 1999],
+    ]);
+  });
+
+  it("stops after a short page instead of asking forever", async () => {
+    const { db, calls } = makeDbMock(statsResponses(DAILY_ROWS));
+    mockedCreateDb.mockReturnValue(db);
+
+    await getReviewStats(USER_ID, 30);
+
+    // 3 rows came back for a 1000-row request: there cannot be more.
+    expect(calls.filter((c) => c.method === "range").map((c) => c.args)).toEqual([[0, 999]]);
   });
 
   it("passes the scalar aggregates through unchanged", async () => {

@@ -44,7 +44,7 @@ function makeDbMock(responses: QueryResponse[]) {
     calls.push({ method: "from", args: [table] });
     const response = queue.shift() ?? { count: 0, data: [], error: null };
     const builder: Record<string, unknown> = {};
-    for (const method of ["select", "eq", "neq", "gte", "lt", "is", "order", "limit"]) {
+    for (const method of ["select", "eq", "neq", "gte", "lt", "is", "order", "limit", "range"]) {
       builder[method] = (...args: unknown[]) => {
         calls.push({ method, args });
         return builder;
