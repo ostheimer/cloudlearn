@@ -160,8 +160,11 @@ describe("supabase migrations", () => {
     // Der Default traegt alte App-Builds (kein OTA): sie schreiben nur aus
     // Modi, die fuer alles zaehlen sollen. Ein 'legacy'-Wert waere eine
     // Fussangel — wer ihn in einer "zaehlt"-Liste vergisst, nimmt alten
-    // Nutzern still die LP weg.
-    expect(sql).not.toContain("'legacy'");
+    // Nutzern still die LP weg. Geprueft wird die erlaubte Werteliste, nicht
+    // die ganze Datei: der Kommentar dort BEGRUENDET den Verzicht und nennt
+    // das Wort dabei.
+    const werte = sql.match(/add constraint review_logs_mode_check[\s\S]*?;/)?.[0] ?? "";
+    expect(werte).not.toContain("legacy");
 
     // Benannter Constraint: spaeter erweiterbar, ohne die Spalte anzufassen.
     expect(sql).toContain("add constraint review_logs_mode_check");
