@@ -379,9 +379,12 @@ export default function LibraryPage() {
           initial={modal.folder.title}
           onClose={() => setModal(null)}
           onSubmit={async (value) => {
-            await updateFolder(modal.folder.id, { title: value });
+            const { folder } = await updateFolder(modal.folder.id, { title: value });
+            // Renaming touches no deck count, so patch the one folder in place
+            // instead of reloading the list plus a count request per folder —
+            // that round trip left the old name on screen for a beat.
+            setFolders((prev) => prev.map((f) => (f.id === folder.id ? folder : f)));
             setModal(null);
-            await loadFolders();
           }}
         />
       )}
