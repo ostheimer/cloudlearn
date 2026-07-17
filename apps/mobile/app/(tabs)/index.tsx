@@ -140,6 +140,13 @@ export default function HomeScreen() {
   const today = new Date().toLocaleDateString("sv-SE");
   const reviewedToday = stats?.lastReviewDate === today;
 
+  // The streak banner only glows once today's learning is done. A streak you
+  // have not fed today is at risk, and a warm flame either way would claim
+  // otherwise — it looked identical whether you had learned or not, while the
+  // subtitle below already said "Lerne heute, um deinen Streak zu halten!".
+  // This is NOT the "streak lost" state: that has its own repair banner above.
+  const fireBurning = streak > 0 && reviewedToday;
+
   // "Zuletzt genutzt": prefer the deck last opened on this device — practice
   // modes leave no review_logs, so the server only sees Karteikarten sessions.
   // Fall back to the server's last-reviewed deck, then to the last-edited one.
@@ -388,14 +395,14 @@ export default function HomeScreen() {
               onPress={() => router.push("/streak-calendar")}
               activeOpacity={0.8}
               style={{
-                backgroundColor: streak > 0 ? colors.warningLight : colors.surfaceSecondary,
+                backgroundColor: fireBurning ? colors.warningLight : colors.surfaceSecondary,
                 borderRadius: radius.lg,
                 padding: spacing.lg,
                 flexDirection: "row",
                 alignItems: "center",
                 gap: spacing.md,
                 borderWidth: 1,
-                borderColor: streak > 0 ? colors.warning : colors.border,
+                borderColor: fireBurning ? colors.warning : colors.border,
               }}
             >
               <View
@@ -409,15 +416,19 @@ export default function HomeScreen() {
                   // the same warning colour as the circle, it vanished entirely.
                   // The streak circle looked empty. (`${colour}40` = 25%, the
                   // same tint pattern the swipe counters use.)
-                  backgroundColor: streak > 0 ? `${colors.warning}40` : colors.surfaceSecondary,
+                  //
+                  // Cold state uses `surface`, not `surfaceSecondary`: the banner
+                  // itself is surfaceSecondary then, and same-on-same would make
+                  // the circle vanish all over again.
+                  backgroundColor: fireBurning ? `${colors.warning}40` : colors.surface,
                   justifyContent: "center",
                   alignItems: "center",
                 }}
               >
                 <Flame
                   size={26}
-                  color={streak > 0 ? colors.warning : colors.textTertiary}
-                  fill={streak > 0 ? colors.warning : "none"}
+                  color={fireBurning ? colors.warning : colors.textTertiary}
+                  fill={fireBurning ? colors.warning : "none"}
                 />
               </View>
               <View style={{ flex: 1 }}>
@@ -425,7 +436,7 @@ export default function HomeScreen() {
                   style={{
                     fontSize: 28,
                     fontWeight: typography.extrabold,
-                    color: streak > 0 ? colors.warning : colors.textTertiary,
+                    color: fireBurning ? colors.warning : colors.textTertiary,
                   }}
                 >
                   {streak} {streak === 1 ? "Tag" : "Tage"}
