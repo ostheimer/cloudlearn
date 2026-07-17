@@ -17,7 +17,9 @@ import {
   MoreVertical,
   Folder as FolderIcon,
   Play,
+  Plus,
 } from "lucide-react-native";
+import DeckPickerModal from "../../../src/components/DeckPickerModal";
 import { useTranslation } from "react-i18next";
 import {
   getFolder,
@@ -54,6 +56,7 @@ export default function FolderDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [startingLearn, setStartingLearn] = useState(false);
+  const [deckPickerVisible, setDeckPickerVisible] = useState(false);
 
   const folderId = id ?? "";
 
@@ -185,6 +188,9 @@ export default function FolderDetailScreen() {
 
   const handleMoreMenu = useCallback(() => {
     Alert.alert(currentTitle, "", [
+      // First entry on purpose: this is the menu people reach for while standing
+      // in the folder — it previously offered no way to fill it.
+      { text: t("folderDetail.addDeck"), onPress: () => setDeckPickerVisible(true) },
       { text: t("folderDetail.rename"), onPress: handleRenameFolder },
       { text: t("common.delete"), style: "destructive", onPress: handleDeleteFolder },
       { text: t("common.cancel"), style: "cancel" },
@@ -394,6 +400,27 @@ export default function FolderDetailScreen() {
                   >
                     {t("folderDetail.emptyFolder")}
                   </Text>
+                  {/* The empty folder used to only point elsewhere ("add decks via
+                      the three-dot menu in the deck") — a dead end: you stood in
+                      the folder and had to leave to fill it. */}
+                  <TouchableOpacity
+                    onPress={() => setDeckPickerVisible(true)}
+                    activeOpacity={0.85}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: spacing.sm,
+                      backgroundColor: colors.primary,
+                      borderRadius: radius.md,
+                      paddingHorizontal: spacing.xl,
+                      paddingVertical: spacing.md,
+                    }}
+                  >
+                    <Plus size={18} color={colors.textInverse} />
+                    <Text style={{ color: colors.textInverse, fontWeight: typography.semibold, fontSize: typography.base }}>
+                      {t("folderDetail.addDeck")}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
               ) : (
                 decks.map((deck) => (
@@ -435,6 +462,21 @@ export default function FolderDetailScreen() {
             </ScrollView>
           )}
       </View>
+
+      {userId ? (
+        <DeckPickerModal
+          visible={deckPickerVisible}
+          folderId={folderId}
+          userId={userId}
+          onClose={() => setDeckPickerVisible(false)}
+          onAdded={(deck) => {
+            // Reload so the deck shows up right away — the picker only writes the
+            // link, this screen holds its own list.
+            loadContent();
+            Alert.alert(t("common.success"), t("folder.deckAddSuccess", { title: deck.title }));
+          }}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }
