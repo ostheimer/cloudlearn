@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useLocalSearchParams, Stack } from "expo-router";
+import { useLocalSearchParams, useFocusEffect, Stack } from "expo-router";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -235,6 +235,18 @@ export default function ClozeScreen() {
       // LP-Gutschrift best-effort
     }
   }, [userId, setUsage]);
+
+  // Auch abrechnen, wenn die Runde vorzeitig verlassen wird — sonst bekäme nur
+  // Punkte, wer bis zur letzten Karte durchhält. Karteikarten und Üben machen
+  // es genauso (#153); der Wächter verhindert leere Aufrufe, und der Server ist
+  // ohnehin wiederholungsfest.
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        void collectSessionLp();
+      };
+    }, [collectSessionLp])
+  );
 
   const handleNext = () => {
     if (idx + 1 >= round.length) {
