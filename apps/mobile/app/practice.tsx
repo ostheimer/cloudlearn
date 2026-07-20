@@ -127,6 +127,7 @@ export default function PracticeScreen() {
       userId,
       cardId: result.cardId,
       rating,
+      mode: "practice",
     });
     setReviewLoading(true);
     setSaveError(false);

@@ -123,7 +123,7 @@ export default function OcclusionStudyScreen() {
     if (!item || !userId) return;
     if (known) setCorrect((n) => n + 1);
     else setWrong((w) => [...w, item]);
-    reviewCard(userId, item.id, known ? "good" : "again").catch(() => {});
+    reviewCard(userId, item.id, known ? "good" : "again", { mode: "occlusion" }).catch(() => {});
     setRevealed(false);
     setTimeout(() => setIndex((i) => i + 1), 140);
   }
