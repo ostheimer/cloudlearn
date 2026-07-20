@@ -7,6 +7,10 @@ export interface QuizCardInput {
   id: string;
   front: string;
   back: string;
+  // Kartenart wie in der Datenbank (card_type): "basic", "cloze", "mcq",
+  // "matching", "occlusion", … Optional, damit ältere Aufrufer weiter
+  // kompilieren; eine Karte ohne Art zählt als "basic".
+  type?: string;
 }
 
 export type QuizType = "mc" | "trueFalse";
@@ -61,6 +65,19 @@ function isFillIn(text: string): boolean {
   return /_{2,}/.test(text) || /\{\{c\d+::/.test(text);
 }
 
+// Optionen dürfen nur aus Karten DERSELBEN ART kommen: die Kartenart selbst plus
+// „Lücke ja/nein". Antworten verschiedener Arten sind nicht vergleichbar — eine
+// Occlusion-Rückseite („Bereich 7") ist so wenig eine Antwort auf eine
+// Vokabelfrage wie „une forte diminution" eine Antwort auf „Was ist an der
+// markierten Stelle?". Gemischt ergeben sie Ablenker, die man ohne jedes
+// Fachwissen ausschließen kann — der Test misst dann nichts mehr (#380). Weil
+// der Schlüssel die Art selbst ist (statt eine Art beim Namen zu nennen), gilt
+// das auch für Kartenarten, die es heute noch nicht gibt.
+function kindOf(type: string | undefined, fillIn: boolean): string {
+  const base = (type || "").trim().toLowerCase() || "basic";
+  return `${base}|${fillIn ? "fill" : "plain"}`;
+}
+
 export function generateQuestions(
   cards: QuizCardInput[],
   opts: GenerateOptions = {},
@@ -85,13 +102,22 @@ export function generateQuestions(
     // Lückensatz und erwarten das fehlende Wort.
     const questionSide = fillIn || !reverse ? front : back;
     const answerSide = fillIn || !reverse ? back : front;
-    return [{ card, fillIn, questionSide, answerSide, label: back || front }];
+    return [
+      {
+        card,
+        fillIn,
+        kind: kindOf(card.type, fillIn),
+        questionSide,
+        answerSide,
+        label: back || front,
+      },
+    ];
   });
 
   const questions: QuizQuestion[] = [];
   for (const current of shuffle(enriched, randomFn)) {
     const sameKind = enriched.filter(
-      (e) => e.card.id !== current.card.id && e.fillIn === current.fillIn
+      (e) => e.card.id !== current.card.id && e.kind === current.kind
     );
     const isTF =
       allowTrueFalse && (!allowMc || (randomFn() < 0.3 && cards.length >= 3));

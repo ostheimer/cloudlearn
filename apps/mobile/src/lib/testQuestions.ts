@@ -9,6 +9,10 @@ export interface TestCardInput {
   id: string;
   front: string;
   back: string;
+  // The card's kind as stored in the DB (card_type): "basic", "cloze", "mcq",
+  // "matching", "occlusion", … Optional so older callers keep compiling; a card
+  // without a type counts as "basic".
+  type?: string;
 }
 
 export interface TestQuestion {
@@ -48,6 +52,7 @@ interface EnrichedCard {
   front: string;
   back: string;
   fillIn: boolean;
+  kind: string;
 }
 
 // A fill-in card is a sentence with a gap ("______" or a {{cN::…}} cloze). Its
@@ -57,12 +62,25 @@ function isFillIn(text: string): boolean {
   return /_{2,}/.test(text) || /\{\{c\d+::/.test(text);
 }
 
+// Options may only ever come from cards of the same KIND: the card's own type
+// plus whether it is a fill-in. Answers of different kinds are not comparable —
+// an occlusion back ("Bereich 7") is no more an answer to a vocabulary question
+// than "une forte diminution" is an answer to "what is at the marked spot?".
+// Offering them together produces distractors anyone can rule out without
+// knowing the subject, which makes the test measure nothing (#380). Keying on
+// the type itself (instead of naming one type) also covers kinds added later.
+function kindOf(type: string | undefined, fillIn: boolean): string {
+  const base = (type || "").trim().toLowerCase() || "basic";
+  return `${base}|${fillIn ? "fill" : "plain"}`;
+}
+
 function termsOf(card: TestCardInput): EnrichedCard {
   const media = summarizeCardMedia(card);
   const rawFront = (media.plainFront || card.front || "").trim();
   const front = cleanTerm(rawFront);
   const back = cleanTerm((media.plainBack || card.back || "").trim());
-  return { id: card.id, front, back, fillIn: isFillIn(rawFront) };
+  const fillIn = isFillIn(rawFront);
+  return { id: card.id, front, back, fillIn, kind: kindOf(card.type, fillIn) };
 }
 
 function writtenQuestion(
@@ -117,18 +135,32 @@ export function buildTestQuestions(
 
   // The answer side (and therefore the option pool) follows the direction:
   // forward → back, reverse → front. Options only ever come from the same side
-  // as the correct answer, and never from fill-in cards.
+  // as the correct answer, never from fill-in cards, and never from a card of
+  // another kind.
   const answerOf = (e: EnrichedCard) => (reverse ? e.front : e.back);
   const questionOf = (e: EnrichedCard) => (reverse ? e.back : e.front);
 
-  const choiceAnswers = unique(
-    enriched.filter((e) => !e.fillIn).map(answerOf)
-  );
-  const canChoose = choiceAnswers.length >= 2 && choiceTypes.length > 0;
+  // One option pool PER KIND instead of a single shared one. A card only ever
+  // sees answers of its own kind, so no pool can leak into a foreign question.
+  const answersByKind = new Map<string, string[]>();
+  for (const e of enriched) {
+    if (e.fillIn) continue;
+    const collected = answersByKind.get(e.kind);
+    if (collected) collected.push(answerOf(e));
+    else answersByKind.set(e.kind, [answerOf(e)]);
+  }
+  for (const [kind, answers] of answersByKind) {
+    answersByKind.set(kind, unique(answers));
+  }
+
+  // Too few same-kind answers → no choice question for that kind. The card
+  // falls back to a written question instead of borrowing foreign answers.
+  const canChoose = (kind: string): boolean =>
+    (answersByKind.get(kind)?.length ?? 0) >= 2 && choiceTypes.length > 0;
 
   const usage = new Map<string, number>();
-  const pickDistractors = (correct: string, n: number): string[] => {
-    const pool = choiceAnswers.filter(
+  const pickDistractors = (kind: string, correct: string, n: number): string[] => {
+    const pool = (answersByKind.get(kind) ?? []).filter(
       (b) => b.toLowerCase() !== correct.toLowerCase()
     );
     const ordered = shuffle(pool, randomFn).sort(
@@ -161,13 +193,13 @@ export function buildTestQuestions(
 
     const possible: TestQuestionType[] = [];
     if (writtenEnabled) possible.push("written");
-    if (canChoose) possible.push(...choiceTypes);
+    if (canChoose(current.kind)) possible.push(...choiceTypes);
     if (possible.length === 0) continue;
 
     const type = possible[Math.floor(randomFn() * possible.length)]!;
 
     if (type === "mc") {
-      const distractors = pickDistractors(aText, 3);
+      const distractors = pickDistractors(current.kind, aText, 3);
       if (distractors.length === 0) {
         if (writtenEnabled) {
           questions.push(writtenQuestion(current.id, qText, aText));
@@ -189,7 +221,7 @@ export function buildTestQuestions(
       const showWrong = randomFn() < 0.5;
       let shown = aText;
       if (showWrong) {
-        const wrong = pickDistractors(aText, 1);
+        const wrong = pickDistractors(current.kind, aText, 1);
         if (wrong.length > 0) shown = wrong[0]!;
       }
       questions.push({

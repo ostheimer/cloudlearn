@@ -8,6 +8,10 @@ export interface TestCardInput {
   id: string;
   front: string;
   back: string;
+  // Kartenart wie in der Datenbank (card_type): "basic", "cloze", "mcq",
+  // "matching", "occlusion", … Optional, damit ältere Aufrufer weiter
+  // kompilieren; eine Karte ohne Art zählt als "basic".
+  type?: string;
 }
 
 export interface TestQuestion {
@@ -58,11 +62,25 @@ function isFillIn(text: string): boolean {
   return /_{2,}/.test(text) || /\{\{c\d+::/.test(text);
 }
 
+// Optionen dürfen nur aus Karten DERSELBEN ART kommen: die Kartenart selbst plus
+// „Lücke ja/nein". Antworten verschiedener Arten sind nicht vergleichbar — eine
+// Occlusion-Rückseite („Bereich 7") ist so wenig eine Antwort auf eine
+// Vokabelfrage wie „une forte diminution" eine Antwort auf „Was ist an der
+// markierten Stelle?". Gemischt ergeben sie Ablenker, die man ohne jedes
+// Fachwissen ausschließen kann — der Test misst dann nichts mehr (#380). Weil
+// der Schlüssel die Art selbst ist (statt eine Art beim Namen zu nennen), gilt
+// das auch für Kartenarten, die es heute noch nicht gibt.
+function kindOf(type: string | undefined, fillIn: boolean): string {
+  const base = (type || "").trim().toLowerCase() || "basic";
+  return `${base}|${fillIn ? "fill" : "plain"}`;
+}
+
 interface EnrichedCard {
   id: string;
   front: string;
   back: string;
   fillIn: boolean;
+  kind: string;
 }
 
 function writtenQuestion(cardId: string, prompt: string, expected: string): TestQuestion {
@@ -98,19 +116,37 @@ export function buildTestQuestions(
     const key = `${front}|${back}`.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
-    enriched.push({ id: card.id, front, back, fillIn: isFillIn(front) });
+    const fillIn = isFillIn(front);
+    enriched.push({ id: card.id, front, back, fillIn, kind: kindOf(card.type, fillIn) });
   }
   if (enriched.length === 0) return [];
 
   const answerOf = (e: EnrichedCard) => (reverse ? e.front : e.back);
   const questionOf = (e: EnrichedCard) => (reverse ? e.back : e.front);
 
-  const choiceAnswers = unique(enriched.filter((e) => !e.fillIn).map(answerOf));
-  const canChoose = choiceAnswers.length >= 2 && choiceTypes.length > 0;
+  // Ein Antwort-Topf JE KARTENART statt eines gemeinsamen. Eine Karte sieht nur
+  // Antworten ihrer eigenen Art — so kann kein Topf in eine fremde Frage laufen.
+  const answersByKind = new Map<string, string[]>();
+  for (const e of enriched) {
+    if (e.fillIn) continue;
+    const collected = answersByKind.get(e.kind);
+    if (collected) collected.push(answerOf(e));
+    else answersByKind.set(e.kind, [answerOf(e)]);
+  }
+  for (const [kind, answers] of answersByKind) {
+    answersByKind.set(kind, unique(answers));
+  }
+
+  // Zu wenige gleichartige Antworten → keine Auswahlfrage für diese Art. Die
+  // Karte fällt auf eine Schreibfrage zurück, statt fremde Antworten zu borgen.
+  const canChoose = (kind: string): boolean =>
+    (answersByKind.get(kind)?.length ?? 0) >= 2 && choiceTypes.length > 0;
 
   const usage = new Map<string, number>();
-  const pickDistractors = (correct: string, n: number): string[] => {
-    const pool = choiceAnswers.filter((b) => b.toLowerCase() !== correct.toLowerCase());
+  const pickDistractors = (kind: string, correct: string, n: number): string[] => {
+    const pool = (answersByKind.get(kind) ?? []).filter(
+      (b) => b.toLowerCase() !== correct.toLowerCase()
+    );
     const ordered = shuffle(pool, randomFn).sort(
       (a, b) => (usage.get(a.toLowerCase()) ?? 0) - (usage.get(b.toLowerCase()) ?? 0)
     );
@@ -137,13 +173,13 @@ export function buildTestQuestions(
 
     const possible: TestQuestionType[] = [];
     if (writtenEnabled) possible.push("written");
-    if (canChoose) possible.push(...choiceTypes);
+    if (canChoose(current.kind)) possible.push(...choiceTypes);
     if (possible.length === 0) continue;
 
     const type = possible[Math.floor(randomFn() * possible.length)]!;
 
     if (type === "mc") {
-      const distractors = pickDistractors(aText, 3);
+      const distractors = pickDistractors(current.kind, aText, 3);
       if (distractors.length === 0) {
         if (writtenEnabled) questions.push(writtenQuestion(current.id, qText, aText));
         continue;
@@ -163,7 +199,7 @@ export function buildTestQuestions(
       const showWrong = randomFn() < 0.5;
       let shown = aText;
       if (showWrong) {
-        const wrong = pickDistractors(aText, 1);
+        const wrong = pickDistractors(current.kind, aText, 1);
         if (wrong.length > 0) shown = wrong[0]!;
       }
       questions.push({
