@@ -18,6 +18,51 @@ const cards: TestCardInput[] = [
   { id: "4", front: "la fleur", back: "die Blume" },
 ];
 
+// The real deck from #380 (f30afafc-…): 20 vocabulary cards sitting next to 21
+// image-occlusion cards whose backs are region labels "Bereich 1" … "Bereich 10".
+const VOCAB_PAIRS: [string, string][] = [
+  ["une forte diminution", "ein starker Rückgang"],
+  ["une forte hausse", "ein starker Anstieg"],
+  ["la courbe", "die Kurve"],
+  ["le graphique", "das Schaubild"],
+  ["l'axe", "die Achse"],
+  ["le pourcentage", "der Prozentsatz"],
+  ["la légende", "die Legende"],
+  ["le tableau", "die Tabelle"],
+  ["la colonne", "die Spalte"],
+  ["la ligne", "die Zeile"],
+  ["le sommet", "der Höhepunkt"],
+  ["le creux", "der Tiefpunkt"],
+  ["la tendance", "die Tendenz"],
+  ["la période", "der Zeitraum"],
+  ["la source", "die Quelle"],
+  ["le titre", "der Titel"],
+  ["la moyenne", "der Durchschnitt"],
+  ["le total", "die Gesamtsumme"],
+  ["la part", "der Anteil"],
+  ["l'évolution", "die Entwicklung"],
+];
+
+const OCCLUSION_FRONT = "Bild-Occlusion: Was ist an der markierten Stelle?";
+
+const vocabCards: TestCardInput[] = VOCAB_PAIRS.map(([front, back], i) => ({
+  id: `v${i + 1}`,
+  front,
+  back,
+  type: "basic",
+}));
+
+const occlusionCards: TestCardInput[] = Array.from({ length: 21 }, (_, i) => ({
+  id: `o${i + 1}`,
+  front: OCCLUSION_FRONT,
+  back: `Bereich ${(i % 10) + 1}`,
+  type: "occlusion",
+}));
+
+const mixedDeck: TestCardInput[] = [...vocabCards, ...occlusionCards];
+const vocabBacks = VOCAB_PAIRS.map(([, back]) => back);
+const isRegionLabel = (text: string) => /^Bereich \d+$/.test(text);
+
 describe("buildTestQuestions", () => {
   it("returns nothing without cards", () => {
     expect(buildTestQuestions([], { count: 5, types: ["written"] })).toEqual([]);
@@ -144,6 +189,99 @@ describe("buildTestQuestions", () => {
       expect(q.prompt).toBe(card.back);
       expect(q.expected).toBe(card.front);
     }
+  });
+
+  // #380 — options must come from cards of the SAME KIND only.
+  it("never offers occlusion region labels to a vocabulary question (and vice versa)", () => {
+    let occlusionChoiceQuestions = 0;
+    let vocabChoiceQuestions = 0;
+
+    for (const seed of [1, 2, 3, 5, 7, 11, 13, 17]) {
+      const qs = buildTestQuestions(mixedDeck, {
+        count: 99,
+        types: ["mc", "trueFalse", "written"],
+        randomFn: seeded(seed),
+      });
+      expect(qs.length).toBeGreaterThan(0);
+
+      for (const q of qs) {
+        const shown = [...q.options, ...(q.tfShownBack ? [q.tfShownBack] : [])];
+        if (shown.length === 0) continue;
+        if (q.cardId.startsWith("o")) {
+          occlusionChoiceQuestions++;
+          for (const option of shown) expect(isRegionLabel(option)).toBe(true);
+        } else {
+          vocabChoiceQuestions++;
+          for (const option of shown) {
+            expect(isRegionLabel(option)).toBe(false);
+            expect(vocabBacks).toContain(option);
+          }
+        }
+      }
+    }
+
+    // Guard against a vacuous pass: both kinds really did produce choices.
+    expect(occlusionChoiceQuestions).toBeGreaterThan(0);
+    expect(vocabChoiceQuestions).toBeGreaterThan(0);
+  });
+
+  it("leaves a pure vocabulary deck exactly as it was before the same-kind filter", () => {
+    const pure: TestCardInput[] = [
+      { id: "v1", front: "une forte diminution", back: "ein starker Rückgang" },
+      { id: "v2", front: "une forte hausse", back: "ein starker Anstieg" },
+      { id: "v3", front: "la courbe", back: "die Kurve" },
+      { id: "v4", front: "le graphique", back: "das Schaubild" },
+      { id: "v5", front: "la légende", back: "die Legende" },
+    ];
+    const shape = (qs: ReturnType<typeof buildTestQuestions>) =>
+      qs.map((q) => `${q.cardId}:${q.type}:${q.options.join("/")}:${q.tfShownBack}`);
+    // Captured from the generator BEFORE the same-kind filter existed.
+    const before = [
+      "v2:mc:die Legende/das Schaubild/ein starker Anstieg/die Kurve:",
+      "v5:trueFalse::die Legende",
+      "v4:mc:ein starker Rückgang/die Kurve/das Schaubild/ein starker Anstieg:",
+      "v3:mc:das Schaubild/ein starker Anstieg/die Kurve/ein starker Rückgang:",
+      "v1:mc:das Schaubild/die Legende/ein starker Anstieg/ein starker Rückgang:",
+    ];
+
+    const build = (deck: TestCardInput[]) =>
+      buildTestQuestions(deck, {
+        count: 99,
+        types: ["mc", "trueFalse", "written"],
+        randomFn: seeded(42),
+      });
+
+    // Same result whether the cards carry an explicit type or none at all.
+    expect(shape(build(pure))).toEqual(before);
+    expect(shape(build(pure.map((c) => ({ ...c, type: "basic" }))))).toEqual(before);
+  });
+
+  it("falls back to a written question when a kind has too few cards for a choice", () => {
+    const deck: TestCardInput[] = [
+      ...vocabCards.slice(0, 3),
+      { id: "o1", front: OCCLUSION_FRONT, back: "Bereich 1", type: "occlusion" },
+    ];
+    // 0.99 makes every card that CAN take a choice question take one, so a
+    // written question for "o1" can only come from the same-kind fallback.
+    const qs = buildTestQuestions(deck, {
+      count: 99,
+      types: ["mc", "written"],
+      randomFn: () => 0.99,
+    });
+    const lone = qs.find((q) => q.cardId === "o1");
+    expect(lone?.type).toBe("written");
+    expect(lone?.expected).toBe("Bereich 1");
+    expect(lone?.options).toEqual([]);
+
+    // With written switched off there is nothing honest left to ask — the card
+    // is dropped rather than given vocabulary options.
+    const mcOnly = buildTestQuestions(deck, {
+      count: 99,
+      types: ["mc"],
+      randomFn: () => 0.99,
+    });
+    expect(mcOnly.find((q) => q.cardId === "o1")).toBeUndefined();
+    expect(mcOnly.length).toBeGreaterThan(0);
   });
 
   it("draws reverse options from the fronts (same side as the answer)", () => {

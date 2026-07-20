@@ -5,6 +5,10 @@ export interface QuizCardInput {
   id: string;
   front: string;
   back: string;
+  // The card's kind as stored in the DB (card_type): "basic", "cloze", "mcq",
+  // "matching", "occlusion", … Optional so older callers keep compiling; a card
+  // without a type counts as "basic".
+  type?: string;
 }
 
 export type QuestionType = "mc" | "trueFalse" | "imageMc";
@@ -62,6 +66,18 @@ function isFillIn(text: string): boolean {
   return /_{2,}/.test(text) || /\{\{c\d+::/.test(text);
 }
 
+// Options may only ever come from cards of the same KIND: the card's own type
+// plus whether it is a fill-in. Answers of different kinds are not comparable —
+// an occlusion back ("Bereich 7") is no more an answer to a vocabulary question
+// than "une forte diminution" is an answer to "what is at the marked spot?".
+// Offering them together produces distractors anyone can rule out without
+// knowing the subject, which makes the quiz measure nothing (#380). Keying on
+// the type itself (instead of naming one type) also covers kinds added later.
+function kindOf(type: string | undefined, fillIn: boolean): string {
+  const base = (type || "").trim().toLowerCase() || "basic";
+  return `${base}|${fillIn ? "fill" : "plain"}`;
+}
+
 export interface GenerateOptions {
   // Ask back → front for normal cards (fill-in cards keep their gap sentence).
   reverse?: boolean;
@@ -107,6 +123,7 @@ export function generateQuestions(
         normalizedBack,
         label,
         fillIn,
+        kind: kindOf(card.type, fillIn),
         questionSide,
         answerSide,
       },
@@ -131,7 +148,7 @@ export function generateQuestions(
             .filter(
               (entry) =>
                 entry.card.id !== current.card.id &&
-                entry.fillIn === current.fillIn
+                entry.kind === current.kind
             )
             .map((entry) => entry.label),
           randomFn
@@ -166,7 +183,7 @@ export function generateQuestions(
           .filter(
             (entry) =>
               entry.card.id !== current.card.id &&
-              entry.fillIn === current.fillIn
+              entry.kind === current.kind
           )
           .map((entry) => entry.answerSide || entry.label)
       ).filter((a) => a.toLowerCase() !== ownAnswer);
@@ -210,7 +227,7 @@ export function generateQuestions(
           .filter(
             (entry) =>
               entry.card.id !== current.card.id &&
-              entry.fillIn === current.fillIn
+              entry.kind === current.kind
           )
           .map((entry) => entry.answerSide || entry.label),
         randomFn
