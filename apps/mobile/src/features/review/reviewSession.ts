@@ -31,7 +31,8 @@ interface ReviewSessionState {
    * vergleicht sie mit dem, was er zuletzt gesehen hat.
    */
   presetToken: number;
-  start: (cards: ReviewCard[]) => void;
+  /** `startIndex` resumes an interrupted deck session; defaults to the first card. */
+  start: (cards: ReviewCard[], startIndex?: number) => void;
   /**
    * Wie `start`, aber als „von außen vorgegeben" markiert. Nur für
    * Bildschirme, die eine Auswahl treffen und dann zum Lern-Tab schicken.
@@ -53,10 +54,14 @@ export const useReviewSession = create<ReviewSessionState>((set, get) => ({
   revealed: false,
   completed: false,
   presetToken: 0,
-  start: (cards) =>
+  start: (cards, startIndex = 0) =>
     set({
       cards,
-      index: 0,
+      // Resuming an interrupted deck session (sessionProgress.ts). `history`
+      // stays empty on purpose: the skipped cards were rated in the earlier
+      // session and already sent, so stepping back into them would offer a
+      // second rating for a card that has one.
+      index: cards.length === 0 ? 0 : Math.min(Math.max(startIndex, 0), cards.length - 1),
       history: [],
       ratingHistory: [],
       swipedLeft: 0,
