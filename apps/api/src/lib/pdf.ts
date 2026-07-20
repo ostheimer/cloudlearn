@@ -1,7 +1,16 @@
 import { extractText } from "unpdf";
 import { HttpError } from "./http";
 
-const MAX_EXTRACTED_CHARACTERS = 20_000;
+// Silently dropped material used to be invisible: a 30-page PIT chapter holds
+// ~42_000 characters, so more than half of it never reached the model and the
+// learner got a deck that looked complete.
+//
+// Raising this only became worthwhile once generation was chunked. While a
+// single call handled the whole text, card count plateaued around 33 no matter
+// how much went in, so a bigger cap just spread the same cards more thinly.
+// Chunked generation scales with length (one call per ~8_000 characters), so
+// extra text now becomes extra cards.
+const MAX_EXTRACTED_CHARACTERS = 60_000;
 const MIN_MACHINE_TEXT_LENGTH = 120;
 
 export interface ExtractedPdfText {

@@ -28,7 +28,15 @@ export const flashcardSchema = z.object({
 });
 
 export type Flashcard = z.infer<typeof flashcardSchema>;
-export const flashcardListSchema = z.array(flashcardSchema).min(1).max(50);
+
+// Long study material is generated chunk by chunk (see studyTextChunks.ts), so
+// one import legitimately produces far more than the 50 a single call returned:
+// an 18k-character PIT chapter yields ~60 cards, a 42k one ~120. This schema
+// THROWS above its max rather than truncating, so a cap set too low turns a
+// better import into a failed one. 150 sits above the largest measured import
+// while still rejecting a runaway response.
+export const MAX_GENERATED_CARDS = 150;
+export const flashcardListSchema = z.array(flashcardSchema).min(1).max(MAX_GENERATED_CARDS);
 
 export const scanProcessRequestSchema = z.object({
   userId: z.string().uuid(),
