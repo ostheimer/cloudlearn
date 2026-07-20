@@ -387,6 +387,9 @@ export default function DeckDetailScreen() {
 
   const [cards, setCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
+  // Ein gescheiterter Ladevorgang (offline / Serverfehler) darf nicht wie ein
+  // leeres Deck aussehen — sonst denkt man, die eigenen Karten sind weg (#284).
+  const [loadError, setLoadError] = useState(false);
 
   // "20 Karten · 10 Bilder". The library counts the same way (server side), so
   // both agree — before this, the library said 20 (text only) while this header
@@ -477,6 +480,7 @@ export default function DeckDetailScreen() {
 
   const loadCards = useCallback(async () => {
     if (!deckId) return;
+    setLoadError(false);
     try {
       const { cards: fetched } = await listCardsInDeck(deckId);
       setCards(fetched);
@@ -484,7 +488,13 @@ export default function DeckDetailScreen() {
       const cached = await AsyncStorage.getItem(offlineDeckStorageKey(deckId));
       const cachedCards = cardsFromOfflineDeckCache(cached);
       if (cachedCards) {
+        // Der Offline-Cache hat die Ansicht gerettet — das ist ein Erfolg,
+        // kein Fehler. Kein Hinweis, kein Retry.
         setCards(cachedCards);
+      } else {
+        // Distinguish a load failure (offline / server error) from a genuinely
+        // empty deck so we can offer a retry instead of "noch keine Karten".
+        setLoadError(true);
       }
     } finally {
       setLoading(false);
@@ -502,6 +512,12 @@ export default function DeckDetailScreen() {
 
   const onRefresh = () => {
     setRefreshing(true);
+    loadCards();
+  };
+
+  // Nach einem Ladefehler erneut versuchen — mit Spinner statt stiller Wartezeit.
+  const retryLoad = () => {
+    setLoading(true);
     loadCards();
   };
 
@@ -972,6 +988,42 @@ export default function DeckDetailScreen() {
             >
               <ActivityIndicator size="large" color={colors.primary} />
             </View>
+          ) : loadError ? (
+                /* Ladefehler — ehrlicher Hinweis statt „leeres Deck". Die Karten
+                   sind nicht weg, sie konnten nur nicht geladen werden. */
+                <View
+                  style={{
+                    alignItems: "center",
+                    paddingTop: 40,
+                    gap: spacing.lg,
+                    paddingHorizontal: spacing.xl,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: typography.base,
+                      color: colors.textSecondary,
+                      textAlign: "center",
+                      lineHeight: 22,
+                    }}
+                  >
+                    {t("common.loadError")}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={retryLoad}
+                    activeOpacity={0.8}
+                    style={{
+                      paddingVertical: spacing.md,
+                      paddingHorizontal: spacing.xl,
+                      borderRadius: radius.md,
+                      backgroundColor: colors.surfaceSecondary,
+                    }}
+                  >
+                    <Text style={{ color: colors.text, fontWeight: typography.semibold }}>
+                      {t("common.retry")}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
           ) : cards.length === 0 ? (
                 <View
                   style={{
