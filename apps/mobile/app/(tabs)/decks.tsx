@@ -46,8 +46,20 @@ import { buildDeckCountLabel } from "../../src/lib/deckCountLabel";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
 import { buildLibraryCourseRoute, buildLibraryFolderRoute } from "../../src/navigation/libraryRoutes";
 import { AuthPromptCard } from "../../src/components/AuthPromptCard";
+import TextPromptModal from "../../src/components/TextPromptModal";
 
 type TabKey = "decks" | "courses" | "folders";
+
+/**
+ * Welches Eingabe-Fenster gerade offen ist. Früher lief das über den
+ * Eingabe-Alert von iOS — auf Android passierte dabei schlicht nichts (#396).
+ */
+type PromptState =
+  | { kind: "renameDeck"; deck: Deck }
+  | { kind: "createCourse" }
+  | { kind: "renameCourse"; course: Course }
+  | { kind: "createFolder" }
+  | { kind: "renameFolder"; folder: Folder };
 
 export default function LibraryScreen() {
   const colors = useColors();
@@ -98,6 +110,9 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
   const [foldersLoading, setFoldersLoading] = useState(true);
   const [foldersRefreshing, setFoldersRefreshing] = useState(false);
   const [foldersError, setFoldersError] = useState(false);
+
+  // Offenes Eingabe-Fenster (Anlegen / Umbenennen). null = keines.
+  const [prompt, setPrompt] = useState<PromptState | null>(null);
 
   // --- Load data ---
 
@@ -240,30 +255,7 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
     Alert.alert(deck.title, t("library.deckLongPressPrompt"), [
       {
         text: t("library.rename"),
-        onPress: () => {
-          Alert.prompt(
-            t("library.renameDeck"),
-            t("library.renamePrompt", { title: deck.title }),
-            [
-              { text: t("common.cancel"), style: "cancel" },
-              {
-                text: t("common.save"),
-                onPress: async (newTitle: string | undefined) => {
-                  if (!newTitle?.trim()) return;
-                  try {
-                    await updateDeck(deck.id, { title: newTitle.trim() });
-                    loadDecks();
-                  } catch {
-                    Alert.alert(t("common.error"), t("library.renameDeckError"));
-                  }
-                },
-              },
-            ],
-            "plain-text",
-            deck.title,
-            "default"
-          );
-        },
+        onPress: () => setPrompt({ kind: "renameDeck", deck }),
       },
       {
         text: t("common.delete"),
@@ -292,59 +284,13 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
 
   // --- Course actions ---
 
-  const handleCreateCourse = () => {
-    Alert.prompt(
-      t("library.newCourse"),
-      t("library.newCoursePrompt"),
-      [
-        { text: t("common.cancel"), style: "cancel" },
-        {
-          text: t("library.create"),
-          onPress: async (title: string | undefined) => {
-            if (!title?.trim() || !userId) return;
-            try {
-              await createCourse(title.trim());
-              loadCourses();
-            } catch {
-              Alert.alert(t("common.error"), t("course.createError"));
-            }
-          },
-        },
-      ],
-      "plain-text",
-      "",
-      "default"
-    );
-  };
+  const handleCreateCourse = () => setPrompt({ kind: "createCourse" });
 
   const handleCourseLongPress = (course: Course) => {
     Alert.alert(course.title, t("library.courseLongPressPrompt"), [
       {
         text: t("library.rename"),
-        onPress: () => {
-          Alert.prompt(
-            t("library.renameCourse"),
-            t("library.renamePrompt", { title: course.title }),
-            [
-              { text: t("common.cancel"), style: "cancel" },
-              {
-                text: t("common.save"),
-                onPress: async (newTitle: string | undefined) => {
-                  if (!newTitle?.trim()) return;
-                  try {
-                    await updateCourseApi(course.id, { title: newTitle.trim() });
-                    loadCourses();
-                  } catch {
-                    Alert.alert(t("common.error"), t("library.renameCourseError"));
-                  }
-                },
-              },
-            ],
-            "plain-text",
-            course.title,
-            "default"
-          );
-        },
+        onPress: () => setPrompt({ kind: "renameCourse", course }),
       },
       {
         text: t("common.delete"),
@@ -377,59 +323,13 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
 
   // --- Folder actions ---
 
-  const handleCreateFolder = () => {
-    Alert.prompt(
-      t("library.newFolder"),
-      t("library.newFolderPrompt"),
-      [
-        { text: t("common.cancel"), style: "cancel" },
-        {
-          text: t("library.create"),
-          onPress: async (title: string | undefined) => {
-            if (!title?.trim() || !userId) return;
-            try {
-              await createFolder(title.trim());
-              loadFolders();
-            } catch {
-              Alert.alert(t("common.error"), t("folder.createError"));
-            }
-          },
-        },
-      ],
-      "plain-text",
-      "",
-      "default"
-    );
-  };
+  const handleCreateFolder = () => setPrompt({ kind: "createFolder" });
 
   const handleFolderLongPress = (folder: Folder) => {
     Alert.alert(folder.title, t("library.folderLongPressPrompt"), [
       {
         text: t("library.rename"),
-        onPress: () => {
-          Alert.prompt(
-            t("library.renameFolder"),
-            t("library.renamePrompt", { title: folder.title }),
-            [
-              { text: t("common.cancel"), style: "cancel" },
-              {
-                text: t("common.save"),
-                onPress: async (newTitle: string | undefined) => {
-                  if (!newTitle?.trim()) return;
-                  try {
-                    await updateFolderApi(folder.id, { title: newTitle.trim() });
-                    loadFolders();
-                  } catch {
-                    Alert.alert(t("common.error"), t("library.renameFolderError"));
-                  }
-                },
-              },
-            ],
-            "plain-text",
-            folder.title,
-            "default"
-          );
-        },
+        onPress: () => setPrompt({ kind: "renameFolder", folder }),
       },
       {
         text: t("common.delete"),
@@ -458,6 +358,116 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
       },
       { text: t("common.cancel"), style: "cancel" },
     ]);
+  };
+
+  // --- Eingabe-Fenster ---
+
+  // Beschriftung + Vorbelegung je Fall. Entspricht 1:1 den früheren
+  // Alert-Argumenten (Titel, Meldung, Knopftext, Vorgabewert).
+  const promptConfig = (() => {
+    if (!prompt) return null;
+    switch (prompt.kind) {
+      case "renameDeck":
+        return {
+          icon: Layers,
+          title: t("library.renameDeck"),
+          label: t("library.renamePrompt", { title: prompt.deck.title }),
+          initialValue: prompt.deck.title,
+          confirmLabel: t("common.save"),
+        };
+      case "createCourse":
+        return {
+          icon: BookOpen,
+          title: t("library.newCourse"),
+          label: t("library.newCoursePrompt"),
+          initialValue: "",
+          confirmLabel: t("library.create"),
+        };
+      case "renameCourse":
+        return {
+          icon: BookOpen,
+          title: t("library.renameCourse"),
+          label: t("library.renamePrompt", { title: prompt.course.title }),
+          initialValue: prompt.course.title,
+          confirmLabel: t("common.save"),
+        };
+      case "createFolder":
+        return {
+          icon: FolderOpen,
+          title: t("library.newFolder"),
+          label: t("library.newFolderPrompt"),
+          initialValue: "",
+          confirmLabel: t("library.create"),
+        };
+      case "renameFolder":
+        return {
+          icon: FolderOpen,
+          title: t("library.renameFolder"),
+          label: t("library.renamePrompt", { title: prompt.folder.title }),
+          initialValue: prompt.folder.title,
+          confirmLabel: t("common.save"),
+        };
+    }
+  })();
+
+  // Das Fenster schliesst beim Bestätigen — wie zuvor der Alert — und die
+  // eigentliche Arbeit läuft danach. Jeder Fall verhält sich exakt wie vorher.
+  const handlePromptSubmit = async (value: string) => {
+    if (!prompt) return;
+    const current = prompt;
+    setPrompt(null);
+    switch (current.kind) {
+      case "renameDeck": {
+        if (!value.trim()) return;
+        try {
+          await updateDeck(current.deck.id, { title: value.trim() });
+          loadDecks();
+        } catch {
+          Alert.alert(t("common.error"), t("library.renameDeckError"));
+        }
+        return;
+      }
+      case "createCourse": {
+        if (!value.trim() || !userId) return;
+        try {
+          await createCourse(value.trim());
+          loadCourses();
+        } catch {
+          Alert.alert(t("common.error"), t("course.createError"));
+        }
+        return;
+      }
+      case "renameCourse": {
+        if (!value.trim()) return;
+        try {
+          await updateCourseApi(current.course.id, { title: value.trim() });
+          loadCourses();
+        } catch {
+          Alert.alert(t("common.error"), t("library.renameCourseError"));
+        }
+        return;
+      }
+      case "createFolder": {
+        if (!value.trim() || !userId) return;
+        try {
+          await createFolder(value.trim());
+          loadFolders();
+        } catch {
+          Alert.alert(t("common.error"), t("folder.createError"));
+        }
+        return;
+      }
+      case "renameFolder": {
+        if (!value.trim()) return;
+        try {
+          await updateFolderApi(current.folder.id, { title: value.trim() });
+          loadFolders();
+        } catch {
+          Alert.alert(t("common.error"), t("library.renameFolderError"));
+        }
+        return;
+      }
+    }
   };
 
   // --- Navigation ---
@@ -969,6 +979,21 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
           </ScrollView>
         )}
       </View>
+
+      {/* Nur bei offenem Fenster eingehängt: so springt der Tastatur-Fokus
+          (autoFocus) bei JEDEM Öffnen wieder ins Feld. */}
+      {promptConfig ? (
+        <TextPromptModal
+          visible
+          icon={promptConfig.icon}
+          title={promptConfig.title}
+          label={promptConfig.label}
+          initialValue={promptConfig.initialValue}
+          confirmLabel={promptConfig.confirmLabel}
+          onCancel={() => setPrompt(null)}
+          onSubmit={handlePromptSubmit}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }
