@@ -194,6 +194,33 @@ describe("supabase migrations", () => {
     expect(sql).toContain("v_remaining := greatest(p_earn_cap - v_earned, 0)");  // Tageskappe
   });
 
+  it("pays rate-mode reviews only once per card and day (anti-farming)", () => {
+    const migrationPath = join(
+      apiRoot,
+      "supabase/migrations/20260720090000_lp_rate_modes_once_per_day.sql",
+    );
+    const sql = readFileSync(migrationPath, "utf-8");
+
+    // Quiz/Zuordnen schreiben seit Schritt 8 bei JEDER Antwort — sonst gaebe
+    // es dort keine LP. Ohne Entdopplung waere Raten dreimal schneller als
+    // Lernen (~1500 LP/h gegen ~500).
+    expect(sql).toContain("count(DISTINCT (card_id, (reviewed_at AT TIME ZONE 'Europe/Berlin')::date))");
+    expect(sql).toContain("FILTER (WHERE mode IN ('quiz', 'match'))");
+
+    // Abruf-Modi bleiben unangetastet: wer beim Lernen mehrfach durchgeht, hat
+    // mehrfach abgerufen. Eine Variante, die auch sie entdoppelt, haette
+    // echten Nutzern LP genommen.
+    expect(sql).toContain("count(*) FILTER (WHERE mode NOT IN ('test', 'quiz', 'match'))");
+
+    // Berlin-Zeit wie ueberall sonst (#211) — UTC wuerde den Tag um Mitternacht
+    // falsch schneiden.
+    expect(sql).toContain("AT TIME ZONE 'Europe/Berlin'");
+
+    // Schutzmechanismen erhalten.
+    expect(sql).toContain("FOR UPDATE");
+    expect(sql).toContain("v_remaining := greatest(p_earn_cap - v_earned, 0)");
+  });
+
   it("persists the per-user Mathpix budget with an atomic consume function", () => {
     const migrationPath = join(
       apiRoot,

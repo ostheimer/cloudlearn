@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
-import { listCardsInDeck, isApiError, type Card } from "@/lib/api";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useAuth } from "@/components/app/auth-context";
+import { earnLp, listCardsInDeck, reviewCard, isApiError, type Card } from "@/lib/api";
 import {
   ArrowLeft,
   X,
@@ -14,6 +15,7 @@ import {
   RotateCw,
   Star,
   StarFilled,
+  Zap,
   AlertTriangle,
 } from "@/components/icons";
 
@@ -42,6 +44,10 @@ export default function MatchPage() {
   const params = useParams<{ id: string }>();
   const deckId = params.id;
   const router = useRouter();
+  const { userId } = useAuth();
+  const [earned, setEarned] = useState<number | null>(null);
+  // Verhindert, dass eine Runde zweimal abgerechnet wird.
+  const awardedRef = useRef(false);
 
   const [cards, setCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
@@ -120,6 +126,8 @@ export default function MatchPage() {
       setElapsed(0);
       setMissedIds(new Set());
       setIsNewBest(false);
+      setEarned(null);
+      awardedRef.current = false;
       setTimed(withTimer);
       setPhase("playing");
     },
@@ -138,7 +146,7 @@ export default function MatchPage() {
     return () => clearInterval(id);
   }, [phase, timed]);
 
-  // Abschluss erkennen: Bestzeit merken, Ergebnis zeigen.
+  // Abschluss erkennen: Bestzeit merken, Wiederholungen buchen, abrechnen.
   useEffect(() => {
     if (phase !== "playing" || tiles.length === 0 || matched.size !== tiles.length) return;
     if (timed) {
@@ -152,8 +160,38 @@ export default function MatchPage() {
         }
       }
     }
+
+    // Eine Bewertung je KARTE, erst am Rundenende — nicht pro Klick. Wer ein
+    // Paar zweimal verwechselt, soll dafür nicht zwei Einträge bekommen: die
+    // Lernpunkte entstehen aus genau diesen Zeilen.
+    //
+    // Verwechselt = „nicht gewusst" (again), sonst „gewusst" (good). Der Server
+    // schreibt beides, bewegt die Planung aber nur bei den Fehlern — Paare
+    // findet man auch durch Ausschluss, ein Treffer beweist also nichts.
+    if (userId && !awardedRef.current) {
+      awardedRef.current = true;
+      const cardIds = Array.from(new Set(tiles.map((t) => t.cardId)));
+      void (async () => {
+        await Promise.allSettled(
+          cardIds.map((cardId) =>
+            reviewCard(userId, cardId, missedIds.has(cardId) ? "again" : "good", {
+              mode: "match",
+            }).catch(() => {})
+          )
+        );
+        // Erst nach dem Speichern abrechnen — der Server leitet die Menge aus
+        // den gespeicherten Wiederholungen ab, nicht aus einer Behauptung.
+        try {
+          const res = await earnLp("session", cardIds.length);
+          setEarned(res.granted);
+        } catch {
+          /* LP-Gutschrift ist best-effort */
+        }
+      })();
+    }
+
     setPhase("finished");
-  }, [matched, tiles.length, phase, timed, elapsed, bestTime, deckId]);
+  }, [matched, tiles.length, phase, timed, elapsed, bestTime, deckId, userId, missedIds]);
 
   function tap(tile: Tile) {
     if (matched.has(tile.id) || wrong) return;
@@ -338,13 +376,17 @@ export default function MatchPage() {
               Bestzeit: {formatTime(bestTime)}
             </p>
           )}
-          {/* Keine LP-Plakette: Zuordnen erzeugt keine Wiederholungen, also
-              verdient es auch keine. Vorher rief die Seite trotzdem earnLp auf
-              und zeigte, was der Server aus dem Übertrag ausschüttete — LP aus
-              vorherigen Lern-Sitzungen, die hier nur falsch beschriftet waren. */}
-          <p className="muted" style={{ margin: 0, fontSize: "0.85rem" }}>
-            Zuordnen ist zum Aufwärmen — Lernpunkte gibt es beim Lernen.
-          </p>
+          {/* Die Plakette ist wieder da — jetzt zu Recht: Zuordnen schreibt
+              seit Schritt 8 eigene Wiederholungen und verdient die Punkte
+              selbst. In #362 war sie entfernt worden, weil die Seite damals
+              earnLp rief, ohne je eine Wiederholung zu erzeugen: gezeigt wurde,
+              was der Server aus dem Übertrag früherer Lern-Sitzungen
+              ausschüttete. */}
+          {earned !== null && earned > 0 && (
+            <span className="lp-pill">
+              <Zap size={15} /> +{earned} Lernpunkte
+            </span>
+          )}
           <div style={{ display: "grid", gap: 8, width: "100%", maxWidth: 320 }}>
             {showSubset && (
               <button
