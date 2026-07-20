@@ -43,6 +43,7 @@ import {
   missedCardsFrom,
   type ReviewRating,
 } from "../../src/features/review/reviewSession";
+import { decideOnLearnFocus } from "../../src/features/review/learnFocusDecision";
 import { createReviewSendBuffer } from "../../src/features/review/reviewSendBuffer";
 import { useSessionStore } from "../../src/store/sessionStore";
 import {
@@ -152,7 +153,7 @@ function AuthenticatedLearnScreen({
   const { t } = useTranslation();
   const router = useRouter();
   const c = useColors();
-  const { cards, index, revealed, completed, swipedLeft, swipedRight, history, ratingHistory, start, reveal, rateCurrent, canGoBack, goBack } =
+  const { cards, index, revealed, completed, swipedLeft, swipedRight, history, ratingHistory, presetToken, start, reveal, rateCurrent, canGoBack, goBack } =
     useReviewSession();
 
   // Cards the learner didn't know this session, powering the result summary and
@@ -328,18 +329,39 @@ function AuthenticatedLearnScreen({
   // cards from a previous session. Reload whenever the source changes (a
   // different deck, or global mode) so opening deck B never shows deck A.
   const loadedKeyRef = useRef<string | null>(null);
+  // Stand des presetToken, den DIESER Bildschirm zuletzt gesehen hat. Startwert
+  // 0 = „noch nichts von außen vorgegeben"; so lädt ein frisch geöffneter Tab
+  // ganz normal nach.
+  const seenPresetRef = useRef(0);
   useFocusEffect(
     useCallback(() => {
+      // Die Entscheidung selbst liegt in decideOnLearnFocus — als reine
+      // Funktion prüfbar, ohne die App zu rendern. Genau hier saß #282, und
+      // ein Fehler, den man nicht testen kann, kommt zurück.
       const key = deckId ?? "__global__";
-      if (loadedKeyRef.current !== key) {
+      const action = decideOnLearnFocus({
+        deckId,
+        presetToken,
+        seenPresetToken: seenPresetRef.current,
+        loadedKey: loadedKeyRef.current,
+        cardCount: cards.length,
+        completed,
+      });
+
+      if (action.type === "adoptPreset") {
+        // Ein anderer Bildschirm hat eine Auswahl hingelegt: übernehmen und
+        // merken, damit sie beim nächsten Fokus nicht erneut als neu gilt.
+        seenPresetRef.current = presetToken;
         loadedKeyRef.current = key;
-        loadDueCards();
         return;
       }
-      if (cards.length === 0 && !completed) {
+      if (action.type === "load") {
+        loadedKeyRef.current = key;
+        // Was wir gleich selbst laden, ist keine fremde Vorgabe mehr.
+        seenPresetRef.current = presetToken;
         loadDueCards();
       }
-    }, [deckId, cards.length, completed, loadDueCards])
+    }, [deckId, cards.length, completed, loadDueCards, presetToken])
   );
 
   // ─── Rating handlers ──────────────────────────────────────────────────────

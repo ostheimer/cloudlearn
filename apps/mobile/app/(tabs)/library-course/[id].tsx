@@ -42,7 +42,9 @@ export default function CourseDetailScreen() {
   const { t } = useTranslation();
 
   const userId = useSessionStore((s) => s.userId);
-  const start = useReviewSession((s) => s.start);
+  // startPreset statt start: markiert die Auswahl als „von hier vorgegeben", damit
+  // der Lern-Tab sie nicht mit den global fälligen Karten überschreibt (#282).
+  const startPreset = useReviewSession((s) => s.startPreset);
 
   const [currentTitle, setCurrentTitle] = useState(title ?? "");
   const [decks, setDecks] = useState<Deck[]>([]);
@@ -166,14 +168,14 @@ export default function CourseDetailScreen() {
         Alert.alert(t("learn.noDueCards"), t("learn.noDueCardsMessage"));
         return;
       }
-      start(filtered.map((c) => ({ id: c.id, front: c.front, back: c.back, starred: c.starred })));
+      startPreset(filtered.map((c) => ({ id: c.id, front: c.front, back: c.back, starred: c.starred })));
       router.push("/(tabs)/learn");
     } catch {
       Alert.alert(t("common.error"), t("learn.loadError"));
     } finally {
       setStartingLearn(false);
     }
-  }, [userId, decks, t, start, router]);
+  }, [userId, decks, t, startPreset, router]);
 
   const handleMoreMenu = useCallback(() => {
     Alert.alert(currentTitle, "", [

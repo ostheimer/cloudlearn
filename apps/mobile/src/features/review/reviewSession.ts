@@ -18,7 +18,25 @@ interface ReviewSessionState {
   swipedRight: number;
   revealed: boolean;
   completed: boolean;
+  /**
+   * Zählt, wie oft ein ANDERER Bildschirm eine Auswahl hierhergelegt hat
+   * (Ordner/Kurs „Alle lernen"). Der Lern-Tab merkt sich den zuletzt von ihm
+   * gesehenen Stand: Ist die Zahl gewachsen, hat jemand bewusst etwas
+   * hingelegt — dann darf er sie NICHT mit den global fälligen Karten
+   * überschreiben (#282).
+   *
+   * Warum eine Zahl und kein Ja/Nein: Ein Ja/Nein müsste jemand
+   * zurücksetzen, und wer das vergisst, blockiert das Nachladen für immer.
+   * Eine Zahl, die nur wächst, kennt diesen Zustand nicht — jeder Leser
+   * vergleicht sie mit dem, was er zuletzt gesehen hat.
+   */
+  presetToken: number;
   start: (cards: ReviewCard[]) => void;
+  /**
+   * Wie `start`, aber als „von außen vorgegeben" markiert. Nur für
+   * Bildschirme, die eine Auswahl treffen und dann zum Lern-Tab schicken.
+   */
+  startPreset: (cards: ReviewCard[]) => void;
   reveal: () => void;
   canGoBack: () => boolean;
   goBack: () => boolean;
@@ -34,6 +52,7 @@ export const useReviewSession = create<ReviewSessionState>((set, get) => ({
   swipedRight: 0,
   revealed: false,
   completed: false,
+  presetToken: 0,
   start: (cards) =>
     set({
       cards,
@@ -45,6 +64,18 @@ export const useReviewSession = create<ReviewSessionState>((set, get) => ({
       revealed: false,
       completed: cards.length === 0
     }),
+  startPreset: (cards) =>
+    set((state) => ({
+      cards,
+      index: 0,
+      history: [],
+      ratingHistory: [],
+      swipedLeft: 0,
+      swipedRight: 0,
+      revealed: false,
+      completed: cards.length === 0,
+      presetToken: state.presetToken + 1
+    })),
   reveal: () => set({ revealed: true }),
   canGoBack: () => get().history.length > 0,
   goBack: () => {
