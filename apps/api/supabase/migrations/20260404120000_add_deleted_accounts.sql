@@ -37,5 +37,15 @@ begin
 end;
 $$;
 
-revoke all on function delete_account_data(uuid, text) from public;
+-- anon/authenticated einzeln entziehen: Supabase vergibt EXECUTE auf
+-- Funktionen im Schema public ausdrücklich an diese Rollen, und ein revoke
+-- gegen die PUBLIC-Pseudorolle lässt das unberührt. Ohne diese zwei Zeilen
+-- ist die Funktion über /rest/v1/rpc mit dem öffentlichen anon-Key aufrufbar
+-- — SECURITY DEFINER, Ziel-Kennung als Parameter, also fremde Konten löschbar.
+-- Nachträglich ergänzt (20.07.), nachdem genau das beim Nachziehen dieser
+-- Migration in Prod passiert ist. Diese Datei wurde nie angewendet; die
+-- Ergänzung schützt frisch aufgesetzte Umgebungen.
+revoke execute on function delete_account_data(uuid, text) from public;
+revoke execute on function delete_account_data(uuid, text) from anon;
+revoke execute on function delete_account_data(uuid, text) from authenticated;
 grant execute on function delete_account_data(uuid, text) to service_role;

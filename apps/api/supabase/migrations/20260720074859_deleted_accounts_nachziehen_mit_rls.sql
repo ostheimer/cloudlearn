@@ -70,5 +70,18 @@ begin
 end;
 $$;
 
-revoke all on function delete_account_data(uuid, text) from public;
+-- anon und authenticated MÜSSEN einzeln entzogen werden. "from public" allein
+-- reicht nicht: Supabase vergibt EXECUTE auf Funktionen im Schema public
+-- zusätzlich AUSDRÜCKLICH an diese beiden Rollen, und ein revoke gegen die
+-- PUBLIC-Pseudorolle lässt solche Grants unberührt.
+--
+-- Das ist keine Theorie: Die alte Fassung dieser Migration hatte nur die
+-- public-Zeile. Nach dem Anwenden war delete_account_data über
+-- /rest/v1/rpc/delete_account_data für JEDEN mit dem öffentlichen anon-Key
+-- aufrufbar — SECURITY DEFINER, Ziel-Kennung als Parameter, also ein
+-- beliebiges fremdes Konto samt aller Lerndaten löschbar. Aufgefallen ist es
+-- erst dem Supabase-Linter nach dem Anwenden (Meldung 0028/0029).
+revoke execute on function delete_account_data(uuid, text) from public;
+revoke execute on function delete_account_data(uuid, text) from anon;
+revoke execute on function delete_account_data(uuid, text) from authenticated;
 grant execute on function delete_account_data(uuid, text) to service_role;

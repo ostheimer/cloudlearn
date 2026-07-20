@@ -335,4 +335,39 @@ describe("supabase migrations", () => {
     expect(statements[0]?.statement).toMatch(/^create\s+policy/);
     expect(statements.at(-1)?.statement).toMatch(/^drop\s+policy/);
   });
+
+  it("revokes execute from anon AND authenticated wherever it creates a SECURITY DEFINER function", () => {
+    // `revoke ... from public` looks like it locks a function down. It does not:
+    // Supabase grants EXECUTE on functions in the `public` schema explicitly to
+    // the `anon` and `authenticated` roles, and revoking from the PUBLIC
+    // pseudo-role leaves those grants untouched. The function stays callable at
+    // /rest/v1/rpc/<name> with the anon key that ships inside the web bundle.
+    //
+    // This is not hypothetical. delete_account_data (SECURITY DEFINER, target
+    // user id as a *parameter*) went live that way on 20.07. and was, for about
+    // 40 minutes, an endpoint for deleting anybody's account and every deck,
+    // card and point attached to it. Nothing was exploited — but nothing in the
+    // code said anything was wrong either. Only the Supabase linter noticed.
+    //
+    // So: any migration that defines such a function must name both roles.
+    const migrationDir = join(apiRoot, "supabase/migrations");
+    const offenders = readdirSync(migrationDir)
+      .filter((file) => file.endsWith(".sql"))
+      .map((file) => ({
+        file,
+        // Comments explain the trap and mention the roles; only real SQL counts.
+        sql: readFileSync(join(migrationDir, file), "utf-8")
+          .replace(/--[^\n]*/g, "")
+          .toLowerCase(),
+      }))
+      .filter(({ sql }) => /security\s+definer/.test(sql))
+      .filter(
+        ({ sql }) =>
+          !/revoke\s+[^;]*\bfrom\s+[^;]*\banon\b/.test(sql) ||
+          !/revoke\s+[^;]*\bfrom\s+[^;]*\bauthenticated\b/.test(sql),
+      )
+      .map(({ file }) => file);
+
+    expect(offenders).toEqual([]);
+  });
 });
