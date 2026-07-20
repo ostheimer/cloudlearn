@@ -125,14 +125,6 @@ export default function ClozeScreen() {
     ({ input: string; correct: boolean; overridden: boolean } | null)[]
   >([]);
 
-  const startRound = (cardsForRound: Card[]) => {
-    setRound(cardsForRound);
-    setResults(new Array(cardsForRound.length).fill(null));
-    setIdx(0);
-    setInput("");
-    setPhase("play");
-  };
-
   const loadCards = useCallback(async () => {
     if (!deckId) return;
     setLoading(true);
@@ -253,6 +245,30 @@ export default function ClozeScreen() {
       };
     }, [awardSession]),
   );
+
+  // Jede Runde ist eine eigene Abrechnung. Weil `handleNext` am Rundenende
+  // sofort gutschreibt (state.finalized = true), müsste „Alle nochmal" /
+  // „Nur die falschen" sonst ohne Lernpunkte laufen — der Ablauf steht dann
+  // dauerhaft auf „schon abgerechnet". Gleiches Muster wie Web
+  // (src/components/app/learn-session.tsx, startRound).
+  //
+  // Reihenfolge ist wichtig: erst die vorige Gutschrift zu Ende laufen lassen,
+  // dann entschärfen. Andernfalls setzt der noch laufende Lauf `finalized`
+  // wieder auf true, NACHDEM wir es hier zurückgesetzt haben.
+  const startRound = async (cardsForRound: Card[]) => {
+    await awardSession(
+      getSessionReviewedCount(sessionReviewsRef.current, pendingReviewsRef.current.length),
+    );
+    awardStateRef.current.finalized = false;
+    pendingReviewsRef.current = [];
+    sessionReviewsRef.current = 0;
+
+    setRound(cardsForRound);
+    setResults(new Array(cardsForRound.length).fill(null));
+    setIdx(0);
+    setInput("");
+    setPhase("play");
+  };
 
   const handleCheck = () => {
     if (revealed || !current || !parsed) return;
@@ -578,7 +594,7 @@ export default function ClozeScreen() {
 
             {/* Start */}
             <TouchableOpacity
-              onPress={() => startRound(studyPool)}
+              onPress={() => void startRound(studyPool)}
               disabled={studyPool.length === 0}
               activeOpacity={0.85}
               style={{
@@ -644,13 +660,13 @@ export default function ClozeScreen() {
                   : [
                       {
                         label: `Nur die falschen (${wrongCount})`,
-                        onPress: () => startRound(wrong),
+                        onPress: () => void startRound(wrong),
                         variant: "primary" as const,
                       },
                     ]),
                 {
                   label: `Alle nochmal (${studyPool.length})`,
-                  onPress: () => startRound(studyPool),
+                  onPress: () => void startRound(studyPool),
                   variant: allRight ? ("primary" as const) : ("secondary" as const),
                   reload: true,
                 },
