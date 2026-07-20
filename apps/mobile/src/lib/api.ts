@@ -414,6 +414,24 @@ export async function getDueCards(
   return requestAuthenticated<{ cards: Card[] }>(`/api/v1/learn/due?userId=${userId}`);
 }
 
+/**
+ * Woher eine Wiederholung stammt. Der Server entscheidet daran, was sie
+ * auslöst: Abruf-Modi bewegen den Lernplan, "test" gibt keine Lernpunkte,
+ * "quiz"/"match" geben Punkte, rühren den Plan aber nur bei Fehlern an.
+ *
+ * Wird nichts geschickt, trägt der Server "flashcard" ein. Für Lernen, Üben,
+ * Lückentext und Bild-Abdecken ist das folgenlos — alle vier gelten ohnehin
+ * als echter Abruf und werden identisch behandelt.
+ */
+export type ReviewMode =
+  | "flashcard"
+  | "practice"
+  | "cloze"
+  | "occlusion"
+  | "quiz"
+  | "match"
+  | "test";
+
 export async function reviewCard(
   userId: string,
   cardId: string,
@@ -422,6 +440,7 @@ export async function reviewCard(
     reviewedAt?: string;
     reviewDurationMs?: number;
     idempotencyKey?: string;
+    mode?: ReviewMode;
   }
 ): Promise<ReviewResponse> {
   const reviewedAt = options?.reviewedAt ?? new Date().toISOString();
@@ -435,6 +454,7 @@ export async function reviewCard(
     reviewedAt: string;
     idempotencyKey: string;
     reviewDurationMs?: number;
+    mode?: ReviewMode;
   } = {
     userId,
     cardId,
@@ -445,6 +465,10 @@ export async function reviewCard(
 
   if (options?.reviewDurationMs !== undefined) {
     body.reviewDurationMs = options.reviewDurationMs;
+  }
+
+  if (options?.mode !== undefined) {
+    body.mode = options.mode;
   }
 
   return requestAuthenticated<ReviewResponse>(`/api/v1/cards/${cardId}/review`, {
