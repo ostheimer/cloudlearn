@@ -23,6 +23,7 @@ import {
   Zap,
 } from "lucide-react-native";
 import { earnLp, listCardsInDeck, reviewCard, type Card } from "../src/lib/api";
+import { setLastUsedDeck } from "../src/lib/lastUsedDeck";
 import { finishRateModeRound } from "../src/lib/rateModeRound";
 import { useSessionStore } from "../src/store/sessionStore";
 import { useUsageStore } from "../src/store/usageStore";
@@ -48,6 +49,12 @@ export default function QuizScreen() {
     deckTitle: string;
   }>();
   const router = useRouter();
+
+  // Studying IS using the deck — Home's "Zuletzt genutzt" must not depend on
+  // whether the learner happened to route through the deck screen first (#413).
+  useEffect(() => {
+    if (deckId) void setLastUsedDeck({ id: deckId, title: deckTitle ?? "" });
+  }, [deckId, deckTitle]);
   const userId = useSessionStore((s) => s.userId);
   const setUsage = useUsageStore((s) => s.setUsage);
   const quizCopy = useMemo(

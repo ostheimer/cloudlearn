@@ -55,6 +55,7 @@ import {
   reviewCard,
   updateCard,
 } from "../../src/lib/api";
+import { setLastUsedDeck } from "../../src/lib/lastUsedDeck";
 import { useUsageStore } from "../../src/store/usageStore";
 import { excludeOcclusionCards } from "../../src/lib/occlusion";
 import {
@@ -166,6 +167,12 @@ function AuthenticatedLearnScreen({
   const c = useColors();
   const { cards, index, revealed, completed, swipedLeft, swipedRight, history, ratingHistory, presetToken, start, reveal, rateCurrent, canGoBack, goBack } =
     useReviewSession();
+
+  // Studying IS using the deck (#413). Only for a single-deck session — the
+  // global Lernen tab spans every deck, so there is no one deck to remember.
+  useEffect(() => {
+    if (deckId) void setLastUsedDeck({ id: deckId, title: deckTitle ?? "" });
+  }, [deckId, deckTitle]);
 
   // Cards the learner didn't know this session, powering the result summary and
   // the "only the missed ones" button (pure helper, unit-tested).

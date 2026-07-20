@@ -29,6 +29,7 @@ import {
   Plus,
 } from "lucide-react-native";
 import { listCardsInDeck, reviewCard, type Card } from "../src/lib/api";
+import { setLastUsedDeck } from "../src/lib/lastUsedDeck";
 import { useSessionStore } from "../src/store/sessionStore";
 import { excludeOcclusionCards } from "../src/lib/occlusion";
 import { isAnswerCorrect } from "../src/lib/answerCheck";
@@ -84,6 +85,12 @@ export default function TestScreen() {
     deckId: string;
     deckTitle: string;
   }>();
+
+  // Studying IS using the deck (#413). A Test earns no LP and no daily-goal
+  // credit, but it is still unambiguously "this deck was what I worked on".
+  useEffect(() => {
+    if (deckId) void setLastUsedDeck({ id: deckId, title: deckTitle ?? "" });
+  }, [deckId, deckTitle]);
 
   const [allCards, setAllCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);

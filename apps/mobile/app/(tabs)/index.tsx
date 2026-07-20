@@ -26,7 +26,7 @@ import {
 } from "lucide-react-native";
 import { useSessionStore } from "../../src/store/sessionStore";
 import { getStats, listDecks, getFriendStreaks, buyStreakRepair, isApiError, type StatsResponse, type Deck, type FriendStreak } from "../../src/lib/api";
-import { getLastUsedDeck, type LastUsedDeck } from "../../src/lib/lastUsedDeck";
+import { getLastUsedDeck, pickShownDeck, type LastUsedDeck } from "../../src/lib/lastUsedDeck";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
 import { LpBadge } from "../../src/components/LpBadge";
 import { AuthPromptCard } from "../../src/components/AuthPromptCard";
@@ -157,19 +157,20 @@ export default function HomeScreen() {
   // This is NOT the "streak lost" state: that has its own repair banner above.
   const fireBurning = streak > 0 && reviewedToday;
 
-  // "Zuletzt genutzt": prefer the deck last opened on this device — practice
-  // modes leave no review_logs, so the server only sees Karteikarten sessions.
-  // Fall back to the server's last-reviewed deck, then to the last-edited one.
-  const lastStudied = stats?.lastStudiedDeck ?? null;
-  const shownDeck =
-    lastUsed ??
-    lastStudied ??
-    (recentDeck ? { id: recentDeck.id, title: recentDeck.title } : null);
-  const shownDeckLabel = lastUsed
-    ? "Zuletzt genutzt"
-    : lastStudied
-      ? "Zuletzt gelernt"
-      : "Zuletzt geändert";
+  // "Zuletzt genutzt": the local marker (every mode, this device) and the
+  // server's last review (Karteikarten, every device) are compared by time —
+  // the newer one wins. Last resort is the most recently edited deck.
+  const shownDeck = pickShownDeck(
+    lastUsed,
+    stats?.lastStudiedDeck ?? null,
+    recentDeck ? { id: recentDeck.id, title: recentDeck.title } : null
+  );
+  const shownDeckLabel =
+    shownDeck?.source === "used"
+      ? "Zuletzt genutzt"
+      : shownDeck?.source === "studied"
+        ? "Zuletzt gelernt"
+        : "Zuletzt geändert";
 
   if (!userId) {
     return (
