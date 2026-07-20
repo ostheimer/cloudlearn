@@ -132,15 +132,19 @@ export default function QuizPage() {
       return next;
     });
     if (userId) {
-      // #210: Guessing on a Multiple-Choice quiz shouldn't advance FSRS — a correct
-      // answer may just be a lucky guess, so only wrong answers submit a review
-      // ("again", which resurfaces the card sooner). Correct answers leave the card's
-      // schedule untouched. We still push a resolved promise so the pending-review
-      // count (used for LP earning) and the awaited Promise.allSettled flow are
-      // unchanged.
-      const reviewPromise = correct
-        ? Promise.resolve()
-        : reviewCard(userId, q.cardId, "again").catch(() => {});
+      // Bis Schritt 8 schickte ein TREFFER gar nichts — nur so ließ sich
+      // verhindern, dass Raten die Planung vorspult (#210). Der Preis war
+      // absurd: Wer alles richtig hatte, bekam null Lernpunkte, weil die aus
+      // genau diesen Zeilen entstehen. „Warum bekommt man nur Punkte, wenn man
+      // was falsch hat?"
+      //
+      // Jetzt trägt jede Antwort mode:"quiz". Der Server schreibt den Eintrag
+      // (Punkte, Streak, Statistik), lässt die Planung bei einem Treffer aber
+      // in Ruhe — movesTheSchedule in reviewService. Das Versprechen aus #210
+      // hält also weiterhin, nur ohne die Nebenwirkung.
+      const reviewPromise = reviewCard(userId, q.cardId, correct ? "good" : "again", {
+        mode: "quiz",
+      }).catch(() => {});
       pendingReviewsRef.current.push(reviewPromise);
     }
   }
