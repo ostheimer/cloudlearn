@@ -384,7 +384,12 @@ function AuthenticatedLearnScreen({
     const previous = reviewBuffer.rate({
       cardId: result.cardId,
       rating,
-      queuedReview: createReviewSyncOperation({ userId, cardId: result.cardId, rating }),
+      queuedReview: createReviewSyncOperation({
+        userId,
+        cardId: result.cardId,
+        rating,
+        mode: "flashcard",
+      }),
     });
     if (previous) await sendReview(previous);
     // The last card has nothing after it to release the buffer, and the summary

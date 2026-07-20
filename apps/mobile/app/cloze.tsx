@@ -185,7 +185,7 @@ export default function ClozeScreen() {
     (cardId: string, rating: "good" | "again") => {
       if (!userId) return;
       sessionReviewsRef.current += 1;
-      const queued = createReviewSyncOperation({ userId, cardId, rating });
+      const queued = createReviewSyncOperation({ userId, cardId, rating, mode: "cloze" });
       const reviewPromise = reviewCard(userId, cardId, rating, queued.payload).catch((error) => {
         // Offline oder Serverfehler: für später aufheben. Bei 4xx würde ein
         // erneuter Versuch genauso abgelehnt — dann lieber fallen lassen.

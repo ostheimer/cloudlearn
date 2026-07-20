@@ -222,6 +222,20 @@ export interface ReviewSyncPayload {
   reviewedAt: string;
   reviewDurationMs?: number;
   idempotencyKey: string;
+  /**
+   * Aus welchem Modus die Wiederholung stammt (siehe ReviewMode).
+   *
+   * Steht bewusst IM Payload, nicht nur am Aufruf: Lernen, Üben und Lückentext
+   * reichen genau dieses Objekt sowohl an reviewCard als auch — bei Netzfehler
+   * — in die Offline-Warteschlange weiter. Nur so trägt auch die später
+   * nachgereichte Wiederholung ihr Etikett.
+   *
+   * Optional, weil bereits gespeicherte Warteschlangen-Einträge aus der Zeit
+   * vor dieser Änderung kein mode haben. Die tragen der Server-Default
+   * "flashcard" — dasselbe Etikett, das sie ohne diese Änderung bekommen
+   * hätten.
+   */
+  mode?: ReviewMode;
 }
 
 export interface ReviewSyncOperation {

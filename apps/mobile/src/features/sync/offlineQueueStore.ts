@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import {
   syncReviewOperations,
+  type ReviewMode,
   type ReviewSyncOperation,
 } from "../../lib/api";
 
@@ -188,6 +189,11 @@ export function createReviewSyncOperation(input: {
   reviewedAt?: string;
   reviewDurationMs?: number;
   idempotencyKey?: string;
+  /**
+   * Lernmodus dieser Wiederholung. Optional: Wer nichts angibt, verhält sich
+   * exakt wie vorher — der Server trägt dann "flashcard" ein.
+   */
+  mode?: ReviewMode;
 }): ReviewSyncOperation {
   const reviewedAt = input.reviewedAt ?? new Date().toISOString();
   const idempotencyKey =
@@ -203,6 +209,10 @@ export function createReviewSyncOperation(input: {
 
   if (input.reviewDurationMs !== undefined) {
     payload.reviewDurationMs = input.reviewDurationMs;
+  }
+
+  if (input.mode !== undefined) {
+    payload.mode = input.mode;
   }
 
   return {
