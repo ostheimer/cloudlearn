@@ -31,8 +31,18 @@ export async function getAuthUser(
     .eq("user_id", user.id)
     .maybeSingle();
   if (deletedAccountError) {
-    const deletedAccountErrorWithCode = deletedAccountError as Error & { code?: string };
-    if (deletedAccountErrorWithCode.code !== "42P01") {
+    // Die Ausnahme galt "Tabelle gibt es nicht" — geprüft wurde aber der
+    // Postgres-Code 42P01, während über PostgREST PGRST205 ankommt
+    // ("Could not find the table ... in the schema cache"). Der Filter griff
+    // deshalb nie: vom 09.05. bis 20.07. liefen 125 Fehlermeldungen ins Log,
+    // bei jeder Anmeldung, auf fast jeder Route.
+    //
+    // Die Tabelle existiert inzwischen (Migration nachgezogen), der Fall ist
+    // also weg. Beide Codes bleiben trotzdem stehen: Ein Log, das eine echte
+    // Störung meldet, ist nur etwas wert, wenn es nicht monatelang im
+    // Grundrauschen untergeht.
+    const code = (deletedAccountError as Error & { code?: string }).code;
+    if (code !== "42P01" && code !== "PGRST205") {
       console.error("[auth] deleted_accounts lookup error:", deletedAccountError.message);
     }
   }
