@@ -86,7 +86,7 @@ export default function TestScreen() {
     deckTitle: string;
   }>();
 
-  // Studying IS using the deck (#413). A Test earns no LP and no daily-goal
+  // Studying IS using the deck (#415). A Test earns no LP and no daily-goal
   // credit, but it is still unambiguously "this deck was what I worked on".
   useEffect(() => {
     if (deckId) void setLastUsedDeck({ id: deckId, title: deckTitle ?? "" });

@@ -14,7 +14,7 @@ describe("parseLastUsedDeck", () => {
     expect(parseLastUsedDeck('{"id":"d1"}')).toEqual({ id: "d1", title: "", at: null });
   });
 
-  it("reads a pre-#413 marker as undated rather than rejecting it", () => {
+  it("reads a pre-#415 marker as undated rather than rejecting it", () => {
     expect(parseLastUsedDeck('{"id":"d1","title":"Nature"}')).toEqual({
       id: "d1",
       title: "Nature",
@@ -42,7 +42,7 @@ describe("pickShownDeck", () => {
   const edited = { id: "old", title: "Alt" };
 
   it("shows the deck actually studied later, not the one merely opened earlier", () => {
-    // The #413 report: Französisch opened at 09:30, PIT studied at 14:44.
+    // The #415 report: Französisch opened at 09:30, PIT studied at 14:44.
     expect(
       pickShownDeck(
         { id: "fr", title: "Französisch", at: morning },
@@ -63,7 +63,7 @@ describe("pickShownDeck", () => {
     ).toEqual({ id: "pit", title: "PIT", source: "used" });
   });
 
-  it("lets the dated server value beat an undated pre-#413 marker", () => {
+  it("lets the dated server value beat an undated pre-#415 marker", () => {
     expect(
       pickShownDeck(
         { id: "fr", title: "Französisch", at: null },

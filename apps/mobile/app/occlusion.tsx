@@ -43,7 +43,7 @@ export default function OcclusionStudyScreen() {
   const userId = useSessionStore((s) => s.userId);
   const { deckId, deckTitle } = useLocalSearchParams<{ deckId?: string; deckTitle?: string }>();
 
-  // Studying IS using the deck (#413).
+  // Studying IS using the deck (#415).
   useEffect(() => {
     if (deckId) void setLastUsedDeck({ id: deckId, title: deckTitle ?? "" });
   }, [deckId, deckTitle]);

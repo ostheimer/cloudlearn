@@ -74,7 +74,7 @@ export default function MatchScreen() {
   }>();
   const router = useRouter();
 
-  // Studying IS using the deck (#413) — and Zuordnen writes no review_logs,
+  // Studying IS using the deck (#415) — and Zuordnen writes no review_logs,
   // so this marker is the only trace the server would ever see.
   useEffect(() => {
     if (deckId) void setLastUsedDeck({ id: deckId, title: deckTitle ?? "" });

@@ -168,7 +168,7 @@ function AuthenticatedLearnScreen({
   const { cards, index, revealed, completed, swipedLeft, swipedRight, history, ratingHistory, presetToken, start, reveal, rateCurrent, canGoBack, goBack } =
     useReviewSession();
 
-  // Studying IS using the deck (#413). Only for a single-deck session — the
+  // Studying IS using the deck (#415). Only for a single-deck session — the
   // global Lernen tab spans every deck, so there is no one deck to remember.
   useEffect(() => {
     if (deckId) void setLastUsedDeck({ id: deckId, title: deckTitle ?? "" });
