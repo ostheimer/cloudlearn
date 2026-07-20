@@ -25,6 +25,13 @@ import {
 import { listCardsInDeck, reviewCard, earnLp, isApiError, type Card } from "../src/lib/api";
 import { setLastUsedDeck } from "../src/lib/lastUsedDeck";
 import {
+  clearSessionProgress,
+  isProgressUsable,
+  loadSessionProgress,
+  saveSessionProgress,
+  type SessionProgress,
+} from "../src/features/review/sessionProgress";
+import {
   createReviewSyncOperation,
   useOfflineQueueStore,
 } from "../src/features/sync/offlineQueueStore";
@@ -124,6 +131,11 @@ export default function ClozeScreen() {
   const [phase, setPhase] = useState<Phase>("setup");
   const [round, setRound] = useState<Card[]>([]);
   const [idx, setIdx] = useState(0);
+  // Earliest card the back button may reach. Non-zero only after resuming, so a
+  // continued round cannot step back into cards the earlier session rated.
+  const [floor, setFloor] = useState(0);
+  // Position of an earlier interrupted round for this deck, if one is stored.
+  const [saved, setSaved] = useState<SessionProgress | null>(null);
   const [input, setInput] = useState("");
   // One result slot per card in the round (null = not answered yet), so the
   // back button can show an earlier card in its answered state.
@@ -160,10 +172,26 @@ export default function ClozeScreen() {
     loadCards();
   }, [loadCards]);
 
+  // Read the stored position once; the offer below only appears while it still
+  // matches the pile the current settings produce.
+  useEffect(() => {
+    if (!deckId) return;
+    let active = true;
+    void loadSessionProgress(deckId, "cloze").then((progress) => {
+      if (active) setSaved(progress);
+    });
+    return () => {
+      active = false;
+    };
+  }, [deckId]);
+
   // The chosen source decides which cards this round draws from.
   const starredCount = allCards.filter((c) => c.starred).length;
   const wobblyCount = allCards.filter((c) => wobblyIds.has(c.id)).length;
   const studyPool = filterBySource(allCards, source, wobblyIds);
+
+  const canResume =
+    saved !== null && isProgressUsable(saved, studyPool.map((card) => card.id), source);
 
   const current = round[idx];
   const parsed = current ? buildPrompt(current, reverse) : null;
@@ -261,7 +289,7 @@ export default function ClozeScreen() {
   // Reihenfolge ist wichtig: erst die vorige Gutschrift zu Ende laufen lassen,
   // dann entschärfen. Andernfalls setzt der noch laufende Lauf `finalized`
   // wieder auf true, NACHDEM wir es hier zurückgesetzt haben.
-  const startRound = async (cardsForRound: Card[]) => {
+  const startRound = async (cardsForRound: Card[], startAt = 0) => {
     await awardSession(
       getSessionReviewedCount(sessionReviewsRef.current, pendingReviewsRef.current.length),
     );
@@ -269,9 +297,14 @@ export default function ClozeScreen() {
     pendingReviewsRef.current = [];
     sessionReviewsRef.current = 0;
 
+    // `startAt` resumes an interrupted round (sessionProgress.ts). The floor
+    // travels with it: the skipped cards were answered and sent last time, so
+    // the back button must not walk into them and collect a second review.
+    const from = Math.min(Math.max(startAt, 0), Math.max(cardsForRound.length - 1, 0));
     setRound(cardsForRound);
     setResults(new Array(cardsForRound.length).fill(null));
-    setIdx(0);
+    setIdx(from);
+    setFloor(from);
     setInput("");
     setPhase("play");
   };
@@ -313,10 +346,32 @@ export default function ClozeScreen() {
   };
 
   const handleBack = () => {
-    if (idx === 0) return;
+    if (idx <= floor) return;
     setIdx((i) => i - 1);
     setInput("");
   };
+
+  // ─── Remember where an interrupted round stopped ─────────────────────────
+  // Written per card rather than on leaving: the app can be killed from the
+  // task switcher without any teardown running. The summary clears the entry —
+  // a finished round has nothing to resume.
+  useEffect(() => {
+    if (!deckId || round.length === 0) return;
+    if (phase === "summary") {
+      void clearSessionProgress(deckId, "cloze");
+      return;
+    }
+    if (phase !== "play") return;
+    const card = round[idx];
+    if (!card) return;
+    void saveSessionProgress(deckId, "cloze", {
+      index: idx,
+      cardId: card.id,
+      source,
+      reverse,
+      total: round.length,
+    });
+  }, [deckId, phase, round, idx, source, reverse]);
 
   // Round outcome, derived from the per-card results.
   const correctCount = results.filter(
@@ -598,29 +653,73 @@ export default function ClozeScreen() {
 
             <View style={{ flex: 1 }} />
 
-            {/* Start */}
+            {/* Weitermachen — only while an interrupted round still fits */}
+            {canResume && saved && (
+              <TouchableOpacity
+                onPress={() => {
+                  setReverse(saved.reverse);
+                  void startRound(studyPool, saved.index);
+                }}
+                activeOpacity={0.85}
+                style={{
+                  backgroundColor: colors.primary,
+                  paddingVertical: 16,
+                  borderRadius: radius.lg,
+                  alignItems: "center",
+                  marginBottom: spacing.sm,
+                  ...shadows.md,
+                }}
+              >
+                <Text
+                  style={{
+                    color: colors.textInverse,
+                    fontWeight: typography.bold,
+                    fontSize: typography.lg,
+                  }}
+                >
+                  Weitermachen
+                </Text>
+                <Text
+                  style={{ color: colors.textInverse, fontSize: typography.sm, marginTop: 2 }}
+                >
+                  {`Karte ${saved.index + 1} von ${studyPool.length}`}
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Start — becomes the secondary action once a resume is offered */}
             <TouchableOpacity
               onPress={() => void startRound(studyPool)}
               disabled={studyPool.length === 0}
               activeOpacity={0.85}
               style={{
                 backgroundColor:
-                  studyPool.length === 0 ? colors.surfaceSecondary : colors.primary,
+                  studyPool.length === 0
+                    ? colors.surfaceSecondary
+                    : canResume
+                      ? colors.surface
+                      : colors.primary,
+                borderWidth: canResume && studyPool.length > 0 ? 1 : 0,
+                borderColor: colors.border,
                 paddingVertical: 16,
                 borderRadius: radius.lg,
                 alignItems: "center",
-                ...shadows.md,
+                ...(canResume ? {} : shadows.md),
               }}
             >
               <Text
                 style={{
                   color:
-                    studyPool.length === 0 ? colors.textTertiary : colors.textInverse,
+                    studyPool.length === 0
+                      ? colors.textTertiary
+                      : canResume
+                        ? colors.text
+                        : colors.textInverse,
                   fontWeight: typography.bold,
                   fontSize: typography.lg,
                 }}
               >
-                Starten
+                {canResume ? "Von vorne beginnen" : "Starten"}
               </Text>
             </TouchableOpacity>
           </ScrollView>

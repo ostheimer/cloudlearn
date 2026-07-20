@@ -6,8 +6,27 @@
  * learner has no way to notice.
  */
 
-import { describe, expect, it } from "vitest";
-import { isProgressUsable, parseSessionProgress, type SessionProgress } from "./sessionProgress";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import {
+  clearSessionProgress,
+  isProgressUsable,
+  loadSessionProgress,
+  parseSessionProgress,
+  saveSessionProgress,
+  type SessionProgress,
+} from "./sessionProgress";
+
+// In-memory stand-in for the device store, so the key layout can be asserted.
+const store = new Map<string, string>();
+vi.mock("@react-native-async-storage/async-storage", () => ({
+  default: {
+    setItem: async (k: string, v: string) => void store.set(k, v),
+    getItem: async (k: string) => store.get(k) ?? null,
+    removeItem: async (k: string) => void store.delete(k),
+  },
+}));
+
+beforeEach(() => store.clear());
 
 const progress = (over: Partial<SessionProgress> = {}): SessionProgress => ({
   index: 8,
@@ -77,5 +96,33 @@ describe("isProgressUsable", () => {
   // nothing about the other, even when the card ids happen to line up.
   it("declines when the session was run on a different card source", () => {
     expect(isProgressUsable(progress({ index: 3, cardId: "card-9" }), pile, "starred")).toBe(false);
+  });
+});
+
+// One deck can have a Karteikarten round and a Lückentext round interrupted at
+// the same time, over different piles (Lückentext only studies typeable cards).
+// A shared key would let whichever mode ran last overwrite the other position.
+describe("keeping the modes apart", () => {
+  it("stores and reads each mode under its own entry", async () => {
+    await saveSessionProgress("deck-1", "flashcards", progress({ index: 8, cardId: "k-9" }));
+    await saveSessionProgress("deck-1", "cloze", progress({ index: 2, cardId: "l-3" }));
+
+    expect((await loadSessionProgress("deck-1", "flashcards"))?.cardId).toBe("k-9");
+    expect((await loadSessionProgress("deck-1", "cloze"))?.cardId).toBe("l-3");
+  });
+
+  it("keeps decks apart as well", async () => {
+    await saveSessionProgress("deck-1", "cloze", progress({ cardId: "aus-deck-1" }));
+    expect(await loadSessionProgress("deck-2", "cloze")).toBeNull();
+  });
+
+  it("clears only the mode it was asked to clear", async () => {
+    await saveSessionProgress("deck-1", "flashcards", progress({ cardId: "k-9" }));
+    await saveSessionProgress("deck-1", "cloze", progress({ cardId: "l-3" }));
+
+    await clearSessionProgress("deck-1", "cloze");
+
+    expect((await loadSessionProgress("deck-1", "flashcards"))?.cardId).toBe("k-9");
+    expect(await loadSessionProgress("deck-1", "cloze")).toBeNull();
   });
 });

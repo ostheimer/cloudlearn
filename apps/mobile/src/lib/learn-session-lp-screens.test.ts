@@ -80,9 +80,13 @@ describe("mobile cloze – Folgerunden werden weiter abgerechnet", () => {
     expect(awaited).toBeLessThan(rearmed);
   });
 
-  it("nutzt startRound an allen drei Startknöpfen", () => {
+  it("nutzt startRound an allen vier Startknöpfen", () => {
     // Setup „“, „“, „“.
-    expect(source.match(/void startRound\(/g)).toHaveLength(3);
+    // Vierter Knopf seit dem Fortsetzen-Angebot: "Weitermachen" nimmt die
+    // unterbrochene Runde an ihrer Position auf. Gezaehlt wird nur, was ueber
+    // startRound geht — ein Startknopf, der die Runde direkt setzt, wuerde die
+    // Abrechnung nicht scharf machen und die Folgerunde ohne LP laufen lassen.
+    expect(source.match(/void startRound\(/g)).toHaveLength(4);
   });
 });
 

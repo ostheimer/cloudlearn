@@ -354,12 +354,12 @@ function AuthenticatedLearnScreen({
   useEffect(() => {
     if (!deckId || !source || cards.length === 0) return;
     if (completed) {
-      void clearSessionProgress(deckId);
+      void clearSessionProgress(deckId, "flashcards");
       return;
     }
     const current = cards[index];
     if (!current) return;
-    void saveSessionProgress(deckId, {
+    void saveSessionProgress(deckId, "flashcards", {
       index,
       cardId: current.id,
       source,
