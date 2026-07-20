@@ -102,26 +102,61 @@ export async function generateFlashcardsFromText(
   if (chunks.length <= 1) return ask(chunks[0] ?? text);
 
   // One call per chunk, in parallel — see studyTextChunks.ts for why splitting
-  // beats one large call. Chunks are independent, so a single failing chunk
-  // costs its own cards and not the whole import.
-  const settled = await Promise.allSettled(chunks.map(ask));
-  const succeeded = settled.flatMap((r) => (r.status === "fulfilled" ? [r.value] : []));
-  if (succeeded.length === 0) {
-    const firstError = settled.find((r) => r.status === "rejected");
-    throw firstError && firstError.status === "rejected"
-      ? firstError.reason
-      : new Error("Flashcard generation failed for every chunk");
-  }
+  // beats one large call.
+  //
+  // A chunk that fails must never be skipped. This code first collected whatever
+  // chunks happened to succeed, on the reasoning that one bad chunk should not
+  // sink the whole import. It cost a real deck: a transient failure on chunk 1
+  // of 3 produced a deck missing the entire first third of the chapter — the
+  // definition of the topic, the worked examples — while looking complete.
+  // Nobody can spot material that was never offered, which is the same silent
+  // loss the 20_000-character extraction cap used to cause.
+  //
+  // So every chunk is retried, and if one is still unanswered afterwards the
+  // whole generation fails. A visibly failed import can be repeated; a deck
+  // quietly missing a third of its subject cannot even be noticed.
+  const results = await Promise.all(chunks.map((chunk) => askWithRetry(() => ask(chunk))));
 
   return {
     // Every chunk titles its own slice; the first chunk saw the document's
     // opening and so names the topic best.
-    title: succeeded[0]!.title,
+    title: results[0]!.title,
     cards: mergeChunkCards(
-      succeeded.map((r) => r.cards),
+      results.map((r) => r.cards),
       MAX_GENERATED_CARDS
     ),
   };
+}
+
+const CHUNK_ATTEMPTS = 3;
+const RETRY_BASE_DELAY_MS = 500;
+
+/**
+ * Run one chunk's generation, retrying transient failures.
+ *
+ * The observed failure was a one-off: the same chunk succeeded on every later
+ * attempt. Retrying with a growing pause absorbs exactly that case, and also
+ * the rate limiting that becomes likelier as a long document produces more
+ * parallel calls. After the last attempt the error propagates — see the caller
+ * for why partial output is not an acceptable outcome.
+ */
+async function askWithRetry(
+  attempt: () => Promise<FlashcardGenerationResult>
+): Promise<FlashcardGenerationResult> {
+  let lastError: unknown;
+  for (let tries = 1; tries <= CHUNK_ATTEMPTS; tries++) {
+    try {
+      return await attempt();
+    } catch (error) {
+      lastError = error;
+      if (tries < CHUNK_ATTEMPTS) {
+        await new Promise((resolve) => setTimeout(resolve, RETRY_BASE_DELAY_MS * 2 ** (tries - 1)));
+      }
+    }
+  }
+  throw lastError instanceof Error
+    ? new Error(`Flashcard generation failed after ${CHUNK_ATTEMPTS} attempts: ${lastError.message}`)
+    : new Error(`Flashcard generation failed after ${CHUNK_ATTEMPTS} attempts`);
 }
 
 /**
