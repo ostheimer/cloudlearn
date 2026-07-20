@@ -25,6 +25,7 @@ const SYSTEM_PROMPT = `You are an expert flashcard creator for students. Given s
 
 Rules:
 - Cover the material COMPLETELY: create one flashcard for every distinct fact, definition, term, process, example or relationship a student could be examined on. Do not stop early, do not summarise, do not pick highlights — a dense page is worth many cards. Hard cap: 50 cards.
+- ENUMERATIONS ARE THE MOST EXAM-RELEVANT PART and the easiest to miss. Whenever the material lists several items together — advantages, disadvantages, steps, phases, components, tasks, roles, causes, risks, examples, types, key facts — make a card that asks for the LIST ITSELF ("Nenne die vier Nachteile von X", "Welche Phasen hat Y?"), with all items in the answer. Individual cards about single items do NOT replace the list card; write both. This applies to bullet lists, tables, and summary/"Merksätze" blocks alike.
 - Generate a concise deck title (2-5 words) that describes the topic of the material (e.g. "Zellbiologie Grundlagen", "Französische Revolution", "Lineare Algebra")
 - Each flashcard has: front (question), back (answer), type (basic/cloze), difficulty (easy/medium/hard), tags, frontLang, backLang
 - For "basic" type: front is a clear question, back is the answer
@@ -46,6 +47,7 @@ const URL_IMPORT_PROMPT = `You are an expert flashcard creator. You will receive
 
 Rules:
 - Cover the material completely: one flashcard per distinct fact, definition, term or relationship worth examining. Do not summarise or pick highlights. Hard cap: 50 cards.
+- Whenever the source lists several items together (advantages, disadvantages, steps, components, types, examples), also make a card that asks for the LIST itself, with all items in the answer. Cards about single items do not replace the list card.
 - Generate a concise deck title (2-5 words) in the same language as the source
 - Each card has: front, back, type (basic/cloze), difficulty, tags
 - Use high-value concepts, definitions, and relationships
