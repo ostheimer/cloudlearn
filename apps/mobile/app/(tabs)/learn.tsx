@@ -194,7 +194,11 @@ function AuthenticatedLearnScreen({
   const translateY = useSharedValue(0);
 
   // ─── Entrance animation for new cards ─────────────────────────────────────
-  const cardScale = useSharedValue(1);
+  // Opacity only — deliberately no scale. The card faces carry a shadow, rounded
+  // corners, a perspective transform and backfaceVisibility:"hidden", so iOS
+  // composites each face off-screen into a texture instead of redrawing it per
+  // frame. Scaling the wrapper stretches that texture, which makes the text
+  // visibly pixelated until the animation settles and the layer is redrawn.
   const cardOpacity = useSharedValue(1);
 
   // ─── Animated styles ─────────────────────────────────────────────────────
@@ -212,7 +216,6 @@ function AuthenticatedLearnScreen({
         { translateX: translateX.value },
         { translateY: translateY.value },
         { rotate: `${rotate}deg` },
-        { scale: cardScale.value },
       ],
       opacity: cardOpacity.value,
     };
@@ -268,11 +271,12 @@ function AuthenticatedLearnScreen({
     translateX.value = 0;
     translateY.value = 0;
     cardOpacity.value = 0;
-    cardScale.value = 0.85;
-    // Entrance: spring scale up + fade in (slight delay to ensure card content updated)
-    cardScale.value = withSpring(1, { damping: 12, stiffness: 150 });
+    // Entrance: fade in only. A spring on scale (0.85 -> 1, damping 12) used to
+    // run here; simulated, that spring crossed its target four times and kept
+    // stretching the card's cached texture for ~0.43s, so the text arrived
+    // pixelated. See the cardOpacity declaration for why the texture exists.
     cardOpacity.value = withTiming(1, { duration: 280, easing: Easing.out(Easing.cubic) });
-  }, [index, flipProgress, translateX, translateY, cardScale, cardOpacity]);
+  }, [index, flipProgress, translateX, translateY, cardOpacity]);
 
   // Animate flip
   useEffect(() => {
