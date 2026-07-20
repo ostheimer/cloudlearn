@@ -72,6 +72,12 @@ import {
   filterBySource,
   type CardSource,
 } from "../../src/components/cardSourcePicker";
+import {
+  beginSessionAward,
+  getSessionReviewedCount,
+  isSessionEarnFinalized,
+  type SessionAwardState,
+} from "../../src/lib/learn-session-lp";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 // Threshold: card must travel 30% of screen width to trigger a rating
@@ -166,9 +172,9 @@ function AuthenticatedLearnScreen({
   const [showBackFirst, setShowBackFirst] = useState(initialShowBackFirst ?? false);
   const [starredMap, setStarredMap] = useState<Record<string, boolean>>({});
 
-  // Cards rated since the last LP earn call. Only a trigger for "did she learn
-  // anything?" — the actual LP amount is decided server-side from recorded reviews.
-  const reviewedSinceEarnRef = useRef(0);
+  const awardStateRef = useRef<SessionAwardState>({ finalized: false, inFlight: null });
+  const pendingReviewsRef = useRef<Promise<unknown>[]>([]);
+  const sessionReviewsRef = useRef(0);
 
   // Ratings are held back instead of sent on tap (#283): the buffer keeps the
   // most recent rating until the learner moves on, so the back arrow can discard
@@ -339,12 +345,15 @@ function AuthenticatedLearnScreen({
   const sendReview = useCallback(
     async (review: { cardId: string; rating: ReviewRating; queuedReview: ReturnType<typeof createReviewSyncOperation> }) => {
       if (!userId) return;
-      reviewedSinceEarnRef.current += 1;
+      sessionReviewsRef.current += 1;
       setReviewLoading(true);
       setReviewError(false);
-      try {
-        await reviewCard(userId, review.cardId, review.rating, review.queuedReview.payload);
-      } catch (error) {
+      const reviewPromise = reviewCard(
+        userId,
+        review.cardId,
+        review.rating,
+        review.queuedReview.payload,
+      ).catch((error) => {
         if (!isApiError(error) || error.status >= 500) {
           // Offline / server error: keep the review for a later retry via the queue.
           enqueueOfflineReview(review.queuedReview);
@@ -354,6 +363,10 @@ function AuthenticatedLearnScreen({
           // TODO(#208): re-queue/repair rejected reviews instead of only surfacing.
           setReviewError(true);
         }
+      });
+      pendingReviewsRef.current.push(reviewPromise);
+      try {
+        await reviewPromise;
       } finally {
         setReviewLoading(false);
       }
@@ -448,37 +461,60 @@ function AuthenticatedLearnScreen({
     if (completed && autoPlaying) setAutoPlaying(false);
   }, [completed, autoPlaying]);
 
-  // Collect earned LP when the learner leaves the review screen — not only when the
-  // whole due pile is finished (which, with a large backlog, almost never happens; see
-  // #153). The server derives the grant from the reviews it has actually recorded, in
-  // whole 5-card chunks up to the daily cap, and is replay-safe (earn_session_lp), so a
-  // single call on leave is enough and can't over-grant.
-  const collectSessionLp = useCallback(async () => {
-    if (reviewedSinceEarnRef.current === 0 || !userId) return;
-    reviewedSinceEarnRef.current = 0; // reset first so a re-entrant blur can't double-fire
-    try {
-      const result = await earnLp("session");
-      if (result.granted > 0) {
-        setUsage({ lpBalance: result.newBalance });
-      }
-    } catch {
-      // LP earn is best-effort
-    }
-  }, [userId, setUsage]);
+  const awardSession = useCallback(
+    (reviewedCount: number) => {
+      const state = awardStateRef.current;
+      return beginSessionAward(state, reviewedCount, async () => {
+        const maxAttempts = 3;
+        const retryDelayMs = 250;
+
+        for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+          if (attempt > 0) {
+            await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+          }
+
+          const pendingReviews = pendingReviewsRef.current;
+          pendingReviewsRef.current = [];
+          await Promise.allSettled(pendingReviews);
+
+          try {
+            const result = await earnLp("session");
+            if (result.granted > 0) {
+              setUsage({ lpBalance: result.newBalance });
+            }
+            if (isSessionEarnFinalized(result, reviewedCount)) {
+              state.finalized = true;
+              break;
+            }
+          } catch {
+            // LP earn is best-effort
+          }
+        }
+      });
+    },
+    [setUsage],
+  );
 
   useFocusEffect(
     useCallback(() => {
-      // Cleanup runs on blur (leaving the tab / navigating away) — i.e. when a study
-      // session ends. Send any rating still buffered from the last card first (so it
-      // isn't lost when the learner leaves mid-session), then cash in the LP earned.
+      awardStateRef.current = { finalized: false, inFlight: null };
+      pendingReviewsRef.current = [];
+      sessionReviewsRef.current = 0;
+
+      // Cleanup runs on blur — flush any buffered rating, wait for in-flight reviews,
+      // then earn LP with retries so a fast tab switch cannot zero out the grant (#153).
       return () => {
         void (async () => {
           const last = reviewBuffer.flush();
           if (last) await sendReview(last);
-          await collectSessionLp();
+          const reviewedCount = getSessionReviewedCount(
+            sessionReviewsRef.current,
+            pendingReviewsRef.current.length,
+          );
+          await awardSession(reviewedCount);
         })();
       };
-    }, [reviewBuffer, sendReview, collectSessionLp])
+    }, [reviewBuffer, sendReview, awardSession]),
   );
 
   // Milestone + streak rewards still fire when a session is fully completed.

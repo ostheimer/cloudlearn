@@ -18,6 +18,12 @@ import {
 import { summarizeCardMedia } from "../src/lib/cardMedia";
 import { cleanTerm } from "../src/lib/cardTerms";
 import { useColors, spacing, radius, typography, shadows } from "../src/theme";
+import {
+  beginSessionAward,
+  getSessionReviewedCount,
+  isSessionEarnFinalized,
+  type SessionAwardState,
+} from "../src/lib/learn-session-lp";
 
 // Schlanke Karteikarten-Runde für eine vorbereitete Karten-Auswahl (#246,
 // "Wackelkandidaten üben"). Die Karten kommen aus dem Review-Session-Store
@@ -56,37 +62,67 @@ export default function PracticeScreen() {
   // taps can't rate the next (still unseen) cards. Mirrors the learn screen.
   const [reviewLoading, setReviewLoading] = useState(false);
 
-  // Cards rated since the last LP earn call — the server derives the actual
-  // grant from recorded reviews (replay-safe), like on the learn screen.
-  const reviewedSinceEarnRef = useRef(0);
+  const awardStateRef = useRef<SessionAwardState>({ finalized: false, inFlight: null });
+  const pendingReviewsRef = useRef<Promise<unknown>[]>([]);
+  const sessionReviewsRef = useRef(0);
 
-  const collectSessionLp = useCallback(async () => {
-    if (reviewedSinceEarnRef.current === 0 || !userId) return;
-    reviewedSinceEarnRef.current = 0; // reset first so a re-entrant blur can't double-fire
-    try {
-      const result = await earnLp("session");
-      if (result.granted > 0) {
-        setUsage({ lpBalance: result.newBalance });
-      }
-    } catch {
-      // LP earn is best-effort
-    }
-  }, [userId, setUsage]);
+  const awardSession = useCallback(
+    (reviewedCount: number) => {
+      const state = awardStateRef.current;
+      return beginSessionAward(state, reviewedCount, async () => {
+        const maxAttempts = 3;
+        const retryDelayMs = 250;
+
+        for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+          if (attempt > 0) {
+            await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+          }
+
+          const pendingReviews = pendingReviewsRef.current;
+          pendingReviewsRef.current = [];
+          await Promise.allSettled(pendingReviews);
+
+          try {
+            const result = await earnLp("session");
+            if (result.granted > 0) {
+              setUsage({ lpBalance: result.newBalance });
+            }
+            if (isSessionEarnFinalized(result, reviewedCount)) {
+              state.finalized = true;
+              break;
+            }
+          } catch {
+            // LP earn is best-effort
+          }
+        }
+      });
+    },
+    [setUsage],
+  );
 
   useFocusEffect(
     useCallback(() => {
-      // Cleanup runs on blur — the moment the practice round ends.
+      awardStateRef.current = { finalized: false, inFlight: null };
+      pendingReviewsRef.current = [];
+      sessionReviewsRef.current = 0;
+
       return () => {
-        void collectSessionLp();
+        void (async () => {
+          const reviewedCount = getSessionReviewedCount(
+            sessionReviewsRef.current,
+            pendingReviewsRef.current.length,
+          );
+          await awardSession(reviewedCount);
+        })();
       };
-    }, [collectSessionLp])
+    }, [awardSession]),
   );
 
   const handleRate = async (rating: ReviewRating) => {
     if (!revealed) reveal();
     const result = rateCurrent(rating);
     if (!result || !userId) return;
-    reviewedSinceEarnRef.current += 1;
+    sessionReviewsRef.current += 1;
     const queuedReview = createReviewSyncOperation({
       userId,
       cardId: result.cardId,
@@ -94,16 +130,20 @@ export default function PracticeScreen() {
     });
     setReviewLoading(true);
     setSaveError(false);
+    const reviewPromise = reviewCard(userId, result.cardId, rating, queuedReview.payload).catch(
+      (error) => {
+        if (!isApiError(error) || error.status >= 500) {
+          // Offline / server error: keep the review for a later retry via the queue.
+          enqueueOfflineReview(queuedReview);
+        } else {
+          // 4xx: surface it instead of dropping the answer silently.
+          setSaveError(true);
+        }
+      },
+    );
+    pendingReviewsRef.current.push(reviewPromise);
     try {
-      await reviewCard(userId, result.cardId, rating, queuedReview.payload);
-    } catch (error) {
-      if (!isApiError(error) || error.status >= 500) {
-        // Offline / server error: keep the review for a later retry via the queue.
-        enqueueOfflineReview(queuedReview);
-      } else {
-        // 4xx: surface it instead of dropping the answer silently.
-        setSaveError(true);
-      }
+      await reviewPromise;
     } finally {
       setReviewLoading(false);
     }

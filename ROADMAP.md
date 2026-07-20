@@ -1,6 +1,6 @@
 # ROADMAP
 
-Letzte Aktualisierung: 2026-07-13 (Web-LP-Race Test/Occlusion #252)
+Letzte Aktualisierung: 2026-07-17 (Mobile-LP-Race learn/practice/cloze)
 
 ## Gesamtstatus
 
@@ -399,3 +399,4 @@ Voraussetzung: Phase 2 + stabile Nutzerbasis.
 - 2026-07-09: **Web-LP-Race behoben (#179 Follow-up)**: Lern-Web-Client wartet auf laufende Review-Requests und wiederholt `earnLp` kurz, bevor die Session als abgerechnet gilt — verhindert dauerhaft verlorene Lernpunkte nach schnellen Sitzungen.
 - 2026-07-10: **Web-LP-Race Quiz/Cloze (#201/#217 Follow-up)**: Multiple-Choice- und Lückentext-Modus nutzen dieselbe `learn-session-lp`-Gutschriftlogik wie die Lernseite — Reviews werden vor `earnLp` abgewartet und bei `granted: 0` kurz wiederholt.
 - 2026-07-13: **Web-LP-Race Test/Occlusion (#252 Follow-up)**: Test- und Occlusion-Modus nach „Nur nicht gewusste“ (#252) auf `beginSessionAward` umgestellt — `reviewCard` wird vor `earnLp` abgewartet, Neustart sichert LP der abgeschlossenen Runde per `await awardSession`.
+- 2026-07-17: **Mobile-LP-Race behoben (Cron-Pass)**: `learn.tsx`, `practice.tsx` und `cloze.tsx` warten auf laufende Reviews und wiederholen `earnLp` kurz — Lernpunkte werden beim schnellen Tab-Wechsel sofort statt verspätet gutgeschrieben (#153-Follow-up, gleiches Muster wie Web `learn-session-lp`). Verloren gingen sie auch vorher nicht: der Server rückt sein Wasserzeichen nur um das vor, was er tatsächlich ausgezahlt hat, unbezahlte Reviews bleiben offen und werden vom nächsten `earnLp` — egal von welchem Bildschirm — nachgezahlt. `cloze.tsx` rechnet am Rundenende ab und macht die Abrechnung beim Rundenstart wieder scharf, damit „Alle nochmal“ / „Nur die falschen“ weiter Lernpunkte bringen.
