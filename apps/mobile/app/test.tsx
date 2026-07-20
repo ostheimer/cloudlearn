@@ -28,7 +28,8 @@ import {
   Minus,
   Plus,
 } from "lucide-react-native";
-import { listCardsInDeck, type Card } from "../src/lib/api";
+import { listCardsInDeck, reviewCard, type Card } from "../src/lib/api";
+import { useSessionStore } from "../src/store/sessionStore";
 import { excludeOcclusionCards } from "../src/lib/occlusion";
 import { isAnswerCorrect } from "../src/lib/answerCheck";
 import {
@@ -46,6 +47,9 @@ import { useColors, spacing, radius, typography, shadows } from "../src/theme";
 import { useReviewSession } from "../src/features/review/reviewSession";
 
 const SECONDS_PER_QUESTION = 30;
+
+/** Wie viele Wiederholungen gleichzeitig gemeldet werden — wie im Web (#358). */
+const REVIEW_CHUNK_SIZE = 25;
 
 function lastResultKey(deckId: string) {
   return `test-last-result:${deckId}`;
@@ -75,6 +79,7 @@ export default function TestScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const startReview = useReviewSession((s) => s.start);
+  const userId = useSessionStore((s) => s.userId);
   const { deckId, deckTitle } = useLocalSearchParams<{
     deckId: string;
     deckTitle: string;
@@ -206,15 +211,45 @@ export default function TestScreen() {
   };
 
   const submit = () => {
+    const toSend: Array<{ cardId: string; rating: "good" | "again" }> = [];
     const result: Graded[] = questions.map((q, i) => {
       const a = answers[i] ?? { mc: null, tf: null, text: "" };
       let correct = false;
       if (q.type === "mc") correct = a.mc === q.correctIndex;
       else if (q.type === "trueFalse") correct = a.tf === q.tfIsCorrect;
       else correct = isAnswerCorrect(a.text, q.expected, { strict });
+      if (userId) toSend.push({ cardId: q.cardId, rating: correct ? "good" : "again" });
       return { correct, overridden: false };
     });
     setGraded(result);
+
+    // Die Prüfung meldete bisher gar nichts — sie bewertete im Handy und war
+    // damit fertig. Für die App sah ein Prüfungstag deshalb aus wie ein Tag
+    // ohne Lernen: Streak riss, nichts landete in der Statistik, und Fehler
+    // kamen nie beim Lernplan an (Issue #406). Auf der Website zählt dieselbe
+    // Prüfung seit #394 vollständig.
+    //
+    // In Häppchen mit Warten dazwischen: Ein `map` ohne `await` feuert bei
+    // einer 100-Fragen-Prüfung 100 gleichzeitige Anfragen los, und die Bremse
+    // auf der Review-Route (#358) würde einen Teil davon abweisen — die
+    // Antworten wären still weg. Gleiche Aufteilung wie im Web.
+    if (toSend.length > 0 && userId) {
+      void (async () => {
+        for (let i = 0; i < toSend.length; i += REVIEW_CHUNK_SIZE) {
+          const chunk = toSend.slice(i, i + REVIEW_CHUNK_SIZE);
+          await Promise.allSettled(
+            chunk.map((r) =>
+              // mode "test": hält den Streak und füllt die Statistik, gibt aber
+              // keine Lernpunkte, und nur FEHLER bewegen den Lernplan.
+              reviewCard(userId, r.cardId, r.rating, { mode: "test" }).catch(() => {})
+            )
+          );
+        }
+      })();
+    }
+
+    // Bewusst kein await: Das Ergebnis erscheint sofort, das Melden läuft
+    // dahinter weiter. Es wird nichts abgerechnet, worauf jemand warten müsste.
     setPhase("result");
   };
 

@@ -19,8 +19,12 @@ import {
   HelpCircle,
   Puzzle,
   CheckCircle2,
+  Zap,
 } from "lucide-react-native";
-import { listCardsInDeck, type Card } from "../src/lib/api";
+import { earnLp, listCardsInDeck, reviewCard, type Card } from "../src/lib/api";
+import { finishRateModeRound } from "../src/lib/rateModeRound";
+import { useSessionStore } from "../src/store/sessionStore";
+import { useUsageStore } from "../src/store/usageStore";
 import { excludeOcclusionCards } from "../src/lib/occlusion";
 import { cleanTerm } from "../src/lib/cardTerms";
 import { fetchDeckStats } from "../src/lib/statsApi";
@@ -61,6 +65,8 @@ type Phase = "setup" | "playing" | "finished";
 
 export default function MatchScreen() {
   const colors = useColors();
+  const userId = useSessionStore((s) => s.userId);
+  const setUsage = useUsageStore((s) => s.setUsage);
   const { deckId, deckTitle } = useLocalSearchParams<{
     deckId: string;
     deckTitle: string;
@@ -90,6 +96,12 @@ export default function MatchScreen() {
   const [matchedIds, setMatchedIds] = useState<Set<string>>(new Set());
   const [wrongPair, setWrongPair] = useState<[string, string] | null>(null);
   const [errors, setErrors] = useState(0);
+  // Karten, die mindestens einmal falsch zugeordnet wurden („nicht gewusst").
+  const [missedIds, setMissedIds] = useState<Set<string>>(new Set());
+  // Punkte der Runde — Zahl aus der SERVER-Antwort, nie selbst gerechnet.
+  const [earnedLp, setEarnedLp] = useState(0);
+  // Verhindert doppeltes Abrechnen: der Abschluss-Effekt kann mehrfach feuern.
+  const awardedRef = useRef(false);
   const [elapsed, setElapsed] = useState(0);
   const [gameCards, setGameCards] = useState<Card[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -155,8 +167,14 @@ export default function MatchScreen() {
     setMatchedIds(new Set());
     setWrongPair(null);
     setErrors(0);
+    setMissedIds(new Set());
     setElapsed(0);
     setIsNewBest(false);
+    // Für die neue Runde wieder scharf schalten, sonst wird sie nie gemeldet.
+    // Und die Punktzahl zurücksetzen: Dieselben Karten am selben Tag bringen
+    // keine weiteren Punkte — die alte Zahl stehen zu lassen wäre gelogen.
+    awardedRef.current = false;
+    setEarnedLp(0);
     setPhase("playing");
 
     // The stopwatch only runs in timed (Challenge) mode.
@@ -198,8 +216,38 @@ export default function MatchScreen() {
         }
       }
       setPhase("finished");
+
+      // Runde melden (Issue #406): Zuordnen meldete in der App bisher gar
+      // nichts — kein Streak, keine Statistik, keine Punkte.
+      //
+      // Bewertung wie im Web: eine Karte, die mindestens einmal danebenging,
+      // gilt als „nicht gewusst". Ein Treffer beweist beim Zuordnen wenig, das
+      // letzte Paar findet man auch durch Ausschluss — deshalb bewegt der
+      // Modus "match" den Lernplan nur bei Fehlern.
+      //
+      // awardedRef: Der Effekt hängt an mehreren Werten und kann erneut
+      // feuern; ohne die Sperre würde die Runde doppelt gemeldet.
+      if (userId && !awardedRef.current) {
+        awardedRef.current = true;
+        const cardIds = Array.from(new Set(tiles.map((t) => t.cardId)));
+        void (async () => {
+          const result = await finishRateModeRound(
+            cardIds.map((cardId) => ({ cardId, correct: !missedIds.has(cardId) })),
+            {
+              reportReview: (cardId, rating) =>
+                reviewCard(userId, cardId, rating, { mode: "match" }).catch(() => {}),
+              earn: async (count) => {
+                const res = await earnLp("session", count);
+                if (res.granted > 0) setUsage({ lpBalance: res.newBalance });
+                return { granted: res.granted, capReached: res.capReached };
+              },
+            }
+          );
+          setEarnedLp(result.granted);
+        })();
+      }
     }
-  }, [matchedIds, tiles.length, phase, timed, elapsed, bestTime, deckId]);
+  }, [matchedIds, tiles, phase, timed, elapsed, bestTime, deckId, userId, missedIds, setUsage]);
 
   const handleTilePress = (tile: Tile) => {
     if (matchedIds.has(tile.id) || wrongPair) return;
@@ -225,6 +273,15 @@ export default function MatchScreen() {
         // Wrong match
         setErrors((e) => e + 1);
         setWrongPair([selectedTile.id, tile.id]);
+        // Beide beteiligten Karten als „nicht gewusst" merken — wie im Web.
+        // `errors` allein ist nur eine Zahl; für die Wiederholung muss klar
+        // sein, WELCHE Karte hakt.
+        setMissedIds((prev) => {
+          const next = new Set(prev);
+          next.add(selectedTile.cardId);
+          next.add(tile.cardId);
+          return next;
+        });
         // Brief flash, then reset
         setTimeout(() => {
           setWrongPair(null);
@@ -591,6 +648,34 @@ export default function MatchScreen() {
                   }}
                 >
                   Neue Bestzeit!
+                </Text>
+              </View>
+            )}
+
+            {/* Nur zeigen, wenn wirklich Punkte kamen. Eine zweite Runde mit
+                denselben Karten am selben Tag bringt keine — dann steht hier
+                nichts, statt „+0 Lernpunkte" zu behaupten. */}
+            {earnedLp > 0 && (
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: spacing.xs,
+                  backgroundColor: colors.successLight,
+                  paddingVertical: spacing.xs,
+                  paddingHorizontal: spacing.md,
+                  borderRadius: radius.full ?? 999,
+                }}
+              >
+                <Zap size={15} color={colors.success} />
+                <Text
+                  style={{
+                    fontSize: typography.sm,
+                    fontWeight: typography.semibold,
+                    color: colors.success,
+                  }}
+                >
+                  +{earnedLp} Lernpunkte
                 </Text>
               </View>
             )}

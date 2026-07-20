@@ -20,8 +20,12 @@ import {
   RotateCcw,
   HelpCircle,
   Brain,
+  Zap,
 } from "lucide-react-native";
-import { listCardsInDeck, type Card } from "../src/lib/api";
+import { earnLp, listCardsInDeck, reviewCard, type Card } from "../src/lib/api";
+import { finishRateModeRound } from "../src/lib/rateModeRound";
+import { useSessionStore } from "../src/store/sessionStore";
+import { useUsageStore } from "../src/store/usageStore";
 import { excludeOcclusionCards } from "../src/lib/occlusion";
 import {
   defaultQuizCopyDe,
@@ -44,6 +48,8 @@ export default function QuizScreen() {
     deckTitle: string;
   }>();
   const router = useRouter();
+  const userId = useSessionStore((s) => s.userId);
+  const setUsage = useUsageStore((s) => s.setUsage);
   const quizCopy = useMemo(
     () => ({
       ...defaultQuizCopyDe,
@@ -66,6 +72,10 @@ export default function QuizScreen() {
   // question shows it in its answered state.
   const [selections, setSelections] = useState<(number | null)[]>([]);
   const [finished, setFinished] = useState(false);
+  // Lernpunkte der Runde — Zahl aus der SERVER-Antwort, nicht selbst gerechnet.
+  // Der Server zählt Rate-Modi je Karte und Lerntag nur einmal (Anti-Farming,
+  // Schritt 8); eine eigene Rechnung würde bei der zweiten Runde lügen.
+  const [earnedLp, setEarnedLp] = useState(0);
 
   // Setup choices (picked before the quiz starts)
   const [inSetup, setInSetup] = useState(true);
@@ -142,9 +152,46 @@ export default function QuizScreen() {
   const handleNext = () => {
     if (currentIdx + 1 >= questions.length) {
       setFinished(true);
+      void reportRound();
     } else {
       setCurrentIdx((i) => i + 1);
     }
+  };
+
+  /**
+   * Runde melden: Antworten als Wiederholungen, danach die Lernpunkte.
+   *
+   * Bis Issue #406 meldete Multiple Choice in der App gar nichts — kein
+   * Streak, keine Statistik, keine Punkte, obwohl gelernt wurde. Der Modus
+   * "quiz" sorgt dafür, dass der Lernplan NUR bei Fehlern angefasst wird:
+   * richtig Geratenes beweist nichts.
+   *
+   * Ohne await hinter setFinished: Das Ergebnis erscheint sofort, das Melden
+   * läuft dahinter. Nur die Punkte-Zahl kommt nach.
+   */
+  const reportRound = async () => {
+    if (!userId) return;
+    const answered = questions
+      .map((q, i) => ({ q, sel: selections[i] }))
+      .filter((x) => x.sel !== null && x.sel !== undefined);
+    if (answered.length === 0) return;
+
+    const result = await finishRateModeRound(
+      answered.map(({ q, sel }) => ({
+        cardId: q.cardId,
+        correct: sel === q.correctIndex,
+      })),
+      {
+        reportReview: (cardId, rating) =>
+          reviewCard(userId, cardId, rating, { mode: "quiz" }).catch(() => {}),
+        earn: async (count) => {
+          const res = await earnLp("session", count);
+          if (res.granted > 0) setUsage({ lpBalance: res.newBalance });
+          return { granted: res.granted, capReached: res.capReached };
+        },
+      }
+    );
+    setEarnedLp(result.granted);
   };
 
   const handleBack = () => {
@@ -152,6 +199,10 @@ export default function QuizScreen() {
   };
 
   const handleRestart = () => {
+    // Zurücksetzen, sonst steht bei der zweiten Runde die Punktzahl der ersten
+    // — und die stimmt dann nie, weil der Server dieselbe Karte am selben Tag
+    // nur einmal vergütet.
+    setEarnedLp(0);
     startQuiz();
   };
 
@@ -571,6 +622,34 @@ export default function QuizScreen() {
                 ? "Gut! Etwas mehr Übung und du hast es drauf."
                 : "Weiter üben! Wiederholung ist der Schlüssel."}
             </Text>
+
+            {/* Nur anzeigen, wenn wirklich Punkte kamen. Eine zweite Runde mit
+                denselben Karten am selben Tag bringt keine — dann steht hier
+                nichts, statt „+0 Lernpunkte" zu behaupten. */}
+            {earnedLp > 0 && (
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: spacing.xs,
+                  backgroundColor: colors.successLight,
+                  paddingVertical: spacing.xs,
+                  paddingHorizontal: spacing.md,
+                  borderRadius: radius.full ?? 999,
+                }}
+              >
+                <Zap size={15} color={colors.success} />
+                <Text
+                  style={{
+                    fontSize: typography.sm,
+                    fontWeight: typography.semibold,
+                    color: colors.success,
+                  }}
+                >
+                  +{earnedLp} Lernpunkte
+                </Text>
+              </View>
+            )}
 
             {/* Answer summary */}
             <View style={{ width: "100%", gap: spacing.sm }}>
