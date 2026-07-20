@@ -136,4 +136,64 @@ describe("missedCardsFrom", () => {
     const { cards: c, history, ratingHistory } = useReviewSession.getState();
     expect(missedCardsFrom(c, history, ratingHistory).map((x) => x.id)).toEqual(["1", "3"]);
   });
+
+  // ── Vorgabe von außen (#282) ──────────────────────────────────────────────
+  //
+  // „Alle lernen" im Ordner/Kurs sucht die Karten heraus, legt sie in diesen
+  // Store und schickt zum Lern-Tab. Der lud beim ersten Fokus die global
+  // fälligen Karten nach und überschrieb damit genau die Auswahl, die die
+  // Nutzerin angetippt hatte. `presetToken` ist das Unterscheidungsmerkmal:
+  // Der Lern-Tab vergleicht es mit dem zuletzt von ihm gesehenen Stand.
+
+  it("zählt presetToken nur hoch, wenn ein anderer Bildschirm die Auswahl vorgibt", () => {
+    const vorher = useReviewSession.getState().presetToken;
+
+    // Der Lern-Tab selbst lädt über start() — das darf NICHT als Vorgabe gelten,
+    // sonst würde er seine eigene Ladung für eine fremde halten.
+    useReviewSession.getState().start([{ id: "1", front: "Q", back: "A" }]);
+    expect(useReviewSession.getState().presetToken).toBe(vorher);
+
+    useReviewSession.getState().startPreset([{ id: "2", front: "Q", back: "A" }]);
+    expect(useReviewSession.getState().presetToken).toBe(vorher + 1);
+  });
+
+  it("setzt die Sitzung genauso zurück wie start", () => {
+    useReviewSession.getState().start([
+      { id: "1", front: "Q1", back: "A1" },
+      { id: "2", front: "Q2", back: "A2" }
+    ]);
+    useReviewSession.getState().rateCurrent("again");
+
+    useReviewSession.getState().startPreset([{ id: "9", front: "Q9", back: "A9" }]);
+
+    const s = useReviewSession.getState();
+    expect(s.cards.map((c) => c.id)).toEqual(["9"]);
+    expect(s.index).toBe(0);
+    expect(s.history).toEqual([]);
+    expect(s.ratingHistory).toEqual([]);
+    expect(s.swipedLeft).toBe(0);
+    expect(s.swipedRight).toBe(0);
+    expect(s.revealed).toBe(false);
+    expect(s.completed).toBe(false);
+  });
+
+  it("wächst bei jeder Vorgabe weiter, statt zwischen zwei Werten zu pendeln", () => {
+    // Ein Ja/Nein müsste jemand zurücksetzen; wer das vergisst, blockiert das
+    // Nachladen dauerhaft. Eine nur wachsende Zahl kennt diesen Zustand nicht:
+    // Zwei Vorgaben nacheinander sind zwei unterscheidbare Ereignisse.
+    const start = useReviewSession.getState().presetToken;
+    useReviewSession.getState().startPreset([{ id: "1", front: "Q", back: "A" }]);
+    useReviewSession.getState().startPreset([{ id: "2", front: "Q", back: "A" }]);
+    expect(useReviewSession.getState().presetToken).toBe(start + 2);
+  });
+
+  it("markiert auch eine leere Vorgabe (Ordner ohne lernbare Karten)", () => {
+    // Sonst hielte der Lern-Tab die leere Auswahl für „nichts vorgegeben“ und
+    // lüde die globalen Karten nach — die Nutzerin bekäme fremde Karten statt
+    // des ehrlichen Hinweises, dass dieser Ordner nichts hergibt.
+    const vorher = useReviewSession.getState().presetToken;
+    useReviewSession.getState().startPreset([]);
+    expect(useReviewSession.getState().presetToken).toBe(vorher + 1);
+    expect(useReviewSession.getState().completed).toBe(true);
+  });
 });
