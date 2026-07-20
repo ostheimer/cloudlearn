@@ -156,10 +156,12 @@ export function buildTestQuestions(
   };
 
   const shuffled = shuffle(enriched, randomFn);
-  const limit = Math.min(options.count, shuffled.length);
   const questions: TestQuestion[] = [];
 
-  for (let i = 0; i < limit; i++) {
+  // Bis zur gewünschten Fragenzahl auffüllen statt nach `count` Karten abzubrechen:
+  // eine Karte, die keine Frage ergibt (Lücken-Karte ohne "Schriftlich"), würde die
+  // Runde sonst still verkürzen. Spiegelt apps/mobile/src/lib/testQuestions.ts (#289).
+  for (let i = 0; i < shuffled.length && questions.length < options.count; i++) {
     const current = shuffled[i]!;
 
     // Lücken-Karten sind immer "Lücke füllen" (Front-Satz → fehlendes Wort).
