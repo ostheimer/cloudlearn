@@ -778,11 +778,24 @@ export async function getReviewStats(
   //
   // Nur DIESE Zählung filtert. Die drei darunter (Woche, gesamt, Trefferquote)
   // sind Statistik und sollen Prüfungen mitzählen — dort gilt „ein Topf".
+  // Zählt Prüfungen MIT — Laras Entscheidung vom 17.07.: „alles was ich
+  // gemacht habe soll zählen, auch Prüfungen."
+  //
+  // Das kehrt ihre frühere Regel um („keine Lernpunkte oder etwas bei
+  // Tagesziel, da man ja im Prinzip nicht gelernt hat"), die genau hier saß.
+  // Grund für die Kehrtwende: Diese Zahl speist den Tagesziel-Balken, während
+  // das Balkendiagramm „Karten pro Tag" direkt daneben alles zählte — zwei
+  // Zahlen, beide „Karten", beide „heute", verschieden.
+  //
+  // Ungefährlich, weil am Erreichen des Tagesziels nichts mehr hängt: die
+  // LP-Prämie dafür wurde entfernt, und der Streak folgt jeder einzelnen
+  // Antwort, nicht dem Ziel. Was Prüfungen weiterhin NICHT tun: Lernpunkte
+  // geben (earn_session_lp überspringt sie) und den Lernplan bewegen
+  // (reviewService, außer bei Fehlern).
   const { count: todayCount } = await db
     .from("review_logs")
     .select("*", { count: "exact", head: true })
     .eq("user_id", userId)
-    .neq("mode", "test")
     .gte("reviewed_at", todayStart);
 
   // Reviews this week

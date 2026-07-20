@@ -40,10 +40,11 @@ function makeDbMock(responses: QueryResponse[]) {
     calls.push({ method: "from", args: [table] });
     const response = queue.shift() ?? { count: 0, data: [], error: null };
     const builder: Record<string, unknown> = {};
-    // "neq" gehört dazu, seit die Tagesziel-Zählung Prüfungen ausschließt.
-    // "range" seit die Tagesdaten geblättert werden (1000-Zeilen-Grenze).
-    // Fehlt eine Methode hier, wirft der Aufruf „is not a function" — schon
-    // einmal so passiert (#334).
+    // "range" gehört dazu, seit die Tagesdaten geblättert werden
+    // (1000-Zeilen-Grenze). "neq" nutzt getReviewStats aktuell nicht mehr,
+    // bleibt aber stehen: die Attrappe soll an einem wiederkehrenden Filter
+    // nicht zerbrechen. Fehlt eine Methode hier, wirft der Aufruf
+    // „is not a function" — schon einmal so passiert (#334).
     for (const method of ["select", "eq", "neq", "gte", "lte", "order", "limit", "range"]) {
       builder[method] = (...args: unknown[]) => {
         calls.push({ method, args });
@@ -294,21 +295,26 @@ describe("getReviewStats – 7/30-day window + durationMsByDay", () => {
     expect(stats.reviewsTotal).toBe(200);
   });
 
-  it("keeps test-mode reviews out of the daily goal — but inside the statistics", async () => {
-    // Laras Regel: „Beim Test sollte man keine Lernpunkte bekommen oder etwas
-    // bei Tagesziel, da man ja im Prinzip nicht gelernt hat." reviewsToday
-    // speist den Tagesziel-Balken (reviewsToday / dailyGoal auf Home).
+  it("counts test-mode reviews everywhere, the daily goal included", async () => {
+    // Laras Entscheidung 17.07.: „alles was ich gemacht habe soll zählen, auch
+    // Prüfungen." Sie kehrt damit ihre eigene frühere Regel um, die hier als
+    // Zitat stand: „Beim Test sollte man keine Lernpunkte bekommen oder etwas
+    // bei Tagesziel, da man ja im Prinzip nicht gelernt hat."
     //
-    // Statistik dagegen bleibt „ein Topf": Woche, Gesamt und Trefferquote
-    // zählen Prüfungen mit — dort ist die Prüfung sogar die ehrlichste Zahl.
+    // Auslöser: reviewsToday speist den Tagesziel-Balken (reviewsToday /
+    // dailyGoal), das Balkendiagramm „Karten pro Tag" daneben zählte alles —
+    // zwei Zahlen, beide „Karten", beide „heute", verschieden. Auf der
+    // Web-Statistik standen sie in derselben Zeile.
+    //
+    // Kein Schlupfloch: Am Erreichen des Tagesziels hängt keine Prämie mehr,
+    // und der Streak folgt jeder Antwort statt dem Ziel. Prüfungen geben
+    // weiterhin keine LP und bewegen den Lernplan nicht — anderer Code.
     const { db, calls } = makeDbMock(statsResponses(DAILY_ROWS));
     mockedCreateDb.mockReturnValue(db);
 
     await getReviewStats(USER_ID, 30);
 
-    // Nur die ERSTE Abfrage (heute) darf Prüfungen ausschließen.
-    const neqCalls = calls.filter((c) => c.method === "neq");
-    expect(neqCalls).toHaveLength(1);
-    expect(neqCalls[0]?.args).toEqual(["mode", "test"]);
+    // Keine einzige Abfrage darf Prüfungen noch aussortieren.
+    expect(calls.filter((c) => c.method === "neq")).toEqual([]);
   });
 });
