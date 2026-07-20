@@ -95,7 +95,7 @@ describe("beginSessionAward", () => {
     expect(earnCalls).toBe(1);
 
     // Zweite Runde OHNE Scharfmachen: keine Gutschrift — genau der Fehler,
-    // den „Alle nochmal" im Lückentext hatte.
+    // den „“ im Lückentext hatte.
     await playRound();
     expect(earnCalls).toBe(1);
 

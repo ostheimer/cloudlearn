@@ -81,7 +81,7 @@ describe("mobile cloze – Folgerunden werden weiter abgerechnet", () => {
   });
 
   it("nutzt startRound an allen drei Startknöpfen", () => {
-    // Setup „Starten", „Nur die falschen", „Alle nochmal".
+    // Setup „“, „“, „“.
     expect(source.match(/void startRound\(/g)).toHaveLength(3);
   });
 });
@@ -90,7 +90,7 @@ describe("mobile learn/practice – rechnen nur beim Verlassen ab", () => {
   // Hält die Analyse zu #397 fest: diese beiden Bildschirme setzen finalized
   // nie, solange sie sichtbar sind — der Aufruf steht allein im Blur-Cleanup,
   // und beim nächsten Fokus wird der Zustand ohnehin frisch gesetzt. Ihre
-  // Wiederholungsknöpfe („Nur falsche" / „Alle nochmal") können deshalb nicht
+  // Wiederholungsknöpfe („“ / „“) können deshalb nicht
   // blockieren. Kommt hier je ein zweiter awardSession-Aufruf dazu, braucht der
   // Bildschirm dasselbe Scharfmachen wie cloze.startRound — dann schlägt das
   // hier fehl und die Frage steht wieder auf dem Tisch.

@@ -247,9 +247,9 @@ export default function ClozeScreen() {
   );
 
   // Jede Runde ist eine eigene Abrechnung. Weil `handleNext` am Rundenende
-  // sofort gutschreibt (state.finalized = true), müsste „Alle nochmal" /
-  // „Nur die falschen" sonst ohne Lernpunkte laufen — der Ablauf steht dann
-  // dauerhaft auf „schon abgerechnet". Gleiches Muster wie Web
+  // sofort gutschreibt (state.finalized = true), müsste „“ /
+  // „“ sonst ohne Lernpunkte laufen — der Ablauf steht dann
+  // dauerhaft auf „“. Gleiches Muster wie Web
   // (src/components/app/learn-session.tsx, startRound).
   //
   // Reihenfolge ist wichtig: erst die vorige Gutschrift zu Ende laufen lassen,
