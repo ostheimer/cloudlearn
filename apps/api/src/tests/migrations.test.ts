@@ -221,6 +221,24 @@ describe("supabase migrations", () => {
     expect(sql).toContain("v_remaining := greatest(p_earn_cap - v_earned, 0)");
   });
 
+  it("records when a review ARRIVED, without inventing a value for old rows", () => {
+    const migrationPath = join(
+      apiRoot,
+      "supabase/migrations/20260720100000_review_logs_inserted_at.sql",
+    );
+    const sql = readFileSync(migrationPath, "utf-8");
+
+    // Zwei Schritte sind der ganze Punkt: erst die Spalte OHNE Default (alte
+    // Zeilen bleiben NULL = "unbekannt"), dann den Default fuer neue Zeilen.
+    // In einem Rutsch wuerde PG den Wert einmal auswerten und ALLEN Altzeilen
+    // zuweisen — sie behaupteten dann, zum Migrationszeitpunkt eingetroffen zu
+    // sein. Genau diese erfundene Zahl waere spaeter die Messgrundlage.
+    expect(sql).toContain("add column if not exists inserted_at timestamptz;");
+    expect(sql).toContain("alter column inserted_at set default now()");
+    expect(sql).not.toContain("add column if not exists inserted_at timestamptz not null");
+    expect(sql).not.toMatch(/add column[^;]*inserted_at[^;]*default now\(\)/);
+  });
+
   it("persists the per-user Mathpix budget with an atomic consume function", () => {
     const migrationPath = join(
       apiRoot,
