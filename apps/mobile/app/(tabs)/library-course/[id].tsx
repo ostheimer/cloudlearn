@@ -17,6 +17,7 @@ import {
   MoreVertical,
   Play,
 } from "lucide-react-native";
+import TextPromptModal from "../../../src/components/TextPromptModal";
 import { useTranslation } from "react-i18next";
 import {
   getCourse,
@@ -51,6 +52,8 @@ export default function CourseDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [startingLearn, setStartingLearn] = useState(false);
+  // Eigenes Eingabe-Fenster statt Eingabe-Alert: den gibt es nur auf iOS (#396).
+  const [renamePromptVisible, setRenamePromptVisible] = useState(false);
 
   const courseId = id ?? "";
 
@@ -82,30 +85,23 @@ export default function CourseDetailScreen() {
     loadDecks();
   };
 
-  const handleRenameCourse = useCallback(() => {
-    Alert.prompt(
-      t("courseDetail.rename"),
-      t("courseDetail.renamePrompt"),
-      [
-        { text: t("common.cancel"), style: "cancel" },
-        {
-          text: t("common.save"),
-          onPress: async (newTitle: string | undefined) => {
-            if (!newTitle?.trim()) return;
-            try {
-              await updateCourseApi(courseId, { title: newTitle.trim() });
-              setCurrentTitle(newTitle.trim());
-            } catch {
-              Alert.alert(t("common.error"), t("courseDetail.renameError"));
-            }
-          },
-        },
-      ],
-      "plain-text",
-      currentTitle,
-      "default"
-    );
-  }, [courseId, currentTitle, t]);
+  const handleRenameCourse = useCallback(() => setRenamePromptVisible(true), []);
+
+  // Das Fenster schliesst beim Bestätigen — wie zuvor der Alert — und die
+  // eigentliche Arbeit läuft danach. Leerer Name wird wie bisher verworfen.
+  const handleRenameSubmit = useCallback(
+    async (value: string) => {
+      setRenamePromptVisible(false);
+      if (!value.trim()) return;
+      try {
+        await updateCourseApi(courseId, { title: value.trim() });
+        setCurrentTitle(value.trim());
+      } catch {
+        Alert.alert(t("common.error"), t("courseDetail.renameError"));
+      }
+    },
+    [courseId, t]
+  );
 
   const handleDeleteCourse = useCallback(() => {
     Alert.alert(
@@ -360,6 +356,21 @@ export default function CourseDetailScreen() {
             </ScrollView>
           )}
       </View>
+
+      {/* Nur bei offenem Fenster eingehängt: so springt der Tastatur-Fokus
+          (autoFocus) bei JEDEM Öffnen wieder ins Feld. */}
+      {renamePromptVisible ? (
+        <TextPromptModal
+          visible
+          icon={BookOpen}
+          title={t("courseDetail.rename")}
+          label={t("courseDetail.renamePrompt")}
+          initialValue={currentTitle}
+          confirmLabel={t("common.save")}
+          onCancel={() => setRenamePromptVisible(false)}
+          onSubmit={handleRenameSubmit}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }

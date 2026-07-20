@@ -20,6 +20,7 @@ import {
   Plus,
 } from "lucide-react-native";
 import DeckPickerModal from "../../../src/components/DeckPickerModal";
+import TextPromptModal from "../../../src/components/TextPromptModal";
 import { useTranslation } from "react-i18next";
 import {
   getFolder,
@@ -59,6 +60,8 @@ export default function FolderDetailScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [startingLearn, setStartingLearn] = useState(false);
   const [deckPickerVisible, setDeckPickerVisible] = useState(false);
+  // Eigenes Eingabe-Fenster statt Eingabe-Alert: den gibt es nur auf iOS (#396).
+  const [renamePromptVisible, setRenamePromptVisible] = useState(false);
 
   const folderId = id ?? "";
 
@@ -93,30 +96,23 @@ export default function FolderDetailScreen() {
     loadContent();
   };
 
-  const handleRenameFolder = useCallback(() => {
-    Alert.prompt(
-      t("folderDetail.rename"),
-      t("folderDetail.renamePrompt"),
-      [
-        { text: t("common.cancel"), style: "cancel" },
-        {
-          text: t("common.save"),
-          onPress: async (newTitle: string | undefined) => {
-            if (!newTitle?.trim()) return;
-            try {
-              await updateFolderApi(folderId, { title: newTitle.trim() });
-              setCurrentTitle(newTitle.trim());
-            } catch {
-              Alert.alert(t("common.error"), t("folderDetail.renameError"));
-            }
-          },
-        },
-      ],
-      "plain-text",
-      currentTitle,
-      "default"
-    );
-  }, [folderId, currentTitle, t]);
+  const handleRenameFolder = useCallback(() => setRenamePromptVisible(true), []);
+
+  // Das Fenster schliesst beim Bestätigen — wie zuvor der Alert — und die
+  // eigentliche Arbeit läuft danach. Leerer Name wird wie bisher verworfen.
+  const handleRenameSubmit = useCallback(
+    async (value: string) => {
+      setRenamePromptVisible(false);
+      if (!value.trim()) return;
+      try {
+        await updateFolderApi(folderId, { title: value.trim() });
+        setCurrentTitle(value.trim());
+      } catch {
+        Alert.alert(t("common.error"), t("folderDetail.renameError"));
+      }
+    },
+    [folderId, t]
+  );
 
   const handleDeleteFolder = useCallback(() => {
     Alert.alert(
@@ -477,6 +473,21 @@ export default function FolderDetailScreen() {
             loadContent();
             Alert.alert(t("common.success"), t("folder.deckAddSuccess", { title: deck.title }));
           }}
+        />
+      ) : null}
+
+      {/* Nur bei offenem Fenster eingehängt: so springt der Tastatur-Fokus
+          (autoFocus) bei JEDEM Öffnen wieder ins Feld. */}
+      {renamePromptVisible ? (
+        <TextPromptModal
+          visible
+          icon={FolderOpen}
+          title={t("folderDetail.rename")}
+          label={t("folderDetail.renamePrompt")}
+          initialValue={currentTitle}
+          confirmLabel={t("common.save")}
+          onCancel={() => setRenamePromptVisible(false)}
+          onSubmit={handleRenameSubmit}
         />
       ) : null}
     </SafeAreaView>
