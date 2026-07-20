@@ -632,6 +632,43 @@ export async function markFriendStreakDay(userId: string): Promise<void> {
   if (error) throw new Error(`markFriendStreakDay: ${error.message}`);
 }
 
+/** PostgREST hands back at most this many rows per request and says nothing
+ *  about the rest — no error, no marker. See selectAllRows. */
+const POSTGREST_PAGE = 1000;
+
+/**
+ * Every row a query matches, not just PostgREST's first page.
+ *
+ * A plain `.select()` that matches more rows than the cap returns the cap's
+ * worth and stays silent about it. Code that then counts or buckets those rows
+ * is wrong without ever failing — the worse the truncation, the more confident
+ * the wrong answer. It bites hardest where rows pile up fastest: a learner
+ * doing ~180 cards an hour passes 1000 in a month after roughly six sessions,
+ * and since these queries sort oldest-first, what gets cut is the NEWEST days.
+ *
+ * So: fetch pages until one comes back short. That termination rule doesn't
+ * depend on knowing the cap — a smaller cap just means more, shorter pages.
+ *
+ * Only for row fetches. To count or aggregate, ask the database
+ * (`count: "exact"`) — no rows cross the wire, so no cap applies.
+ */
+async function selectAllRows<T>(
+  page: (from: number, to: number) => PromiseLike<{
+    data: T[] | null;
+    error: { message: string } | null;
+  }>,
+  context: string
+): Promise<T[]> {
+  const rows: T[] = [];
+  for (let offset = 0; ; offset += POSTGREST_PAGE) {
+    const { data, error } = await page(offset, offset + POSTGREST_PAGE - 1);
+    if (error) throw new Error(`${context}: ${error.message}`);
+    const batch = data ?? [];
+    rows.push(...batch);
+    if (batch.length < POSTGREST_PAGE) return rows;
+  }
+}
+
 /**
  * Days of a month (YYYY-MM) the user learned on, plus the days a streak
  * freeze covered — the data behind the streak calendar (#237). Learned days
@@ -654,23 +691,21 @@ export async function getStreakCalendar(userId: string, month: string): Promise<
   const fromIso = startOfLocalDayIso(monthStart);
   const toIso = startOfLocalDayIso(nextMonthStart);
 
-  // PostgREST caps a select at 1000 rows; a heavy month can exceed that, so
-  // page until short — distinct days are what we keep, not the rows.
+  // A heavy month exceeds one page; distinct days are what we keep, not rows.
+  const learnedRows = await selectAllRows<{ reviewed_at: string }>(
+    (from, to) =>
+      db
+        .from("review_logs")
+        .select("reviewed_at")
+        .eq("user_id", userId)
+        .gte("reviewed_at", fromIso)
+        .lt("reviewed_at", toIso)
+        .order("reviewed_at", { ascending: true })
+        .range(from, to),
+    "getStreakCalendar"
+  );
   const learned = new Set<string>();
-  const PAGE = 1000;
-  for (let offset = 0; ; offset += PAGE) {
-    const { data, error } = await db
-      .from("review_logs")
-      .select("reviewed_at")
-      .eq("user_id", userId)
-      .gte("reviewed_at", fromIso)
-      .lt("reviewed_at", toIso)
-      .order("reviewed_at", { ascending: true })
-      .range(offset, offset + PAGE - 1);
-    if (error) throw new Error(`getStreakCalendar: ${error.message}`);
-    for (const row of data ?? []) learned.add(todayLocal(new Date(row.reviewed_at)));
-    if (!data || data.length < PAGE) break;
-  }
+  for (const row of learnedRows) learned.add(todayLocal(new Date(row.reviewed_at)));
 
   const { data: freezes, error: freezeError } = await db
     .from("streak_freeze_uses")
@@ -705,6 +740,12 @@ export async function getReviewStats(
   reviewsToday: number;
   reviewsThisWeek: number;
   reviewsTotal: number;
+  /** Answers inside the chosen window — the denominator behind `accuracyRate`.
+   *  Clients need it to tell "no answers in this window" (show a dash) from
+   *  "answered, all wrong" (show 0%). `reviewsTotal` can't: it counts forever. */
+  reviewsInWindow: number;
+  /** Share of good+easy answers **within the chosen 7/30-day window**, not
+   *  all-time — see the counts below for why. */
   accuracyRate: number;
   reviewsByDay: Array<{ date: string; count: number }>;
   accuracyByDay: Array<{ date: string; accuracy: number; count: number }>;
@@ -737,11 +778,24 @@ export async function getReviewStats(
   //
   // Nur DIESE Zählung filtert. Die drei darunter (Woche, gesamt, Trefferquote)
   // sind Statistik und sollen Prüfungen mitzählen — dort gilt „ein Topf".
+  // Zählt Prüfungen MIT — Laras Entscheidung vom 17.07.: „alles was ich
+  // gemacht habe soll zählen, auch Prüfungen."
+  //
+  // Das kehrt ihre frühere Regel um („keine Lernpunkte oder etwas bei
+  // Tagesziel, da man ja im Prinzip nicht gelernt hat"), die genau hier saß.
+  // Grund für die Kehrtwende: Diese Zahl speist den Tagesziel-Balken, während
+  // das Balkendiagramm „Karten pro Tag" direkt daneben alles zählte — zwei
+  // Zahlen, beide „Karten", beide „heute", verschieden.
+  //
+  // Ungefährlich, weil am Erreichen des Tagesziels nichts mehr hängt: die
+  // LP-Prämie dafür wurde entfernt, und der Streak folgt jeder einzelnen
+  // Antwort, nicht dem Ziel. Was Prüfungen weiterhin NICHT tun: Lernpunkte
+  // geben (earn_session_lp überspringt sie) und den Lernplan bewegen
+  // (reviewService, außer bei Fehlern).
   const { count: todayCount } = await db
     .from("review_logs")
     .select("*", { count: "exact", head: true })
     .eq("user_id", userId)
-    .neq("mode", "test")
     .gte("reviewed_at", todayStart);
 
   // Reviews this week
@@ -757,31 +811,59 @@ export async function getReviewStats(
     .select("*", { count: "exact", head: true })
     .eq("user_id", userId);
 
-  // Accuracy (good+easy out of total)
-  const { count: goodCount } = await db
+  // Accuracy (good+easy) — over the SAME window as the by-day data below.
+  // The three counts above are all-time on purpose and say so in their names
+  // ("total", "this week"); accuracy doesn't. It is shown as a bare
+  // "Genauigkeit" beside the 7/30 switch, so an all-time value would sit
+  // there unmoved when the window changes — and unmoved as the user improves,
+  // since a long history drowns out any recent week.
+  //
+  // Counted by the database (`count: "exact"`) instead of summed from
+  // `dailyData`: that row fetch is subject to PostgREST's max-rows cap, so
+  // summing it would quietly go wrong exactly for the heaviest users.
+  const { count: windowTotalCount } = await db
     .from("review_logs")
     .select("*", { count: "exact", head: true })
     .eq("user_id", userId)
+    .gte("reviewed_at", windowStart);
+
+  const { count: windowGoodCount } = await db
+    .from("review_logs")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .gte("reviewed_at", windowStart)
     .gte("rating", 3); // 3=good, 4=easy
 
   const total = totalCount ?? 0;
-  const good = goodCount ?? 0;
-  const accuracyRate = total > 0 ? good / total : 0;
+  const windowTotal = windowTotalCount ?? 0;
+  const windowGood = windowGoodCount ?? 0;
+  const accuracyRate = windowTotal > 0 ? windowGood / windowTotal : 0;
 
   // Daily counts + learn time for the requested window (bar chart, trend,
   // per-day detail). `review_duration_ms` is nullable — treat null as 0.
-  const { data: dailyData } = await db
-    .from("review_logs")
-    .select("reviewed_at, rating, review_duration_ms")
-    .eq("user_id", userId)
-    .gte("reviewed_at", windowStart)
-    .order("reviewed_at", { ascending: true });
+  // Paged: sorted oldest-first, a single page would drop the newest days of a
+  // busy month — the bar chart would show 0 cards for days that were studied.
+  const dailyData = await selectAllRows<{
+    reviewed_at: string;
+    rating: number | null;
+    review_duration_ms: number | null;
+  }>(
+    (from, to) =>
+      db
+        .from("review_logs")
+        .select("reviewed_at, rating, review_duration_ms")
+        .eq("user_id", userId)
+        .gte("reviewed_at", windowStart)
+        .order("reviewed_at", { ascending: true })
+        .range(from, to),
+    "getReviewStats"
+  );
 
   const dayStats: Record<string, { count: number; good: number; durationMs: number }> = {};
   for (const key of dayKeys) {
     dayStats[key] = { count: 0, good: 0, durationMs: 0 };
   }
-  (dailyData ?? []).forEach((r) => {
+  dailyData.forEach((r) => {
     const day = r.reviewed_at.split("T")[0] ?? "";
     const bucket = dayStats[day];
     if (!bucket) return; // outside the scaffolded window (defensive)
@@ -812,6 +894,7 @@ export async function getReviewStats(
     reviewsToday: todayCount ?? 0,
     reviewsThisWeek: weekCount ?? 0,
     reviewsTotal: total,
+    reviewsInWindow: windowTotal,
     accuracyRate: Math.round(accuracyRate * 100) / 100,
     reviewsByDay,
     accuracyByDay,
@@ -1461,14 +1544,20 @@ export async function getDeckReviewStats(
   const dayKeys = lastNDayKeysUtc(new Date(), days);
   const windowStart = `${dayKeys[0]}T00:00:00.000Z`;
 
-  const { data, error } = await db
-    .from("review_logs")
-    .select("rating, reviewed_at, cards!inner(deck_id)")
-    .eq("user_id", userId)
-    .eq("cards.deck_id", deckId)
-    .gte("reviewed_at", windowStart)
-    .order("reviewed_at", { ascending: true });
-  if (error) throw new Error(`getDeckReviewStats: ${error.message}`);
+  // Paged: oldest-first, so one page would silently drop this deck's newest
+  // days — and answersTotal/answersCorrect are summed from these very rows.
+  const data = await selectAllRows<{ rating: number | null; reviewed_at: string }>(
+    (from, to) =>
+      db
+        .from("review_logs")
+        .select("rating, reviewed_at, cards!inner(deck_id)")
+        .eq("user_id", userId)
+        .eq("cards.deck_id", deckId)
+        .gte("reviewed_at", windowStart)
+        .order("reviewed_at", { ascending: true })
+        .range(from, to),
+    "getDeckReviewStats"
+  );
 
   const dayStats: Record<string, { count: number; good: number }> = {};
   for (const key of dayKeys) dayStats[key] = { count: 0, good: 0 };
@@ -1582,16 +1671,29 @@ export async function getDeckReviewSummaries(
     .order("created_at", { ascending: false });
   if (decksError) throw new Error(`getDeckReviewSummaries: ${decksError.message}`);
 
-  const { data: logs, error: logsError } = await db
-    .from("review_logs")
-    .select("rating, cards!inner(deck_id)")
-    .eq("user_id", userId)
-    .gte("reviewed_at", windowStart);
-  if (logsError) throw new Error(`getDeckReviewSummaries: ${logsError.message}`);
+  // Paged, and explicitly ordered: paging by row range is only well-defined
+  // under a stable sort. Without an ORDER BY the database may return rows in
+  // any order it likes, and two pages could then overlap or skip — which is
+  // worse than the truncation being fixed. Unpaged, a busy month silently cut
+  // this to an arbitrary 1000 rows and skewed every deck's percentage.
+  const logs = await selectAllRows<{
+    rating: number | null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    cards?: any;
+  }>(
+    (from, to) =>
+      db
+        .from("review_logs")
+        .select("rating, cards!inner(deck_id)")
+        .eq("user_id", userId)
+        .gte("reviewed_at", windowStart)
+        .order("reviewed_at", { ascending: true })
+        .range(from, to),
+    "getDeckReviewSummaries"
+  );
 
   const byDeck = new Map<string, { total: number; good: number }>();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  for (const row of (logs ?? []) as any[]) {
+  for (const row of logs) {
     const rowDeckId = row.cards?.deck_id as string | null;
     if (!rowDeckId) continue;
     const s = byDeck.get(rowDeckId) ?? { total: 0, good: 0 };

@@ -76,7 +76,9 @@ const AUTH_USER_ID = "11111111-1111-4111-8111-111111111111";
 const REVIEW_STATS = {
   reviewsToday: 3,
   reviewsThisWeek: 12,
+  // All-time, unlike the two below: they belong to the requested window.
   reviewsTotal: 200,
+  reviewsInWindow: 80,
   accuracyRate: 0.85,
   reviewsByDay: [{ date: "2026-07-13", count: 3 }],
   accuracyByDay: [{ date: "2026-07-13", accuracy: 0.67, count: 3 }],
@@ -174,6 +176,28 @@ describe("GET /api/v1/stats – days whitelist + durationMsByDay", () => {
       accuracyByDay: REVIEW_STATS.accuracyByDay,
       lastStudiedDeck: { id: "deck-1", title: "Bio" },
     });
+  });
+
+  it("tells clients which window the accuracy covers, and how many answers back it", async () => {
+    const response = await GET(getRequest("30"));
+    const body = (await response.json()) as { stats: Record<string, unknown> };
+
+    // Without these two, a client can't caption "Genauigkeit" honestly: it
+    // can't name the window, and it can't tell "nothing answered lately"
+    // (dash) from "answered, all wrong" (0 %).
+    expect(body.stats.reviewsInWindow).toBe(80);
+    expect(body.stats.statsWindowDays).toBe(30);
+  });
+
+  it("reports the window a Free account actually got, not the one it asked for", async () => {
+    mockTier("free");
+
+    const response = await GET(getRequest("30"));
+    const body = (await response.json()) as { stats: Record<string, unknown> };
+
+    // The tier clamp serves 7 days of data (#235). Echoing the requested 30
+    // would put a week's numbers under a "letzte 30 Tage" caption.
+    expect(body.stats.statsWindowDays).toBe(7);
   });
 
   it("returns 401 without a valid token", async () => {

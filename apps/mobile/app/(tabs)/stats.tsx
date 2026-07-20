@@ -189,13 +189,26 @@ export default function StatsScreen() {
   }
 
   // ─── Derived accuracy values (for the chosen window) ─────────────────────
+  // Prefer the server's figure. Re-deriving it from the chart meant summing
+  // per-day values already rounded to two decimals, off a row fetch that is
+  // capped — so this ring could drift away from the identically-named number
+  // on Home. If the field is missing we're talking to an older API, whose
+  // `accuracyRate` is the pre-fix all-time value: keep computing locally then,
+  // because a windowed estimate beats an all-time number under a "last 30
+  // days" caption.
   const reviewsTotal = stats?.reviewsTotal ?? 0;
-  const windowCount = accData.reduce((sum, d) => sum + d.count, 0);
-  const windowGood = accData.reduce(
+  const chartCount = accData.reduce((sum, d) => sum + d.count, 0);
+  const chartGood = accData.reduce(
     (sum, d) => sum + Math.round(d.accuracy * d.count),
     0
   );
-  const windowAccuracy = windowCount > 0 ? windowGood / windowCount : 0;
+  const serverWindowed = stats?.reviewsInWindow !== undefined;
+  const windowCount = serverWindowed ? (stats?.reviewsInWindow ?? 0) : chartCount;
+  const windowAccuracy = serverWindowed
+    ? (stats?.accuracyRate ?? 0)
+    : chartCount > 0
+      ? chartGood / chartCount
+      : 0;
 
   const hasAccuracyChart = accData.length >= 2;
   const hasBarChart = barData.some((d) => d.count > 0);

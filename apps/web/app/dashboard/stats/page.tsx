@@ -93,6 +93,12 @@ export default function StatsPage() {
   const learningDays = accuracyByDay.filter((d) => d.count > 0).length;
   const reviewsByDay = stats?.reviewsByDay ?? [];
   const hasReviews = (stats?.reviewsTotal ?? 0) > 0;
+  // Der Ring zeigt das gewählte Fenster, also entscheidet auch das Fenster, ob
+  // es überhaupt etwas zu zeigen gibt: sonst behauptet er "0 %" für jemanden,
+  // der in diesen Tagen schlicht nichts gelernt hat. Rückfall auf die
+  // Gesamtzahl nur für ältere APIs, die das Feld noch nicht senden.
+  const windowCount = stats?.reviewsInWindow ?? stats?.reviewsTotal ?? 0;
+  const hasWindowReviews = windowCount > 0;
   const accPct = stats
     ? Math.round(stats.accuracyRate <= 1 ? stats.accuracyRate * 100 : stats.accuracyRate)
     : 0;
@@ -187,9 +193,12 @@ export default function StatsPage() {
           <span className="muted" style={{ fontSize: "0.78rem" }}>
             Trefferquote
           </span>
-          <b>{hasReviews ? `${accPct} %` : "—"}</b>
+          <b>{hasWindowReviews ? `${accPct} %` : "—"}</b>
+          {/* Zähler und Nenner müssen aus demselben Zeitraum stammen: hier stand
+              die Quote der letzten 30 Tage über der Zahl ALLER Antworten seit
+              jeher — zwei Zeiträume in einer Kachel. */}
           <span className="muted" style={{ fontSize: "0.75rem" }}>
-            {stats?.reviewsTotal ?? 0} Antworten
+            {windowCount.toLocaleString("de-DE")} Antworten · {rangeDays} Tage
           </span>
         </div>
         <div className="st-kpi-tile">
@@ -270,7 +279,12 @@ export default function StatsPage() {
           <h3 className="h3" style={{ alignSelf: "flex-start", margin: 0 }}>
             Genauigkeit
           </h3>
-          <AccuracyRing accuracy={accRate} hasData={hasReviews} size={128} />
+          <AccuracyRing accuracy={accRate} hasData={hasWindowReviews} size={128} />
+          <div className="muted" style={{ fontSize: "0.78rem", textAlign: "center" }}>
+            {hasWindowReviews
+              ? `richtig beantwortet bei ${windowCount.toLocaleString("de-DE")} Antworten in den letzten ${rangeDays} Tagen`
+              : `keine Antworten in den letzten ${rangeDays} Tagen`}
+          </div>
           <div style={{ alignSelf: "stretch", display: "grid", gap: 8, marginTop: 2 }}>
             {ctxRow("Bester Streak", `${stats?.longestStreak ?? 0} Tage`)}
             {ctxRow("Decks", stats?.totalDecks ?? 0)}

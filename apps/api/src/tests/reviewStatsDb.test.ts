@@ -8,8 +8,9 @@
  *
  * The Supabase admin client is replaced with a thenable query-builder fake:
  * every chained method returns the builder itself, and awaiting it resolves
- * the next queued response — getReviewStats awaits five queries in a fixed
- * order (today / week / total / good counts, then the daily rows).
+ * the next queued response — getReviewStats awaits six queries in a fixed
+ * order (today / week / all-time total counts, then the window's total and
+ * good counts, then the daily rows).
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -39,10 +40,12 @@ function makeDbMock(responses: QueryResponse[]) {
     calls.push({ method: "from", args: [table] });
     const response = queue.shift() ?? { count: 0, data: [], error: null };
     const builder: Record<string, unknown> = {};
-    // "neq" gehört dazu, seit die Tagesziel-Zählung Prüfungen ausschließt.
-    // Fehlt eine Methode hier, wirft der Aufruf „is not a function" — schon
-    // einmal so passiert (#334).
-    for (const method of ["select", "eq", "neq", "gte", "lte", "order", "limit"]) {
+    // "range" gehört dazu, seit die Tagesdaten geblättert werden
+    // (1000-Zeilen-Grenze). "neq" nutzt getReviewStats aktuell nicht mehr,
+    // bleibt aber stehen: die Attrappe soll an einem wiederkehrenden Filter
+    // nicht zerbrechen. Fehlt eine Methode hier, wirft der Aufruf
+    // „is not a function" — schon einmal so passiert (#334).
+    for (const method of ["select", "eq", "neq", "gte", "lte", "order", "limit", "range"]) {
       builder[method] = (...args: unknown[]) => {
         calls.push({ method, args });
         return builder;
@@ -59,15 +62,38 @@ function makeDbMock(responses: QueryResponse[]) {
   return { db: { from } as never, calls };
 }
 
-/** Responses in getReviewStats' query order: today, week, total, good, daily. */
-function statsResponses(dailyRows: unknown[]): QueryResponse[] {
+/**
+ * Responses in getReviewStats' query order: today, week, all-time total,
+ * window total, window good, daily rows.
+ */
+function statsResponses(
+  dailyRows: unknown[],
+  windowTotal = 80,
+  windowGood = 60
+): QueryResponse[] {
   return [
     { count: 3, error: null },
     { count: 12, error: null },
     { count: 200, error: null },
-    { count: 150, error: null },
+    { count: windowTotal, error: null },
+    { count: windowGood, error: null },
     { data: dailyRows, error: null },
   ];
+}
+
+/** Split the flat call log into one group per query (each starts with `from`). */
+function queriesOf(calls: RecordedCall[]): RecordedCall[][] {
+  const queries: RecordedCall[][] = [];
+  for (const call of calls) {
+    if (call.method === "from") queries.push([]);
+    queries.at(-1)?.push(call);
+  }
+  return queries;
+}
+
+/** The `.gte(...)` arguments a single query was built with, in order. */
+function gteArgsOf(query: RecordedCall[] | undefined): unknown[][] {
+  return (query ?? []).filter((c) => c.method === "gte").map((c) => c.args);
 }
 
 const DAILY_ROWS = [
@@ -164,6 +190,55 @@ describe("getReviewStats – 7/30-day window + durationMsByDay", () => {
     ]);
   });
 
+  it("pages the daily rows so a busy month doesn't lose its newest days", async () => {
+    // PostgREST returns at most 1000 rows per request and says nothing about
+    // the rest. These rows are sorted oldest-first, so an unpaged fetch stops
+    // inside the older day and today's 200 answers read as zero — the bar
+    // chart would show an empty column for a day that was actually studied.
+    const olderPage = Array.from({ length: 1000 }, () => ({
+      reviewed_at: "2026-07-12T08:00:00.000Z",
+      rating: 3,
+      review_duration_ms: 1000,
+    }));
+    const newestPage = Array.from({ length: 200 }, () => ({
+      reviewed_at: "2026-07-13T10:00:00.000Z",
+      rating: 3,
+      review_duration_ms: 1000,
+    }));
+    const { db, calls } = makeDbMock([
+      { count: 3, error: null },
+      { count: 12, error: null },
+      { count: 1200, error: null },
+      { count: 1200, error: null },
+      { count: 1200, error: null },
+      { data: olderPage, error: null },
+      { data: newestPage, error: null },
+    ]);
+    mockedCreateDb.mockReturnValue(db);
+
+    const stats = await getReviewStats(USER_ID, 30);
+
+    expect(stats.reviewsByDay.find((d) => d.date === "2026-07-12")?.count).toBe(1000);
+    expect(stats.reviewsByDay.find((d) => d.date === "2026-07-13")?.count).toBe(200);
+
+    // A full page must be followed by a request for the next one.
+    const ranges = calls.filter((c) => c.method === "range").map((c) => c.args);
+    expect(ranges).toEqual([
+      [0, 999],
+      [1000, 1999],
+    ]);
+  });
+
+  it("stops after a short page instead of asking forever", async () => {
+    const { db, calls } = makeDbMock(statsResponses(DAILY_ROWS));
+    mockedCreateDb.mockReturnValue(db);
+
+    await getReviewStats(USER_ID, 30);
+
+    // 3 rows came back for a 1000-row request: there cannot be more.
+    expect(calls.filter((c) => c.method === "range").map((c) => c.args)).toEqual([[0, 999]]);
+  });
+
   it("passes the scalar aggregates through unchanged", async () => {
     const { db } = makeDbMock(statsResponses(DAILY_ROWS));
     mockedCreateDb.mockReturnValue(db);
@@ -172,25 +247,74 @@ describe("getReviewStats – 7/30-day window + durationMsByDay", () => {
 
     expect(stats.reviewsToday).toBe(3);
     expect(stats.reviewsThisWeek).toBe(12);
+    // All-time on purpose — its name says so, unlike accuracyRate's.
     expect(stats.reviewsTotal).toBe(200);
-    expect(stats.accuracyRate).toBe(0.75); // 150 / 200
   });
 
-  it("keeps test-mode reviews out of the daily goal — but inside the statistics", async () => {
-    // Laras Regel: „Beim Test sollte man keine Lernpunkte bekommen oder etwas
-    // bei Tagesziel, da man ja im Prinzip nicht gelernt hat." reviewsToday
-    // speist den Tagesziel-Balken (reviewsToday / dailyGoal auf Home).
+  it("fences both accuracy counts to the window, not to all time", async () => {
+    const { db, calls } = makeDbMock(statsResponses([]));
+    mockedCreateDb.mockReturnValue(db);
+
+    await getReviewStats(USER_ID, 7);
+
+    const [, , , windowTotalQuery, windowGoodQuery] = queriesOf(calls);
+    const windowStart = "2026-07-07T00:00:00.000Z";
+
+    expect(gteArgsOf(windowTotalQuery)).toEqual([["reviewed_at", windowStart]]);
+    // The regression this pins down: the good-count query used to carry only
+    // ["rating", 3] — no date fence — so "Genauigkeit" silently meant
+    // "since you started" while sitting next to a 7/30-day switch.
+    expect(gteArgsOf(windowGoodQuery)).toEqual([
+      ["reviewed_at", windowStart],
+      ["rating", 3],
+    ]);
+  });
+
+  it("derives accuracyRate from the window's own counts", async () => {
+    // 60 of 80 answers in the window were good — 75 %, regardless of the 200
+    // answers this user has given in total.
+    const { db } = makeDbMock(statsResponses(DAILY_ROWS, 80, 60));
+    mockedCreateDb.mockReturnValue(db);
+
+    const stats = await getReviewStats(USER_ID, 30);
+
+    expect(stats.accuracyRate).toBe(0.75);
+    expect(stats.reviewsInWindow).toBe(80);
+  });
+
+  it("reports an empty window as 0 answers rather than falling back to all time", async () => {
+    // Nothing studied in the window, but 200 answers on the clock. Clients show
+    // a dash off reviewsInWindow; a 0 here must not read as "0 % correct".
+    const { db } = makeDbMock(statsResponses([], 0, 0));
+    mockedCreateDb.mockReturnValue(db);
+
+    const stats = await getReviewStats(USER_ID, 7);
+
+    expect(stats.reviewsInWindow).toBe(0);
+    expect(stats.accuracyRate).toBe(0);
+    expect(stats.reviewsTotal).toBe(200);
+  });
+
+  it("counts test-mode reviews everywhere, the daily goal included", async () => {
+    // Laras Entscheidung 17.07.: „alles was ich gemacht habe soll zählen, auch
+    // Prüfungen." Sie kehrt damit ihre eigene frühere Regel um, die hier als
+    // Zitat stand: „Beim Test sollte man keine Lernpunkte bekommen oder etwas
+    // bei Tagesziel, da man ja im Prinzip nicht gelernt hat."
     //
-    // Statistik dagegen bleibt „ein Topf": Woche, Gesamt und Trefferquote
-    // zählen Prüfungen mit — dort ist die Prüfung sogar die ehrlichste Zahl.
+    // Auslöser: reviewsToday speist den Tagesziel-Balken (reviewsToday /
+    // dailyGoal), das Balkendiagramm „Karten pro Tag" daneben zählte alles —
+    // zwei Zahlen, beide „Karten", beide „heute", verschieden. Auf der
+    // Web-Statistik standen sie in derselben Zeile.
+    //
+    // Kein Schlupfloch: Am Erreichen des Tagesziels hängt keine Prämie mehr,
+    // und der Streak folgt jeder Antwort statt dem Ziel. Prüfungen geben
+    // weiterhin keine LP und bewegen den Lernplan nicht — anderer Code.
     const { db, calls } = makeDbMock(statsResponses(DAILY_ROWS));
     mockedCreateDb.mockReturnValue(db);
 
     await getReviewStats(USER_ID, 30);
 
-    // Nur die ERSTE Abfrage (heute) darf Prüfungen ausschließen.
-    const neqCalls = calls.filter((c) => c.method === "neq");
-    expect(neqCalls).toHaveLength(1);
-    expect(neqCalls[0]?.args).toEqual(["mode", "test"]);
+    // Keine einzige Abfrage darf Prüfungen noch aussortieren.
+    expect(calls.filter((c) => c.method === "neq")).toEqual([]);
   });
 });

@@ -50,7 +50,12 @@ export async function GET(request: NextRequest) {
         reviewsToday: reviewStats.reviewsToday,
         reviewsThisWeek: reviewStats.reviewsThisWeek,
         reviewsTotal: reviewStats.reviewsTotal,
+        reviewsInWindow: reviewStats.reviewsInWindow,
         accuracyRate: reviewStats.accuracyRate,
+        // The window actually served, after the tier clamp — a Free account
+        // asking for 30 gets 7. Clients label the accuracy with THIS, so the
+        // label can't promise a month of data and show a week's.
+        statsWindowDays: days,
         reviewsByDay: reviewStats.reviewsByDay,
         accuracyByDay: reviewStats.accuracyByDay,
         durationMsByDay: reviewStats.durationMsByDay,

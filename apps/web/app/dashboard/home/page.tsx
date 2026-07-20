@@ -93,6 +93,14 @@ export default function HomePage() {
   const accuracy = stats
     ? Math.round(stats.accuracyRate <= 1 ? stats.accuracyRate * 100 : stats.accuracyRate)
     : 0;
+  // "Genauigkeit" meint hier dasselbe wie auf der Statistik-Seite: die letzten
+  // 30 Tage (Gratis-Konto: 7). Die Kachel schreibt das Fenster dazu, weil sie
+  // — anders als die Statistik — keinen Umschalter hat, der es verrät.
+  const accuracyWindowDays = stats?.statsWindowDays ?? 30;
+  // Nach Antworten IN DIESEM Fenster fragen: `reviewsTotal` zählt ewig weiter
+  // und hätte nach längerer Pause ein hartes "0 %" gezeigt, wo gar nichts
+  // beantwortet wurde. Der Rückfall gilt nur für ältere APIs ohne das Feld.
+  const hasAccuracyData = (stats?.reviewsInWindow ?? stats?.reviewsTotal ?? 0) > 0;
   const goalPct = goal > 0 ? Math.min(100, Math.round((today / goal) * 100)) : 0;
 
   const activeFriend = friendStreaks.filter((s) => s.status === "active");
@@ -387,8 +395,8 @@ export default function HomePage() {
           <span style={tileLabel}>
             <Trophy size={14} /> Genauigkeit
           </span>
-          <span style={tileNum}>{stats && stats.reviewsTotal > 0 ? `${accuracy} %` : "—"}</span>
-          <span style={badge(false)}>Statistik ›</span>
+          <span style={tileNum}>{hasAccuracyData ? `${accuracy} %` : "—"}</span>
+          <span style={badge(false)}>letzte {accuracyWindowDays} Tage ›</span>
         </Link>
       </div>
 
