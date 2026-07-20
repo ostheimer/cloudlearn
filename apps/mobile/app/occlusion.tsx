@@ -15,6 +15,7 @@ import { useColors, spacing, radius, typography } from "../src/theme";
 import { StudyResult } from "../src/components/StudyResult";
 import { useSessionStore } from "../src/store/sessionStore";
 import { listCardsInDeck, reviewCard, earnLp, deleteCard } from "../src/lib/api";
+import { setLastUsedDeck } from "../src/lib/lastUsedDeck";
 import {
   parseOcclusionCard,
   groupOcclusionCards,
@@ -41,6 +42,11 @@ export default function OcclusionStudyScreen() {
   const router = useRouter();
   const userId = useSessionStore((s) => s.userId);
   const { deckId, deckTitle } = useLocalSearchParams<{ deckId?: string; deckTitle?: string }>();
+
+  // Studying IS using the deck (#413).
+  useEffect(() => {
+    if (deckId) void setLastUsedDeck({ id: deckId, title: deckTitle ?? "" });
+  }, [deckId, deckTitle]);
 
   const [items, setItems] = useState<OcclusionStudyItem[]>([]);
   const [media, setMedia] = useState<Record<string, Media | null>>({});

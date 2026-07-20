@@ -22,6 +22,7 @@ import {
   Zap,
 } from "lucide-react-native";
 import { earnLp, listCardsInDeck, reviewCard, type Card } from "../src/lib/api";
+import { setLastUsedDeck } from "../src/lib/lastUsedDeck";
 import { finishRateModeRound } from "../src/lib/rateModeRound";
 import { useSessionStore } from "../src/store/sessionStore";
 import { useUsageStore } from "../src/store/usageStore";
@@ -72,6 +73,12 @@ export default function MatchScreen() {
     deckTitle: string;
   }>();
   const router = useRouter();
+
+  // Studying IS using the deck (#413) — and Zuordnen writes no review_logs,
+  // so this marker is the only trace the server would ever see.
+  useEffect(() => {
+    if (deckId) void setLastUsedDeck({ id: deckId, title: deckTitle ?? "" });
+  }, [deckId, deckTitle]);
 
   const [cards, setCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);

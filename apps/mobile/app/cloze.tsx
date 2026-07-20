@@ -23,6 +23,7 @@ import {
   Pencil,
 } from "lucide-react-native";
 import { listCardsInDeck, reviewCard, earnLp, isApiError, type Card } from "../src/lib/api";
+import { setLastUsedDeck } from "../src/lib/lastUsedDeck";
 import {
   createReviewSyncOperation,
   useOfflineQueueStore,
@@ -97,6 +98,11 @@ export default function ClozeScreen() {
     deckId: string;
     deckTitle: string;
   }>();
+
+  // Studying IS using the deck (#413).
+  useEffect(() => {
+    if (deckId) void setLastUsedDeck({ id: deckId, title: deckTitle ?? "" });
+  }, [deckId, deckTitle]);
 
   const userId = useSessionStore((state) => state.userId);
   const setUsage = useUsageStore((s) => s.setUsage);

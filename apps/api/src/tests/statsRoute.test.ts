@@ -112,7 +112,11 @@ describe("GET /api/v1/stats – days whitelist + durationMsByDay", () => {
       repairCost: 40,
     });
     mockedGetReviewStats.mockResolvedValue(REVIEW_STATS);
-    mockedGetLastStudiedDeck.mockResolvedValue({ id: "deck-1", title: "Bio" });
+    mockedGetLastStudiedDeck.mockResolvedValue({
+      id: "deck-1",
+      title: "Bio",
+      reviewedAt: "2026-07-20T12:44:00.000Z",
+    });
     // Whitelist behaviour is about the `days` logic, not the tier — run it as
     // Pro so the 30-day window is not clamped away (#235).
     mockTier("pro");
@@ -174,7 +178,9 @@ describe("GET /api/v1/stats – days whitelist + durationMsByDay", () => {
       accuracyRate: 0.85,
       reviewsByDay: REVIEW_STATS.reviewsByDay,
       accuracyByDay: REVIEW_STATS.accuracyByDay,
-      lastStudiedDeck: { id: "deck-1", title: "Bio" },
+      // The timestamp ships along so clients can compare it against their own
+      // local "last opened" marker and show whichever is newer (#413).
+      lastStudiedDeck: { id: "deck-1", title: "Bio", reviewedAt: "2026-07-20T12:44:00.000Z" },
     });
   });
 
@@ -230,7 +236,11 @@ describe("GET /api/v1/stats – advanced-stats gate for free users (#235)", () =
       repairCost: 40,
     });
     mockedGetReviewStats.mockResolvedValue(REVIEW_STATS);
-    mockedGetLastStudiedDeck.mockResolvedValue({ id: "deck-1", title: "Bio" });
+    mockedGetLastStudiedDeck.mockResolvedValue({
+      id: "deck-1",
+      title: "Bio",
+      reviewedAt: "2026-07-20T12:44:00.000Z",
+    });
   });
 
   it("clamps a free user's 30-day request down to the basic 7-day window", async () => {

@@ -906,15 +906,19 @@ export async function getReviewStats(
  * The deck the user's most recent review belongs to ("Zuletzt gelernt" on
  * Home). Follows review_logs → card → deck; null when the user has never
  * reviewed or the deck has since been deleted (cascade removes the logs).
+ *
+ * `reviewedAt` ships with it so clients can compare this against their own
+ * local "last opened" marker and show whichever happened later (#413) —
+ * without it, a stale on-device marker outranks learning done elsewhere.
  */
 export async function getLastStudiedDeck(
   userId: string
-): Promise<{ id: string; title: string } | null> {
+): Promise<{ id: string; title: string; reviewedAt: string } | null> {
   const db = getDb();
 
   const { data: lastLog } = await db
     .from("review_logs")
-    .select("card_id")
+    .select("card_id, reviewed_at")
     .eq("user_id", userId)
     .order("reviewed_at", { ascending: false })
     .limit(1)
@@ -936,7 +940,11 @@ export async function getLastStudiedDeck(
     .maybeSingle();
   if (!deck?.id) return null;
 
-  return { id: deck.id, title: deck.title ?? "" };
+  return {
+    id: deck.id,
+    title: deck.title ?? "",
+    reviewedAt: lastLog.reviewed_at as string,
+  };
 }
 
 // ─── Subscription (from profiles table) ─────────────────────────────────────
