@@ -57,6 +57,10 @@ import {
 } from "../../src/lib/api";
 import { useUsageStore } from "../../src/store/usageStore";
 import { excludeOcclusionCards } from "../../src/lib/occlusion";
+import {
+  clearSessionProgress,
+  saveSessionProgress,
+} from "../../src/features/review/sessionProgress";
 import { summarizeCardMedia } from "../../src/lib/cardMedia";
 import { cleanTerm } from "../../src/lib/cardTerms";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
@@ -95,6 +99,7 @@ export default function LearnScreen({
   initialShowBackFirst,
   source,
   wobblyIds,
+  initialIndex,
 }: {
   deckId?: string | undefined;
   deckTitle?: string | undefined;
@@ -104,6 +109,9 @@ export default function LearnScreen({
   source?: CardSource | undefined;
   // Deck mode: ids of the deck's wobbly cards, powering the "wobbly" source.
   wobblyIds?: string[] | undefined;
+  // Deck mode: card to resume on, chosen on the setup screen from stored
+  // progress (sessionProgress.ts). Omitted means start at the first card.
+  initialIndex?: number | undefined;
 } = {}) {
   const router = useRouter();
   const c = useColors();
@@ -131,6 +139,7 @@ export default function LearnScreen({
       initialShowBackFirst={initialShowBackFirst}
       source={source}
       wobblyIds={wobblyIds}
+      initialIndex={initialIndex}
     />
   );
 }
@@ -142,6 +151,7 @@ function AuthenticatedLearnScreen({
   initialShowBackFirst,
   source,
   wobblyIds,
+  initialIndex,
 }: {
   userId: string;
   deckId?: string | undefined;
@@ -149,6 +159,7 @@ function AuthenticatedLearnScreen({
   initialShowBackFirst?: boolean | undefined;
   source?: CardSource | undefined;
   wobblyIds?: string[] | undefined;
+  initialIndex?: number | undefined;
 }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -312,7 +323,10 @@ function AuthenticatedLearnScreen({
         const starMap: Record<string, boolean> = {};
         loaded.forEach((card) => { starMap[card.id] = card.starred ?? false; });
         setStarredMap(starMap);
-        start(loaded.map((card) => ({ id: card.id, front: card.front, back: card.back, starred: card.starred })));
+        start(
+          loaded.map((card) => ({ id: card.id, front: card.front, back: card.back, starred: card.starred })),
+          initialIndex ?? 0
+        );
       } else {
         start([]);
       }
@@ -323,7 +337,29 @@ function AuthenticatedLearnScreen({
     } finally {
       setLoading(false);
     }
-  }, [userId, deckId, source, wobblyIds, start]);
+  }, [userId, deckId, source, wobblyIds, start, initialIndex]);
+
+  // ─── Remember where a deck session was interrupted ───────────────────────
+  // Only in deck mode: the global tab studies whatever is due today, so a
+  // position from an earlier pile would point at an unrelated card. Written on
+  // every card change rather than on leaving, because the app can be killed
+  // from the task switcher without any teardown running.
+  useEffect(() => {
+    if (!deckId || !source || cards.length === 0) return;
+    if (completed) {
+      void clearSessionProgress(deckId);
+      return;
+    }
+    const current = cards[index];
+    if (!current) return;
+    void saveSessionProgress(deckId, {
+      index,
+      cardId: current.id,
+      source,
+      reverse: showBackFirst,
+      total: cards.length,
+    });
+  }, [deckId, source, cards, index, completed, showBackFirst]);
 
   // The review session store is module-global, so a fresh screen can inherit
   // cards from a previous session. Reload whenever the source changes (a

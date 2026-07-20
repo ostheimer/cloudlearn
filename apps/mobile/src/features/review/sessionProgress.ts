@@ -1,0 +1,100 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+// Where a Karteikarten session for one deck was interrupted, stored on this
+// device. Leaving mid-session used to drop the position: the next start began
+// at card 1 again. Ratings survived (they are flushed on blur), so the learner
+// re-rated cards already answered, which writes a second review and skews their
+// scheduling — the deck mode studies every card, not just the due ones.
+//
+// Deliberately not expiring. A 138-card deck is worked through over several
+// days, and a position that silently vanished overnight would recreate the
+// original problem. Instead the entry is cleared when the session completes,
+// and every resume is offered rather than applied, so a stale position can
+// always be declined.
+
+const STORAGE_PREFIX = "review-progress:";
+
+export interface SessionProgress {
+  /** Zero-based index of the card the learner stopped on. */
+  index: number;
+  /** Id of the card at `index` when it was saved — see isProgressUsable. */
+  cardId: string;
+  /** Card source the session ran with ("all" | "starred" | "wobbly"). */
+  source: string;
+  /** Whether the session asked back-to-front. */
+  reverse: boolean;
+  /** Card count at save time, for the "Karte 9 von 40" label. */
+  total: number;
+}
+
+function storageKey(deckId: string): string {
+  return `${STORAGE_PREFIX}${deckId}`;
+}
+
+/** Parse stored JSON; null for missing, corrupt or implausible values. */
+export function parseSessionProgress(raw: string | null): SessionProgress | null {
+  if (!raw) return null;
+  try {
+    const value = JSON.parse(raw) as Record<string, unknown>;
+    const { index, cardId, source, reverse, total } = value;
+    if (typeof index !== "number" || !Number.isInteger(index) || index < 0) return null;
+    if (typeof cardId !== "string" || cardId.length === 0) return null;
+    if (typeof source !== "string" || source.length === 0) return null;
+    if (typeof total !== "number" || !Number.isInteger(total) || total <= 0) return null;
+    // An index at or past the end is a finished session, not a resumable one.
+    if (index >= total) return null;
+    return { index, cardId, source, reverse: reverse === true, total };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * True when stored progress still points at the same card in the current pile.
+ *
+ * Cards get added, deleted or unstarred between sessions, which shifts every
+ * later position. Resuming on the index alone would then drop the learner at an
+ * arbitrary card with no way to notice. Comparing the stored card id against
+ * the card now at that index is a cheap, exact check: it either matches or the
+ * pile changed, in which case starting over is the honest outcome.
+ *
+ * The source must match too — "Nur markierte" and "Alle" are different piles,
+ * so an index from one says nothing about the other.
+ */
+export function isProgressUsable(
+  progress: SessionProgress | null,
+  cardIds: string[],
+  source: string
+): boolean {
+  if (!progress) return false;
+  if (progress.source !== source) return false;
+  if (progress.index >= cardIds.length) return false;
+  return cardIds[progress.index] === progress.cardId;
+}
+
+export async function saveSessionProgress(
+  deckId: string,
+  progress: SessionProgress
+): Promise<void> {
+  try {
+    await AsyncStorage.setItem(storageKey(deckId), JSON.stringify(progress));
+  } catch {
+    // Best-effort — losing the marker costs a resume offer, never a rating.
+  }
+}
+
+export async function loadSessionProgress(deckId: string): Promise<SessionProgress | null> {
+  try {
+    return parseSessionProgress(await AsyncStorage.getItem(storageKey(deckId)));
+  } catch {
+    return null;
+  }
+}
+
+export async function clearSessionProgress(deckId: string): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(storageKey(deckId));
+  } catch {
+    // Best-effort — a leftover entry is offered, not applied, so it can be declined.
+  }
+}

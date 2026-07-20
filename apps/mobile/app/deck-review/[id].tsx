@@ -19,6 +19,11 @@ import {
   type CardSource,
 } from "../../src/components/cardSourcePicker";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
+import {
+  isProgressUsable,
+  loadSessionProgress,
+  type SessionProgress,
+} from "../../src/features/review/sessionProgress";
 
 // Full-screen "Karteikarten" session for a single deck. Opens with a setup
 // screen (direction + Starten) like the other study modes, then reuses the
@@ -30,6 +35,11 @@ export default function DeckReviewScreen() {
   const [phase, setPhase] = useState<"setup" | "play">("setup");
   const [reverse, setReverse] = useState(false);
   const [source, setSource] = useState<CardSource>("all");
+  // Where an earlier session for this deck stopped, if any. Offered rather than
+  // applied — a position from days ago may not be what the learner wants now.
+  const [saved, setSaved] = useState<SessionProgress | null>(null);
+  // Card to start on once "Weitermachen" was chosen; undefined starts at the top.
+  const [resumeIndex, setResumeIndex] = useState<number | undefined>(undefined);
 
   // Card-source data for the picker: the deck's cards (counts) + its wobbly ids.
   const [allCards, setAllCards] = useState<Card[]>([]);
@@ -65,9 +75,37 @@ export default function DeckReviewScreen() {
     loadCards();
   }, [loadCards]);
 
+  // Stored progress is read once per screen; the resume offer below only shows
+  // when it still matches the pile the current settings produce.
+  useEffect(() => {
+    if (!id) return;
+    let active = true;
+    void loadSessionProgress(id).then((progress) => {
+      if (active) setSaved(progress);
+    });
+    return () => {
+      active = false;
+    };
+  }, [id]);
+
   const starredCount = allCards.filter((card) => card.starred).length;
   const wobblyCount = allCards.filter((card) => wobblyIds.has(card.id)).length;
   const studyPool = filterBySource(allCards, source, wobblyIds);
+
+  // Offer the resume only while it is genuinely usable: same source, and the
+  // stored card still sits at the stored position (cards may have been added,
+  // deleted or unstarred since). Switching the source hides the offer, because
+  // an index into one pile says nothing about another.
+  const canResume =
+    saved !== null && isProgressUsable(saved, studyPool.map((card) => card.id), source);
+
+  const beginSession = (startAt?: number) => {
+    setResumeIndex(startAt);
+    // Resuming restores the direction the interrupted session ran with, so the
+    // continued cards are asked the same way round as the ones before them.
+    if (startAt !== undefined && saved) setReverse(saved.reverse);
+    setPhase("play");
+  };
 
   if (phase === "play") {
     return (
@@ -79,6 +117,7 @@ export default function DeckReviewScreen() {
           initialShowBackFirst={reverse}
           source={source}
           wobblyIds={[...wobblyIds]}
+          initialIndex={resumeIndex}
         />
       </>
     );
@@ -279,29 +318,74 @@ export default function DeckReviewScreen() {
 
           <View style={{ flex: 1 }} />
 
-          {/* Start */}
+          {/* Weitermachen — only when an interrupted session still fits */}
+          {canResume && saved && (
+            <TouchableOpacity
+              onPress={() => beginSession(saved.index)}
+              activeOpacity={0.85}
+              style={{
+                backgroundColor: colors.primary,
+                paddingVertical: 16,
+                borderRadius: radius.lg,
+                alignItems: "center",
+                marginBottom: spacing.sm,
+                ...shadows.md,
+              }}
+            >
+              <Text
+                style={{
+                  color: colors.textInverse,
+                  fontWeight: typography.bold,
+                  fontSize: typography.lg,
+                }}
+              >
+                Weitermachen
+              </Text>
+              <Text
+                style={{
+                  color: colors.textInverse,
+                  fontSize: typography.sm,
+                  marginTop: 2,
+                }}
+              >
+                {`Karte ${saved.index + 1} von ${studyPool.length}`}
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Start — becomes the secondary action once a resume is offered */}
           <TouchableOpacity
-            onPress={() => setPhase("play")}
+            onPress={() => beginSession(undefined)}
             disabled={studyPool.length === 0}
             activeOpacity={0.85}
             style={{
               backgroundColor:
-                studyPool.length === 0 ? colors.surfaceSecondary : colors.primary,
+                studyPool.length === 0
+                  ? colors.surfaceSecondary
+                  : canResume
+                    ? colors.surface
+                    : colors.primary,
+              borderWidth: canResume && studyPool.length > 0 ? 1 : 0,
+              borderColor: colors.border,
               paddingVertical: 16,
               borderRadius: radius.lg,
               alignItems: "center",
-              ...shadows.md,
+              ...(canResume ? {} : shadows.md),
             }}
           >
             <Text
               style={{
                 color:
-                  studyPool.length === 0 ? colors.textTertiary : colors.textInverse,
+                  studyPool.length === 0
+                    ? colors.textTertiary
+                    : canResume
+                      ? colors.text
+                      : colors.textInverse,
                 fontWeight: typography.bold,
                 fontSize: typography.lg,
               }}
             >
-              Starten
+              {canResume ? "Von vorne beginnen" : "Starten"}
             </Text>
           </TouchableOpacity>
         </ScrollView>
