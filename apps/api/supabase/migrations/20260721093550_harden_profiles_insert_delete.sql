@@ -1,0 +1,49 @@
+-- Zweite Hälfte von 20260404140000_harden_profiles_client_writes.sql.
+--
+-- Jene Migration nahm Clients das UPDATE auf profiles weg, weil ein Nutzer
+-- sonst per PATCH sein eigenes lp_balance / subscription_tier setzen konnte
+-- (Punkte selbst erzeugen, Pro geschenkt). Ihre Begründung galt schon damals
+-- weiter, als sie umsetzte:
+--
+--     "All profile mutations happen server-side via the service role;
+--      the client never writes profiles directly."
+--
+-- INSERT und DELETE blieben trotzdem stehen. Damit führt derselbe Weg durch
+-- eine andere Tür: Die Policy `users_own_profile` ist `for all using
+-- (auth.uid() = id)` OHNE WITH CHECK — sie prüft nur, WESSEN Zeile es ist,
+-- nicht WAS drinsteht. Ein eingeloggter Nutzer konnte also
+--
+--   1. DELETE /rest/v1/profiles?id=eq.<eigene id>      (Recht war erteilt)
+--   2. POST   /rest/v1/profiles  { id, lp_balance: 999999,
+--                                  subscription_tier: 'lifetime' }
+--
+-- und hatte unbegrenzt Punkte plus Lifetime-Pro. Kosten: die eigenen Decks und
+-- Karten (ON DELETE CASCADE) — bei einem frisch angelegten Konto also keine.
+--
+-- Am 21.07. an der Prod-Datenbank belegt, ohne Daten anzufassen: Ein INSERT
+-- mit lp_balance 999999 als Rolle `authenticated` scheiterte mit 23505
+-- (doppelter Schlüssel), NICHT mit 42501 (fehlendes Recht) — Rechte und RLS
+-- ließen es also durch, nur die vorhandene Zeile stand im Weg. Das Löschrecht
+-- bestand ebenfalls. Beides in einer Transaktion geprüft, die sich per RAISE
+-- selbst zurückrollt.
+--
+-- Kein Missbrauch feststellbar: Alle sechs Konten standen auf 'free', und jedes
+-- lp_balance stimmte mit der Summe seiner lp_transactions überein.
+--
+-- Warum Entzug und keine WITH-CHECK-Bedingung: Beim INSERT gibt es keinen
+-- Vorher-Zustand, gegen den sich "diese Spalte darf sich nicht ändern" prüfen
+-- ließe. Man müsste jede schützenswerte Spalte einzeln gegen ihren Default
+-- festnageln — und jede neue Spalte wäre wieder offen. Der Entzug ist die
+-- kleinere und vollständigere Maßnahme, und er entspricht dem, was die App
+-- ohnehin tut: Sie fasst profiles von Client-Seite nirgends an. Anlegen
+-- passiert in auth.ts per Upsert mit dem Admin-Client, Löschen über
+-- delete_account_data — beides service_role, von diesem Entzug unberührt.
+--
+-- TRUNCATE ist über PostgREST nicht erreichbar, wird aber mitentzogen: Es
+-- ignoriert RLS vollständig und hätte im Fall einer künftigen SQL-Funktion
+-- jede Profilzeile gelöscht.
+--
+-- SELECT und das eingeschränkte UPDATE (display_name, avatar_url,
+-- preferred_language, locale, timezone) bleiben unangetastet.
+
+REVOKE INSERT, DELETE, TRUNCATE ON public.profiles FROM anon, authenticated;
