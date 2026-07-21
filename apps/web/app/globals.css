@@ -3125,6 +3125,9 @@ a.mode-card:hover {
 /* ---------- KI-Import (App-Scan-Look, an die Mobile-App angelehnt) ---------- */
 .import-view {
   max-width: 660px;
+  /* Mittig statt linksbündig: sonst klebt der schmale Eingabe-Schritt am linken
+     Rand und rechts steht ein leeres Drittel Bildschirm (Laras Einwand 21.07.). */
+  margin-inline: auto;
 }
 /* Nur die Quellen-Auswahl darf breit werden. Der Eingabe-Schritt bleibt schmal:
    ein 1.000 Pixel breites Textfeld tippt und liest sich schlecht. */
