@@ -70,7 +70,7 @@ These doc mirrors are **not** covered by the guard — update them by hand:
 
 ## Live implementation notes
 
-**inMemoryStore.ts is active:** `apps/api/src/lib/inMemoryStore.ts` is still used for community decks, B2B features, and beta feedback. It is not dead code — do not delete it. When Supabase persistence is added for one of these areas, update this note.
+**inMemoryStore.ts is active:** `apps/api/src/lib/inMemoryStore.ts` is used by `scripts/perf-smoke.ts` and `apps/api/src/tests/dueCardsOcclusion.test.ts`, and `apps/api/src/lib/db.ts` mirrors its record shapes. It is not dead code — do not delete it. (This note previously claimed community decks, B2B and beta feedback used it. That was never true: each of those kept its own module-level array. Community and B2B were removed in #425; beta feedback still has its own array in `betaFeedbackService.ts`.)
 
 **paywallState.ts is deprecated:** `apps/mobile/src/features/paywall/paywallState.ts` is marked deprecated but not yet removed. Do not add new features to it — use `featureGates.ts` and the canonical paywall flow instead.
 

@@ -1,6 +1,6 @@
 # ROADMAP
 
-Letzte Aktualisierung: 2026-07-17 (Mobile-LP-Race learn/practice/cloze)
+Letzte Aktualisierung: 2026-07-21 (Endpunkte ohne Funktion entfernt/stillgelegt)
 
 ## Gesamtstatus
 
@@ -44,7 +44,7 @@ Letzte Aktualisierung: 2026-07-17 (Mobile-LP-Race learn/practice/cloze)
 | KI-Kartenerstellung | Bezahlt | ❌ | ❌ | **✅ USP** |
 | Kamera → Karten | ❌ | ❌ | ❌ | **✅ USP** |
 | FSRS-Algorithmus | ❌ (einfach) | ✅ | Eigener | **✅** |
-| Community-Decks | ✅ (riesig) | ✅ | ✅ | Scaffold |
+| Community-Decks | ✅ (riesig) | ✅ | ✅ | ❌ (Skizze in #425 entfernt) |
 | Push-Erinnerungen | ✅ | ❌ | ✅ | **✅** |
 | PDF-Import | ❌ | Add-on | ❌ | Scaffold |
 | Anki-Import/Export | ❌ | Nativ | ❌ | Scaffold |
@@ -400,4 +400,5 @@ Voraussetzung: Phase 2 + stabile Nutzerbasis.
 - 2026-07-10: **Web-LP-Race Quiz/Cloze (#201/#217 Follow-up)**: Multiple-Choice- und Lückentext-Modus nutzen dieselbe `learn-session-lp`-Gutschriftlogik wie die Lernseite — Reviews werden vor `earnLp` abgewartet und bei `granted: 0` kurz wiederholt.
 - 2026-07-13: **Web-LP-Race Test/Occlusion (#252 Follow-up)**: Test- und Occlusion-Modus nach „Nur nicht gewusste“ (#252) auf `beginSessionAward` umgestellt — `reviewCard` wird vor `earnLp` abgewartet, Neustart sichert LP der abgeschlossenen Runde per `await awardSession`.
 - 2026-07-17: **Mobile-LP-Race behoben (Cron-Pass)**: `learn.tsx`, `practice.tsx` und `cloze.tsx` warten auf laufende Reviews und wiederholen `earnLp` kurz — Lernpunkte werden beim schnellen Tab-Wechsel sofort statt verspätet gutgeschrieben (#153-Follow-up, gleiches Muster wie Web `learn-session-lp`). Verloren gingen sie auch vorher nicht: der Server rückt sein Wasserzeichen nur um das vor, was er tatsächlich ausgezahlt hat, unbezahlte Reviews bleiben offen und werden vom nächsten `earnLp` — egal von welchem Bildschirm — nachgezahlt. `cloze.tsx` rechnet am Rundenende ab und macht die Abrechnung beim Rundenstart wieder scharf, damit „Alle nochmal“ / „Nur die falschen“ weiter Lernpunkte bringen.
+- 2026-07-21: **Endpunkte ohne Funktion entfernt/stillgelegt (#425)**: Drei Routen entfernt — `GET/POST /community/decks` und `GET/POST /b2b/classes` (hielten ihre Daten in einer Modul-Variable, also bei jedem Kaltstart leer, meldeten aber `201 Created`) sowie `POST /upload/sign` samt `lib/r2.ts` und den `R2_*`-Variablen (Cloudflare-R2-Anbindung, die nie benutzt wurde; Bild-Upload läuft über Supabase Storage). Kein Client rief eine der drei auf. `POST /math/formula` bleibt bestehen, antwortet aber `501` statt der fest verdrahteten Attrappe `\text{mock-formula}` und verbucht keine Kosten mehr — bisher belastete jeder Aufruf das echte Konto in `mathpix_usage` für eine erfundene Antwort. Budget-Logik, Tabelle und Anmeldepflicht (#204) bleiben für den späteren Anschluss erhalten. Nebenbefund korrigiert: README und AGENTS.md behaupteten, `inMemoryStore.ts` werde von Community, B2B und Beta-Feedback benutzt — das war nie der Fall, jeder Dienst hatte seine eigene Liste.
 - 2026-07-15: **LP-Idempotenz Scan/Import (Cron-Bugfix)**: `spendLp` lief vor der Idempotenz-Prüfung — Retries mit stabilem Schlüssel (Web-Import #310) zogen LP doppelt ab; URL-Import hatte keinen Refund bei Verarbeitungsfehler. Fix: `runLpChargedIdempotentRequest` prüft Cache zuerst, erst dann Abbuchung + Refund bei Fehler.

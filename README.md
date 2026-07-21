@@ -577,8 +577,6 @@ Die initiale Migration oben ist nur das Basisschema. Die vollständige, maßgebl
 │   └── GET|POST /pdf        # PDF-Import-Job prüfen/starten (Scaffold; LP-Spend aktiv, Parsing noch Job-basiert)
 ├── /export
 │   └── POST   /anki         # Anki-Export (.apkg), Body: { "deckId": "uuid" } (Mock-Content, CL-D04)
-├── /upload
-│   └── POST   /sign         # Custom-HMAC-Upload-Token (Scaffold, keine echte SigV4 Presigned URL)
 ├── /decks
 │   ├── GET    /             # Alle Decks des Nutzers
 │   ├── POST   /             # Neues Deck erstellen
@@ -626,11 +624,9 @@ Die initiale Migration oben ist nur das Basisschema. Die vollständige, maßgebl
 ├── /account
 │   └── DELETE /             # Account-Löschung (via accountDeletionService.ts)
 ├── /math
-│   └── POST   /formula      # Mathpix-Integration für Formel-OCR (via mathpixService.ts)
+│   └── POST   /formula      # Stillgelegt (#425): antwortet 501, Mathpix ist nicht angebunden
 ├── /beta
 │   └── GET|POST /feedback   # Beta-Feedback lesen/einreichen (via betaFeedbackService.ts)
-├── /b2b
-│   └── GET|POST /classes    # B2B-Klassenverwaltung (Scaffold, Auth-Gate noch offen)
 ├── /courses
 │   ├── GET    /             # Alle Kurse des Nutzers
 │   ├── POST   /             # Neuen Kurs erstellen
@@ -645,8 +641,6 @@ Die initiale Migration oben ist nur das Basisschema. Die vollständige, maßgebl
 │   ├── PATCH  /:id          # Ordner bearbeiten
 │   ├── DELETE /:id          # Ordner löschen
 │   └── GET|POST|DELETE /:id/decks # Decks zu Ordnern zuordnen/entfernen
-├── /community
-│   └── GET|POST /decks      # Community-Decks durchsuchen/publizieren (Scaffold)
 ├── /ads
 │   └── GET    /ssv          # AdMob Server-Side-Verification Callback (Google-signiert, kein JWT) -> Werbe-LP
 └── /subscription
@@ -890,7 +884,7 @@ clearn.ai verwendet ein **LP-System (Lernpunkte)** als universelle In-App-Währu
 - [x] Flashcard-UI mit Review-Flow (Again/Hard/Good/Easy)
 - [x] FSRS-Integration inkl. Persistenz und Due-Queue
 - [x] Deck-Verwaltung (CRUD) + Suche
-- [x] Cloudflare R2 Bild-Upload via Signed URLs
+- [x] Bild-Upload (Supabase Storage; die R2-Variante wurde in #425 entfernt, sie war nie angebunden)
 - [x] Offline Retry-Queue + idempotenter Sync
 - [x] RevenueCat-Paywall (Offerings, Kauf/Restore, Backend-Sync)
 - [x] TestFlight / Internal Testing (Runbook + Preflight-Script)
@@ -912,11 +906,11 @@ clearn.ai verwendet ein **LP-System (Lernpunkte)** als universelle In-App-Währu
 
 - [x] Mehrere Lernmodi (MCQ, Cloze+, Matching) + psychometrische Bewertung (Domain-Scaffold)
 - [x] PDF-Import (Queue/Retry Scaffold)
-- [x] Mathpix-Integration (Kostenkontroll-Scaffold)
+- [ ] Mathpix-Integration (Kostenkontrolle steht, Route stillgelegt bis Mathpix angebunden ist — #425)
 - [x] Anki-Export (`.apkg` Export-Scaffold)
-- [x] Community-Decks (Moderation/Abuse-Prevention Scaffold)
+- [ ] Community-Decks (Skizze in #425 entfernt — sie hielt Daten im Arbeitsspeicher)
 - [x] Web-App (Landing + Learn-Client Scaffold)
-- [x] B2B-Dashboard (Mandantenisolation-Scaffold)
+- [ ] B2B-Dashboard (Skizze in #425 entfernt — sie hielt Daten im Arbeitsspeicher)
 
 ### Exit-Kriterien pro Phase
 
@@ -972,11 +966,11 @@ Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testf�
 - Offline-Sync (Retry-Queue existiert; vollständige SQLite-Persistenz und Offline-Erstellung bleiben CL-D01)
 - PDF-Import (Job-Queue vorhanden, kein echtes Parsing)
 - Anki-Export (Mock-Daten)
-- Mathpix (Mock)
-- Community-Decks (In-Memory, kein Mobile-Screen)
-- B2B-Dashboard (In-Memory, kein Mobile-Screen)
+- Mathpix (`POST /api/v1/math/formula` antwortet 501; es gab nie einen echten Mathpix-Aufruf, siehe #425. Budget-Logik und Tabelle `mathpix_usage` bleiben für den späteren Anschluss erhalten)
 
-> **Hinweis:** `apps/api/src/lib/inMemoryStore.ts` ist weiterhin aktiv für Community, B2B und Beta-Feedback — keine tote Datei. `apps/web/app/` enthält die Web-Pflichtseiten `impressum/`, `privacy/` und `support/`.
+> **Entfernt in #425:** Community-Decks, B2B-Klassen und `POST /upload/sign`. Die ersten beiden hielten ihre Daten in einer Modul-Variable, waren also bei jedem Kaltstart wieder leer, meldeten aber `201 Created`. Die dritte gehörte zu einer Cloudflare-R2-Anbindung, die nie benutzt wurde. Kein Client rief eine der drei auf. Der Code bleibt in der Git-Historie abrufbar.
+
+> **Hinweis:** `apps/api/src/lib/inMemoryStore.ts` ist keine tote Datei — sie wird von `scripts/perf-smoke.ts` und `apps/api/src/tests/dueCardsOcclusion.test.ts` benutzt und dient `apps/api/src/lib/db.ts` als Vorlage für die Datentypen. (Bis #425 stand hier, sie werde von Community, B2B und Beta-Feedback benutzt — das stimmte nicht: jeder dieser Dienste hatte seine eigene Liste.) `apps/web/app/` enthält die Web-Pflichtseiten `impressum/`, `privacy/` und `support/`.
 
 ### Nächste Schritte (siehe `ROADMAP.md` und `BACKLOG.md`)
 

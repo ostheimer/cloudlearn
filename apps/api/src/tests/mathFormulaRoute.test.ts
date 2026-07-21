@@ -1,11 +1,17 @@
 /**
  * Route-level tests for POST /api/v1/math/formula.
  *
- * Security regression tests for #204: the route used to trust a client-supplied
- * `userId` in the request body with NO auth check, letting anyone drain or
- * manipulate any user's persistent Mathpix budget. The route must now require
- * a valid auth token and take the user id exclusively from it — a `userId`
- * smuggled into the body must be ignored.
+ * The route is retired (#425): it never called Mathpix, it returned a
+ * hard-coded `"\\text{mock-formula}"` and charged the real, persistent budget
+ * in `mathpix_usage` for it. It now answers 501 and consumes nothing.
+ *
+ * Two guarantees are locked in here:
+ *   - #425: no budget call happens on ANY path — a made-up answer must never
+ *     cost real money again.
+ *   - #204: auth is still required and the user id still comes from the token,
+ *     never from the body. The route used to trust a client-supplied `userId`
+ *     with no auth check, letting anyone drain any user's budget. Keeping this
+ *     test alive means wiring Mathpix up later cannot silently reopen the hole.
  *
  * `@/lib/http` is mocked with light Response-shaped fakes so the test never has
  * to load `next/server`.
@@ -69,16 +75,43 @@ function makeRequest(body: Record<string, unknown>) {
   }) as never;
 }
 
-describe("POST /api/v1/math/formula – auth required, userId from token (#204)", () => {
+function expectNoBudgetCall() {
+  expect(mockedCanProcess).not.toHaveBeenCalled();
+  expect(mockedConsume).not.toHaveBeenCalled();
+  expect(mockedGetSpend).not.toHaveBeenCalled();
+}
+
+describe("POST /api/v1/math/formula – retired, consumes no budget (#425)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedGetAuthUser.mockResolvedValue({ userId: AUTH_USER_ID, email: "lara@example.com" });
-    mockedCanProcess.mockResolvedValue(true);
-    mockedConsume.mockResolvedValue(0.002);
-    mockedGetSpend.mockResolvedValue(0.004);
   });
 
-  it("returns 401 UNAUTHORIZED without a valid token and never touches the budget", async () => {
+  it("returns 501 for an authenticated caller instead of a mock formula", async () => {
+    const response = await POST(makeRequest({ imageUrl: "https://example.com/f.png" }));
+    const body = (await response.json()) as { code: string; message: string };
+
+    expect(response.status).toBe(501);
+    expect(body.code).toBe("MATH_FORMULA_NOT_IMPLEMENTED");
+    expect(body.message).toContain("noch nicht verfügbar");
+  });
+
+  it("never touches the Mathpix budget, not even for an authenticated caller", async () => {
+    await POST(makeRequest({ imageUrl: "https://example.com/f.png" }));
+
+    expectNoBudgetCall();
+  });
+
+  it("ignores a userId smuggled into the body and charges nobody (#204)", async () => {
+    const response = await POST(
+      makeRequest({ imageUrl: "https://example.com/f.png", userId: VICTIM_USER_ID })
+    );
+
+    expect(response.status).toBe(501);
+    expectNoBudgetCall();
+  });
+
+  it("still returns 401 UNAUTHORIZED without a valid token (#204)", async () => {
     mockedGetAuthUser.mockResolvedValue(null);
 
     const response = await POST(makeRequest({ imageUrl: "https://example.com/f.png" }));
@@ -86,38 +119,6 @@ describe("POST /api/v1/math/formula – auth required, userId from token (#204)"
 
     expect(response.status).toBe(401);
     expect(body.code).toBe("UNAUTHORIZED");
-    expect(mockedCanProcess).not.toHaveBeenCalled();
-    expect(mockedConsume).not.toHaveBeenCalled();
-    expect(mockedGetSpend).not.toHaveBeenCalled();
-  });
-
-  it("charges the AUTH user and ignores a userId smuggled into the body", async () => {
-    const response = await POST(
-      makeRequest({ imageUrl: "https://example.com/f.png", userId: VICTIM_USER_ID })
-    );
-    const body = (await response.json()) as { latex: string; spentUsd: number; totalSpendUsd: number };
-
-    expect(response.status).toBe(201);
-    expect(body.latex).toBe("\\\\text{mock-formula}");
-    expect(body.spentUsd).toBe(0.002);
-    expect(body.totalSpendUsd).toBe(0.004);
-
-    expect(mockedCanProcess).toHaveBeenCalledWith(AUTH_USER_ID);
-    expect(mockedConsume).toHaveBeenCalledWith(AUTH_USER_ID);
-    expect(mockedGetSpend).toHaveBeenCalledWith(AUTH_USER_ID);
-    expect(mockedCanProcess).not.toHaveBeenCalledWith(VICTIM_USER_ID);
-    expect(mockedConsume).not.toHaveBeenCalledWith(VICTIM_USER_ID);
-  });
-
-  it("returns 402 MATHPIX_BUDGET_EXCEEDED and does not consume when over budget", async () => {
-    mockedCanProcess.mockResolvedValue(false);
-
-    const response = await POST(makeRequest({ imageUrl: "https://example.com/f.png" }));
-    const body = (await response.json()) as { code: string };
-
-    expect(response.status).toBe(402);
-    expect(body.code).toBe("MATHPIX_BUDGET_EXCEEDED");
-    expect(mockedCanProcess).toHaveBeenCalledWith(AUTH_USER_ID);
-    expect(mockedConsume).not.toHaveBeenCalled();
+    expectNoBudgetCall();
   });
 });

@@ -6,12 +6,9 @@ export const envSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
   GEMINI_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
-  R2_ACCOUNT_ID: z.string().optional(),
-  R2_ACCESS_KEY_ID: z.string().optional(),
-  R2_SECRET_ACCESS_KEY: z.string().optional(),
-  R2_BUCKET_NAME: z.string().default("clearn-images"),
-  R2_ENDPOINT: z.string().url().optional(),
-  R2_SIGNED_URL_TTL_SECONDS: z.coerce.number().int().positive().default(300),
+  // R2_* removed with POST /api/v1/upload/sign (#425): the Cloudflare R2
+  // binding was never wired up. Image upload runs through Supabase Storage
+  // (see apps/mobile/src/lib/occlusionStorage.ts).
   REVENUECAT_WEBHOOK_SECRET: z.string().optional(),
   CRON_SECRET: z.string().optional(),
   SHARE_LINK_BASE_URL: z.string().url().default("https://clearn-web.vercel.app"),

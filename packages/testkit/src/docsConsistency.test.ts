@@ -64,6 +64,7 @@ describe("documentation status consistency", () => {
       expect(apiOverview, routeGroup).toContain(routeGroup);
     }
 
+    // /sign and /classes are gone with the /upload and /b2b route groups (#425).
     for (const nestedRoute of [
       "/:id/details",
       "/:id/duplicate",
@@ -72,8 +73,6 @@ describe("documentation status consistency", () => {
       "/share/:token",
       "/:id/decks",
       "/pdf",
-      "/sign",
-      "/classes",
     ]) {
       expect(apiOverview, nestedRoute).toContain(nestedRoute);
     }
