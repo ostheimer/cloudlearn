@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   DECK_LIMIT_LABEL,
+  DECK_SPACE_WARN_BELOW,
   deckLimitMessage,
   deckLimitNotice,
+  deckOptionLabel,
+  deckSpaceNotice,
+  freeSlots,
   isDeckLimitReached,
   isPlanLimitError,
   planLimitMessage,
@@ -40,18 +44,60 @@ describe("Deck-Grenze im Browser (#411)", () => {
     expect(deckLimitNotice(20, 20)).toContain("20 von 20 Decks");
   });
 
-  it("schlägt im Browser KEIN bestehendes Deck vor — das gibt es hier nicht (#427)", () => {
-    // Laras Entscheidung 21.07.: Der App-Halbsatz „oder speichere die Karten in
-    // ein bestehendes Deck" ist im Browser eine Sackgasse. Man liest ihn, sucht
-    // die Möglichkeit und findet sie nicht.
+  it("nennt jetzt BEIDE Auswege — seit es ein Ziel-Deck gibt (#427)", () => {
+    // Bis #427 war „speichere in ein bestehendes Deck" im Browser eine
+    // Sackgasse und deshalb bewusst weggelassen. Mit der Zielauswahl ist es der
+    // schnellere Ausweg: kein Löschen nötig, der Import läuft sofort weiter.
     const message = deckLimitMessage(20, 20);
-    // Absichtlich als Muster und nicht wörtlich: Geprüft gehört, DASS der Satz
-    // zum Löschen in der Bibliothek führt — nicht, mit welchen Höflichkeits-
-    // wörtern. Die wörtliche Fassung schlug beim Ton-Wechsel am 21.07. an,
-    // obwohl inhaltlich nichts fehlte; solche Tests gewöhnt man sich ab, achtlos
-    // nachzuziehen, und übersieht dann den Tag, an dem sie recht haben.
-    expect(message).toMatch(/lösche .*ein Deck in der Bibliothek/);
-    expect(message).not.toContain("bestehendes Deck");
+    // Als Muster und nicht wörtlich geprüft (Lehre aus #436): Es gehört
+    // geprüft, WAS der Satz anbietet — nicht, mit welchen Höflichkeitswörtern.
+    // Seit #427 sind es zwei Auswege, weil auch der Browser ein Ziel-Deck
+    // kennt; der Hinweis darf keinen davon verschweigen.
+    expect(message).toMatch(/[Ll]öschen/);
+    expect(message).toContain("bestehendes Deck");
+  });
+});
+
+describe("Platz im Ziel-Deck (#427)", () => {
+  it("rechnet die freien Plätze aus", () => {
+    expect(freeSlots(107, 150)).toBe(43);
+    expect(freeSlots(0, 150)).toBe(150);
+  });
+
+  it("wird nie negativ, wenn ein Deck über der Grenze liegt", () => {
+    // Kann vorkommen, wenn ein Konto von Pro (2.000) auf Gratis (150) fällt.
+    expect(freeSlots(400, 150)).toBe(0);
+  });
+
+  it("behauptet nichts, wenn eine der beiden Zahlen fehlt", () => {
+    expect(freeSlots(undefined, 150)).toBeNull();
+    expect(freeSlots(107, undefined)).toBeNull();
+  });
+
+  it("schreibt den freien Platz an das Deck in der Auswahl", () => {
+    expect(deckOptionLabel("Datenbanken", 43)).toBe("Datenbanken · 43 Plätze frei");
+    expect(deckOptionLabel("Datenbanken", 1)).toBe("Datenbanken · 1 Platz frei");
+    expect(deckOptionLabel("Datenbanken", 0)).toBe("Datenbanken · voll");
+  });
+
+  it("nennt nur den Titel, solange der Platz unbekannt ist", () => {
+    expect(deckOptionLabel("Datenbanken", null)).toBe("Datenbanken");
+  });
+
+  it("warnt erst, wenn ein normaler Scan nicht mehr sicher hineinpasst", () => {
+    expect(deckSpaceNotice(43)).toBeNull();
+    expect(deckSpaceNotice(DECK_SPACE_WARN_BELOW)).toBeNull();
+    expect(deckSpaceNotice(12)).toContain("Platz für 12 Karten");
+  });
+
+  it("sagt beim vollen Deck, was zu tun ist, statt nur „voll“", () => {
+    const message = deckSpaceNotice(0);
+    expect(message).toContain("voll");
+    expect(message).toContain("anderes Deck");
+  });
+
+  it("schweigt bei unbekanntem Platz, statt zu raten", () => {
+    expect(deckSpaceNotice(null)).toBeNull();
   });
 
   it("behauptet die Scan-Regel nie unqualifiziert — in der App gilt sie nicht", () => {

@@ -12,11 +12,10 @@
  *
  * Reine Funktionen ohne React und ohne Netz, damit sie testbar bleiben.
  *
- * NICHT enthalten ist die Warnung „nur noch Platz für N Karten", die die App
- * vor dem Speichern in ein bestehendes Deck zeigt. Im Browser wählt man kein
- * Zieldeck — jeder Import legt ein neues Deck an, und ein frisches Deck hat
- * immer alle Plätze frei. Die Warnung könnte hier nie auslösen. Sie gehört zu
- * #427 (Deck-Auswahl im Web) und ist dort mitzubauen, nicht hier vorzuhalten.
+ * Die Warnung „nur noch Platz für N Karten" konnte hier zunächst nie auslösen:
+ * Im Browser gab es kein Ziel-Deck, jeder Import legte ein frisches an, und ein
+ * frisches Deck hat alle Plätze frei. Mit der Deck-Auswahl (#427) ist sie
+ * sinnvoll geworden und steht als `deckSpaceNotice` weiter unten.
  */
 
 export interface PlanLimits {
@@ -42,27 +41,22 @@ export const DECK_LIMIT_LABEL = "Deck-Grenze erreicht";
 /**
  * Der Hinweis selbst.
  *
- * Die App hängt hier noch „oder speichere die Karten in ein bestehendes Deck"
- * an. Im Browser wäre das eine Sackgasse: Diesen Weg gibt es hier nicht
- * (#427). Laras Entscheidung 21.07.: den halben Satz weglassen, den Rest
- * wörtlich lassen.
+ * Der Ton folgt seit #436 `planLimitMessage` unten: Zustand voran statt Anrede
+ * („20 von 20 Decks sind belegt" statt „Du hast …"). Beide Zahlen bleiben
+ * stehen, damit nachvollziehbar ist, woran die Grenze hängt.
  *
- * Der Ton weicht seit 21.07. bewusst von der App ab und folgt `planLimitMessage`
- * unten: Zustand voran statt Anrede („20 von 20 Decks sind belegt" statt „Du
- * hast …"). Beide Zahlen bleiben stehen, damit nachvollziehbar ist, woran die
- * Grenze hängt.
- *
- * „Im Browser" ist keine Floskel, sondern die Einschränkung, die den Satz erst
- * wahr macht: Die App fragt nach dem Scannen „Neues Deck" oder „Bestehendes
- * Deck" (`handleSaveToExistingDeck` in apps/mobile/app/(tabs)/scan.tsx) — dort
- * legt ein Scan also NICHT immer ein neues Deck an. Ohne die Einschränkung liest
- * sich der Satz als allgemeine Regel und widerspricht dem, was die Nutzerin auf
- * dem Handy sieht; von Lara am 21.07. genau so bemängelt.
+ * Der Satz „Im Browser legt jeder Scan ein neues Deck an" ist mit #427 falsch
+ * geworden: Seit der Zielauswahl kann auch der Browser in ein bestehendes Deck
+ * schreiben. An der Deck-Grenze ist der Import damit keine Sackgasse mehr — nur
+ * „Neues Deck" fällt weg —, und der Hinweis nennt jetzt beide Auswege. Damit
+ * entfällt auch der Unterschied zur App, der #436 zu der Einschränkung „im
+ * Browser" gezwungen hatte.
  */
 export function deckLimitMessage(deckCount: number, maxDecks: number): string {
   return (
     `${deckCount} von ${maxDecks} Decks sind belegt. ` +
-    "Im Browser legt jeder Scan ein neues Deck an — lösche bitte zuerst ein Deck in der Bibliothek."
+    "Neue Decks gehen erst wieder nach dem Löschen — " +
+    "speichere die Karten so lange in ein bestehendes Deck."
   );
 }
 
@@ -99,6 +93,58 @@ export function savedSummary(generatedCount: number, savedCount: number): string
     return `${savedCount} Karten gespeichert.`;
   }
   return `${generatedCount} Karten erkannt, ${savedCount} gespeichert — Deck voll.`;
+}
+
+/**
+ * Ab wie wenig freien Plätzen vor dem Import gewarnt wird.
+ *
+ * Ein Scan liefert je nach Vorlage grob 10–30 Karten, ein PDF-Kapitel deutlich
+ * mehr. 25 ist deshalb die Grenze, ab der es sich lohnt, vorher Bescheid zu
+ * sagen — darüber passt ein normaler Scan fast immer.
+ */
+export const DECK_SPACE_WARN_BELOW = 25;
+
+/**
+ * Freie Kartenplätze eines Decks — oder `null`, wenn es sich nicht sagen lässt.
+ *
+ * Beide Eingaben sind optional, weil beide fehlen können: `cardCount` liefert
+ * nur die Deckliste (nicht jede Deck-Antwort), `maxCardsPerDeck` erst ein
+ * Server ab #411. Fehlt eines, wird nichts behauptet und nichts gewarnt.
+ */
+export function freeSlots(
+  cardCount: number | undefined,
+  maxCardsPerDeck: number | undefined
+): number | null {
+  if (typeof cardCount !== "number" || typeof maxCardsPerDeck !== "number") return null;
+  return Math.max(0, maxCardsPerDeck - cardCount);
+}
+
+/** Beschriftung eines Decks in der Zielauswahl: „Datenbanken · 43 Plätze frei". */
+export function deckOptionLabel(title: string, free: number | null): string {
+  if (free === null) return title;
+  if (free === 0) return `${title} · voll`;
+  if (free === 1) return `${title} · 1 Platz frei`;
+  return `${title} · ${free} Plätze frei`;
+}
+
+/**
+ * Warnung zum gewählten Ziel-Deck — oder `null`, wenn genug Platz ist.
+ *
+ * Das ist die Warnung, die im Browser bis #427 nie auslösen konnte, weil jeder
+ * Import in ein frisches, leeres Deck ging (siehe Kopf dieser Datei).
+ */
+export function deckSpaceNotice(free: number | null): string | null {
+  if (free === null) return null;
+  if (free === 0) {
+    return "Dieses Deck ist voll. Wähle ein anderes Deck oder lege ein neues an.";
+  }
+  if (free < DECK_SPACE_WARN_BELOW) {
+    return (
+      `In diesem Deck ist nur noch Platz für ${free} Karten. ` +
+      "Passt nicht alles, verteilt der Server die Karten gleichmäßig über den ganzen Stoff."
+    );
+  }
+  return null;
 }
 
 interface ErrorLike {

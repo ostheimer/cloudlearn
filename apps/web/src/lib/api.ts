@@ -411,12 +411,16 @@ function importIdempotencyKey(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-/** Erzeugt per KI Flashcards aus reinem Text. Legt serverseitig ein neues Deck an. */
+/**
+ * Erzeugt per KI Flashcards aus reinem Text. Ohne `deckId` legt der Server ein
+ * neues Deck an, mit `deckId` schreibt er in das vorhandene (#427).
+ */
 export function scanText(
   userId: string,
   text: string,
   language = "de",
-  idempotencyKey?: string
+  idempotencyKey?: string,
+  deckId?: string
 ): Promise<ScanResponse> {
   return authed<ScanResponse>("/api/v1/scan/process", {
     method: "POST",
@@ -425,17 +429,19 @@ export function scanText(
       extractedText: text,
       idempotencyKey: idempotencyKey ?? importIdempotencyKey("scan"),
       sourceLanguage: language,
+      ...(deckId ? { deckId } : {}),
     }),
   });
 }
 
-/** Erzeugt per KI Flashcards aus einer Webseiten-URL. Legt serverseitig ein neues Deck an. */
+/** Wie {@link scanText}, nur aus einer Webseiten-URL. */
 export function importFromUrl(
   userId: string,
   sourceUrl: string,
   maxImages = 4,
   language = "de",
-  idempotencyKey?: string
+  idempotencyKey?: string,
+  deckId?: string
 ): Promise<UrlImportResponse> {
   return authed<UrlImportResponse>("/api/v1/import/url", {
     method: "POST",
@@ -445,6 +451,7 @@ export function importFromUrl(
       maxImages,
       idempotencyKey: idempotencyKey ?? importIdempotencyKey("import-url"),
       sourceLanguage: language,
+      ...(deckId ? { deckId } : {}),
     }),
   });
 }
@@ -459,7 +466,8 @@ export function scanImage(
   imageBase64: string,
   mimeType: "image/jpeg" | "image/png" | "image/webp" = "image/jpeg",
   language = "de",
-  idempotencyKey?: string
+  idempotencyKey?: string,
+  deckId?: string
 ): Promise<ScanResponse> {
   return authed<ScanResponse>("/api/v1/scan/process", {
     method: "POST",
@@ -469,6 +477,7 @@ export function scanImage(
       imageMimeType: mimeType,
       idempotencyKey: idempotencyKey ?? importIdempotencyKey("scan-img"),
       sourceLanguage: language,
+      ...(deckId ? { deckId } : {}),
     }),
   });
 }
@@ -483,7 +492,8 @@ export function importPdf(
   fileName: string,
   fileBase64: string,
   language = "de",
-  idempotencyKey?: string
+  idempotencyKey?: string,
+  deckId?: string
 ): Promise<PdfImportResponse> {
   return authed<PdfImportResponse>("/api/v1/import/pdf", {
     method: "POST",
@@ -493,6 +503,7 @@ export function importPdf(
       fileBase64,
       idempotencyKey: idempotencyKey ?? importIdempotencyKey("import-pdf"),
       sourceLanguage: language,
+      ...(deckId ? { deckId } : {}),
     }),
   });
 }
