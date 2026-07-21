@@ -14,8 +14,15 @@ import {
   isApiError,
   type AiUsageResponse,
   type Deck,
+  type ScanResponse,
 } from "@/lib/api";
 import { compressImageToJpeg, fileToBase64 } from "@/lib/files";
+import {
+  DECK_LIMIT_LABEL,
+  deckLimitNotice,
+  planLimitMessage,
+  savedSummary,
+} from "@/lib/import-limits";
 import {
   ArrowLeft,
   ChevronRight,
@@ -24,6 +31,7 @@ import {
   TextType,
   Link as LinkIcon,
   FileText,
+  Layers,
   Sparkles,
   Zap,
   AlertTriangle,
@@ -55,6 +63,13 @@ export default function ImportPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [usage, setUsage] = useState<AiUsageResponse | null>(null);
+  // #411: Wie viele Decks es schon gibt — für die Grenz-Prüfung VOR dem
+  // Ausgeben von Lernpunkten. `null` heißt „noch nicht geladen"; dann wird
+  // nichts gesperrt (der Server prüft ohnehin und bucht notfalls zurück).
+  const [deckCount, setDeckCount] = useState<number | null>(null);
+  // Gesetzt, wenn die Tarifgrenze den Import ausgedünnt hat: dann NICHT
+  // stillschweigend ins neue Deck springen, sondern erst sagen, was fehlt.
+  const [summary, setSummary] = useState<{ text: string; href: string } | null>(null);
   // Desktop erkennt man am „feinen" Zeiger (Maus). „Foto aufnehmen" (Kamera)
   // ist nur am Handy sinnvoll — am Desktop wird das capture-Attribut ignoriert
   // und es öffnet nur der Datei-Dialog (dann identisch zu „Bild wählen").
@@ -88,6 +103,24 @@ export default function ImportPage() {
     }
   }, []);
 
+  // #411: Deckliste für die Grenz-Prüfung. Schlägt sie fehl, bleibt deckCount
+  // null und es wird nichts gesperrt — lieber einmal nicht vorgewarnt als ein
+  // Konto ausgesperrt, das in Wahrheit noch Platz hat.
+  useEffect(() => {
+    if (!userId) return;
+    let active = true;
+    listDecks(userId)
+      .then(({ decks }) => {
+        if (active) setDeckCount(decks.length);
+      })
+      .catch(() => {
+        /* Vorwarnung ist Kür — der Server prüft ohnehin */
+      });
+    return () => {
+      active = false;
+    };
+  }, [userId]);
+
   const cost = usage
     ? mode === "url"
       ? usage.lpCostUrlImport
@@ -98,6 +131,13 @@ export default function ImportPage() {
   const enoughLp = usage && cost !== null ? usage.lpBalance >= cost : true;
   // Für den Hinweis im Auswahl-Menü: reicht es nicht mal für den günstigsten Import?
   const lowLp = usage ? usage.lpBalance < usage.lpCostAiScan : false;
+
+  // #411: Jeder Import im Browser legt ein NEUES Deck an — eine Zieldeck-Auswahl
+  // wie in der App gibt es hier nicht (#427). Ist die Deck-Grenze erreicht,
+  // lehnt der Server deshalb JEDEN Weg ab; dann ihn gar nicht erst anbieten,
+  // statt die Nutzerin nach dem Bezahlen abzuweisen.
+  const deckLimitHint = deckLimitNotice(deckCount, usage?.limits?.maxDecks);
+  const deckLimitReached = deckLimitHint !== null;
 
   const hasInput =
     mode === "text"
@@ -230,27 +270,34 @@ export default function ImportPage() {
     }
     const idemKey = attemptRef.current.key;
     let beforeIds = new Set<string>();
+    let result: ScanResponse | null = null;
     try {
       const before = await listDecks(userId);
       beforeIds = new Set(before.decks.map((d) => d.id));
+      setDeckCount(before.decks.length); // frischer Stand für die Grenz-Anzeige
 
       if (mode === "text") {
-        await scanText(userId, text.trim(), "de", idemKey);
+        result = await scanText(userId, text.trim(), "de", idemKey);
       } else if (mode === "url") {
-        await importFromUrl(userId, url.trim(), 4, "de", idemKey);
+        result = await importFromUrl(userId, url.trim(), 4, "de", idemKey);
       } else if (mode === "photo" || mode === "gallery") {
-        await scanImage(userId, imageBase64!, "image/jpeg", "de", idemKey);
+        result = await scanImage(userId, imageBase64!, "image/jpeg", "de", idemKey);
       } else if (mode === "pdf") {
-        await importPdf(userId, pdfFileName ?? "Dokument.pdf", pdfBase64!, "de", idemKey);
+        result = await importPdf(userId, pdfFileName ?? "Dokument.pdf", pdfBase64!, "de", idemKey);
       }
     } catch (e) {
-      if (isApiError(e) && e.code === "DECK_LIMIT_REACHED") {
-        // Seit #371 unterscheidbar. Vorher deutete der pauschale 402-Zweig
-        // darunter auch das hier als "zu wenig Lernpunkte" — Lernpunkte lösen
-        // ein volles Konto aber nicht.
-        setError("Du hast schon die höchstmögliche Anzahl Decks. Mehr Platz gibt es mit Pro in der clearn-App.");
-      } else if (isApiError(e) && e.code === "DECK_FULL") {
-        setError("Das Ziel-Deck ist voll. Leg für den Rest ein zweites Deck an.");
+      // #411: Tarifgrenze zuerst — der Server antwortet dafür 409, nicht 402.
+      // Landete das im 402-Zweig darunter, stünde dort „deine Lernpunkte
+      // reichen nicht" für ein Problem, das kein Lernpunkt löst (#371).
+      //
+      // #426 hat die beiden Zweige hier zuerst gebaut. Ihre Texte passten zum
+      // Von-Hand-Weg, auf DIESER Seite aber nicht: Sie verschwiegen, dass die
+      // Lernpunkte zurückgebucht wurden, und rieten zu einem Ziel-Deck, das es
+      // im Browser nicht gibt (#427). Der Wortlaut kommt deshalb jetzt aus
+      // import-limits.ts; der Pro-Zweig aus #426 bleibt unverändert.
+      const limitMessage = planLimitMessage(e);
+      if (limitMessage) {
+        setError(limitMessage);
       } else if (isApiError(e) && e.code === "PAYWALL_REQUIRED") {
         setError("Diese Funktion gehört zu Pro — Pro gibt es in der clearn-App.");
       } else if (isApiError(e) && e.status === 402) {
@@ -275,12 +322,28 @@ export default function ImportPage() {
     // Nachlade-Fehler darf ab hier NICHT wie ein Fehlschlag aussehen — sonst
     // würde ein erneuter Klick doppelt importieren und abbuchen.
     attemptRef.current = null; // erfolgreich → nächster Import bekommt neuen Schlüssel
+
+    let target = "/dashboard";
     try {
       const created = await findNewDeck(beforeIds);
-      router.push(created ? `/dashboard/deck/${created.id}` : "/dashboard");
+      if (created) target = `/dashboard/deck/${created.id}`;
     } catch {
-      router.push("/dashboard");
+      /* Deck-Suche misslungen — der Import ist trotzdem durch, ab in die Bibliothek */
     }
+
+    // #411: Passt das Material nicht ins Deck, dünnt der Server gleichmäßig aus.
+    // Das betrifft auch NEUE Decks: ein PIT-Kapitel ergibt über 100 Karten, die
+    // Gratis-Grenze liegt bei 150. Ohne diesen Zwischenschritt sähe man nur das
+    // fertige Deck und nie, dass Karten fehlen.
+    const generated = result?.generatedCount;
+    const saved = result?.savedCount;
+    if (typeof generated === "number" && typeof saved === "number" && saved < generated) {
+      setSummary({ text: savedSummary(generated, saved), href: target });
+      setBusy(false);
+      return;
+    }
+
+    router.push(target);
     // absichtlich kein setBusy(false): die Seite navigiert weg
   }
 
@@ -321,8 +384,33 @@ export default function ImportPage() {
         <input ref={galleryInputRef} type="file" accept="image/*" hidden onChange={onImagePicked} />
         <input ref={pdfInputRef} type="file" accept="application/pdf" hidden onChange={onPdfPicked} />
 
-        {mode === "choose" ? (
+        {summary ? (
+          // #411: Ehrlich melden, statt kommentarlos ins Deck zu springen.
+          <div role="status">
+            <div className="lp-warn">
+              <Layers size={16} />
+              <span>{summary.text}</span>
+            </div>
+            <p className="muted" style={{ marginTop: 0, marginBottom: 18 }}>
+              Es hat nicht alles in das Deck gepasst. Die gespeicherten Karten sind gleichmäßig
+              über den ganzen Stoff verteilt — nicht einfach die ersten.
+            </p>
+            <Link href={summary.href} className="btn btn-primary btn-block btn-lg">
+              Deck öffnen
+            </Link>
+          </div>
+        ) : mode === "choose" ? (
           <>
+            {deckLimitHint && (
+              <div className="lp-warn" role="status">
+                <Layers size={16} />
+                <span>
+                  <strong style={{ display: "block", marginBottom: 2 }}>{DECK_LIMIT_LABEL}</strong>
+                  {deckLimitHint}
+                </span>
+              </div>
+            )}
+
             {usage && lowLp && (
               <div className="lp-warn" role="status">
                 <Zap size={16} />
@@ -341,6 +429,7 @@ export default function ImportPage() {
                   type="button"
                   className="source-card source-card--photo"
                   onClick={() => choose("photo")}
+                  disabled={deckLimitReached}
                 >
                   <span className="source-card__ic">
                     <Camera size={22} />
@@ -362,6 +451,7 @@ export default function ImportPage() {
                 type="button"
                 className="source-card source-card--gallery"
                 onClick={() => choose("gallery")}
+                disabled={deckLimitReached}
               >
                 <span className="source-card__ic">
                   <ImageIcon size={22} />
@@ -382,6 +472,7 @@ export default function ImportPage() {
                 type="button"
                 className="source-card source-card--text"
                 onClick={() => choose("text")}
+                disabled={deckLimitReached}
               >
                 <span className="source-card__ic">
                   <TextType size={22} />
@@ -402,6 +493,7 @@ export default function ImportPage() {
                 type="button"
                 className="source-card source-card--url"
                 onClick={() => choose("url")}
+                disabled={deckLimitReached}
               >
                 <span className="source-card__ic">
                   <LinkIcon size={22} />
@@ -423,6 +515,7 @@ export default function ImportPage() {
                   type="button"
                   className="source-card source-card--pdf"
                   onClick={() => choose("pdf")}
+                  disabled={deckLimitReached}
                 >
                   <span className="source-card__ic">
                     <FileText size={22} />
