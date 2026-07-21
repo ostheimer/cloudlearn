@@ -20,6 +20,9 @@ import { compressImageToJpeg, fileToBase64 } from "@/lib/files";
 import {
   DECK_LIMIT_LABEL,
   deckLimitNotice,
+  deckOptionLabel,
+  deckSpaceNotice,
+  freeSlots,
   planLimitMessage,
   savedSummary,
 } from "@/lib/import-limits";
@@ -63,10 +66,14 @@ export default function ImportPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [usage, setUsage] = useState<AiUsageResponse | null>(null);
-  // #411: Wie viele Decks es schon gibt — für die Grenz-Prüfung VOR dem
-  // Ausgeben von Lernpunkten. `null` heißt „noch nicht geladen"; dann wird
-  // nichts gesperrt (der Server prüft ohnehin und bucht notfalls zurück).
-  const [deckCount, setDeckCount] = useState<number | null>(null);
+  // #411: Die vorhandenen Decks — für die Grenz-Prüfung VOR dem Ausgeben von
+  // Lernpunkten. `null` heißt „noch nicht geladen"; dann wird nichts gesperrt
+  // (der Server prüft ohnehin und bucht notfalls zurück).
+  // #427: Dieselbe Liste ist zugleich die Zielauswahl — sie bringt über
+  // `cardCount` mit, wie voll jedes Deck schon ist.
+  const [decks, setDecks] = useState<Deck[] | null>(null);
+  // Ziel des Imports: `null` = neues Deck (wie bisher), sonst die Deck-ID.
+  const [targetDeckId, setTargetDeckId] = useState<string | null>(null);
   // Gesetzt, wenn die Tarifgrenze den Import ausgedünnt hat: dann NICHT
   // stillschweigend ins neue Deck springen, sondern erst sagen, was fehlt.
   const [summary, setSummary] = useState<{ text: string; href: string } | null>(null);
@@ -110,8 +117,8 @@ export default function ImportPage() {
     if (!userId) return;
     let active = true;
     listDecks(userId)
-      .then(({ decks }) => {
-        if (active) setDeckCount(decks.length);
+      .then(({ decks: loaded }) => {
+        if (active) setDecks(loaded);
       })
       .catch(() => {
         /* Vorwarnung ist Kür — der Server prüft ohnehin */
@@ -132,12 +139,26 @@ export default function ImportPage() {
   // Für den Hinweis im Auswahl-Menü: reicht es nicht mal für den günstigsten Import?
   const lowLp = usage ? usage.lpBalance < usage.lpCostAiScan : false;
 
-  // #411: Jeder Import im Browser legt ein NEUES Deck an — eine Zieldeck-Auswahl
-  // wie in der App gibt es hier nicht (#427). Ist die Deck-Grenze erreicht,
-  // lehnt der Server deshalb JEDEN Weg ab; dann ihn gar nicht erst anbieten,
-  // statt die Nutzerin nach dem Bezahlen abzuweisen.
+  const deckCount = decks?.length ?? null;
+  // #411: Ist die Deck-Grenze erreicht, lehnt der Server jedes NEUE Deck ab.
+  // #427: Seit es eine Zielauswahl gibt, ist das keine Sackgasse mehr — nur der
+  // Weg „neues Deck" ist zu. Gesperrt wird deshalb nicht mehr die Quelle,
+  // sondern erst das Absenden, solange „Neues Deck" gewählt ist. So gibt auch
+  // hier niemand Lernpunkte für eine Anfrage aus, die der Server ablehnen muss.
   const deckLimitHint = deckLimitNotice(deckCount, usage?.limits?.maxDecks);
   const deckLimitReached = deckLimitHint !== null;
+
+  // #427: Ziel-Deck und wie viel dort noch hineinpasst.
+  const targetDeck = targetDeckId ? (decks?.find((d) => d.id === targetDeckId) ?? null) : null;
+  const targetFreeSlots = targetDeck
+    ? freeSlots(targetDeck.cardCount, usage?.limits?.maxCardsPerDeck)
+    : null;
+  const spaceHint = deckSpaceNotice(targetFreeSlots);
+  const hasDecks = (decks?.length ?? 0) > 0;
+  // „Neues Deck" gewählt, obwohl keines mehr erlaubt ist → Absenden sperren.
+  const newDeckBlocked = deckLimitReached && targetDeckId === null;
+  // Volles Ziel-Deck: der Server würde alles abweisen, also gar nicht erst los.
+  const targetDeckFull = targetFreeSlots === 0;
 
   const hasInput =
     mode === "text"
@@ -253,7 +274,11 @@ export default function ImportPage() {
     // Stabiler Schlüssel pro Inhalt: derselbe Inhalt erneut → derselbe Schlüssel
     // → der Server gibt sein gecachtes Ergebnis zurück (kein zweiter Abzug).
     // Anderer Inhalt → neuer Schlüssel.
-    const sig =
+    //
+    // #427: Das Ziel-Deck gehört mit in den Schlüssel. Sonst gilt „dasselbe PDF
+    // in ein anderes Deck" als Wiederholung: Der Server antwortet mit seinem
+    // gecachten Ergebnis und schreibt nie ins neu gewählte Deck.
+    const content =
       mode === "text"
         ? `t:${text.trim()}`
         : mode === "url"
@@ -261,6 +286,7 @@ export default function ImportPage() {
           : mode === "pdf"
             ? `p:${pdfBase64 ?? ""}`
             : `i:${imageBase64 ?? ""}`;
+    const sig = `${targetDeckId ?? "neu"}|${content}`;
     if (!attemptRef.current || attemptRef.current.sig !== sig) {
       const key =
         typeof crypto !== "undefined" && crypto.randomUUID
@@ -274,16 +300,25 @@ export default function ImportPage() {
     try {
       const before = await listDecks(userId);
       beforeIds = new Set(before.decks.map((d) => d.id));
-      setDeckCount(before.decks.length); // frischer Stand für die Grenz-Anzeige
+      setDecks(before.decks); // frischer Stand für Grenz-Anzeige und Zielauswahl
 
+      // #427: Ohne Ziel legt der Server ein neues Deck an — wie bisher.
+      const deckId = targetDeckId ?? undefined;
       if (mode === "text") {
-        result = await scanText(userId, text.trim(), "de", idemKey);
+        result = await scanText(userId, text.trim(), "de", idemKey, deckId);
       } else if (mode === "url") {
-        result = await importFromUrl(userId, url.trim(), 4, "de", idemKey);
+        result = await importFromUrl(userId, url.trim(), 4, "de", idemKey, deckId);
       } else if (mode === "photo" || mode === "gallery") {
-        result = await scanImage(userId, imageBase64!, "image/jpeg", "de", idemKey);
+        result = await scanImage(userId, imageBase64!, "image/jpeg", "de", idemKey, deckId);
       } else if (mode === "pdf") {
-        result = await importPdf(userId, pdfFileName ?? "Dokument.pdf", pdfBase64!, "de", idemKey);
+        result = await importPdf(
+          userId,
+          pdfFileName ?? "Dokument.pdf",
+          pdfBase64!,
+          "de",
+          idemKey,
+          deckId
+        );
       }
     } catch (e) {
       // #411: Tarifgrenze zuerst — der Server antwortet dafür 409, nicht 402.
@@ -323,12 +358,15 @@ export default function ImportPage() {
     // würde ein erneuter Klick doppelt importieren und abbuchen.
     attemptRef.current = null; // erfolgreich → nächster Import bekommt neuen Schlüssel
 
-    let target = "/dashboard";
-    try {
-      const created = await findNewDeck(beforeIds);
-      if (created) target = `/dashboard/deck/${created.id}`;
-    } catch {
-      /* Deck-Suche misslungen — der Import ist trotzdem durch, ab in die Bibliothek */
+    // #427: Bei gewähltem Ziel-Deck ist die Suche unnötig — wir wissen, wohin.
+    let target = targetDeckId ? `/dashboard/deck/${targetDeckId}` : "/dashboard";
+    if (!targetDeckId) {
+      try {
+        const created = await findNewDeck(beforeIds);
+        if (created) target = `/dashboard/deck/${created.id}`;
+      } catch {
+        /* Deck-Suche misslungen — der Import ist trotzdem durch, ab in die Bibliothek */
+      }
     }
 
     // #411: Passt das Material nicht ins Deck, dünnt der Server gleichmäßig aus.
@@ -371,7 +409,10 @@ export default function ImportPage() {
         )}
       </div>
 
-      <div className="import-view">
+      {/* Die Quellen-Auswahl darf am Desktop die Breite nutzen; die Eingabe
+          danach bleibt schmal — ein über 1.000 Pixel breites Textfeld liest
+          und tippt sich schlecht. */}
+      <div className={mode === "choose" && !summary ? "import-view import-view--wide" : "import-view"}>
         {/* Versteckte Datei-/Kamera-Auswahl (immer im DOM, damit die Karten sie öffnen können) */}
         <input
           ref={photoInputRef}
@@ -429,7 +470,6 @@ export default function ImportPage() {
                   type="button"
                   className="source-card source-card--photo"
                   onClick={() => choose("photo")}
-                  disabled={deckLimitReached}
                 >
                   <span className="source-card__ic">
                     <Camera size={22} />
@@ -451,7 +491,6 @@ export default function ImportPage() {
                 type="button"
                 className="source-card source-card--gallery"
                 onClick={() => choose("gallery")}
-                disabled={deckLimitReached}
               >
                 <span className="source-card__ic">
                   <ImageIcon size={22} />
@@ -472,7 +511,6 @@ export default function ImportPage() {
                 type="button"
                 className="source-card source-card--text"
                 onClick={() => choose("text")}
-                disabled={deckLimitReached}
               >
                 <span className="source-card__ic">
                   <TextType size={22} />
@@ -493,7 +531,6 @@ export default function ImportPage() {
                 type="button"
                 className="source-card source-card--url"
                 onClick={() => choose("url")}
-                disabled={deckLimitReached}
               >
                 <span className="source-card__ic">
                   <LinkIcon size={22} />
@@ -515,7 +552,6 @@ export default function ImportPage() {
                   type="button"
                   className="source-card source-card--pdf"
                   onClick={() => choose("pdf")}
-                  disabled={deckLimitReached}
                 >
                   <span className="source-card__ic">
                     <FileText size={22} />
@@ -533,6 +569,24 @@ export default function ImportPage() {
                 </button>
               )}
             </div>
+
+            {/* Am Desktop bleibt unter den Kacheln viel Platz. Statt ihn leer zu
+                lassen oder die Kacheln zu dehnen, steht dort, was gleich
+                passiert — am Handy untereinander wie alles andere. */}
+            <ol className="scan-steps">
+              <li>
+                <span className="scan-steps__n">1</span>
+                <span>Quelle wählen und Material hochladen</span>
+              </li>
+              <li>
+                <span className="scan-steps__n">2</span>
+                <span>Die KI liest und schreibt Frage-Antwort-Karten</span>
+              </li>
+              <li>
+                <span className="scan-steps__n">3</span>
+                <span>Die Karten landen im Deck, das du aussuchst</span>
+              </li>
+            </ol>
 
             <div className="info-note">
               <Sparkles size={16} />
@@ -663,6 +717,85 @@ export default function ImportPage() {
               </div>
             )}
 
+            {/* #427: Ziel-Deck. Der Server kann das längst (`deckId`), nur schickte
+                es im Browser nie jemand mit — jeder Import legte ein neues Deck an.
+                Voreinstellung bleibt „Neues Deck", damit sich für alle, die das
+                nicht brauchen, nichts ändert. Ohne eigene Decks entfällt der
+                Block ganz: Es gäbe nichts zu wählen. */}
+            {hasDecks && (
+              <fieldset className="deck-target">
+                <legend>Wohin sollen die Karten?</legend>
+
+                <label className={targetDeckId === null ? "deck-target__opt is-on" : "deck-target__opt"}>
+                  <input
+                    type="radio"
+                    name="deck-target"
+                    checked={targetDeckId === null}
+                    onChange={() => setTargetDeckId(null)}
+                    disabled={busy || deckLimitReached}
+                  />
+                  <span className="deck-target__txt">
+                    <span className="deck-target__t">Neues Deck</span>
+                    <span className="deck-target__s">
+                      {deckLimitReached
+                        ? "Geht gerade nicht — deine Deck-Grenze ist erreicht."
+                        : "Den Titel schlägt die KI vor."}
+                    </span>
+                  </span>
+                </label>
+
+                <label className={targetDeckId !== null ? "deck-target__opt is-on" : "deck-target__opt"}>
+                  <input
+                    type="radio"
+                    name="deck-target"
+                    checked={targetDeckId !== null}
+                    onChange={() => setTargetDeckId(decks?.[0]?.id ?? null)}
+                    disabled={busy}
+                  />
+                  <span className="deck-target__txt">
+                    <span className="deck-target__t">Bestehendes Deck</span>
+                    <span className="deck-target__s">Die Karten kommen zu den vorhandenen dazu.</span>
+                  </span>
+                </label>
+
+                {targetDeckId !== null && (
+                  <select
+                    className="select deck-target__pick"
+                    aria-label="Ziel-Deck"
+                    value={targetDeckId}
+                    onChange={(e) => setTargetDeckId(e.target.value)}
+                    disabled={busy}
+                  >
+                    {(decks ?? []).map((deck) => (
+                      <option key={deck.id} value={deck.id}>
+                        {deckOptionLabel(
+                          deck.title,
+                          freeSlots(deck.cardCount, usage?.limits?.maxCardsPerDeck)
+                        )}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </fieldset>
+            )}
+
+            {spaceHint && !error && (
+              <div className="lp-warn" role="status" style={{ marginTop: 14, marginBottom: 0 }}>
+                <Layers size={16} />
+                <span>{spaceHint}</span>
+              </div>
+            )}
+
+            {newDeckBlocked && !error && (
+              <div className="lp-warn" role="status" style={{ marginTop: 14, marginBottom: 0 }}>
+                <Layers size={16} />
+                <span>
+                  <strong style={{ display: "block", marginBottom: 2 }}>{DECK_LIMIT_LABEL}</strong>
+                  {deckLimitHint}
+                </span>
+              </div>
+            )}
+
             {usage && !enoughLp && !error && (
               <div className="lp-warn" role="status" style={{ marginTop: 14, marginBottom: 0 }}>
                 <Zap size={16} />
@@ -685,7 +818,17 @@ export default function ImportPage() {
               className="btn btn-primary btn-block btn-lg"
               style={{ marginTop: 20 }}
               onClick={handleSubmit}
-              disabled={busy || prepping || !hasInput || (usage ? !enoughLp : false)}
+              // #411/#427: Nichts absenden, was der Server sicher ablehnt —
+              // sonst fließen Lernpunkte für eine Fehlermeldung. Das betrifft
+              // jetzt „neues Deck trotz Deck-Grenze" und „Ziel-Deck ist voll".
+              disabled={
+                busy ||
+                prepping ||
+                !hasInput ||
+                newDeckBlocked ||
+                targetDeckFull ||
+                (usage ? !enoughLp : false)
+              }
             >
               {busy ? (
                 "KI erstellt deine Karten…"

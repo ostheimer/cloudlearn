@@ -18,20 +18,40 @@ describe("Web-Import-Seite – Plan-Grenzen (#411)", () => {
     "\n"
   );
 
-  it("grast JEDE Quellen-Kachel aus, wenn die Deck-Grenze erreicht ist", () => {
-    // Im Browser legt jeder Weg ein neues Deck an — es darf keinen geben, der
-    // an der Grenze noch Lernpunkte ausgibt. Der Vergleich der beiden Zahlen
-    // schlägt auch dann an, wenn jemand später eine sechste Quelle ergänzt und
-    // die Sperre vergisst.
-    const cards = source.match(/className="source-card source-card--/g) ?? [];
-    const guards = source.match(/disabled=\{deckLimitReached\}/g) ?? [];
-    expect(cards.length).toBeGreaterThan(0);
-    expect(guards.length).toBe(cards.length);
+  it("gibt an der Deck-Grenze keine Lernpunkte für eine sichere Absage aus", () => {
+    // Ursprünglich (#411) waren dafür ALLE Quellen-Kacheln gesperrt, weil jeder
+    // Weg ein neues Deck anlegte. Mit der Zielauswahl (#427) wäre das zu viel:
+    // In ein bestehendes Deck darf man auch an der Grenze importieren. Die
+    // Sperre sitzt deshalb jetzt am Absenden — dem einzigen Punkt, an dem
+    // Lernpunkte fließen — und greift nur, solange „neues Deck" gewählt ist.
+    expect(source).toContain("const newDeckBlocked = deckLimitReached && targetDeckId === null;");
+    const submit = source.indexOf('onClick={handleSubmit}');
+    const guard = source.indexOf("newDeckBlocked", submit);
+    expect(submit).toBeGreaterThan(-1);
+    expect(guard).toBeGreaterThan(submit);
+  });
+
+  it("sperrt auch das volle Ziel-Deck vor dem Bezahlen", () => {
+    // Ein volles Deck weist der Server ebenso ab wie ein zu volles Konto.
+    expect(source).toContain("const targetDeckFull = targetFreeSlots === 0;");
+    const submit = source.indexOf('onClick={handleSubmit}');
+    expect(source.indexOf("targetDeckFull", submit)).toBeGreaterThan(submit);
   });
 
   it("zeigt den Hinweis, statt nur stumm zu sperren", () => {
     expect(source).toContain("{deckLimitHint && (");
     expect(source).toContain("{DECK_LIMIT_LABEL}");
+  });
+
+  it("reicht das Ziel-Deck an JEDEN der vier Wege durch (#427)", () => {
+    // Sonst landet ein Weg still wieder in einem neuen Deck — genau der Fehler,
+    // den die App bei PDF und URL bis heute hat.
+    const calls = source.match(/(scanText|importFromUrl|scanImage|importPdf)\(/g) ?? [];
+    expect(calls.length).toBe(4);
+    expect(source).toContain("const deckId = targetDeckId ?? undefined;");
+    for (const fragment of ["idemKey, deckId)", "deckId\n        );"]) {
+      expect(source).toContain(fragment);
+    }
   });
 
   it("holt die Grenzen vom Server, statt sie im Web zu wiederholen", () => {

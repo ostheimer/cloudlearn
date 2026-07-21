@@ -3125,6 +3125,14 @@ a.mode-card:hover {
 /* ---------- KI-Import (App-Scan-Look, an die Mobile-App angelehnt) ---------- */
 .import-view {
   max-width: 660px;
+  /* Mittig statt linksbündig: sonst klebt der schmale Eingabe-Schritt am linken
+     Rand und rechts steht ein leeres Drittel Bildschirm (Laras Einwand 21.07.). */
+  margin-inline: auto;
+}
+/* Nur die Quellen-Auswahl darf breit werden. Der Eingabe-Schritt bleibt schmal:
+   ein 1.000 Pixel breites Textfeld tippt und liest sich schlecht. */
+.import-view--wide {
+  max-width: 1040px;
 }
 
 /* Lernpunkte-Stand als Amber-Pille (wie das LP-Badge in der App) */
@@ -3259,6 +3267,121 @@ a.lp-pill:hover {
   padding: 3px 8px;
   font-size: 0.72rem;
   font-weight: 700;
+}
+
+/* Ab Tablet-Breite werden aus den Balken Kacheln: zwei nebeneinander, Symbol
+   und Preis oben, Beschriftung unten. Reines CSS — dieselbe Auszeichnung wie
+   am Handy, damit die Handy-Ansicht unberührt bleibt. */
+@media (min-width: 760px) {
+  .source-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .source-card {
+    display: grid;
+    grid-template-columns: auto auto;
+    grid-template-areas:
+      "ic cost"
+      "body body";
+    align-content: space-between;
+    justify-content: space-between;
+    min-height: 118px;
+    padding: 16px 18px 18px;
+  }
+  .source-card__ic {
+    grid-area: ic;
+  }
+  .source-card__cost {
+    grid-area: cost;
+    justify-self: end;
+  }
+  .source-card__body {
+    grid-area: body;
+  }
+  .source-card__chevron {
+    display: none;
+  }
+}
+
+/* Die drei Schritte unter den Kacheln (nur Text, keine zusätzliche Abfrage) */
+.scan-steps {
+  list-style: none;
+  display: grid;
+  gap: 12px;
+  margin: 18px 0 0;
+  padding: 16px 18px;
+  background: var(--bg-soft);
+  border-radius: var(--r-md);
+}
+.scan-steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.85rem;
+  color: var(--ink-2);
+  line-height: 1.45;
+}
+.scan-steps__n {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--ink-3);
+  font-size: 0.72rem;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+}
+@media (min-width: 760px) {
+  .scan-steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+  }
+}
+
+/* #427: Ziel-Deck im Eingabe-Schritt */
+.deck-target {
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 14px 16px 16px;
+  margin-top: 18px;
+  display: grid;
+  gap: 10px;
+}
+.deck-target > legend {
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 0 6px;
+}
+.deck-target__opt {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+.deck-target__opt input {
+  margin-top: 3px;
+  accent-color: var(--brand);
+  flex: none;
+}
+.deck-target__opt input:disabled {
+  cursor: default;
+}
+.deck-target__txt {
+  display: grid;
+  min-width: 0;
+}
+.deck-target__t {
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+.deck-target__s {
+  font-size: 0.8rem;
+  color: var(--ink-3);
+}
+.deck-target__pick {
+  margin-left: 26px;
+  width: calc(100% - 26px);
 }
 
 /* Kosten-Chip im Erstellen-Button (wie „⚡N" in der App) */
