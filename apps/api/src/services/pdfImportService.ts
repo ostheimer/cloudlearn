@@ -87,7 +87,14 @@ export async function processPdfImport(
   // Same plan limits as the scan path (#411), checked before the model runs so
   // a full deck refunds instead of half-delivering.
   const { tier } = await getSubscriptionStatus(userId);
-  const target = await reserveImportTarget({ userId, tier, deckId: parsed.deckId });
+  // #427: In der Vorschau wird nichts abgelegt — gespeichert wird erst über
+  // importSaveService, wenn die Nutzerin Ziel und Karten festgelegt hat. Ein
+  // bereits genanntes Deck wird trotzdem vorher geprüft.
+  const checked =
+    parsed.preview && !parsed.deckId
+      ? null
+      : await reserveImportTarget({ userId, tier, deckId: parsed.deckId });
+  const target = parsed.preview ? null : checked;
 
   const extracted = await extractPdfText(parsed.fileBase64);
   const generated = await generateFlashcardsAsync(
@@ -95,6 +102,30 @@ export async function processPdfImport(
     parsed.sourceLanguage
   );
   const cards = flashcardListSchema.parse(generated.cards);
+
+  if (!target) {
+    await recordScan(
+      userId,
+      generated.model,
+      0,
+      `pdf:${sanitizeFileName(parsed.fileName)}`,
+      extracted.extractedText
+    );
+    const previewResponse: PdfImportResponse = {
+      requestId,
+      model: generated.model,
+      fallbackUsed: generated.fallbackUsed,
+      cards,
+      deckTitle: generated.title,
+      fileName: parsed.fileName,
+      pageCount: extracted.pageCount,
+      extractedCharacters: extracted.extractedText.length,
+      generatedCount: cards.length,
+      savedCount: 0,
+    };
+    await storeIdempotentResult(parsed.idempotencyKey, previewResponse);
+    return previewResponse;
+  }
 
   const stored = await storeImportedCards({
     userId,
