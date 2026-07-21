@@ -179,7 +179,7 @@ describe("GET /api/v1/stats – days whitelist + durationMsByDay", () => {
       reviewsByDay: REVIEW_STATS.reviewsByDay,
       accuracyByDay: REVIEW_STATS.accuracyByDay,
       // The timestamp ships along so clients can compare it against their own
-      // local "last opened" marker and show whichever is newer (#413).
+      // local "last opened" marker and show whichever is newer (#415).
       lastStudiedDeck: { id: "deck-1", title: "Bio", reviewedAt: "2026-07-20T12:44:00.000Z" },
     });
   });

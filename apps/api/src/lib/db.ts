@@ -908,7 +908,7 @@ export async function getReviewStats(
  * reviewed or the deck has since been deleted (cascade removes the logs).
  *
  * `reviewedAt` ships with it so clients can compare this against their own
- * local "last opened" marker and show whichever happened later (#413) —
+ * local "last opened" marker and show whichever happened later (#415) —
  * without it, a stale on-device marker outranks learning done elsewhere.
  */
 export async function getLastStudiedDeck(

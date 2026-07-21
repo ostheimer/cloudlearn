@@ -12,7 +12,7 @@ const STORAGE_KEY = "last-used-deck";
 export interface LastUsedDeck {
   id: string;
   title: string;
-  /** ISO timestamp of the visit; null for markers written before #413. */
+  /** ISO timestamp of the visit; null for markers written before #415. */
   at: string | null;
 }
 
@@ -61,7 +61,7 @@ export interface ShownDeck {
  * Which deck the Home row shows. Both candidates are real but partial: the
  * local marker sees every mode on THIS device, the server sees Karteikarten
  * reviews from EVERY device (incl. the web). Neither is authoritative, so the
- * more recent one wins. Before #413 the local marker always won, which let a
+ * more recent one wins. Before #415 the local marker always won, which let a
  * deck merely opened this morning outrank a deck actually learned minutes ago.
  */
 export function pickShownDeck(
@@ -83,10 +83,10 @@ export function pickShownDeck(
     if (!Number.isNaN(usedAt) && !Number.isNaN(studiedAt)) {
       return studiedAt > usedAt ? studied : used;
     }
-    // Only the server is dated — the marker comes from a pre-#413 build and
+    // Only the server is dated — the marker comes from a pre-#415 build and
     // could be arbitrarily old, so the dated fact wins.
     if (!Number.isNaN(studiedAt)) return studied;
-    // Only the marker is dated (older API): keep the pre-#413 preference.
+    // Only the marker is dated (older API): keep the pre-#415 preference.
     return used;
   }
 

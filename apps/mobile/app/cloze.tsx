@@ -106,7 +106,7 @@ export default function ClozeScreen() {
     deckTitle: string;
   }>();
 
-  // Studying IS using the deck (#413).
+  // Studying IS using the deck (#415).
   useEffect(() => {
     if (deckId) void setLastUsedDeck({ id: deckId, title: deckTitle ?? "" });
   }, [deckId, deckTitle]);

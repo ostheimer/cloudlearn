@@ -279,7 +279,7 @@ export interface StatsResponse {
   reviewsByDay: Array<{ date: string; count: number }>;
   accuracyByDay?: Array<{ date: string; accuracy: number; count: number }>;
   // Deck of the user's most recent review ("Zuletzt gelernt" on Home).
-  // `reviewedAt` may be absent when talking to an API older than #413.
+  // `reviewedAt` may be absent when talking to an API older than #415.
   lastStudiedDeck?: { id: string; title: string; reviewedAt?: string } | null;
 }
 

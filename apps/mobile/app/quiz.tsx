@@ -51,7 +51,7 @@ export default function QuizScreen() {
   const router = useRouter();
 
   // Studying IS using the deck — Home's "Zuletzt genutzt" must not depend on
-  // whether the learner happened to route through the deck screen first (#413).
+  // whether the learner happened to route through the deck screen first (#415).
   useEffect(() => {
     if (deckId) void setLastUsedDeck({ id: deckId, title: deckTitle ?? "" });
   }, [deckId, deckTitle]);
