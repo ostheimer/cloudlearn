@@ -274,6 +274,11 @@ export default function RootLayout() {
         return;
       }
       try {
+        // Rückgabewert bewusst ungenutzt: Hier gibt es keine Oberfläche, die
+        // etwas anzeigen könnte. Endgültig abgelehnte Wiederholungen zählt die
+        // Warteschlange selbst mit (queue.rejectedCount) — der Lern-Bildschirm
+        // zeigt sie beim nächsten Öffnen an, damit nichts still verschwindet
+        // (#418).
         await syncPendingReviewOperations(userId);
       } catch {
         // Offline review sync retries on the next tick / foreground event.

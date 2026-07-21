@@ -156,7 +156,16 @@ export const syncRequestSchema = z.object({
 export const syncResponseSchema = z.object({
   requestId: z.string().min(8),
   acceptedOperationIds: z.array(z.string()),
+  // „Abgelehnt" heißt ENDGÜLTIG: dieser Eintrag wird nie gutgehen (kaputte
+  // Daten, gelöschte Karte). Clients dürfen ihn wegwerfen.
   rejectedOperationIds: z.array(z.string()),
+  // Vorübergehend gescheitert — Datenbank kurz weg, Zeitüberschreitung,
+  // Unbekanntes. Bewusst ein EIGENES Feld: Läge das in rejectedOperationIds,
+  // würden Clients offline gelernte Antworten wegen eines Aussetzers endgültig
+  // löschen (#418). Alte Builds kennen das Feld nicht — deshalb antwortet der
+  // Sync mit 503 auf den ganzen Aufruf, wenn AUSSCHLIESSLICH vorübergehende
+  // Fehler auftraten (siehe syncService).
+  failedOperationIds: z.array(z.string()),
   serverTimestamp: z.string().datetime()
 });
 

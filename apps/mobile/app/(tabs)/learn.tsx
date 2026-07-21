@@ -182,6 +182,9 @@ function AuthenticatedLearnScreen({
   );
   const knownCount = Math.max(0, cards.length - missedCards.length);
   const enqueueOfflineReview = useOfflineQueueStore((state) => state.enqueue);
+  const acknowledgeRejectedReviews = useOfflineQueueStore(
+    (state) => state.acknowledgeRejected
+  );
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [reviewLoading, setReviewLoading] = useState(false);
@@ -313,6 +316,14 @@ function AuthenticatedLearnScreen({
     setReviewError(false);
     try {
       await syncPendingReviewOperations(userId).catch(() => null);
+      // Endgültig abgelehnte Nachzügler (4xx) sind aus der Warteschlange
+      // verschwunden und zählen nie mehr. Das darf nicht still passieren
+      // (#418), also dasselbe Hinweis-Banner wie beim direkten Weg. Der Zähler
+      // liegt in der Warteschlange, damit auch Ablehnungen aus dem
+      // Hintergrund-Abgleich (_layout.tsx) hier ankommen.
+      if (useOfflineQueueStore.getState().queue.rejectedCount > 0) {
+        setReviewError(true);
+      }
       // Deck mode: study every card of one deck. Tab mode: study globally-due cards.
       const { cards: raw } = deckId
         ? await listCardsInDeck(deckId)
@@ -429,7 +440,8 @@ function AuthenticatedLearnScreen({
         } else {
           // 4xx: the server rejected this review outright. Re-queuing it would just
           // be rejected again, so surface it instead of dropping it silently.
-          // TODO(#208): re-queue/repair rejected reviews instead of only surfacing.
+          // Dieselbe Unterscheidung gilt seit #418 auch im Warteschlangen-Weg
+          // (syncService: 5xx/unbekannt = später nochmal, 4xx = endgültig).
           setReviewError(true);
         }
       });
@@ -1108,7 +1120,12 @@ function AuthenticatedLearnScreen({
               {/* Non-blocking notice when a review couldn't be saved (server rejected it) */}
               {reviewError && (
                 <TouchableOpacity
-                  onPress={() => setReviewError(false)}
+                  onPress={() => {
+                    setReviewError(false);
+                    // Auch den Zähler aus der Warteschlange quittieren, sonst
+                    // käme der Hinweis beim nächsten Öffnen wieder.
+                    acknowledgeRejectedReviews();
+                  }}
                   activeOpacity={0.8}
                   style={{
                     backgroundColor: c.errorLight,
