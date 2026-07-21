@@ -46,11 +46,16 @@ export const DECK_LIMIT_LABEL = "Deck-Grenze erreicht";
  * an. Im Browser wäre das eine Sackgasse: Diesen Weg gibt es hier nicht
  * (#427). Laras Entscheidung 21.07.: den halben Satz weglassen, den Rest
  * wörtlich lassen.
+ *
+ * Der Ton weicht seit 21.07. bewusst von der App ab und folgt `planLimitMessage`
+ * unten: Zustand voran statt Anrede („20 von 20 Decks sind belegt" statt „Du
+ * hast …"). Beide Zahlen bleiben stehen, damit nachvollziehbar ist, woran die
+ * Grenze hängt.
  */
 export function deckLimitMessage(deckCount: number, maxDecks: number): string {
   return (
-    `Du hast ${deckCount} von ${maxDecks} Decks. ` +
-    "Jeder Scan legt ein neues Deck an — lösche zuerst ein Deck in der Bibliothek."
+    `${deckCount} von ${maxDecks} Decks sind belegt. ` +
+    "Jeder Scan legt ein neues Deck an — lösche bitte zuerst ein Deck in der Bibliothek."
   );
 }
 

@@ -45,7 +45,12 @@ describe("Deck-Grenze im Browser (#411)", () => {
     // ein bestehendes Deck" ist im Browser eine Sackgasse. Man liest ihn, sucht
     // die Möglichkeit und findet sie nicht.
     const message = deckLimitMessage(20, 20);
-    expect(message).toContain("lösche zuerst ein Deck in der Bibliothek");
+    // Absichtlich als Muster und nicht wörtlich: Geprüft gehört, DASS der Satz
+    // zum Löschen in der Bibliothek führt — nicht, mit welchen Höflichkeits-
+    // wörtern. Die wörtliche Fassung schlug beim Ton-Wechsel am 21.07. an,
+    // obwohl inhaltlich nichts fehlte; solche Tests gewöhnt man sich ab, achtlos
+    // nachzuziehen, und übersieht dann den Tag, an dem sie recht haben.
+    expect(message).toMatch(/lösche .*ein Deck in der Bibliothek/);
     expect(message).not.toContain("bestehendes Deck");
   });
 });
