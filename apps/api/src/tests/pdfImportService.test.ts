@@ -2,8 +2,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HttpError } from "@/lib/http";
 import { extractPdfText } from "@/lib/pdf";
 import { generateFlashcardsAsync } from "@/lib/llm";
-import { createCard, createDeck, getDeck, recordScan } from "@/lib/db";
+import {
+  createDeck,
+  getDeck,
+  insertCards,
+  listCardIdsForDeck,
+  listDeckIdsForUser,
+  recordScan,
+  softDeleteCardsByIds,
+  softDeleteDeck,
+} from "@/lib/db";
 import { getIdempotentResult, storeIdempotentResult } from "@/lib/idempotencyStore";
+import { getSubscriptionStatus } from "@/services/subscriptionService";
 import { processPdfImport } from "@/services/pdfImportService";
 
 vi.mock("@/lib/pdf", () => ({
@@ -15,10 +25,14 @@ vi.mock("@/lib/llm", () => ({
 }));
 
 vi.mock("@/lib/db", () => ({
-  createCard: vi.fn(),
   createDeck: vi.fn(),
   getDeck: vi.fn(),
+  insertCards: vi.fn(),
+  listCardIdsForDeck: vi.fn(),
+  listDeckIdsForUser: vi.fn(),
   recordScan: vi.fn(),
+  softDeleteCardsByIds: vi.fn(),
+  softDeleteDeck: vi.fn(),
 }));
 
 vi.mock("@/lib/idempotencyStore", () => ({
@@ -26,14 +40,23 @@ vi.mock("@/lib/idempotencyStore", () => ({
   storeIdempotentResult: vi.fn(),
 }));
 
+vi.mock("@/services/subscriptionService", () => ({
+  getSubscriptionStatus: vi.fn(),
+}));
+
 const mockedExtractPdfText = vi.mocked(extractPdfText);
 const mockedGenerateFlashcardsAsync = vi.mocked(generateFlashcardsAsync);
-const mockedCreateCard = vi.mocked(createCard);
+const mockedInsertCards = vi.mocked(insertCards);
 const mockedCreateDeck = vi.mocked(createDeck);
 const mockedGetDeck = vi.mocked(getDeck);
+const mockedListCardIds = vi.mocked(listCardIdsForDeck);
+const mockedListDeckIds = vi.mocked(listDeckIdsForUser);
 const mockedRecordScan = vi.mocked(recordScan);
+const mockedSoftDeleteCards = vi.mocked(softDeleteCardsByIds);
+const mockedSoftDeleteDeck = vi.mocked(softDeleteDeck);
 const mockedGetIdempotentResult = vi.mocked(getIdempotentResult);
 const mockedStoreIdempotentResult = vi.mocked(storeIdempotentResult);
+const mockedGetSubscriptionStatus = vi.mocked(getSubscriptionStatus);
 
 describe("pdfImportService", () => {
   beforeEach(() => {
@@ -49,27 +72,16 @@ describe("pdfImportService", () => {
       updatedAt: "2026-01-01T00:00:00.000Z",
       deletedAt: null,
     });
-    mockedCreateCard.mockResolvedValue({
-      id: "card-1",
+    mockedInsertCards.mockResolvedValue([]);
+    mockedListCardIds.mockResolvedValue([]);
+    mockedListDeckIds.mockResolvedValue(["deck-1"]);
+    mockedSoftDeleteCards.mockResolvedValue(0);
+    mockedSoftDeleteDeck.mockResolvedValue(true);
+    mockedGetSubscriptionStatus.mockResolvedValue({
       userId: "6e5db9e4-7e48-4e11-8d8c-6ca90c18d42a",
-      deckId: "deck-1",
-      front: "Frage",
-      back: "Antwort",
-      type: "basic",
-      difficulty: "medium",
-      tags: [],
-      starred: false,
-      fsrsDue: "2026-01-01T00:00:00.000Z",
-      fsrsStability: 0,
-      fsrsDifficulty: 0,
-      fsrsState: "new",
-      fsrsReps: 0,
-      fsrsLapses: 0,
-      fsrsElapsedDays: 0,
-      fsrsScheduledDays: 0,
-      fsrsLearningSteps: 0,
-      fsrsLastReview: null,
-      deletedAt: null,
+      tier: "free",
+      isActive: false,
+      expiresAt: null,
     });
     mockedRecordScan.mockResolvedValue("scan-1");
   });
@@ -153,7 +165,8 @@ describe("pdfImportService", () => {
       "Biologie Skript",
       ["pdf-import"]
     );
-    expect(mockedCreateCard).toHaveBeenCalledTimes(1);
+    expect(mockedInsertCards).toHaveBeenCalledTimes(1);
+    expect(mockedInsertCards.mock.calls[0]?.[2]).toHaveLength(1);
     expect(mockedRecordScan).toHaveBeenCalledWith(
       "6e5db9e4-7e48-4e11-8d8c-6ca90c18d42a",
       "gemini-3-flash",

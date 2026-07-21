@@ -52,12 +52,22 @@ export const scanProcessRequestSchema = z.object({
   { message: "Either extractedText or imageBase64 must be provided" }
 );
 
+// #411: `cards` are the cards that were really saved. `generatedCount` says how
+// much the model found — if the two differ, the deck hit its plan limit and the
+// import was thinned out evenly over the whole material. Optional so results
+// cached before this change still fit the type.
+const importCountFields = {
+  generatedCount: z.number().int().nonnegative().optional(),
+  savedCount: z.number().int().nonnegative().optional(),
+};
+
 export const scanProcessResponseSchema = z.object({
   requestId: z.string().min(8),
   model: z.string().min(2),
   fallbackUsed: z.boolean().default(false),
   cards: flashcardListSchema,
-  deckTitle: z.string().min(1).max(100).optional()
+  deckTitle: z.string().min(1).max(100).optional(),
+  ...importCountFields,
 });
 
 export type ScanProcessResponse = z.infer<typeof scanProcessResponseSchema>;
@@ -81,6 +91,7 @@ export const urlImportResponseSchema = z.object({
   deckTitle: z.string().min(1).max(100).optional(),
   sourceUrl: z.string().url(),
   imagesUsed: z.number().int().nonnegative().default(0),
+  ...importCountFields,
 });
 
 export type UrlImportResponse = z.infer<typeof urlImportResponseSchema>;
@@ -243,6 +254,7 @@ export const pdfImportResponseSchema = z.object({
   fileName: z.string().min(1).max(200),
   pageCount: z.number().int().positive(),
   extractedCharacters: z.number().int().positive(),
+  ...importCountFields,
 });
 
 export type PdfImportResponse = z.infer<typeof pdfImportResponseSchema>;

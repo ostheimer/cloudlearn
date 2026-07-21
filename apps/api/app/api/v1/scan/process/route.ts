@@ -55,6 +55,8 @@ export async function POST(request: NextRequest) {
       requestId,
       userId,
       cards: result.cards.length,
+      // #411: differs from `cards` when the deck's plan limit thinned the import
+      cardsGenerated: result.generatedCount ?? result.cards.length,
       model: result.model,
       hasImage: Boolean(body.imageBase64),
       lpSpent: usage.lpSpent,

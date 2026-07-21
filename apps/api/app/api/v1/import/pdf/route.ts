@@ -78,6 +78,8 @@ export async function POST(request: NextRequest) {
       pageCount: result.pageCount,
       extractedCharacters: result.extractedCharacters,
       cards: result.cards.length,
+      // #411: differs from `cards` when the deck's plan limit thinned the import
+      cardsGenerated: result.generatedCount ?? result.cards.length,
       model: result.model,
       lpSpent: usage.lpSpent,
       lpBalance: usage.lpBalance,

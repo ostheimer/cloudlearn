@@ -162,6 +162,11 @@ export interface AiUsageResponse {
   lpCostUrlImport: number;
   lpCostPdfImport: number;
   periodStart: string | null;
+  /**
+   * Tarif-Grenzen (#411). Optional, weil ältere Server sie nicht mitschicken —
+   * die App darf ohne sie nur nicht mehr vorwarnen, nichts blockieren.
+   */
+  limits?: { maxDecks: number; maxCardsPerDeck: number };
 }
 
 export interface LpEarnResponse {
