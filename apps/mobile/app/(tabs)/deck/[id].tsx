@@ -1052,8 +1052,13 @@ export default function DeckDetailScreen() {
                       lineHeight: 22,
                     }}
                   >
-                    Noch keine Karten in diesem Deck.{"\n"}Tippe "+ Karte"
-                    oder scanne neuen Inhalt.
+                    {/* Nur "+ Karte" nennen: Dieser Bildschirm hat keinen Weg
+                        zum Scannen — weder Knopf noch Menüeintrag. Der Hinweis
+                        stand hier, seit ein Deck noch von Hand angelegt werden
+                        konnte; heute entstehen Decks nur über den Scan
+                        (scan.tsx) oder das Onboarding, sodass man hier nur
+                        landet, wenn man alle Karten selbst gelöscht hat. */}
+                    Noch keine Karten in diesem Deck.{"\n"}Tippe "+ Karte".
                   </Text>
                 </View>
           ) : (
