@@ -44,11 +44,15 @@ describe("Web-Import-Seite – Plan-Grenzen (#411)", () => {
     // Sonst schluckt `e.status === 402` sie nie — aber die Reihenfolge ist die
     // eigentliche Falle: Stünde der 402-Zweig zuerst, sähe die Nutzerin bei
     // einer Grenze „deine Lernpunkte reichen nicht" (#371).
-    const limitBranch = source.indexOf("const limitMessage = planLimitMessage(e);");
+    // Geprüft wird die Stelle des ZWEIGS, nicht die der Zuweisung darüber:
+    // Beim Mutationstest überlebte die Zuweisung das Entfernen des Zweigs, und
+    // eine Prüfung auf ihre Position hätte den Rückbau durchgewinkt.
+    const limitBranch = source.indexOf("if (limitMessage) {");
     const lpBranch = source.indexOf("e.status === 402");
     expect(limitBranch).toBeGreaterThan(-1);
     expect(lpBranch).toBeGreaterThan(-1);
     expect(limitBranch).toBeLessThan(lpBranch);
+    expect(source).toContain("setError(limitMessage);");
   });
 
   it("meldet ehrlich, wenn nicht alles ins Deck passte", () => {
