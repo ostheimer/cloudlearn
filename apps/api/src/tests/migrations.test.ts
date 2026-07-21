@@ -415,4 +415,59 @@ describe("supabase migrations", () => {
 
     expect(offenders).toEqual([]);
   });
+
+  it("leaves clients no write verb on profiles — not UPDATE, not INSERT, not DELETE", () => {
+    // profiles holds lp_balance and subscription_tier: the two columns that
+    // decide how many points somebody has and whether they get Pro. The RLS
+    // policy `users_own_profile` is `for all using (auth.uid() = id)` with no
+    // WITH CHECK — it only asks WHOSE row this is, never WHAT is in it. The
+    // grants are therefore the whole defence.
+    //
+    // 20260404140000 revoked UPDATE and re-granted five cosmetic columns,
+    // reasoning that "the client never writes profiles directly". True — but it
+    // left INSERT and DELETE granted, and those two together are the same
+    // escalation through another door: delete your own row, insert a fresh one
+    // with lp_balance 999999 and subscription_tier 'lifetime'. Closed on
+    // 21.07. by 20260721100000; verified against prod before and after (23505
+    // "duplicate key" before, 42501 "permission denied" after).
+    //
+    // Reading the migrations in apply order and demanding a REVOKE as the last
+    // word per verb keeps a later migration from quietly handing one back —
+    // Supabase's own `GRANT ALL ON ALL TABLES` in a future setup script would
+    // do exactly that.
+    const migrationDir = join(apiRoot, "supabase/migrations");
+    const statements = readdirSync(migrationDir)
+      .filter((file) => file.endsWith(".sql"))
+      .sort() // filenames are timestamps → lexical order is apply order
+      .flatMap((file) =>
+        (readFileSync(join(migrationDir, file), "utf-8")
+          .replace(/--[^\n]*/g, "") // comments quote the verbs; only real SQL counts
+          .match(/(?:grant|revoke)[^;]*\bprofiles\b[^;]*;/gi) ?? []
+        ).map((statement) => ({ file, sql: statement.toLowerCase() })),
+      );
+
+    // Column-scoped grants like `grant update (display_name, …)` are the
+    // deliberate exception: they hand back only cosmetic columns.
+    const isColumnScoped = (sql: string) => /\b(update|insert)\s*\(/.test(sql);
+
+    for (const verb of ["update", "insert", "delete"] as const) {
+      const touching = statements.filter(
+        ({ sql }) =>
+          new RegExp(`\\b${verb}\\b`).test(sql) &&
+          /\b(anon|authenticated)\b/.test(sql) &&
+          !isColumnScoped(sql),
+      );
+
+      expect(
+        touching.length,
+        `no migration revokes blanket ${verb.toUpperCase()} on profiles from clients`,
+      ).toBeGreaterThan(0);
+
+      expect(
+        touching.at(-1)?.sql.startsWith("revoke"),
+        `the last word on ${verb.toUpperCase()} for profiles is a GRANT (in ${touching.at(-1)?.file}) — ` +
+          "clients would be able to write lp_balance / subscription_tier again",
+      ).toBe(true);
+    }
+  });
 });
