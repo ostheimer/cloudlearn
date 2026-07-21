@@ -244,7 +244,17 @@ export default function ImportPage() {
         await importPdf(userId, pdfFileName ?? "Dokument.pdf", pdfBase64!, "de", idemKey);
       }
     } catch (e) {
-      if (isApiError(e) && e.status === 402) {
+      if (isApiError(e) && e.code === "DECK_LIMIT_REACHED") {
+        // Seit #371 unterscheidbar. Vorher deutete der pauschale 402-Zweig
+        // darunter auch das hier als "zu wenig Lernpunkte" — Lernpunkte lösen
+        // ein volles Konto aber nicht.
+        setError("Du hast schon die höchstmögliche Anzahl Decks. Mehr Platz gibt es mit Pro in der clearn-App.");
+      } else if (isApiError(e) && e.code === "DECK_FULL") {
+        setError("Das Ziel-Deck ist voll. Leg für den Rest ein zweites Deck an.");
+      } else if (isApiError(e) && e.code === "PAYWALL_REQUIRED") {
+        setError("Diese Funktion gehört zu Pro — Pro gibt es in der clearn-App.");
+      } else if (isApiError(e) && e.status === 402) {
+        // Bleibt der Auffang für INSUFFICIENT_LP.
         setError(
           "Dafür reichen deine Lernpunkte nicht. Neue Lernpunkte bekommst du durchs Lernen — Aufladen und Pro gibt es in der clearn-App."
         );

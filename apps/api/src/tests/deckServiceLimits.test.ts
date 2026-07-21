@@ -80,8 +80,10 @@ describe("deckService plan limits", () => {
     dbMocks.listDecks.mockResolvedValue(existingDecks(getLimitsForTier("free").maxDecks));
 
     await expect(duplicateDeckForUser(userId, sourceDeckId)).rejects.toMatchObject({
-      status: 402,
-      code: "PAYWALL_REQUIRED",
+      status: 409,
+      // Eigener Code seit #371 — vorher trug diese Ablehnung PAYWALL_REQUIRED
+      // und war damit nicht von "braucht Pro" unterscheidbar.
+      code: "DECK_LIMIT_REACHED",
     } satisfies Partial<HttpError>);
 
     expect(dbMocks.duplicateDeck).not.toHaveBeenCalled();
@@ -92,8 +94,10 @@ describe("deckService plan limits", () => {
     dbMocks.listDecks.mockResolvedValue(existingDecks(getLimitsForTier("free").maxDecks));
 
     await expect(importSharedDeck(userId, "share-token")).rejects.toMatchObject({
-      status: 402,
-      code: "PAYWALL_REQUIRED",
+      status: 409,
+      // Eigener Code seit #371 — vorher trug diese Ablehnung PAYWALL_REQUIRED
+      // und war damit nicht von "braucht Pro" unterscheidbar.
+      code: "DECK_LIMIT_REACHED",
     } satisfies Partial<HttpError>);
 
     expect(dbMocks.duplicateDeck).not.toHaveBeenCalled();

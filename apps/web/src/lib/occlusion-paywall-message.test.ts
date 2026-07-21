@@ -15,12 +15,23 @@ describe("web occlusion editor – paywall message", () => {
     "utf-8",
   ).replace(/\r\n/g, "\n");
 
-  it("beantwortet 402 mit der deutschen Pro-Meldung statt mit dem Server-Text", () => {
-    expect(source).toContain(
-      'if (isApiError(e) && e.status === 402) {\n        // Occlusion ist serverseitig eine Pro-Funktion (402/PAYWALL_REQUIRED).',
-    );
+  it("beantwortet das Pro-Gate mit der deutschen Meldung statt mit dem Server-Text", () => {
+    // Bedingung seit #371 auf den CODE geschärft, nicht mehr auf den Status:
+    // 402 trugen früher auch „Deck voll" und „zu viele Decks". Wer hier auf den
+    // Status prüfte, behauptete bei einem vollen Deck, Bild-Occlusion sei eine
+    // Pro-Funktion — obwohl sie freigeschaltet war und nur der Platz fehlte.
+    expect(source).toContain('if (isApiError(e) && e.code === "PAYWALL_REQUIRED") {');
     expect(source).toContain(
       'setError("Bild-Occlusion ist eine Pro-Funktion — Pro gibt es in der clearn-App.");',
+    );
+    // Der Status allein darf nirgends mehr über die Meldung entscheiden.
+    expect(source).not.toContain("e.status === 402");
+  });
+
+  it("nennt ein volles Deck beim Namen, statt es als Pro-Frage auszugeben (#371)", () => {
+    expect(source).toContain('if (isApiError(e) && e.code === "DECK_FULL") {');
+    expect(source).toContain(
+      'setError("Dieses Deck ist voll. Leg für weitere Karten ein zweites Deck an.");',
     );
   });
 

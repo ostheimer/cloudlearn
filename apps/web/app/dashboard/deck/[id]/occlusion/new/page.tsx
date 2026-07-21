@@ -154,11 +154,17 @@ export default function OcclusionEditorPage() {
         await Promise.allSettled(createdIds.map((id) => deleteCard(id)));
       }
       await supabase.storage.from(BUCKET).remove([path]).catch(() => {});
-      if (isApiError(e) && e.status === 402) {
-        // Occlusion ist serverseitig eine Pro-Funktion (402/PAYWALL_REQUIRED).
-        // Die rohe englische Server-Meldung wäre hier eine Sackgasse: das Web
-        // hat gar keinen Kaufweg (#368), gekauft wird nur in der App — also
-        // sagen wir genau das, statt „Upgrade to unlock it." ins Leere (#364).
+      if (isApiError(e) && e.code === "DECK_FULL") {
+        // Seit #371 unterscheidbar: Ein volles Deck ist KEINE Pro-Frage. Vorher
+        // fing der 402-Zweig darunter auch diesen Fall ab und behauptete,
+        // Bild-Occlusion sei eine Pro-Funktion — obwohl sie freigeschaltet war
+        // und nur der Platz fehlte.
+        setError("Dieses Deck ist voll. Leg für weitere Karten ein zweites Deck an.");
+      } else if (isApiError(e) && e.code === "PAYWALL_REQUIRED") {
+        // Occlusion ist serverseitig eine Pro-Funktion. Die rohe englische
+        // Server-Meldung wäre hier eine Sackgasse: das Web hat gar keinen
+        // Kaufweg (#368), gekauft wird nur in der App — also sagen wir genau
+        // das, statt „Upgrade to unlock it." ins Leere (#364).
         setError("Bild-Occlusion ist eine Pro-Funktion — Pro gibt es in der clearn-App.");
       } else {
         setError(isApiError(e) ? e.message : e instanceof Error ? e.message : "Speichern fehlgeschlagen.");

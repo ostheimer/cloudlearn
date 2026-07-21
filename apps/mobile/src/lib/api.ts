@@ -85,7 +85,13 @@ async function request<T>(
 
   if (!res.ok) {
     const code = (body as { code?: string } | null)?.code;
-    // Auto-open paywall when the server signals quota exceeded
+    // Die Bezahlschranke öffnet sich NUR noch beim echten Pro-Gate.
+    //
+    // Vorher trugen auch "Deck voll" und "zu viele Decks" den Code
+    // PAYWALL_REQUIRED, weshalb ein Pro-Nutzer mit vollem Deck aufgefordert
+    // wurde, Pro zu kaufen (#371). Seit dem Server-Fix haben die Grenzen ihre
+    // eigenen Codes; ob dort ein Kauf hilft, entscheidet der Bildschirm über
+    // adviceForLimit() — der kennt den Tarif der Nutzerin.
     if (res.status === 402 && code === "PAYWALL_REQUIRED") {
       _paywallTrigger?.();
     }
