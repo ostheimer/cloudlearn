@@ -14,12 +14,20 @@ interface QueueState {
   hydrated: boolean;
   syncing: boolean;
   lastSyncedAt: string | null;
+  /**
+   * Wie viele Wiederholungen der Server ENDGÜLTIG abgelehnt hat, seit die
+   * Nutzerin es zuletzt zur Kenntnis genommen hat. Die zählt niemand mehr —
+   * darum darf das nicht still passieren (#418). Der Lern-Bildschirm zeigt
+   * dafür sein vorhandenes Hinweis-Banner; Antippen quittiert (acknowledgeRejected).
+   */
+  rejectedCount: number;
 }
 
 interface PersistedQueueState {
   pending: ReviewSyncOperation[];
   inFlight: ReviewSyncOperation[];
   lastSyncedAt: string | null;
+  rejectedCount?: number;
 }
 
 const initialQueueState: QueueState = {
@@ -28,6 +36,7 @@ const initialQueueState: QueueState = {
   hydrated: false,
   syncing: false,
   lastSyncedAt: null,
+  rejectedCount: 0,
 };
 
 function toPersistedQueue(queue: QueueState): PersistedQueueState {
@@ -35,6 +44,10 @@ function toPersistedQueue(queue: QueueState): PersistedQueueState {
     pending: queue.pending,
     inFlight: queue.inFlight,
     lastSyncedAt: queue.lastSyncedAt,
+    // Mitgesichert, damit der Hinweis einen App-Neustart überlebt: Der
+    // Hintergrund-Abgleich läuft beim Start, der Lern-Bildschirm wird
+    // vielleicht erst viel später geöffnet.
+    rejectedCount: queue.rejectedCount,
   };
 }
 
@@ -103,6 +116,17 @@ function markOperationsInFlight(
   };
 }
 
+/**
+ * Abschluss einer Sendung.
+ *
+ * FERTIG ist nur zweierlei: angenommen (gespeichert) und endgültig abgelehnt
+ * (wird nie gutgehen). Alles andere — vorübergehend gescheitert oder vom Server
+ * gar nicht erwähnt — ist unerledigte Arbeit und gehört zurück in `pending`.
+ *
+ * Vorher galt „abgelehnt" wie „angenommen" und alles Unerwähnte blieb für immer
+ * in `inFlight` hängen (verschickt wird ausschließlich `pending`). Beides hat
+ * offline gelernte Antworten still verschluckt — das war #418.
+ */
 function finalizeOperations(
   state: QueueState,
   acceptedOperationIds: string[],
@@ -114,14 +138,7 @@ function finalizeOperations(
     ...rejectedOperationIds,
   ]);
 
-  if (finished.size === 0) {
-    return {
-      ...state,
-      lastSyncedAt: serverTimestamp,
-    };
-  }
-
-  return {
+  const settled: QueueState = {
     ...state,
     pending: state.pending.filter(
       (operation) => !finished.has(operation.operationId)
@@ -130,7 +147,13 @@ function finalizeOperations(
       (operation) => !finished.has(operation.operationId)
     ),
     lastSyncedAt: serverTimestamp,
+    rejectedCount: state.rejectedCount + rejectedOperationIds.length,
   };
+
+  // Was JETZT noch in inFlight liegt, ist nicht mehr unterwegs — die Antwort
+  // des Servers ist ja da. Ohne diesen Schritt bliebe es dort liegen, ohne je
+  // wieder verschickt zu werden.
+  return requeueInFlight(settled);
 }
 
 function requeueInFlight(
@@ -235,6 +258,8 @@ interface OfflineQueueState {
   ) => void;
   restoreInFlight: (operationIds?: string[]) => void;
   setSyncing: (syncing: boolean) => void;
+  /** Hinweis auf endgültig abgelehnte Wiederholungen zur Kenntnis genommen. */
+  acknowledgeRejected: () => void;
   clear: () => void;
 }
 
@@ -249,14 +274,20 @@ export const useOfflineQueueStore = create<OfflineQueueState>((set, get) => ({
       const raw = await AsyncStorage.getItem(OFFLINE_QUEUE_STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as PersistedQueueState;
+        // Beim Laden kann nichts wirklich „unterwegs" sein: Die App wurde neu
+        // gestartet, die Anfrage von damals gibt es nicht mehr. Alles aus
+        // inFlight gehört zurück nach pending — sonst bliebe es dort liegen und
+        // würde nie wieder verschickt. Das rettet auch Einträge, die ein
+        // älterer Build dort hat hängen lassen.
         set({
-          queue: {
+          queue: requeueInFlight({
             pending: parsed.pending ?? [],
             inFlight: parsed.inFlight ?? [],
             lastSyncedAt: parsed.lastSyncedAt ?? null,
+            rejectedCount: parsed.rejectedCount ?? 0,
             hydrated: true,
             syncing: false,
-          },
+          }),
         });
         return;
       }
@@ -304,6 +335,10 @@ export const useOfflineQueueStore = create<OfflineQueueState>((set, get) => ({
         syncing,
       },
     })),
+  acknowledgeRejected: () =>
+    applyQueueUpdate(set, (queue) =>
+      queue.rejectedCount === 0 ? queue : { ...queue, rejectedCount: 0 }
+    ),
   clear: () =>
     {
       const queue = {
@@ -319,7 +354,10 @@ export async function syncPendingReviewOperations(
   userId: string
 ): Promise<{
   synced: number;
+  /** Endgültig abgelehnt — aus der Warteschlange entfernt, zählt nie mehr. */
   rejected: number;
+  /** Vorübergehend gescheitert — liegt wieder in pending, kommt beim nächsten Anlauf dran. */
+  retrying: number;
 } | null> {
   await useOfflineQueueStore.getState().initialize();
 
@@ -347,9 +385,19 @@ export async function syncPendingReviewOperations(
       result.rejectedOperationIds,
       result.serverTimestamp
     );
+    // Bewusst ABGELEITET statt aus einem neuen Antwortfeld gelesen: Diese Zahl
+    // stimmt dadurch immer exakt mit dem überein, was finalizeSync gerade
+    // zurück in die Warteschlange gelegt hat — und sie stimmt auch gegen einen
+    // älteren Server, der failedOperationIds noch gar nicht kennt.
+    const retrying =
+      pending.length -
+      result.acceptedOperationIds.length -
+      result.rejectedOperationIds.length;
+
     return {
       synced: result.acceptedOperationIds.length,
       rejected: result.rejectedOperationIds.length,
+      retrying: Math.max(retrying, 0),
     };
   } catch (error) {
     useOfflineQueueStore.getState().restoreInFlight(operationIds);
