@@ -455,7 +455,6 @@ CREATE TABLE decks (
   title TEXT NOT NULL,
   description TEXT,
   tags TEXT[],
-  card_count INT DEFAULT 0,
   is_public BOOLEAN DEFAULT false,
   cover_image_url TEXT,
   deleted_at TIMESTAMPTZ,

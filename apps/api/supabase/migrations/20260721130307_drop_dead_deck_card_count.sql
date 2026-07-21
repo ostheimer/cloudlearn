@@ -1,0 +1,32 @@
+-- `decks.card_count` entfernen — eine Spalte, die aussah wie eine Angabe, aber
+-- keine war (#407).
+--
+-- Angelegt in 20260209230000_init.sql:25 als `int not null default 0` und
+-- seitdem NIE gepflegt: kein Trigger, keine Anwendung, kein Job schrieb je
+-- hinein. Die echte Kartenzahl wird bei jeder Abfrage frisch gezählt
+-- (`cards(count)`-Embed in listDecks) — deshalb ist die Anzeige korrekt,
+-- obwohl die Spalte es nicht ist.
+--
+-- Vor dem Entfernen in Prod nachgemessen:
+--   120 Decks, davon 1 mit einem Wert ungleich 0
+--   0 abhängige Objekte (pg_depend), 0 Indizes
+--
+-- Die eine Zeile: Deck "Deutsch Vokabeln" (59f11d2c-b796-48ac-ac12-021a9b5d9a6d,
+-- angelegt 16.02.), card_count = 3 — und das stimmt sogar, das Deck hat
+-- tatsächlich 3 Karten. Nicht weil die Spalte gepflegt würde, sondern weil sie
+-- einmal beim Anlegen gesetzt wurde und sich seither nichts geändert hat.
+--
+-- Genau das macht sie gefährlich statt harmlos: Bei einer Stichprobe sieht sie
+-- plausibel aus. Wer sie prüft, indem er ein Deck anschaut, hält sie für
+-- gepflegt — und liest bei den anderen 119 eine 0.
+--
+-- Warum überhaupt anfassen: Eine Spalte namens card_count in der Deck-Tabelle
+-- ist eine Falle. Wer sie das nächste Mal sieht, hält sie für die Kartenzahl
+-- und liest sie aus — und bekommt bei 119 von 120 Decks eine 0. Genau diese
+-- Verwechslung stand am Anfang von #407.
+--
+-- Falls je eine gespeicherte Kartenzahl gebraucht wird (etwa weil das Zählen
+-- bei sehr vielen Decks zu teuer wird), gehört sie mit einem Trigger oder als
+-- generierte Spalte angelegt — nicht als Zahl, die niemand pflegt.
+
+alter table public.decks drop column if exists card_count;
