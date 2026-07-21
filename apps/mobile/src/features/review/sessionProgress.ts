@@ -14,6 +14,17 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const STORAGE_PREFIX = "review-progress:";
 
+/**
+ * Study modes that keep a resumable position. Both run over the whole deck in a
+ * stable order, so an index means the same thing next time.
+ *
+ * Quiz (10 questions) and Zuordnen (6 pairs) are short enough that restarting
+ * costs less than the extra tap. Test is left out on purpose: its questions are
+ * re-drawn on every start (which card becomes multiple-choice, in what order the
+ * options sit), so a position alone would resume a quiz that no longer exists.
+ */
+export type ProgressMode = "flashcards" | "cloze";
+
 export interface SessionProgress {
   /** Zero-based index of the card the learner stopped on. */
   index: number;
@@ -27,8 +38,12 @@ export interface SessionProgress {
   total: number;
 }
 
-function storageKey(deckId: string): string {
-  return `${STORAGE_PREFIX}${deckId}`;
+// The mode belongs in the key: one deck can have a Karteikarten session and a
+// Lückentext session interrupted at the same time, and they are different piles
+// (Lückentext only studies typeable cards). A shared key would let whichever
+// mode was used last silently overwrite the other one's position.
+function storageKey(deckId: string, mode: ProgressMode): string {
+  return `${STORAGE_PREFIX}${mode}:${deckId}`;
 }
 
 /** Parse stored JSON; null for missing, corrupt or implausible values. */
@@ -74,26 +89,33 @@ export function isProgressUsable(
 
 export async function saveSessionProgress(
   deckId: string,
+  mode: ProgressMode,
   progress: SessionProgress
 ): Promise<void> {
   try {
-    await AsyncStorage.setItem(storageKey(deckId), JSON.stringify(progress));
+    await AsyncStorage.setItem(storageKey(deckId, mode), JSON.stringify(progress));
   } catch {
     // Best-effort — losing the marker costs a resume offer, never a rating.
   }
 }
 
-export async function loadSessionProgress(deckId: string): Promise<SessionProgress | null> {
+export async function loadSessionProgress(
+  deckId: string,
+  mode: ProgressMode
+): Promise<SessionProgress | null> {
   try {
-    return parseSessionProgress(await AsyncStorage.getItem(storageKey(deckId)));
+    return parseSessionProgress(await AsyncStorage.getItem(storageKey(deckId, mode)));
   } catch {
     return null;
   }
 }
 
-export async function clearSessionProgress(deckId: string): Promise<void> {
+export async function clearSessionProgress(
+  deckId: string,
+  mode: ProgressMode
+): Promise<void> {
   try {
-    await AsyncStorage.removeItem(storageKey(deckId));
+    await AsyncStorage.removeItem(storageKey(deckId, mode));
   } catch {
     // Best-effort — a leftover entry is offered, not applied, so it can be declined.
   }

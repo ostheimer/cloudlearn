@@ -80,7 +80,7 @@ export default function DeckReviewScreen() {
   useEffect(() => {
     if (!id) return;
     let active = true;
-    void loadSessionProgress(id).then((progress) => {
+    void loadSessionProgress(id, "flashcards").then((progress) => {
       if (active) setSaved(progress);
     });
     return () => {
