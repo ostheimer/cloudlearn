@@ -3193,6 +3193,17 @@ a.lp-pill:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
 }
+/* #411: An der Deck-Grenze legt kein Weg mehr ein Deck an — die Kachel sichtbar
+   abschalten, statt die Nutzerin erst nach dem Bezahlen abzuweisen. */
+.source-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  box-shadow: none;
+}
+.source-card:disabled:hover {
+  transform: none;
+  box-shadow: none;
+}
 .source-card__chevron {
   flex: none;
   opacity: 0.65;

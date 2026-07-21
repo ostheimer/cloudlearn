@@ -372,6 +372,11 @@ export interface ScanResponse {
   cards: Flashcard[];
   deckTitle?: string;
   usage?: { lpSpent: number; lpBalance: number };
+  // #411: Wie viele Karten die KI erkannt hat und wie viele davon wirklich ins
+  // Deck passten. Weichen sie ab, hat die Tarifgrenze gleichmäßig ausgedünnt.
+  // Optional, weil ein älterer Server sie nicht mitschickt.
+  generatedCount?: number;
+  savedCount?: number;
 }
 
 export interface UrlImportResponse extends ScanResponse {
@@ -396,6 +401,10 @@ export interface AiUsageResponse {
   lpCostUrlImport: number;
   lpCostPdfImport: number;
   periodStart?: string | null;
+  // #411: Die Tarifgrenzen, damit der Client sie kennt, BEVOR Lernpunkte
+  // fließen. Optional, weil ein älterer Server sie nicht mitschickt — fehlen
+  // sie, wird nichts gesperrt (siehe src/lib/import-limits.ts).
+  limits?: { maxDecks: number; maxCardsPerDeck: number };
 }
 
 function importIdempotencyKey(prefix: string): string {
