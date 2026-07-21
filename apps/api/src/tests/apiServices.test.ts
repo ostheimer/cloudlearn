@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { createSignedUploadUrl, isSignedUrlExpired } from "@/lib/r2";
 import { checkRateLimit } from "@/lib/rateLimit";
 
 // NOTE: Service tests that depend on Supabase are now integration tests.
@@ -8,16 +7,12 @@ import { checkRateLimit } from "@/lib/rateLimit";
 
 const userId = "6e5db9e4-7e48-4e11-8d8c-6ca90c18d42a";
 
+// The R2 signed-upload helper used to be covered here. It was removed with
+// POST /api/v1/upload/sign in #425: no client ever called the route, every
+// R2_* setting was optional, the real image upload runs through Supabase
+// Storage, and the "signature" was a custom HMAC, not an S3 SigV4 presign.
+
 describe("api services — unit tests (no DB required)", () => {
-  it("creates expiring signed upload URLs", () => {
-    const signed = createSignedUploadUrl(`${userId}/image.png`, "image/png");
-    const expires = Number(new URL(signed.url).searchParams.get("expires"));
-
-    expect(signed.url).toContain("signature=");
-    expect(expires).toBeGreaterThan(Date.now());
-    expect(isSignedUrlExpired(expires - 10, expires)).toBe(true);
-  });
-
   it("fails open on rate limiting when Supabase is unavailable", async () => {
     // Rate-limit state now lives in Postgres (the check_rate_limit RPC), so this
     // is no longer an in-memory unit. With no DB client configured — or on any

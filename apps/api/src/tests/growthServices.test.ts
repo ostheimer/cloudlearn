@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { createB2bClass, listB2bClasses, resetB2bStore } from "@/services/b2bService";
 import {
   completePdfJob,
   enqueuePdfImport,
@@ -7,19 +6,17 @@ import {
   markPdfJobProcessing,
   resetPdfJobs,
 } from "@/services/pdfImportService";
-import {
-  listCommunityDecks,
-  publishCommunityDeck,
-  resetCommunityDeckStore,
-} from "@/services/communityDeckService";
+
+// The community-deck and B2B-class services used to be covered here too. Both
+// were removed with their routes in #425: they kept their records in a module
+// array, so every serverless cold start began with an empty list and a
+// "201 Created" was a promise the API could not keep.
 
 const userId = "6e5db9e4-7e48-4e11-8d8c-6ca90c18d42a";
 
 describe("growth services — unit tests (in-memory, no DB)", () => {
   beforeEach(() => {
     resetPdfJobs();
-    resetCommunityDeckStore();
-    resetB2bStore();
   });
 
   it("handles PDF import queue and retries", () => {
@@ -27,40 +24,6 @@ describe("growth services — unit tests (in-memory, no DB)", () => {
     expect(markPdfJobProcessing(job.jobId)?.status).toBe("processing");
     expect(failPdfJob(job.jobId)?.status).toBe("queued");
     expect(completePdfJob(job.jobId)?.status).toBe("completed");
-  });
-
-  it("flags abusive community decks", () => {
-    publishCommunityDeck({
-      userId,
-      deckId: "2d0afe28-6be8-46fb-a85a-df88d3db9f5f",
-      title: "Normales Deck",
-      description: "hilfreich",
-    });
-    publishCommunityDeck({
-      userId,
-      deckId: "6f0ff1ad-8f34-4b06-9ef2-6d4f6cda95f1",
-      title: "Scam Angebot",
-      description: "spam content",
-    });
-
-    expect(listCommunityDecks("approved")).toHaveLength(1);
-    expect(listCommunityDecks("flagged")).toHaveLength(1);
-  });
-
-  it("isolates B2B classes by tenant", () => {
-    createB2bClass({
-      tenantId: "school-a",
-      teacherUserId: userId,
-      className: "10A",
-    });
-    createB2bClass({
-      tenantId: "school-b",
-      teacherUserId: "0b25d170-8d32-47f0-9e4a-5631161fb2b4",
-      className: "11B",
-    });
-
-    expect(listB2bClasses("school-a")).toHaveLength(1);
-    expect(listB2bClasses("school-b")).toHaveLength(1);
   });
 });
 
