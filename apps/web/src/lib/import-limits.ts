@@ -46,11 +46,23 @@ export const DECK_LIMIT_LABEL = "Deck-Grenze erreicht";
  * an. Im Browser wäre das eine Sackgasse: Diesen Weg gibt es hier nicht
  * (#427). Laras Entscheidung 21.07.: den halben Satz weglassen, den Rest
  * wörtlich lassen.
+ *
+ * Der Ton weicht seit 21.07. bewusst von der App ab und folgt `planLimitMessage`
+ * unten: Zustand voran statt Anrede („20 von 20 Decks sind belegt" statt „Du
+ * hast …"). Beide Zahlen bleiben stehen, damit nachvollziehbar ist, woran die
+ * Grenze hängt.
+ *
+ * „Im Browser" ist keine Floskel, sondern die Einschränkung, die den Satz erst
+ * wahr macht: Die App fragt nach dem Scannen „Neues Deck" oder „Bestehendes
+ * Deck" (`handleSaveToExistingDeck` in apps/mobile/app/(tabs)/scan.tsx) — dort
+ * legt ein Scan also NICHT immer ein neues Deck an. Ohne die Einschränkung liest
+ * sich der Satz als allgemeine Regel und widerspricht dem, was die Nutzerin auf
+ * dem Handy sieht; von Lara am 21.07. genau so bemängelt.
  */
 export function deckLimitMessage(deckCount: number, maxDecks: number): string {
   return (
-    `Du hast ${deckCount} von ${maxDecks} Decks. ` +
-    "Jeder Scan legt ein neues Deck an — lösche zuerst ein Deck in der Bibliothek."
+    `${deckCount} von ${maxDecks} Decks sind belegt. ` +
+    "Im Browser legt jeder Scan ein neues Deck an — lösche bitte zuerst ein Deck in der Bibliothek."
   );
 }
 
@@ -135,10 +147,12 @@ export function isPlanLimitError(error: unknown): boolean {
 export function planLimitMessage(error: unknown): string | null {
   const { code } = asErrorLike(error);
   if (code === "DECK_LIMIT_REACHED") {
+    // „Im Browser" wie in deckLimitMessage oben — in der App darf ein Scan sehr
+    // wohl in ein bestehendes Deck.
     return (
-      "Die Deck-Grenze deines Tarifs ist erreicht. Jeder Scan legt ein neues " +
-      "Deck an — lösche bitte zuerst ein Deck in der Bibliothek. Die Lernpunkte " +
-      "wurden zurückgebucht."
+      "Die Deck-Grenze deines Tarifs ist erreicht. Im Browser legt jeder Scan " +
+      "ein neues Deck an — lösche bitte zuerst ein Deck in der Bibliothek. " +
+      "Die Lernpunkte wurden zurückgebucht."
     );
   }
   if (code === "DECK_FULL") {

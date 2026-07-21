@@ -45,8 +45,33 @@ describe("Deck-Grenze im Browser (#411)", () => {
     // ein bestehendes Deck" ist im Browser eine Sackgasse. Man liest ihn, sucht
     // die Möglichkeit und findet sie nicht.
     const message = deckLimitMessage(20, 20);
-    expect(message).toContain("lösche zuerst ein Deck in der Bibliothek");
+    // Absichtlich als Muster und nicht wörtlich: Geprüft gehört, DASS der Satz
+    // zum Löschen in der Bibliothek führt — nicht, mit welchen Höflichkeits-
+    // wörtern. Die wörtliche Fassung schlug beim Ton-Wechsel am 21.07. an,
+    // obwohl inhaltlich nichts fehlte; solche Tests gewöhnt man sich ab, achtlos
+    // nachzuziehen, und übersieht dann den Tag, an dem sie recht haben.
+    expect(message).toMatch(/lösche .*ein Deck in der Bibliothek/);
     expect(message).not.toContain("bestehendes Deck");
+  });
+
+  it("behauptet die Scan-Regel nie unqualifiziert — in der App gilt sie nicht", () => {
+    // Die App fragt nach dem Scannen „Neues Deck" oder „Bestehendes Deck"
+    // (`handleSaveToExistingDeck`, apps/mobile/app/(tabs)/scan.tsx). Ein Satz
+    // wie „Jeder Scan legt ein neues Deck an" ohne Einschränkung widerspricht
+    // dem, was die Nutzerin auf dem Handy sieht — am 21.07. von Lara bemängelt.
+    //
+    // Bedingt formuliert und nicht am Wortlaut festgenagelt: Wer die Behauptung
+    // ganz streicht, hat das Problem ebenfalls gelöst und soll nicht scheitern.
+    // Rot wird es nur, wenn sie unqualifiziert wieder auftaucht.
+    const messages = [
+      deckLimitMessage(20, 20),
+      planLimitMessage({ code: "DECK_LIMIT_REACHED" }) ?? "",
+    ];
+    for (const message of messages) {
+      if (/jeder Scan legt ein neues Deck/i.test(message)) {
+        expect(message).toMatch(/Im Browser legt jeder Scan ein neues Deck/);
+      }
+    }
   });
 });
 
