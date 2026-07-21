@@ -7,6 +7,9 @@ function input(overrides: Partial<LearnFocusInput> = {}): LearnFocusInput {
     presetToken: 0,
     seenPresetToken: 0,
     loadedKey: null,
+    // Standard: die Karten gehoeren dem Lern-Tab selbst. Faelle, die eine
+    // fremde Herkunft pruefen, setzen es ausdruecklich.
+    cardsOwner: "__global__",
     cardCount: 0,
     completed: false,
     ...overrides,
@@ -90,7 +93,60 @@ describe("decideOnLearnFocus", () => {
 
   it("behält die Karten desselben Decks bei erneutem Fokus", () => {
     expect(
-      decideOnLearnFocus(input({ deckId: "deck-A", loadedKey: "deck-A", cardCount: 12 }))
+      decideOnLearnFocus(
+        input({ deckId: "deck-A", loadedKey: "deck-A", cardsOwner: "deck-A", cardCount: 12 })
+      )
+    ).toEqual({ type: "keep" });
+  });
+
+  // ── Zweiter Teil von #282: der Tab bleibt auf fremden Karten stehen ──────
+  //
+  // `loadedKey` ist ein useRef und damit PRO Komponenten-Instanz. Lern-Tab und
+  // /deck-review sind verschiedene Instanzen: Eine Deck-Übung setzt IHREN
+  // Merker, der Tab behält seinen auf "__global__". Der Kartenspeicher ist
+  // dagegen modulglobal. Zurück im Tab passte der eigene Merker also weiterhin,
+  // im Speicher lagen aber die Übungskarten — und der Tab zeigte sie weiter,
+  // bis jemand von Hand "Neu laden" tippte.
+  //
+  // Deshalb entscheidet jetzt die Herkunft AN DEN KARTEN (`cardsOwner`), nicht
+  // die Notiz dieses Bildschirms.
+
+  it("lädt neu, wenn nach einer Deck-Übung fremde Karten im Speicher liegen (#282)", () => {
+    expect(
+      decideOnLearnFocus(
+        input({
+          loadedKey: "__global__", // der EIGENE Merker stimmt weiterhin …
+          cardsOwner: "deck-abc", // … die Karten gehören aber der Deck-Übung
+          cardCount: 7,
+        })
+      )
+    ).toEqual({ type: "load" });
+  });
+
+  it("lädt neu, wenn die Herkunft der Karten unbekannt ist", () => {
+    // `practice` und „Wackelkandidaten üben" rufen start() ohne Eigentümer.
+    // Unbekannt zählt als fremd — lieber einmal zu viel nachladen, als der
+    // Nutzerin Karten unterschieben, die sie nicht angefordert hat.
+    expect(
+      decideOnLearnFocus(input({ loadedKey: "__global__", cardsOwner: null, cardCount: 5 }))
+    ).toEqual({ type: "load" });
+  });
+
+  it("behält die EIGENEN Karten des Lern-Tabs", () => {
+    // Die Gegenprobe: Ohne sie wäre "lade immer neu" auch eine bestandene
+    // Lösung — und der Tab würde bei jedem Fokus unnötig nachladen.
+    expect(
+      decideOnLearnFocus(input({ loadedKey: "__global__", cardsOwner: "__global__", cardCount: 12 }))
+    ).toEqual({ type: "keep" });
+  });
+
+  it("reißt einen durchgelaufenen Ergebnisbildschirm nicht weg", () => {
+    // Leerer Speicher + completed: Da ist nichts zu verwechseln, und ein
+    // Nachladen würde das Ergebnis wegwischen, bevor die Nutzerin es liest.
+    expect(
+      decideOnLearnFocus(
+        input({ loadedKey: "__global__", cardsOwner: "deck-abc", cardCount: 0, completed: true })
+      )
     ).toEqual({ type: "keep" });
   });
 

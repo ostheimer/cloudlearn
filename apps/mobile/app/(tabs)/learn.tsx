@@ -41,6 +41,7 @@ import * as Speech from "expo-speech";
 import {
   useReviewSession,
   missedCardsFrom,
+  GLOBAL_OWNER,
   type ReviewRating,
 } from "../../src/features/review/reviewSession";
 import { decideOnLearnFocus } from "../../src/features/review/learnFocusDecision";
@@ -165,7 +166,7 @@ function AuthenticatedLearnScreen({
   const { t } = useTranslation();
   const router = useRouter();
   const c = useColors();
-  const { cards, index, revealed, completed, swipedLeft, swipedRight, history, ratingHistory, presetToken, start, reveal, rateCurrent, canGoBack, goBack } =
+  const { cards, index, revealed, completed, swipedLeft, swipedRight, history, ratingHistory, presetToken, cardsOwner, start, reveal, rateCurrent, canGoBack, goBack } =
     useReviewSession();
 
   // Studying IS using the deck (#415). Only for a single-deck session — the
@@ -343,10 +344,13 @@ function AuthenticatedLearnScreen({
         setStarredMap(starMap);
         start(
           loaded.map((card) => ({ id: card.id, front: card.front, back: card.back, starred: card.starred })),
-          initialIndex ?? 0
+          initialIndex ?? 0,
+          // Herkunft an die Karten heften, damit dieser Bildschirm sie beim
+          // nächsten Fokus als seine erkennt — und fremde nicht (#282).
+          deckId ?? GLOBAL_OWNER
         );
       } else {
-        start([]);
+        start([], 0, deckId ?? GLOBAL_OWNER);
       }
     } catch {
       // Distinguish a load failure (offline / server error) from a genuinely
@@ -398,6 +402,7 @@ function AuthenticatedLearnScreen({
         presetToken,
         seenPresetToken: seenPresetRef.current,
         loadedKey: loadedKeyRef.current,
+        cardsOwner,
         cardCount: cards.length,
         completed,
       });
