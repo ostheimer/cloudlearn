@@ -136,15 +136,19 @@ export function planLimitMessage(error: unknown): string | null {
   const { code } = asErrorLike(error);
   if (code === "DECK_LIMIT_REACHED") {
     return (
-      "Du hast die Deck-Grenze deines Tarifs erreicht. Jeder Scan legt ein neues " +
-      "Deck an — lösche zuerst ein Deck in der Bibliothek. Deine Lernpunkte " +
+      "Die Deck-Grenze deines Tarifs ist erreicht. Jeder Scan legt ein neues " +
+      "Deck an — lösche bitte zuerst ein Deck in der Bibliothek. Die Lernpunkte " +
       "wurden zurückgebucht."
     );
   }
   if (code === "DECK_FULL") {
+    // Von DIESER Seite aus heute nicht erreichbar: Der Fall entsteht nur beim
+    // Schreiben in ein bestehendes Deck, und im Browser wählt man keins aus —
+    // jeder Import legt sein eigenes neues Deck an, das nie voll ist. Der Zweig
+    // steht hier für #427, das die Deck-Auswahl nachliefert.
     return (
-      "In dieses Deck passt keine Karte mehr. Es wurde nichts gespeichert, deine " +
-      "Lernpunkte wurden zurückgebucht."
+      "In dieses Deck passt keine weitere Karte. Es wurde nichts gespeichert, " +
+      "die Lernpunkte wurden zurückgebucht."
     );
   }
   return null;
