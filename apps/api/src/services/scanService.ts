@@ -3,13 +3,15 @@ import {
   scanProcessRequestSchema,
   type ScanProcessResponse,
 } from "@/lib/contracts";
-import { createCard, createDeck, getDeck, recordScan } from "@/lib/db";
+import { recordScan } from "@/lib/db";
 import { getIdempotentResult, storeIdempotentResult } from "@/lib/idempotencyStore";
+import { reserveImportTarget, storeImportedCards } from "@/lib/importCapacity";
 import {
   generateFlashcardsAsync,
   generateFlashcardsFromImageAsync,
   type LLMGenerationResult,
 } from "@/lib/llm";
+import { getSubscriptionStatus } from "@/services/subscriptionService";
 
 export async function processScan(
   input: unknown,
@@ -23,6 +25,12 @@ export async function processScan(
   if (existing) {
     return existing;
   }
+
+  // Plan limits apply to the AI paths too (#411). Checked BEFORE the model runs
+  // so a full deck neither costs a generation nor keeps the user's Lernpunkte:
+  // throwing here makes the route refund them.
+  const { tier } = await getSubscriptionStatus(userId);
+  const target = await reserveImportTarget({ userId, tier, deckId: parsed.deckId });
 
   let generated: LLMGenerationResult;
 
@@ -46,23 +54,22 @@ export async function processScan(
 
   const cards = flashcardListSchema.parse(generated.cards);
 
-  // Use authenticated userId instead of body userId; getDeck enforces ownership,
-  // so an unknown or foreign deckId falls back to creating a fresh deck
-  let deck = parsed.deckId ? await getDeck(parsed.deckId, userId) : null;
-  if (!deck) {
-    // Use AI-generated title instead of generic "Automatisch erstellt"
-    deck = await createDeck(userId, generated.title, ["scan"]);
-  }
+  // Uses the AI-generated title for a new deck instead of a generic one.
+  const stored = await storeImportedCards({
+    userId,
+    tier,
+    target,
+    title: generated.title,
+    tags: ["scan"],
+    cards,
+  });
 
-  for (const card of cards) {
-    await createCard(userId, deck.id, card);
-  }
-
-  // Record scan in history
+  // Record scan in history — the number that was really saved, not the number
+  // the model produced.
   await recordScan(
     userId,
     generated.model,
-    cards.length,
+    stored.savedCount,
     "",
     parsed.extractedText ?? undefined
   );
@@ -71,8 +78,10 @@ export async function processScan(
     requestId,
     model: generated.model,
     fallbackUsed: generated.fallbackUsed,
-    cards,
+    cards: stored.savedCards,
     deckTitle: generated.title,
+    generatedCount: stored.generatedCount,
+    savedCount: stored.savedCount,
   };
 
   await storeIdempotentResult(parsed.idempotencyKey, response);

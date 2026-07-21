@@ -101,8 +101,9 @@ describe("contracts", () => {
 describe("featureGates", () => {
   it("free tier has finite deck and card limits", () => {
     const limits = getLimitsForTier("free");
-    expect(limits.maxDecks).toBe(10);
-    expect(limits.maxCardsPerDeck).toBe(100);
+    // #411: von 10/100 angehoben — ein Kapitel-Scan erzeugt heute 100+ Karten.
+    expect(limits.maxDecks).toBe(20);
+    expect(limits.maxCardsPerDeck).toBe(150);
   });
 
   it("free tier has LP costs for AI features", () => {

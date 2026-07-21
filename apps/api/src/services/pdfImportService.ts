@@ -10,11 +10,13 @@ import {
   type PdfImportJob,
   type PdfImportResponse,
 } from "@/lib/contracts";
-import { createCard, createDeck, getDeck, recordScan } from "@/lib/db";
+import { recordScan } from "@/lib/db";
 import { getIdempotentResult, storeIdempotentResult } from "@/lib/idempotencyStore";
+import { reserveImportTarget, storeImportedCards } from "@/lib/importCapacity";
 import { generateFlashcardsAsync } from "@/lib/llm";
 import { extractPdfText } from "@/lib/pdf";
 import { sanitizeFileName } from "@/lib/sanitize";
+import { getSubscriptionStatus } from "@/services/subscriptionService";
 
 const jobs = new Map<string, PdfImportJob>();
 
@@ -82,6 +84,11 @@ export async function processPdfImport(
     return existing;
   }
 
+  // Same plan limits as the scan path (#411), checked before the model runs so
+  // a full deck refunds instead of half-delivering.
+  const { tier } = await getSubscriptionStatus(userId);
+  const target = await reserveImportTarget({ userId, tier, deckId: parsed.deckId });
+
   const extracted = await extractPdfText(parsed.fileBase64);
   const generated = await generateFlashcardsAsync(
     extracted.extractedText,
@@ -89,19 +96,19 @@ export async function processPdfImport(
   );
   const cards = flashcardListSchema.parse(generated.cards);
 
-  let deck = parsed.deckId ? await getDeck(parsed.deckId, userId) : null;
-  if (!deck) {
-    deck = await createDeck(userId, generated.title, ["pdf-import"]);
-  }
-
-  for (const card of cards) {
-    await createCard(userId, deck.id, card);
-  }
+  const stored = await storeImportedCards({
+    userId,
+    tier,
+    target,
+    title: generated.title,
+    tags: ["pdf-import"],
+    cards,
+  });
 
   await recordScan(
     userId,
     generated.model,
-    cards.length,
+    stored.savedCount,
     `pdf:${sanitizeFileName(parsed.fileName)}`,
     extracted.extractedText
   );
@@ -110,11 +117,13 @@ export async function processPdfImport(
     requestId,
     model: generated.model,
     fallbackUsed: generated.fallbackUsed,
-    cards,
+    cards: stored.savedCards,
     deckTitle: generated.title,
     fileName: parsed.fileName.trim(),
     pageCount: extracted.pageCount,
     extractedCharacters: extracted.extractedCharacters,
+    generatedCount: stored.generatedCount,
+    savedCount: stored.savedCount,
   };
 
   await storeIdempotentResult(parsed.idempotencyKey, response);

@@ -286,6 +286,46 @@ export async function createCard(
   return mapCardRow(data);
 }
 
+/**
+ * Batch variant of `createCard` (#411). Imports write up to `maxCardsPerDeck`
+ * cards at once; doing that one INSERT per card is one round trip per card and
+ * leaves a half-filled deck behind when the function times out mid-loop. One
+ * statement also means the plan limit is crossed at exactly one point in time,
+ * which is what the capacity guard in `importCapacity.ts` reconciles against.
+ * Returns the inserted rows in insert order.
+ */
+export async function insertCards(
+  userId: string,
+  deckId: string,
+  cards: Flashcard[]
+): Promise<CardRecord[]> {
+  if (cards.length === 0) return [];
+  const db = getDb();
+  const now = new Date().toISOString();
+  const { data, error } = await db
+    .from("cards")
+    .insert(
+      cards.map((card) => ({
+        user_id: userId,
+        deck_id: deckId,
+        front: card.front,
+        back: card.back,
+        card_type: card.type,
+        source_image_url: card.sourceImageUrl ?? null,
+        extra_data: card.extraData ?? null,
+        difficulty: card.difficulty,
+        tags: card.tags ?? [],
+        fsrs_due: now,
+        fsrs_stability: 0,
+        fsrs_difficulty: 0,
+        fsrs_state: "new",
+      }))
+    )
+    .select();
+  if (error) throw new Error(`insertCards: ${error.message}`);
+  return (data ?? []).map(mapCardRow);
+}
+
 export async function updateCard(
   cardId: string,
   userId: string,
@@ -1493,6 +1533,71 @@ export async function countUserCards(userId: string): Promise<number> {
     .eq("user_id", userId)
     .is("deleted_at", null);
   return count ?? 0;
+}
+
+/**
+ * Deck ids of a user in one canonical order (oldest first, id as tie-breaker).
+ * Used by the import capacity guard (#411): the same order is computed by every
+ * concurrent writer, so all of them agree on which decks are "within the plan"
+ * and which one is the overflow that has to go — without a shared transaction.
+ */
+export async function listDeckIdsForUser(userId: string): Promise<string[]> {
+  const db = getDb();
+  const { data, error } = await db
+    .from("decks")
+    .select("id")
+    .eq("user_id", userId)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true });
+  if (error) throw new Error(`listDeckIdsForUser: ${error.message}`);
+  return (data ?? []).map((row) => (row as { id: string }).id);
+}
+
+/**
+ * Card ids of one deck in the same canonical order as `listDeckIdsForUser`.
+ * Deliberately counts EVERY live card (image-occlusion cards included), which
+ * is exactly what `assertCardLimit` on the manual path counts, so both paths
+ * enforce the same number.
+ */
+export async function listCardIdsForDeck(userId: string, deckId: string): Promise<string[]> {
+  const db = getDb();
+  const { data, error } = await db
+    .from("cards")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("deck_id", deckId)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true });
+  if (error) throw new Error(`listCardIdsForDeck: ${error.message}`);
+  return (data ?? []).map((row) => (row as { id: string }).id);
+}
+
+/**
+ * Soft-deletes a known set of cards of one deck. Only used to take back cards
+ * this very request has just inserted (#411), never user-facing data — hence
+ * the hard scoping to user + deck + explicit id list. Soft delete keeps the
+ * repo-wide "nothing is ever really deleted" rule; every count filters
+ * `deleted_at is null`, so the plan limit still adds up.
+ */
+export async function softDeleteCardsByIds(
+  userId: string,
+  deckId: string,
+  cardIds: string[]
+): Promise<number> {
+  if (cardIds.length === 0) return 0;
+  const db = getDb();
+  const { data, error } = await db
+    .from("cards")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("user_id", userId)
+    .eq("deck_id", deckId)
+    .in("id", cardIds)
+    .is("deleted_at", null)
+    .select("id");
+  if (error) throw new Error(`softDeleteCardsByIds: ${error.message}`);
+  return (data ?? []).length;
 }
 
 export async function getDeckWithCardCount(deckId: string, userId: string): Promise<(DeckRecord & { cardCount: number }) | null> {

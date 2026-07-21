@@ -32,8 +32,11 @@ export interface TierLimits {
 
 export const TIER_LIMITS: Record<SubscriptionTier, TierLimits> = {
   free: {
-    maxDecks: 10,
-    maxCardsPerDeck: 100,
+    // #411: raised from 10/100 — a chapter-wide scan (#399/#408) alone can
+    // produce 100+ cards. Kept identical to apps/api/src/lib/featureGates.ts;
+    // the lpEconomyConsistency guard in packages/testkit fails CI on drift.
+    maxDecks: 20,
+    maxCardsPerDeck: 150,
     lpGrantPerMonth: 0,      // no automatic monthly grant on free
     lpEarnCapPerDay: 30,     // earn up to 30 LP/day by learning
     lpAdCapPerDay: 20,       // earn up to 20 LP/day via rewarded ads

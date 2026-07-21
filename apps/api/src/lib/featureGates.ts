@@ -23,8 +23,12 @@ export interface TierLimits {
 
 export const TIER_LIMITS: Record<SubscriptionTier, TierLimits> = {
   free: {
-    maxDecks: 10,
-    maxCardsPerDeck: 100,
+    // #411: raised from 10/100. Since scans cover a whole chapter (#399/#408)
+    // a single import can produce 100+ cards, so the old ceiling turned a
+    // normal PIT chapter into a half-saved deck. Existing decks that are
+    // already above the limit are never touched — only new cards are refused.
+    maxDecks: 20,
+    maxCardsPerDeck: 150,
     lpGrantPerMonth: 0,
     lpEarnCapPerDay: 30,
     lpAdCapPerDay: 20,

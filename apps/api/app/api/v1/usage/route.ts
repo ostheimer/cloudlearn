@@ -33,6 +33,12 @@ export async function GET(request: NextRequest) {
       lpCostUrlImport: limits.lpCostUrlImport,
       lpCostPdfImport: limits.lpCostPdfImport,
       periodStart: profile.lpPeriodStart,
+      // #411: the app has to know the plan limits BEFORE it spends Lernpunkte,
+      // otherwise it can only find out by starting a scan that then fails.
+      limits: {
+        maxDecks: limits.maxDecks,
+        maxCardsPerDeck: limits.maxCardsPerDeck,
+      },
     });
   } catch (error) {
     const normalized = normalizeError(error);

@@ -835,8 +835,8 @@ clearn.ai verwendet ein **LP-System (Lernpunkte)** als universelle In-App-Währu
 
 | | Free | Pro | Lifetime |
 |--|------|-----|----------|
-| Max. Decks | 10 | 500 | 500 |
-| Max. Karten/Deck | 100 | 2.000 | 2.000 |
+| Max. Decks | 20 | 500 | 500 |
+| Max. Karten/Deck | 150 | 2.000 | 2.000 |
 | LP-Grant/Monat | 0 | 300 LP | 300 LP |
 | LP-Verdienst-Cap/Tag | 30 LP | 100 LP | 100 LP |
 | LP-Cost KI-Scan | 10 LP | 5 LP | 5 LP |

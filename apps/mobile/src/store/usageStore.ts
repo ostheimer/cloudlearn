@@ -12,6 +12,11 @@ export interface UsageState {
   lpCostUrlImport: number;
   lpCostPdfImport: number;
   periodStart: string | null;
+  // Tarif-Grenzen (#411): der Scan-Tab muss sie kennen, BEVOR Lernpunkte
+  // ausgegeben werden. Die Vorbelegung entspricht dem Gratis-Tarif und wird
+  // beim ersten /usage-Abruf durch die Server-Werte ersetzt.
+  maxDecks: number;
+  maxCardsPerDeck: number;
   isLoaded: boolean;
 
   // Optimistically deduct LP after a successful feature use
@@ -34,6 +39,8 @@ const INITIAL_STATE: Omit<UsageState, "deductLp" | "setUsage" | "reset"> = {
   lpCostUrlImport: 15,
   lpCostPdfImport: 20,
   periodStart: null,
+  maxDecks: 20,
+  maxCardsPerDeck: 150,
   isLoaded: false,
 };
 

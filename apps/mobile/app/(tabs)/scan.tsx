@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import {
@@ -29,13 +29,13 @@ import {
   Link2,
   ArrowLeft,
   Zap,
+  Layers,
 } from "lucide-react-native";
 import { useSessionStore } from "../../src/store/sessionStore";
 import { useOcrEditorState } from "../../src/features/ocr/ocrEditorState";
 import {
   importPdf,
   importFromUrl,
-  isApiError,
   scanText,
   scanImage,
   createDeck,
@@ -46,6 +46,17 @@ import {
   type Flashcard,
   type Deck,
 } from "../../src/lib/api";
+import {
+  DECK_LIMIT_LABEL,
+  deckLimitMessage,
+  deckSlotsLabel,
+  freeCardSlots,
+  isDeckLimitReached,
+  nearlyFullWarning,
+  savedSummary,
+  selectEvenlySpread,
+  shouldOpenLpModal,
+} from "../../src/lib/importLimits";
 import { summarizeCardMedia } from "../../src/lib/cardMedia";
 import {
   getStableImportAttemptKey,
@@ -75,6 +86,8 @@ export default function ScanScreen() {
   const lpCostPdfImport = useUsageStore((state) => state.lpCostPdfImport);
   const usageTier = useUsageStore((state) => state.tier);
   const isUsageLoaded = useUsageStore((state) => state.isLoaded);
+  const maxDecks = useUsageStore((state) => state.maxDecks);
+  const maxCardsPerDeck = useUsageStore((state) => state.maxCardsPerDeck);
 
   // LP-Insufficient-Modal state
   const [lpModalVisible, setLpModalVisible] = useState(false);
@@ -94,8 +107,34 @@ export default function ScanScreen() {
       lpCostUrlImport: data.lpCostUrlImport,
       lpCostPdfImport: data.lpCostPdfImport,
       periodStart: data.periodStart,
+      // #411: Grenzen kommen vom Server. Fehlen sie (älterer Server), bleiben
+      // die Vorbelegungen stehen und die App warnt einfach nicht vor.
+      ...(data.limits
+        ? { maxDecks: data.limits.maxDecks, maxCardsPerDeck: data.limits.maxCardsPerDeck }
+        : {}),
     })).catch(() => {/* ignore */});
   }, [userId, setUsage, isUsageLoaded]);
+
+  // Deckliste für die Grenz-Prüfung VOR dem Ausgeben von Lernpunkten (#411).
+  // Schlägt sie fehl, bleibt `decksLoaded` false und es wird nichts gesperrt —
+  // der Server lehnt dann notfalls ab und bucht die Lernpunkte zurück.
+  const [decks, setDecks] = useState<Deck[]>([]);
+  const [decksLoaded, setDecksLoaded] = useState(false);
+
+  const reloadDecks = useCallback(async () => {
+    if (!userId) return;
+    try {
+      const { decks: loaded } = await listDecks(userId);
+      setDecks(loaded);
+      setDecksLoaded(true);
+    } catch {
+      setDecksLoaded(false);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    void reloadDecks();
+  }, [reloadDecks]);
 
   const [mode, setMode] = useState<InputMode>("choose");
   const [loading, setLoading] = useState(false);
@@ -132,6 +171,17 @@ export default function ScanScreen() {
     );
   }
 
+  // #411: Jeder Scan und Import legt serverseitig ein neues Deck an. Ist die
+  // Deck-Grenze erreicht, lehnt der Server ab — also gar nicht erst anfangen und
+  // keine Lernpunkte ausgeben (Laras Regel: verhindern statt schimpfen).
+  const deckLimitReached = decksLoaded && isDeckLimitReached(decks.length, maxDecks);
+
+  const blockedByDeckLimit = (): boolean => {
+    if (!deckLimitReached) return false;
+    Alert.alert(DECK_LIMIT_LABEL, deckLimitMessage(decks.length, maxDecks));
+    return true;
+  };
+
   const isHttpUrl = (value: string): boolean => {
     try {
       const parsed = new URL(value.trim());
@@ -144,6 +194,7 @@ export default function ScanScreen() {
   // --- Image Handling ---
 
   const handlePickFromGallery = async () => {
+    if (blockedByDeckLimit()) return;
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.8,
@@ -183,6 +234,7 @@ export default function ScanScreen() {
   };
 
   const openCamera = async () => {
+    if (blockedByDeckLimit()) return;
     if (!cameraPermission?.granted) {
       const result = await requestCameraPermission();
       if (!result.granted) {
@@ -247,6 +299,7 @@ export default function ScanScreen() {
   };
 
   const handlePickPdf = async () => {
+    if (blockedByDeckLimit()) return;
     const result = await DocumentPicker.getDocumentAsync({
       type: "application/pdf",
       multiple: false,
@@ -298,7 +351,7 @@ export default function ScanScreen() {
         deductLp(lpCostAiScan);
       }
     } catch (error: unknown) {
-      if (isApiError(error) && (error.code === "INSUFFICIENT_LP" || error.status === 402)) {
+      if (shouldOpenLpModal(error)) {
         setLpModalFeature("aiScan");
         setLpModalCost(lpCostAiScan);
         setLpModalVisible(true);
@@ -341,7 +394,7 @@ export default function ScanScreen() {
         deductLp(lpCostPdfImport);
       }
     } catch (error: unknown) {
-      if (isApiError(error) && (error.code === "INSUFFICIENT_LP" || error.status === 402)) {
+      if (shouldOpenLpModal(error)) {
         setLpModalFeature("pdfImport");
         setLpModalCost(lpCostPdfImport);
         setLpModalVisible(true);
@@ -356,6 +409,7 @@ export default function ScanScreen() {
 
   const handleGenerateFromText = async () => {
     if (!editedText.trim() || !userId) return;
+    if (blockedByDeckLimit()) return;
     setLoading(true);
     setCards([]);
     setSaved(false);
@@ -378,7 +432,7 @@ export default function ScanScreen() {
         deductLp(lpCostAiScan);
       }
     } catch (error: unknown) {
-      if (isApiError(error) && (error.code === "INSUFFICIENT_LP" || error.status === 402)) {
+      if (shouldOpenLpModal(error)) {
         setLpModalFeature("aiScan");
         setLpModalCost(lpCostAiScan);
         setLpModalVisible(true);
@@ -399,6 +453,7 @@ export default function ScanScreen() {
       Alert.alert("Ungültige URL", "Bitte gib eine gültige http(s)-URL ein.");
       return;
     }
+    if (blockedByDeckLimit()) return;
 
     setLoading(true);
     setCards([]);
@@ -424,7 +479,7 @@ export default function ScanScreen() {
         deductLp(lpCostUrlImport);
       }
     } catch (error: unknown) {
-      if (isApiError(error) && (error.code === "INSUFFICIENT_LP" || error.status === 402)) {
+      if (shouldOpenLpModal(error)) {
         setLpModalFeature("urlImport");
         setLpModalCost(lpCostUrlImport);
         setLpModalVisible(true);
@@ -445,23 +500,36 @@ export default function ScanScreen() {
       // some cards before failing. Read what's already in the deck and skip those
       // (matched on front+back) so a retry doesn't duplicate cards.
       let existingKeys = new Set<string>();
+      let existingCount: number | null = null;
       try {
         const { cards: existing } = await listCardsInDeck(deckId);
         existingKeys = new Set(existing.map((c) => JSON.stringify([c.front, c.back])));
+        existingCount = existing.length;
       } catch {
         // Couldn't read existing cards — fall back to inserting all (best effort).
       }
 
-      for (const card of cards) {
-        if (existingKeys.has(JSON.stringify([card.front, card.back]))) continue;
+      const pending = cards.filter(
+        (card) => !existingKeys.has(JSON.stringify([card.front, card.back]))
+      );
+      // #411: Passt das Kapitel nicht mehr ganz ins Deck, wird gleichmäßig über
+      // den ganzen Stoff ausgedünnt statt hinten abgeschnitten. Konnten wir das
+      // Deck nicht lesen, wird nicht gekürzt — dann entscheidet der Server.
+      const room =
+        existingCount === null ? pending.length : Math.max(0, maxCardsPerDeck - existingCount);
+      const toSave = selectEvenlySpread(pending, Math.min(pending.length, room));
+
+      for (const card of toSave) {
         await createCard(userId, deckId, card);
       }
 
       setSaved(true);
+      void reloadDecks();
 
+      const savedCount = toSave.length + (cards.length - pending.length);
       Alert.alert(
         "Gespeichert!",
-        `${cards.length} Karten in "${title}" gespeichert.`,
+        `${savedSummary(cards.length, savedCount)}\nDeck: "${title}"`,
         [
           {
             text: "Deck öffnen",
@@ -481,6 +549,7 @@ export default function ScanScreen() {
 
   const handleSaveNewDeck = async () => {
     if (!userId || cards.length === 0) return;
+    if (blockedByDeckLimit()) return;
     const title =
       deckTitle || `Scan ${new Date().toLocaleDateString("de")}`;
     // Retry after a partial save: a deck was already created for this scan, so
@@ -496,6 +565,7 @@ export default function ScanScreen() {
       // Remember the deck up front so a failure in the card loop below still lets
       // a retry reuse this exact deck.
       setSavedDeckId(deck.id);
+      void reloadDecks();
       await saveCardsToDeck(deck.id, deck.title);
     } catch (error: unknown) {
       const msg =
@@ -505,10 +575,40 @@ export default function ScanScreen() {
     }
   };
 
+  /**
+   * #411: Vor dem Schreiben prüfen, wie viel im Ziel-Deck noch frei ist. Ein
+   * volles Deck wird gar nicht erst angeboten, bei wenig Platz entscheidet die
+   * Nutzerin selbst — statt dass der Server mittendrin abbricht.
+   */
+  const confirmSaveToDeck = (deck: Deck) => {
+    const free = freeCardSlots(deck, maxCardsPerDeck);
+    if (free <= 0) {
+      Alert.alert(
+        "Deck voll",
+        `"${deck.title}" hat bereits ${maxCardsPerDeck} Karten. Wähle ein anderes Deck.`
+      );
+      return;
+    }
+    const warning = nearlyFullWarning(free, "speichern");
+    if (warning) {
+      Alert.alert("Wenig Platz", warning, [
+        { text: "Abbrechen", style: "cancel" },
+        {
+          text: "Trotzdem speichern",
+          onPress: () => void saveCardsToDeck(deck.id, deck.title),
+        },
+      ]);
+      return;
+    }
+    void saveCardsToDeck(deck.id, deck.title);
+  };
+
   const handleSaveToExistingDeck = async () => {
     if (!userId) return;
     try {
       const { decks: existingDecks } = await listDecks(userId);
+      setDecks(existingDecks);
+      setDecksLoaded(true);
       if (existingDecks.length === 0) {
         Alert.alert(
           "Keine Decks",
@@ -518,10 +618,11 @@ export default function ScanScreen() {
         return;
       }
       const buttons = existingDecks.slice(0, 8).map((d: Deck) => ({
-        text: d.title,
-        onPress: () => saveCardsToDeck(d.id, d.title),
+        // Freie Plätze stehen am Deck, damit die Wahl vorher informiert ist.
+        text: deckSlotsLabel(d.title, freeCardSlots(d, maxCardsPerDeck)),
+        onPress: () => confirmSaveToDeck(d),
       }));
-      buttons.push({ text: "Abbrechen", onPress: async () => {} });
+      buttons.push({ text: "Abbrechen", onPress: () => {} });
       Alert.alert("Deck wählen", `${cards.length} Karten hinzufügen zu:`, buttons);
     } catch {
       Alert.alert("Fehler", "Decks konnten nicht geladen werden.");
@@ -530,8 +631,16 @@ export default function ScanScreen() {
 
   const handleSaveAndLearn = () => {
     if (!userId || cards.length === 0) return;
+    // #411: An der Deck-Grenze wird „Neues Deck" nicht als funktionierende
+    // Möglichkeit angeboten — der Hinweis steht direkt an der Schaltfläche,
+    // damit die Nutzerin gleich ein bestehendes Deck wählt statt zu scheitern.
     Alert.alert("Karten speichern", `${cards.length} Karten speichern in:`, [
-      { text: "Neues Deck", onPress: handleSaveNewDeck },
+      {
+        text: deckLimitReached ? `Neues Deck (${DECK_LIMIT_LABEL})` : "Neues Deck",
+        onPress: deckLimitReached
+          ? () => Alert.alert(DECK_LIMIT_LABEL, deckLimitMessage(decks.length, maxDecks))
+          : handleSaveNewDeck,
+      },
       { text: "Bestehendes Deck", onPress: handleSaveToExistingDeck },
       { text: "Abbrechen", style: "cancel" },
     ]);
@@ -896,6 +1005,38 @@ export default function ScanScreen() {
           </TouchableOpacity>
         )}
 
+        {/* #411: Deck-Grenze — vorher sperren statt hinterher scheitern */}
+        {deckLimitReached && cards.length === 0 && !loading && (
+          <View
+            style={{
+              backgroundColor: colors.warningLight,
+              borderRadius: radius.md,
+              padding: spacing.md,
+              flexDirection: "row",
+              alignItems: "flex-start",
+              gap: spacing.sm,
+              borderWidth: 1,
+              borderColor: colors.warning,
+            }}
+          >
+            <Layers size={16} color={colors.warning} style={{ marginTop: 2 }} />
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text
+                style={{
+                  color: colors.text,
+                  fontSize: typography.sm,
+                  fontWeight: typography.semibold,
+                }}
+              >
+                {DECK_LIMIT_LABEL}
+              </Text>
+              <Text style={{ color: colors.text, fontSize: typography.sm, lineHeight: 19 }}>
+                {deckLimitMessage(decks.length, maxDecks)}
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* LpInsufficientModal */}
         <LpInsufficientModal
           visible={lpModalVisible}
@@ -970,9 +1111,10 @@ export default function ScanScreen() {
             {/* Camera button */}
             <TouchableOpacity
               onPress={openCamera}
+              disabled={deckLimitReached}
               activeOpacity={0.8}
               style={{
-                backgroundColor: colors.primary,
+                backgroundColor: deckLimitReached ? colors.textTertiary : colors.primary,
                 borderRadius: radius.lg,
                 padding: spacing.xl,
                 flexDirection: "row",
@@ -1019,9 +1161,10 @@ export default function ScanScreen() {
             {/* Gallery button */}
             <TouchableOpacity
               onPress={handlePickFromGallery}
+              disabled={deckLimitReached}
               activeOpacity={0.8}
               style={{
-                backgroundColor: colors.success,
+                backgroundColor: deckLimitReached ? colors.textTertiary : colors.success,
                 borderRadius: radius.lg,
                 padding: spacing.xl,
                 flexDirection: "row",
@@ -1068,9 +1211,10 @@ export default function ScanScreen() {
             {/* Text input button */}
             <TouchableOpacity
               onPress={() => setMode("text")}
+              disabled={deckLimitReached}
               activeOpacity={0.8}
               style={{
-                backgroundColor: colors.warning,
+                backgroundColor: deckLimitReached ? colors.textTertiary : colors.warning,
                 borderRadius: radius.lg,
                 padding: spacing.xl,
                 flexDirection: "row",
@@ -1117,9 +1261,10 @@ export default function ScanScreen() {
             {/* URL import button */}
             <TouchableOpacity
               onPress={() => setMode("url")}
+              disabled={deckLimitReached}
               activeOpacity={0.8}
               style={{
-                backgroundColor: colors.info,
+                backgroundColor: deckLimitReached ? colors.textTertiary : colors.info,
                 borderRadius: radius.lg,
                 padding: spacing.xl,
                 flexDirection: "row",
@@ -1166,9 +1311,10 @@ export default function ScanScreen() {
             {/* PDF import button */}
             <TouchableOpacity
               onPress={handlePickPdf}
+              disabled={deckLimitReached}
               activeOpacity={0.8}
               style={{
-                backgroundColor: colors.text,
+                backgroundColor: deckLimitReached ? colors.textTertiary : colors.text,
                 borderRadius: radius.lg,
                 padding: spacing.xl,
                 flexDirection: "row",
