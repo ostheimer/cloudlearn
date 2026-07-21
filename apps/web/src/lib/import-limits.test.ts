@@ -53,6 +53,26 @@ describe("Deck-Grenze im Browser (#411)", () => {
     expect(message).toMatch(/lösche .*ein Deck in der Bibliothek/);
     expect(message).not.toContain("bestehendes Deck");
   });
+
+  it("behauptet die Scan-Regel nie unqualifiziert — in der App gilt sie nicht", () => {
+    // Die App fragt nach dem Scannen „Neues Deck" oder „Bestehendes Deck"
+    // (`handleSaveToExistingDeck`, apps/mobile/app/(tabs)/scan.tsx). Ein Satz
+    // wie „Jeder Scan legt ein neues Deck an" ohne Einschränkung widerspricht
+    // dem, was die Nutzerin auf dem Handy sieht — am 21.07. von Lara bemängelt.
+    //
+    // Bedingt formuliert und nicht am Wortlaut festgenagelt: Wer die Behauptung
+    // ganz streicht, hat das Problem ebenfalls gelöst und soll nicht scheitern.
+    // Rot wird es nur, wenn sie unqualifiziert wieder auftaucht.
+    const messages = [
+      deckLimitMessage(20, 20),
+      planLimitMessage({ code: "DECK_LIMIT_REACHED" }) ?? "",
+    ];
+    for (const message of messages) {
+      if (/jeder Scan legt ein neues Deck/i.test(message)) {
+        expect(message).toMatch(/Im Browser legt jeder Scan ein neues Deck/);
+      }
+    }
+  });
 });
 
 describe("ehrliche Rückmeldung nach dem Import (#411)", () => {
