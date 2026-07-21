@@ -17,6 +17,18 @@ export interface LearnFocusInput {
   seenPresetToken: number;
   /** Quelle der letzten eigenen Ladung: deckId oder "__global__". */
   loadedKey: string | null;
+  /**
+   * WEM die Karten im Store gehören (`cardsOwner`) — die Herkunft an den Daten
+   * selbst, nicht die Notiz dieses Bildschirms.
+   *
+   * Genau daran hing der zweite Teil von #282: `loadedKey` ist ein `useRef`
+   * und damit pro Komponenten-Instanz. Der Lern-Tab und /deck-review sind
+   * verschiedene Instanzen — eine Deck-Übung setzt IHREN Merker, der Tab
+   * behält seinen auf "__global__". Zurück im Tab passte der eigene Merker
+   * also weiterhin, im Store lagen aber die Übungskarten, und der Tab zeigte
+   * sie weiter.
+   */
+  cardsOwner: string | null;
   /** Karten, die gerade im Store liegen. */
   cardCount: number;
   /** Sitzung durchgelaufen? Dann ist „0 Karten" kein Grund nachzuladen. */
@@ -50,7 +62,21 @@ export function decideOnLearnFocus(input: LearnFocusInput): LearnFocusAction {
     return { type: "load" };
   }
 
-  // Gleiche Quelle, aber nichts da und nicht durchgelaufen → nachladen.
+  // Liegen im Store fremde Karten? Dann neu laden, egal was der eigene Merker
+  // sagt (#282, zweiter Teil). Genau hier fiel der Tab durch: Nach einer
+  // Deck-Übung, `practice` oder „Wackelkandidaten üben" stimmte sein eigener
+  // Merker weiterhin ("__global__"), aber die Karten im Store gehörten einem
+  // anderen Bildschirm — und wurden einfach weitergezeigt.
+  //
+  // `null` (unbekannte Herkunft) zählt bewusst als fremd: lieber einmal zu viel
+  // nachladen als der Nutzerin Karten unterschieben, die sie nicht angefordert
+  // hat. Ausnahme ist der leere Store — da gibt es nichts zu verwechseln, und
+  // ein durchgelaufener Ergebnisbildschirm soll nicht weggerissen werden.
+  if (input.cardCount > 0 && input.cardsOwner !== key) {
+    return { type: "load" };
+  }
+
+  // Eigene Karten, aber nichts da und nicht durchgelaufen → nachladen.
   if (input.cardCount === 0 && !input.completed) {
     return { type: "load" };
   }

@@ -9,6 +9,11 @@ export interface ReviewCard {
   starred?: boolean;
 }
 
+/** Eigentümer-Kennung des Lern-Tabs (fällige Karten über alle Decks). */
+export const GLOBAL_OWNER = "__global__";
+/** Eigentümer-Kennung einer Vorgabe aus Ordner/Kurs („Alle lernen"). */
+export const PRESET_OWNER = "__preset__";
+
 interface ReviewSessionState {
   cards: ReviewCard[];
   index: number;
@@ -31,8 +36,24 @@ interface ReviewSessionState {
    * vergleicht sie mit dem, was er zuletzt gesehen hat.
    */
   presetToken: number;
+  /**
+   * WER die Karten hier hineingelegt hat (#282, zweiter Teil).
+   *
+   * Der Store ist modulglobal, der Merker jedes Bildschirms (`loadedKeyRef`)
+   * dagegen ein `useRef` — also pro Komponenten-Instanz. Der Lern-Tab und
+   * /deck-review sind verschiedene Instanzen: Eine Deck-Übung setzt IHREN
+   * Merker, der Tab behält seinen auf "__global__". Zurück im Tab passte der
+   * eigene Merker also weiterhin, im Stapel lagen aber die Übungskarten — der
+   * Tab zeigte sie einfach weiter, bis jemand "Neu laden" tippte.
+   *
+   * Die Herkunft gehört deshalb an die Karten selbst, nicht in eine Notiz, die
+   * jeder Leser getrennt führt. Werte: "__global__" (fällige Karten des
+   * Lern-Tabs), eine Deck-ID, oder "__preset__" für eine Vorgabe aus
+   * Ordner/Kurs.
+   */
+  cardsOwner: string | null;
   /** `startIndex` resumes an interrupted deck session; defaults to the first card. */
-  start: (cards: ReviewCard[], startIndex?: number) => void;
+  start: (cards: ReviewCard[], startIndex?: number, owner?: string) => void;
   /**
    * Wie `start`, aber als „von außen vorgegeben" markiert. Nur für
    * Bildschirme, die eine Auswahl treffen und dann zum Lern-Tab schicken.
@@ -54,7 +75,8 @@ export const useReviewSession = create<ReviewSessionState>((set, get) => ({
   revealed: false,
   completed: false,
   presetToken: 0,
-  start: (cards, startIndex = 0) =>
+  cardsOwner: null,
+  start: (cards, startIndex = 0, owner) =>
     set({
       cards,
       // Resuming an interrupted deck session (sessionProgress.ts). `history`
@@ -67,7 +89,12 @@ export const useReviewSession = create<ReviewSessionState>((set, get) => ({
       swipedLeft: 0,
       swipedRight: 0,
       revealed: false,
-      completed: cards.length === 0
+      completed: cards.length === 0,
+      // Ohne ausdrücklichen Eigentümer bleibt die Herkunft unbekannt (null).
+      // Der Lern-Tab wertet das als "gehört mir nicht" und lädt neu — die
+      // sichere Richtung: lieber einmal zu viel nachladen als der Nutzerin
+      // fremde Karten unterschieben (#282).
+      cardsOwner: owner ?? null
     }),
   startPreset: (cards) =>
     set((state) => ({
@@ -79,7 +106,8 @@ export const useReviewSession = create<ReviewSessionState>((set, get) => ({
       swipedRight: 0,
       revealed: false,
       completed: cards.length === 0,
-      presetToken: state.presetToken + 1
+      presetToken: state.presetToken + 1,
+      cardsOwner: PRESET_OWNER
     })),
   reveal: () => set({ revealed: true }),
   canGoBack: () => get().history.length > 0,
