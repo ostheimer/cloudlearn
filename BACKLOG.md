@@ -179,7 +179,7 @@ Ein Ticket ist erst "Done", wenn:
 ### CL-301 - Cloudflare R2 Upload via Signed URLs
 
 - **Prioritaet:** P1
-- **Status:** Done (Signed URL Endpoint + Tests)
+- **Status:** Entfernt in #425 — nie angebunden. `POST /api/v1/upload/sign` und `lib/r2.ts` sind geloescht, alle `R2_*`-Variablen entfernt. Kein Client hat die Route je aufgerufen; die "Signatur" war ein eigenes HMAC, keine echte SigV4-Presigned-URL. Bild-Upload laeuft ueber Supabase Storage (Bucket `card-images`, siehe PR #225). Ticket bleibt als Beleg der urspruenglichen Absicht stehen.
 - **Schaetzung:** 2-3 PT
 - **Abhaengigkeiten:** CL-102, CL-201
 
@@ -259,9 +259,9 @@ Ein Ticket ist erst "Done", wenn:
 - **CL-502:** PDF-Import Queue/Retry als API-Service implementiert
 - **CL-503:** Mathpix-Kostenkontrolle als API-Service implementiert
 - **CL-504:** Anki-Export (`.apkg` Scaffold) implementiert
-- **CL-505:** Community-Decks mit Moderation/Abuse-Prevention implementiert
+- **CL-505:** Community-Decks — in #425 entfernt. Der Dienst hielt seine Daten in einer Modul-Variable, war also bei jedem Kaltstart wieder leer, meldete aber `201 Created`. Als Grundlage unbrauchbar: echte Community-Decks fangen bei Tabelle, RLS, Moderation und Melde-Funktion an.
 - **CL-506:** Web-Learn-Client (`apps/web/app/learn`) implementiert
-- **CL-507:** B2B Klassen-Service mit Mandantenisolation implementiert
+- **CL-507:** B2B Klassen-Service — in #425 entfernt, gleiches Muster wie CL-505 (Daten nur im Arbeitsspeicher).
 
 ## Sprintvorschlag (erste 3 Sprints)
 
@@ -607,7 +607,7 @@ Fällige Karten werden lokal in SQLite gecached. Reviews werden offline gespeich
 - **Abhängigkeiten:** keine
 
 **Beschreibung**
-PDF hochladen → Text extrahieren → KI generiert Flashcards → neues Deck. Unterstützt mehrseitige PDFs. Upload via R2 Signed URL.
+PDF hochladen → Text extrahieren → KI generiert Flashcards → neues Deck. Unterstützt mehrseitige PDFs. Der Upload-Weg ist noch offen: Die frühere R2-Signed-URL-Route wurde in #425 entfernt (nie angebunden), Bilder laufen inzwischen über Supabase Storage.
 
 **Akzeptanzkriterien**
 - [ ] PDF-Upload im Scan-Screen (zusätzliche Option)

@@ -473,7 +473,9 @@ CREATE TABLE cards (
   back TEXT NOT NULL,            -- Antwort
   card_type TEXT DEFAULT 'basic', -- basic | cloze | mcq | matching
   extra_data JSONB,              -- MCQ-Optionen, Cloze-Hints etc.
-  source_image_url TEXT,         -- Original-Foto (R2)
+  source_image_url TEXT,         -- Original-Foto: Supabase-Storage-PFAD (Bucket card-images),
+                                 -- trotz des Namens KEINE URL. Form: <userId>/<deckId>/<datei>.
+                                 -- Cloudflare R2 wurde nie angebunden (#425).
   source_text TEXT,              -- Extrahierter OCR-Text
   source_scan_id UUID,
   ai_model TEXT,
