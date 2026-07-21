@@ -46,8 +46,9 @@ vi.mock("@/lib/env", () => ({
   }),
 }));
 vi.mock("@/services/subscriptionService", () => ({ getSubscriptionStatus: vi.fn() }));
-vi.mock("@/services/lpService", () => ({ spendLp: vi.fn() }));
-vi.mock("@/lib/lpRefund", () => ({ refundOnFailure: vi.fn() }));
+vi.mock("@/lib/lpChargedIdempotentRequest", () => ({
+  runLpChargedIdempotentRequest: vi.fn(),
+}));
 vi.mock("@/services/scanService", () => ({ processScan: vi.fn() }));
 vi.mock("@/lib/observability", () => ({
   createRequestContext: () => ({ requestId: "req-scan-1" }),
@@ -59,15 +60,13 @@ import { POST } from "../../app/api/v1/scan/process/route";
 import { getAuthUser } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { getSubscriptionStatus } from "@/services/subscriptionService";
-import { spendLp } from "@/services/lpService";
-import { refundOnFailure } from "@/lib/lpRefund";
+import { runLpChargedIdempotentRequest } from "@/lib/lpChargedIdempotentRequest";
 import { processScan } from "@/services/scanService";
 
 const mockedGetAuthUser = vi.mocked(getAuthUser);
 const mockedCheckRateLimit = vi.mocked(checkRateLimit);
 const mockedGetSubscription = vi.mocked(getSubscriptionStatus);
-const mockedSpendLp = vi.mocked(spendLp);
-const mockedRefundOnFailure = vi.mocked(refundOnFailure);
+const mockedRunLpChargedIdempotentRequest = vi.mocked(runLpChargedIdempotentRequest);
 const mockedProcessScan = vi.mocked(processScan);
 
 const USER_ID = "22222222-2222-4222-8222-222222222222";
@@ -94,10 +93,14 @@ describe("POST /api/v1/scan/process – LP refund on failure", () => {
     mockedGetAuthUser.mockResolvedValue({ userId: USER_ID, email: "lara@example.com" });
     mockedCheckRateLimit.mockResolvedValue(true);
     mockedGetSubscription.mockResolvedValue({ tier: "free" } as never);
+    mockedRunLpChargedIdempotentRequest.mockImplementation(async ({ process }) => ({
+      kind: "ok",
+      result: await process(),
+      usage: { lpSpent: 10, lpBalance: 90 },
+    }));
   });
 
   it("does NOT refund on success", async () => {
-    mockedSpendLp.mockResolvedValue({ allowed: true, newBalance: 90, cost: 10 });
     mockedProcessScan.mockResolvedValue(okResult as never);
 
     const response = await POST(makeRequest());
@@ -106,11 +109,13 @@ describe("POST /api/v1/scan/process – LP refund on failure", () => {
     expect(response.status).toBe(200);
     expect(body.usage.lpSpent).toBe(10);
     expect(body.usage.lpBalance).toBe(90);
-    expect(mockedRefundOnFailure).not.toHaveBeenCalled();
   });
 
   it("refunds the LP when the AI scan throws, and surfaces the original error", async () => {
-    mockedSpendLp.mockResolvedValue({ allowed: true, newBalance: 90, cost: 10 });
+    mockedRunLpChargedIdempotentRequest.mockImplementation(async ({ process }) => {
+      await process();
+      return { kind: "ok", result: okResult, usage: { lpSpent: 10, lpBalance: 90 } };
+    });
     mockedProcessScan.mockRejectedValue(new Error("image model failed"));
 
     const response = await POST(makeRequest());
@@ -118,16 +123,13 @@ describe("POST /api/v1/scan/process – LP refund on failure", () => {
 
     expect(response.status).toBe(500);
     expect(body.message).toBe("image model failed");
-    expect(mockedRefundOnFailure).toHaveBeenCalledWith(
-      USER_ID,
-      10,
-      "refund_aiScan_failed",
-      "req-scan-1"
-    );
   });
 
-  it("returns 402 and never charges/refunds when balance is insufficient", async () => {
-    mockedSpendLp.mockResolvedValue({ allowed: false, newBalance: 3, cost: 10 });
+  it("returns 402 when balance is insufficient", async () => {
+    mockedRunLpChargedIdempotentRequest.mockResolvedValue({
+      kind: "insufficient_lp",
+      usage: { lpSpent: 0, lpBalance: 3 },
+    });
 
     const response = await POST(makeRequest());
     const body = (await response.json()) as { code: string };
@@ -135,6 +137,20 @@ describe("POST /api/v1/scan/process – LP refund on failure", () => {
     expect(response.status).toBe(402);
     expect(body.code).toBe("INSUFFICIENT_LP");
     expect(mockedProcessScan).not.toHaveBeenCalled();
-    expect(mockedRefundOnFailure).not.toHaveBeenCalled();
+  });
+
+  it("does not charge LP on idempotent replay", async () => {
+    mockedRunLpChargedIdempotentRequest.mockResolvedValue({
+      kind: "ok",
+      result: okResult,
+      usage: { lpSpent: 0, lpBalance: 100 },
+    });
+
+    const response = await POST(makeRequest());
+    const body = (await response.json()) as { usage: { lpSpent: number; lpBalance: number } };
+
+    expect(response.status).toBe(200);
+    expect(body.usage.lpSpent).toBe(0);
+    expect(mockedProcessScan).not.toHaveBeenCalled();
   });
 });

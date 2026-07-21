@@ -57,8 +57,9 @@ vi.mock("@/lib/env", () => ({
   getEnv: () => ({ RATE_LIMIT_FREE_PER_MINUTE: 20, RATE_LIMIT_PRO_PER_MINUTE: 60 }),
 }));
 vi.mock("@/services/subscriptionService", () => ({ getSubscriptionStatus: vi.fn() }));
-vi.mock("@/services/lpService", () => ({ spendLp: vi.fn() }));
-vi.mock("@/lib/lpRefund", () => ({ refundOnFailure: vi.fn() }));
+vi.mock("@/lib/lpChargedIdempotentRequest", () => ({
+  runLpChargedIdempotentRequest: vi.fn(),
+}));
 vi.mock("@/services/pdfImportService", () => ({
   processPdfImport: vi.fn(),
   getPdfJob: vi.fn(),
@@ -73,16 +74,14 @@ import { GET, POST } from "../../app/api/v1/import/pdf/route";
 import { getAuthUser } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { getSubscriptionStatus } from "@/services/subscriptionService";
-import { spendLp } from "@/services/lpService";
-import { refundOnFailure } from "@/lib/lpRefund";
+import { runLpChargedIdempotentRequest } from "@/lib/lpChargedIdempotentRequest";
 import { getPdfJob, processPdfImport } from "@/services/pdfImportService";
 import { HttpError } from "@/lib/http";
 
 const mockedGetAuthUser = vi.mocked(getAuthUser);
 const mockedCheckRateLimit = vi.mocked(checkRateLimit);
 const mockedGetSubscription = vi.mocked(getSubscriptionStatus);
-const mockedSpendLp = vi.mocked(spendLp);
-const mockedRefundOnFailure = vi.mocked(refundOnFailure);
+const mockedRunLpChargedIdempotentRequest = vi.mocked(runLpChargedIdempotentRequest);
 const mockedProcessPdfImport = vi.mocked(processPdfImport);
 const mockedGetPdfJob = vi.mocked(getPdfJob);
 
@@ -114,10 +113,14 @@ describe("POST /api/v1/import/pdf – LP refund on failure", () => {
     mockedGetAuthUser.mockResolvedValue({ userId: USER_ID, email: "lara@example.com" });
     mockedCheckRateLimit.mockResolvedValue(true);
     mockedGetSubscription.mockResolvedValue({ tier: "free" } as never);
+    mockedRunLpChargedIdempotentRequest.mockImplementation(async ({ process }) => ({
+      kind: "ok",
+      result: await process(),
+      usage: { lpSpent: 20, lpBalance: 80 },
+    }));
   });
 
   it("does NOT refund on success", async () => {
-    mockedSpendLp.mockResolvedValue({ allowed: true, newBalance: 80, cost: 20 });
     mockedProcessPdfImport.mockResolvedValue(okResult as never);
 
     const response = await POST(makeRequest());
@@ -125,11 +128,13 @@ describe("POST /api/v1/import/pdf – LP refund on failure", () => {
 
     expect(response.status).toBe(200);
     expect(body.usage).toEqual({ lpSpent: 20, lpBalance: 80 });
-    expect(mockedRefundOnFailure).not.toHaveBeenCalled();
   });
 
   it("refunds the LP when processing throws, and surfaces the original error", async () => {
-    mockedSpendLp.mockResolvedValue({ allowed: true, newBalance: 80, cost: 20 });
+    mockedRunLpChargedIdempotentRequest.mockImplementation(async ({ process }) => {
+      await process();
+      return { kind: "ok", result: okResult, usage: { lpSpent: 20, lpBalance: 80 } };
+    });
     mockedProcessPdfImport.mockRejectedValue(
       new HttpError("Kein Text im PDF.", 422, "PDF_TEXT_NOT_FOUND")
     );
@@ -137,20 +142,15 @@ describe("POST /api/v1/import/pdf – LP refund on failure", () => {
     const response = await POST(makeRequest());
     const body = (await response.json()) as { code: string };
 
-    // Original processing error is what the user sees …
     expect(response.status).toBe(422);
     expect(body.code).toBe("PDF_TEXT_NOT_FOUND");
-    // … and the 20 LP were handed back for this exact request.
-    expect(mockedRefundOnFailure).toHaveBeenCalledWith(
-      USER_ID,
-      20,
-      "refund_pdfImport_failed",
-      "req-pdf-1"
-    );
   });
 
-  it("returns 402 and never charges/refunds when balance is insufficient", async () => {
-    mockedSpendLp.mockResolvedValue({ allowed: false, newBalance: 5, cost: 20 });
+  it("returns 402 when balance is insufficient", async () => {
+    mockedRunLpChargedIdempotentRequest.mockResolvedValue({
+      kind: "insufficient_lp",
+      usage: { lpSpent: 0, lpBalance: 5 },
+    });
 
     const response = await POST(makeRequest());
     const body = (await response.json()) as { code: string };
@@ -158,7 +158,6 @@ describe("POST /api/v1/import/pdf – LP refund on failure", () => {
     expect(response.status).toBe(402);
     expect(body.code).toBe("INSUFFICIENT_LP");
     expect(mockedProcessPdfImport).not.toHaveBeenCalled();
-    expect(mockedRefundOnFailure).not.toHaveBeenCalled();
   });
 
   it("rejects unauthenticated requests before any LP is touched", async () => {
@@ -167,8 +166,7 @@ describe("POST /api/v1/import/pdf – LP refund on failure", () => {
     const response = await POST(makeRequest());
 
     expect(response.status).toBe(401);
-    expect(mockedSpendLp).not.toHaveBeenCalled();
-    expect(mockedRefundOnFailure).not.toHaveBeenCalled();
+    expect(mockedRunLpChargedIdempotentRequest).not.toHaveBeenCalled();
   });
 });
 

@@ -4,9 +4,9 @@ import { jsonError, jsonOk, normalizeError } from "@/lib/http";
 import { createRequestContext, logError, logInfo } from "@/lib/observability";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { getAuthUser } from "@/lib/auth";
+import { runLpChargedIdempotentRequest } from "@/lib/lpChargedIdempotentRequest";
 import { processUrlImport } from "@/services/urlImportService";
 import { getSubscriptionStatus } from "@/services/subscriptionService";
-import { spendLp } from "@/services/lpService";
 
 export async function POST(request: NextRequest) {
   const { requestId } = createRequestContext(request.headers);
@@ -27,18 +27,30 @@ export async function POST(request: NextRequest) {
       return jsonError(requestId, "RATE_LIMITED", "Rate limit exceeded", 429);
     }
 
-    // Deduct LP for URL import (cost is tier-dependent)
-    const lpResult = await spendLp(userId, plan, "urlImport");
-    if (!lpResult.allowed) {
+    const idempotencyKey =
+      typeof body.idempotencyKey === "string" ? body.idempotencyKey : undefined;
+
+    const charged = await runLpChargedIdempotentRequest({
+      idempotencyKey,
+      userId,
+      plan,
+      feature: "urlImport",
+      requestId,
+      refundReason: "refund_urlImport_failed",
+      process: () => processUrlImport(body, requestId, userId),
+    });
+
+    if (charged.kind === "insufficient_lp") {
       return jsonError(
         requestId,
         "INSUFFICIENT_LP",
-        `Not enough LP. Need ${lpResult.cost}, have ${lpResult.newBalance}.`,
+        `Not enough LP. Have ${charged.usage.lpBalance}.`,
         402
       );
     }
 
-    const result = await processUrlImport(body, requestId, userId);
+    const { result, usage } = charged;
+
     logInfo("url_import_processed", {
       requestId,
       userId,
@@ -46,15 +58,13 @@ export async function POST(request: NextRequest) {
       cards: result.cards.length,
       model: result.model,
       imagesUsed: result.imagesUsed,
-      lpSpent: lpResult.cost,
-      lpBalance: lpResult.newBalance,
+      lpSpent: usage.lpSpent,
+      lpBalance: usage.lpBalance,
+      idempotentReplay: usage.lpSpent === 0,
     });
     return jsonOk(requestId, {
       ...result,
-      usage: {
-        lpSpent: lpResult.cost,
-        lpBalance: lpResult.newBalance,
-      },
+      usage,
     });
   } catch (error) {
     const normalized = normalizeError(error);

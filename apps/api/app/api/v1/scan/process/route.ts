@@ -4,10 +4,9 @@ import { jsonError, jsonOk, normalizeError } from "@/lib/http";
 import { createRequestContext, logError, logInfo } from "@/lib/observability";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { getAuthUser } from "@/lib/auth";
+import { runLpChargedIdempotentRequest } from "@/lib/lpChargedIdempotentRequest";
 import { processScan } from "@/services/scanService";
 import { getSubscriptionStatus } from "@/services/subscriptionService";
-import { spendLp } from "@/services/lpService";
-import { refundOnFailure } from "@/lib/lpRefund";
 
 export async function POST(request: NextRequest) {
   const { requestId } = createRequestContext(request.headers);
@@ -28,27 +27,29 @@ export async function POST(request: NextRequest) {
       return jsonError(requestId, "RATE_LIMITED", "Rate limit exceeded", 429);
     }
 
-    // Deduct LP for AI scan (cost is tier-dependent)
-    const lpResult = await spendLp(userId, plan, "aiScan");
-    if (!lpResult.allowed) {
+    const idempotencyKey =
+      typeof body.idempotencyKey === "string" ? body.idempotencyKey : undefined;
+
+    const charged = await runLpChargedIdempotentRequest({
+      idempotencyKey,
+      userId,
+      plan,
+      feature: "aiScan",
+      requestId,
+      refundReason: "refund_aiScan_failed",
+      process: () => processScan(body, requestId, userId),
+    });
+
+    if (charged.kind === "insufficient_lp") {
       return jsonError(
         requestId,
         "INSUFFICIENT_LP",
-        `Not enough LP. Need ${lpResult.cost}, have ${lpResult.newBalance}.`,
+        `Not enough LP. Have ${charged.usage.lpBalance}.`,
         402
       );
     }
 
-    // LP were charged up front, but processScan can still fail — e.g. an image
-    // scan the AI can't turn into cards (no heuristic fallback on the image
-    // path). Refund the LP so a failed scan never costs the user anything.
-    let result: Awaited<ReturnType<typeof processScan>>;
-    try {
-      result = await processScan(body, requestId, userId);
-    } catch (processingError) {
-      await refundOnFailure(userId, lpResult.cost, "refund_aiScan_failed", requestId);
-      throw processingError;
-    }
+    const { result, usage } = charged;
 
     logInfo("scan_processed", {
       requestId,
@@ -56,15 +57,13 @@ export async function POST(request: NextRequest) {
       cards: result.cards.length,
       model: result.model,
       hasImage: Boolean(body.imageBase64),
-      lpSpent: lpResult.cost,
-      lpBalance: lpResult.newBalance,
+      lpSpent: usage.lpSpent,
+      lpBalance: usage.lpBalance,
+      idempotentReplay: usage.lpSpent === 0,
     });
     return jsonOk(requestId, {
       ...result,
-      usage: {
-        lpSpent: lpResult.cost,
-        lpBalance: lpResult.newBalance,
-      },
+      usage,
     });
   } catch (error) {
     const normalized = normalizeError(error);
