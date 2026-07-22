@@ -28,7 +28,8 @@ import {
   Minus,
   Plus,
 } from "lucide-react-native";
-import { listCardsInDeck, reviewCard, type Card } from "../src/lib/api";
+import { listCardsInDeck, type Card } from "../src/lib/api";
+import { sendReview } from "../src/features/sync/sendReview";
 import { setLastUsedDeck } from "../src/lib/lastUsedDeck";
 import { useSessionStore } from "../src/store/sessionStore";
 import { excludeOcclusionCards } from "../src/lib/occlusion";
@@ -248,7 +249,7 @@ export default function TestScreen() {
             chunk.map((r) =>
               // mode "test": hält den Streak und füllt die Statistik, gibt aber
               // keine Lernpunkte, und nur FEHLER bewegen den Lernplan.
-              reviewCard(userId, r.cardId, r.rating, { mode: "test" }).catch(() => {})
+              sendReview({ userId, cardId: r.cardId, rating: r.rating, mode: "test" })
             )
           );
         }
