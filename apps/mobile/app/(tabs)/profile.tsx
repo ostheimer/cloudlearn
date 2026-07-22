@@ -19,9 +19,17 @@ import {
   SlidersHorizontal,
   Trash2,
   ChevronRight,
+  UserRound,
 } from "lucide-react-native";
 import { useSessionStore } from "../../src/store/sessionStore";
-import { deleteAccount, getSubscriptionStatus } from "../../src/lib/api";
+import {
+  deleteAccount,
+  getProfile,
+  getSubscriptionStatus,
+  updateDisplayName,
+  displayNameErrorKey,
+} from "../../src/lib/api";
+import TextPromptModal from "../../src/components/TextPromptModal";
 import { APP_PROFILE_LABEL } from "../../src/lib/appInfo";
 import { IMPRESSUM_URL, PRIVACY_URL, SUPPORT_URL } from "../../src/lib/publicLinks";
 import { getSubscriptionManagementUrls } from "../../src/lib/subscriptionManagement";
@@ -60,6 +68,8 @@ export default function ProfileScreen() {
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderHour, setReminderHour] = useState(19);
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [nameEditVisible, setNameEditVisible] = useState(false);
   const isGuest = !userId;
   const biometricEnabled = useBiometricLockStore((state) => state.enabled);
   const biometricCanUse = useBiometricLockStore((state) => state.canUse);
@@ -79,7 +89,23 @@ export default function ProfileScreen() {
     getSubscriptionStatus()
       .then((res) => setTier(res.status.tier))
       .catch(() => setTier("unbekannt"));
+    getProfile()
+      .then((p) => setDisplayName(p.displayName))
+      .catch(() => {
+        /* Zeile zeigt dann den Platzhalter; Ändern geht trotzdem. */
+      });
   }, [userId]);
+
+  const handleNameSave = async (value: string) => {
+    try {
+      const res = await updateDisplayName(value);
+      setDisplayName(res.displayName);
+      setNameEditVisible(false);
+    } catch (error) {
+      // Blatt bleibt offen, der Wert steht noch im Feld — nur erklären, warum.
+      Alert.alert(t("displayName.errorTitle"), t(displayNameErrorKey(error)));
+    }
+  };
 
   useEffect(() => {
     AsyncStorage.getItem(REMINDER_KEY).then((val) => {
@@ -395,6 +421,34 @@ export default function ProfileScreen() {
             </Text>
             <Text style={{ fontSize: typography.sm, color: c.textSecondary, marginTop: 2 }}>
               {t("referral.profileButtonSubtitle")}
+            </Text>
+          </View>
+          <ChevronRight size={18} color={c.primary} />
+        </TouchableOpacity>
+
+        {/* Anzeigename */}
+        <TouchableOpacity
+          onPress={() => (userId ? setNameEditVisible(true) : router.push("/auth"))}
+          activeOpacity={0.8}
+          style={{
+            backgroundColor: c.surface, borderRadius: radius.lg, padding: spacing.lg,
+            borderWidth: 1, borderColor: c.border, flexDirection: "row", alignItems: "center",
+            gap: spacing.md, ...shadows.sm,
+          }}
+        >
+          <View style={{
+            width: 40, height: 40, borderRadius: radius.md,
+            backgroundColor: c.primaryLight,
+            justifyContent: "center", alignItems: "center",
+          }}>
+            <UserRound size={18} color={c.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: typography.base, fontWeight: typography.semibold, color: c.text }}>
+              {t("displayName.profileRow")}
+            </Text>
+            <Text style={{ fontSize: typography.sm, color: c.textSecondary, marginTop: 2 }}>
+              {displayName ?? t("displayName.profileRowEmpty")}
             </Text>
           </View>
           <ChevronRight size={18} color={c.primary} />
@@ -756,6 +810,20 @@ export default function ProfileScreen() {
           {APP_PROFILE_LABEL}
         </Text>
       </ScrollView>
+
+      <TextPromptModal
+        visible={nameEditVisible}
+        title={t("displayName.editTitle")}
+        label={t("displayName.label")}
+        placeholder={t("displayName.placeholder")}
+        initialValue={displayName ?? ""}
+        confirmLabel={t("displayName.save")}
+        icon={UserRound}
+        onCancel={() => setNameEditVisible(false)}
+        onSubmit={(value) => {
+          void handleNameSave(value);
+        }}
+      />
     </SafeAreaView>
   );
 }

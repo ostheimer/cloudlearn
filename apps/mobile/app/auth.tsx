@@ -25,6 +25,7 @@ import { Apple } from "lucide-react-native";
 import { useSessionStore } from "../src/store/sessionStore";
 import { spacing, radius, typography } from "../src/theme";
 import { getAuthProviderAvailability } from "../src/lib/supabase";
+import { rememberPendingDisplayName } from "../src/lib/displayNamePending";
 
 type AuthMode = "login" | "register" | "reset";
 
@@ -71,6 +72,7 @@ export default function AuthScreen() {
   const brandButtonText = "#312E81";
   const brandLink = "#E0E7FF";
   const [mode, setMode] = useState<AuthMode>("login");
+  const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -82,6 +84,7 @@ export default function AuthScreen() {
     google: false,
     apple: false,
   });
+  const emailInputRef = useRef<TextInput>(null);
   const passwordInputRef = useRef<TextInput>(null);
   const confirmPasswordInputRef = useRef<TextInput>(null);
 
@@ -138,6 +141,11 @@ export default function AuthScreen() {
   };
 
   const handleSubmit = async () => {
+    if (mode === "register" && displayName.trim().length < 2) {
+      Alert.alert("Fehler", "Bitte gib deinen Namen ein (mindestens 2 Zeichen).");
+      return;
+    }
+
     if (!email.trim()) {
       Alert.alert("Fehler", "Bitte E-Mail-Adresse eingeben.");
       return;
@@ -169,14 +177,19 @@ export default function AuthScreen() {
         const { error, requiresEmailConfirmation } = await signUp(email, password);
         if (error) {
           Alert.alert("Registrierung fehlgeschlagen", error);
-        } else if (requiresEmailConfirmation) {
-          Alert.alert(
-            "Bestätigung gesendet",
-            "Wir haben dir eine Bestätigungs-E-Mail geschickt. Bitte prüfe auch Spam oder Werbung und klicke auf den Link, um dein Konto zu aktivieren.",
-            [{ text: "OK", onPress: () => setMode("login") }]
-          );
         } else {
-          router.replace("/(tabs)");
+          // Wunschname zwischenlagern — gespeichert (und geprüft) wird er nach
+          // der ersten Anmeldung von der Namensabfrage auf dem Home-Tab.
+          await rememberPendingDisplayName(displayName.trim());
+          if (requiresEmailConfirmation) {
+            Alert.alert(
+              "Bestätigung gesendet",
+              "Wir haben dir eine Bestätigungs-E-Mail geschickt. Bitte prüfe auch Spam oder Werbung und klicke auf den Link, um dein Konto zu aktivieren.",
+              [{ text: "OK", onPress: () => setMode("login") }]
+            );
+          } else {
+            router.replace("/(tabs)");
+          }
         }
       } else {
         const { error } = await resetPassword(email);
@@ -443,6 +456,43 @@ export default function AuthScreen() {
                 </>
               ) : null}
 
+              {mode === "register" ? (
+                <View style={{ marginBottom: inputGroupSpacing }}>
+                  <Text
+                    style={{
+                      fontSize: typography.sm,
+                      color: brandTextSecondary,
+                      marginBottom: fieldLabelMarginBottom,
+                      fontWeight: typography.semibold,
+                    }}
+                  >
+                    Dein Name
+                  </Text>
+                  <TextInput
+                    value={displayName}
+                    onChangeText={setDisplayName}
+                    placeholder="So sehen dich andere Lernende"
+                    placeholderTextColor={brandTextTertiary}
+                    autoCapitalize="words"
+                    autoCorrect={false}
+                    autoComplete="name"
+                    textContentType="nickname"
+                    maxLength={20}
+                    returnKeyType="next"
+                    onSubmitEditing={() => {
+                      emailInputRef.current?.focus();
+                    }}
+                    onKeyPress={(event) => {
+                      if (Platform.OS !== "web" || event.nativeEvent.key !== "Enter") {
+                        return;
+                      }
+                      emailInputRef.current?.focus();
+                    }}
+                    style={inputStyle}
+                  />
+                </View>
+              ) : null}
+
               <View style={{ marginBottom: inputGroupSpacing }}>
                 <Text
                   style={{
@@ -455,6 +505,7 @@ export default function AuthScreen() {
                   E-Mail
                 </Text>
                 <TextInput
+                  ref={emailInputRef}
                   value={email}
                   onChangeText={setEmail}
                   placeholder="deine@email.de"

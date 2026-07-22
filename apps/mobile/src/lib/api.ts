@@ -604,6 +604,44 @@ export async function deleteAccount(): Promise<DeleteAccountResponse> {
   });
 }
 
+// ─── Anzeigename ──────────────────────────────────────────────────────────────
+// Geprüft wird auf dem Server (Länge, Zeichen, Sperrliste — displayNameService
+// in der API); der Client übersetzt nur die Fehler-Codes in i18n-Texte.
+
+export interface ProfileResponse {
+  displayName: string | null;
+}
+
+export async function getProfile(): Promise<ProfileResponse> {
+  return requestAuthenticated<ProfileResponse>("/api/v1/account/profile");
+}
+
+export async function updateDisplayName(displayName: string): Promise<ProfileResponse> {
+  return requestAuthenticated<ProfileResponse>("/api/v1/account/profile", {
+    method: "PATCH",
+    body: JSON.stringify({ displayName }),
+  });
+}
+
+/** Fehler-Code → i18n-Schlüssel für die Namensregeln. */
+export function displayNameErrorKey(error: unknown): string {
+  if (error instanceof ApiError) {
+    switch (error.code) {
+      case "DISPLAY_NAME_TOO_SHORT":
+        return "displayName.errorTooShort";
+      case "DISPLAY_NAME_TOO_LONG":
+        return "displayName.errorTooLong";
+      case "DISPLAY_NAME_INVALID_CHARS":
+        return "displayName.errorInvalidChars";
+      case "DISPLAY_NAME_NOT_ALLOWED":
+        return "displayName.errorNotAllowed";
+      case "RATE_LIMITED":
+        return "displayName.errorRateLimited";
+    }
+  }
+  return "displayName.errorGeneric";
+}
+
 /** @deprecated Use getLpBalance() instead */
 export async function getAiUsage(): Promise<AiUsageResponse> {
   return getLpBalance();
