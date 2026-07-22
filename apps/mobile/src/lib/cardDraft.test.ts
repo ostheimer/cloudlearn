@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { editCardField, isCardEditable, removeCardAt } from "./cardDraft";
+import { blankCard, editCardField, isCardEditable, nonEmptyCards, removeCardAt } from "./cardDraft";
 import { summarizeCardMedia } from "./cardMedia";
 import type { Flashcard } from "./api";
 
@@ -51,5 +51,23 @@ describe("Karten-Vorschau bearbeiten/löschen (#427)", () => {
       back: "Beschreibung",
     };
     expect(isCardEditable(image, summarizeCardMedia(image))).toBe(false);
+  });
+
+  it("liefert eine leere, editierbare Karte zum Ausfüllen", () => {
+    const blank = blankCard();
+    expect(blank.front).toBe("");
+    expect(blank.back).toBe("");
+    expect(blank.type).toBe("basic");
+    // Muss editierbar sein, sonst könnte man die hinzugefügte Karte nicht füllen.
+    expect(isCardEditable(blank, summarizeCardMedia(blank))).toBe(true);
+  });
+
+  it("überspringt leere Karten beim Speichern, füllt gefüllte durch", () => {
+    const mixed = [card("F1", "B1"), blankCard(), card("", "  "), card("", "nur Antwort")];
+    const kept = nonEmptyCards(mixed);
+    expect(kept.map((c) => [c.front, c.back])).toEqual([
+      ["F1", "B1"],
+      ["", "nur Antwort"], // eine Seite reicht
+    ]);
   });
 });

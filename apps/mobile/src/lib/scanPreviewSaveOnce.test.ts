@@ -82,4 +82,11 @@ describe("Karten-Vorschau ist bearbeitbar und löschbar (#427)", () => {
     expect(source).toMatch(/!saved && cards\.length > 0/);
     expect(source).toContain("Lernpunkte kommen nicht zurück");
   });
+
+  it("kann eine Karte von Hand hinzufügen und überspringt leere beim Speichern (#427)", () => {
+    expect(source).toContain("onPress={addCard}");
+    expect(source).toContain("setCards((prev) => [...prev, blankCard()])");
+    // Speichern filtert leere Karten raus, sonst reißt der Server-Check.
+    expect(source).toContain("const savable = nonEmptyCards(cards)");
+  });
 });

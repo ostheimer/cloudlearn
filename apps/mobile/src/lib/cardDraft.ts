@@ -21,6 +21,20 @@ export function removeCardAt(cards: Flashcard[], index: number): Flashcard[] {
   return cards.filter((_card, i) => i !== index);
 }
 
+/** Eine leere Karte zum selbst Ausfüllen (#427, „Karte hinzufügen"). */
+export function blankCard(): Flashcard {
+  return { front: "", back: "", type: "basic", difficulty: "medium", tags: [] };
+}
+
+/**
+ * Nur Karten mit Inhalt. Eine per Hand hinzugefügte, aber leer gelassene Karte
+ * wird beim Speichern übersprungen — sonst würde sie den Server-Check reißen
+ * (leere Vorder-/Rückseite) oder eine sinnlose Karte anlegen.
+ */
+export function nonEmptyCards(cards: Flashcard[]): Flashcard[] {
+  return cards.filter((c) => c.front.trim().length > 0 || c.back.trim().length > 0);
+}
+
 /**
  * Ob eine Karte in der Vorschau frei bearbeitbar ist. Nur schlichte Text-Karten:
  * Bild-Karten und Lückentext ({{c1::…}}) haben Struktur, die ein einfaches
