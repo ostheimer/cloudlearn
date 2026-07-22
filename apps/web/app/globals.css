@@ -4104,7 +4104,54 @@ a.lp-way:hover {
 .lb-row--me .lb-row__lp { color: var(--brand-600); }
 
 /* ── Rangliste (/dashboard/leaderboard) ──────────────────────────────────── */
-.lbx { max-width: 560px; margin: 0 auto; }
+/* Handy: eine schmale Mittelspalte wie in der App. Desktop (ab 900px):
+   links Treppchen + "Deine Platzierung", rechts die breite Liste. */
+.lbx { display: grid; gap: 18px; max-width: 560px; margin: 0 auto; }
+.lbx-side { display: flex; flex-direction: column; gap: 18px; }
+.lbx-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px;
+}
+.lbx-me-card { display: none; }
+.lbx-me-card__head { font-weight: 700; font-size: 0.95rem; margin-bottom: 4px; }
+.lbx-me-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+  font-size: 0.9rem;
+  color: var(--ink-2);
+}
+.lbx-me-row:first-of-type { border-top: 0; }
+.lbx-me-row svg { color: var(--amber); }
+.lbx-me-row b {
+  margin-left: auto;
+  color: var(--ink);
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+}
+@media (min-width: 900px) {
+  .lbx {
+    max-width: none;
+    margin: 0;
+    grid-template-columns: 300px minmax(0, 1fr);
+    gap: 22px;
+    align-items: start;
+  }
+  .lbx-me-card { display: block; }
+}
+@media (max-width: 899.98px) {
+  /* Am Handy verliert das Treppchen seine Karten-Hülle — nackt wie in der App. */
+  .lbx-card--pod {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+  }
+}
 .lbx-tabs { display: flex; gap: 8px; }
 .lbx-tab {
   display: inline-flex;
@@ -4139,7 +4186,6 @@ a.lp-way:hover {
   justify-content: center;
   gap: 14px;
   padding-top: 10px;
-  margin-bottom: 18px;
 }
 .lbx-pod { display: flex; flex-direction: column; align-items: center; gap: 5px; }
 .lbx-pod__ava {
@@ -4171,6 +4217,9 @@ a.lp-way:hover {
   font-weight: 800;
   font-size: 1.05rem;
 }
+.lbx-pod__bar--gold { height: 88px; }
+.lbx-pod__bar--silver { height: 66px; }
+.lbx-pod__bar--bronze { height: 56px; }
 .lbx-list { display: flex; flex-direction: column; gap: 3px; }
 .lbx-row {
   display: flex;
@@ -4240,6 +4289,23 @@ a.lp-way:hover {
 }
 .lbx-row__lp svg { color: var(--amber); }
 .lbx-row--me .lbx-row__lp { color: var(--brand-600); }
+
+/* Desktop-Maße: eine Stufe größer, damit die Breite wirklich gefüllt wirkt.
+   Steht bewusst NACH den Grundregeln — sonst überschreiben die sie wieder.
+   Das Handy behält die kompakten App-Maße. */
+@media (min-width: 900px) {
+  .lbx-podium { gap: 18px; }
+  .lbx-pod__ava { width: 56px; height: 56px; font-size: 1.15rem; }
+  .lbx-pod__name { font-size: 0.85rem; max-width: 86px; }
+  .lbx-pod__bar { width: 78px; font-size: 1.2rem; }
+  .lbx-pod__bar--gold { height: 120px; }
+  .lbx-pod__bar--silver { height: 94px; }
+  .lbx-pod__bar--bronze { height: 78px; }
+  .lbx-row { padding: 12px 14px; font-size: 1rem; }
+  .lbx-ava { width: 38px; height: 38px; }
+  .lbx-me-row { font-size: 0.95rem; }
+  .lbx-me-row b { font-size: 1.1rem; }
+}
 
 /* Konto löschen — Bestätigung */
 .danger-confirm {
