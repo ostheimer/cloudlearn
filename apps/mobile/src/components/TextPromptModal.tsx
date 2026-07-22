@@ -37,6 +37,13 @@ interface TextPromptModalProps {
   confirmLabel: string;
   /** Gezeichnetes Symbol neben der Überschrift (lucide-react-native). */
   icon: LucideIcon;
+  /** Mehrzeiliges Feld — für Freitext wie die Ordner-Beschreibung (#437). */
+  multiline?: boolean;
+  /**
+   * Leeres Abschicken zulassen. Namen dürfen nie leer sein, eine Beschreibung
+   * schon — leer speichern ist dort der Weg, sie wieder zu löschen.
+   */
+  allowEmpty?: boolean;
   onCancel: () => void;
   onSubmit: (value: string) => void;
 }
@@ -49,6 +56,8 @@ export default function TextPromptModal({
   initialValue,
   confirmLabel,
   icon: Icon,
+  multiline = false,
+  allowEmpty = false,
   onCancel,
   onSubmit,
 }: TextPromptModalProps) {
@@ -62,7 +71,7 @@ export default function TextPromptModal({
     if (visible) setValue(initialValue ?? "");
   }, [visible, initialValue]);
 
-  const isValid = value.trim().length > 0;
+  const isValid = allowEmpty || value.trim().length > 0;
 
   // Ein leerer Name wurde auch vorher verworfen — der Knopf bleibt deshalb
   // gesperrt, und die Eingabetaste löst dann ebenfalls nichts aus.
@@ -120,8 +129,11 @@ export default function TextPromptModal({
                 placeholder={placeholder}
                 placeholderTextColor={colors.textTertiary}
                 autoFocus
-                returnKeyType="done"
-                onSubmitEditing={handleSubmit}
+                multiline={multiline}
+                // Mehrzeilig macht die Eingabetaste zum Zeilenumbruch —
+                // gespeichert wird dann nur über den Knopf.
+                returnKeyType={multiline ? "default" : "done"}
+                onSubmitEditing={multiline ? undefined : handleSubmit}
                 style={{
                   borderWidth: 1,
                   borderColor: colors.border,
@@ -130,6 +142,7 @@ export default function TextPromptModal({
                   fontSize: typography.base,
                   backgroundColor: colors.background,
                   color: colors.text,
+                  ...(multiline ? { minHeight: 88, textAlignVertical: "top" as const } : null),
                 }}
               />
             </View>

@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
+  PanResponder,
   RefreshControl,
   ScrollView,
   Text,
@@ -14,6 +16,7 @@ import {
   FolderOpen,
   Layers,
   ChevronRight,
+  GripVertical,
   MoreVertical,
   Folder as FolderIcon,
   Play,
@@ -29,6 +32,7 @@ import {
   updateFolderApi,
   deleteFolderApi,
   removeDeckFromFolder,
+  setFolderDeckOrder,
   getDueCards,
   type Deck,
   type Folder,
@@ -54,6 +58,7 @@ export default function FolderDetailScreen() {
   const startPreset = useReviewSession((s) => s.startPreset);
 
   const [currentTitle, setCurrentTitle] = useState(title ?? "");
+  const [description, setDescription] = useState<string | null>(null);
   const [decks, setDecks] = useState<Deck[]>([]);
   const [subfolders, setSubfolders] = useState<Folder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,22 +67,26 @@ export default function FolderDetailScreen() {
   const [deckPickerVisible, setDeckPickerVisible] = useState(false);
   // Eigenes Eingabe-Fenster statt Eingabe-Alert: den gibt es nur auf iOS (#396).
   const [renamePromptVisible, setRenamePromptVisible] = useState(false);
+  const [descriptionPromptVisible, setDescriptionPromptVisible] = useState(false);
 
   const folderId = id ?? "";
 
   const loadContent = useCallback(async () => {
     if (!folderId) return;
     try {
+      // getFolder läuft jetzt IMMER mit (früher nur ohne Titel-Parameter):
+      // die Beschreibung steht nirgendwo sonst.
       const [decksRes, foldersRes, folderData] = await Promise.all([
         listDecksInFolder(folderId),
         listFolders(),
-        currentTitle ? Promise.resolve(null) : getFolder(folderId).catch(() => null),
+        getFolder(folderId).catch(() => null),
       ]);
       setDecks(decksRes.decks);
       // Filter subfolders (children of this folder)
       setSubfolders(foldersRes.folders.filter((f) => f.parentId === folderId));
-      if (folderData?.folder?.title) {
-        setCurrentTitle(folderData.folder.title);
+      if (folderData?.folder) {
+        if (folderData.folder.title) setCurrentTitle(folderData.folder.title);
+        setDescription(folderData.folder.description ?? null);
       }
     } catch {
       // Silently fail
@@ -85,7 +94,7 @@ export default function FolderDetailScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [folderId, currentTitle]);
+  }, [folderId]);
 
   useEffect(() => {
     loadContent();
@@ -113,6 +122,132 @@ export default function FolderDetailScreen() {
     },
     [folderId, t]
   );
+
+  // Leer speichern löscht die Beschreibung — der Server macht aus "" ein null.
+  const handleDescriptionSubmit = useCallback(
+    async (value: string) => {
+      setDescriptionPromptVisible(false);
+      try {
+        const { folder } = await updateFolderApi(folderId, { description: value.trim() });
+        setDescription(folder.description ?? null);
+      } catch {
+        Alert.alert(t("common.error"), t("folderDetail.descriptionError"));
+      }
+    },
+    [folderId, t]
+  );
+
+  // ─── Reihenfolge per Ziehgriff (#437) ─────────────────────────────────────
+  // Gleiches Verhalten wie im Web: Die Liste sortiert schon WÄHREND des
+  // Ziehens sichtbar um, gespeichert wird beim Loslassen. Die Reihenfolge
+  // sortiert nur — sie sperrt nie ein Deck.
+
+  // Für den Loslassen-Handler: der ist eine alte Closure und sähe sonst den
+  // Deck-Stand vom Beginn des Zugs.
+  const decksRef = useRef<Deck[]>([]);
+  useEffect(() => {
+    decksRef.current = decks;
+  }, [decks]);
+
+  // Welcher Karten-Index gerade gezogen wird; steuert Stil + Scroll-Sperre.
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  // Sichtbare Verschiebung der gezogenen Zeile — ein Animated.Value, damit
+  // jede Fingerbewegung NICHT die ganze Liste neu zeichnet.
+  const dragY = useRef(new Animated.Value(0)).current;
+  // baseline = wie viele Slot-Höhen die Zeile durch Tausche schon "gewandert"
+  // ist; die sichtbare Verschiebung ist immer dy minus baseline.
+  const dragState = useRef<{ index: number; baseline: number } | null>(null);
+  // Zeilenhöhe wird gemessen statt geraten (Schriftgrössen-Einstellungen!).
+  const rowHeightRef = useRef(0);
+  // Muss zum `gap` des ScrollView-Inhalts passen (spacing.sm + 2).
+  const ROW_GAP = spacing.sm + 2;
+
+  const persistOrder = useCallback(async () => {
+    try {
+      await setFolderDeckOrder(
+        folderId,
+        decksRef.current.map((d) => d.id)
+      );
+    } catch {
+      // Erst neu laden, dann melden — sonst bliebe das Zurückspringen der
+      // Karten unerklärt (gleiche Lehre wie im Web, PR #451).
+      await loadContent();
+      Alert.alert(t("common.error"), t("folderDetail.reorderError"));
+    }
+  }, [folderId, loadContent, t]);
+
+  // Der Fänger unten lebt über die ganze Lebenszeit des Bildschirms — er darf
+  // deshalb nur über diesen Ref speichern, nie über die (wandernde) Closure.
+  const persistOrderRef = useRef(persistOrder);
+  useEffect(() => {
+    persistOrderRef.current = persistOrder;
+  }, [persistOrder]);
+
+  // Welche Zeile der Finger gerade angefasst hat. Wird vom Griff per
+  // onTouchStart gesetzt — das feuert VOR der Responder-Vergabe.
+  const pendingIndexRef = useRef(0);
+
+  // Genau EIN PanResponder für alle Griffe. Würde je Zeile und Renderdurchlauf
+  // ein neuer erzeugt, ersetzte jeder Platztausch mitten im Zug die Handler
+  // durch eine Instanz, die den Zug nie begonnen hat — die Geste risse ab.
+  const gripResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        dragState.current = { index: pendingIndexRef.current, baseline: 0 };
+        dragY.setValue(0);
+        setDragIndex(pendingIndexRef.current);
+      },
+      onPanResponderMove: (_evt, gesture) => {
+        const s = dragState.current;
+        if (!s) return;
+        const slot = rowHeightRef.current + ROW_GAP;
+        if (slot <= ROW_GAP) return;
+        const rel = gesture.dy - s.baseline;
+        // Mehr als eine halbe Zeile bewegt? Dann Platz tauschen und die
+        // Grundlinie mitziehen, damit die Zeile unterm Finger bleibt.
+        if (rel > slot / 2 && s.index < decksRef.current.length - 1) {
+          const from = s.index;
+          setDecks((prev) => {
+            const next = [...prev];
+            const [moved] = next.splice(from, 1);
+            if (!moved) return prev;
+            next.splice(from + 1, 0, moved);
+            return next;
+          });
+          s.index += 1;
+          s.baseline += slot;
+          setDragIndex(s.index);
+        } else if (rel < -slot / 2 && s.index > 0) {
+          const from = s.index;
+          setDecks((prev) => {
+            const next = [...prev];
+            const [moved] = next.splice(from, 1);
+            if (!moved) return prev;
+            next.splice(from - 1, 0, moved);
+            return next;
+          });
+          s.index -= 1;
+          s.baseline -= slot;
+          setDragIndex(s.index);
+        }
+        dragY.setValue(gesture.dy - s.baseline);
+      },
+      onPanResponderRelease: () => {
+        dragState.current = null;
+        dragY.setValue(0);
+        setDragIndex(null);
+        void persistOrderRef.current();
+      },
+      onPanResponderTerminate: () => {
+        dragState.current = null;
+        dragY.setValue(0);
+        setDragIndex(null);
+        void persistOrderRef.current();
+      },
+    })
+  ).current;
 
   const handleDeleteFolder = useCallback(() => {
     Alert.alert(
@@ -190,6 +325,7 @@ export default function FolderDetailScreen() {
       // in the folder — it previously offered no way to fill it.
       { text: t("folderDetail.addDeck"), onPress: () => setDeckPickerVisible(true) },
       { text: t("folderDetail.rename"), onPress: handleRenameFolder },
+      { text: t("folderDetail.editDescription"), onPress: () => setDescriptionPromptVisible(true) },
       { text: t("common.delete"), style: "destructive", onPress: handleDeleteFolder },
       { text: t("common.cancel"), style: "cancel" },
     ]);
@@ -253,6 +389,18 @@ export default function FolderDetailScreen() {
                 </Text>
               </View>
             </View>
+            {description ? (
+              <Text
+                style={{
+                  fontSize: typography.sm,
+                  color: colors.textSecondary,
+                  marginTop: spacing.md,
+                  lineHeight: 20,
+                }}
+              >
+                {description}
+              </Text>
+            ) : null}
           </View>
 
           {/* Learn all button */}
@@ -293,7 +441,10 @@ export default function FolderDetailScreen() {
           ) : (
             <ScrollView
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-              contentContainerStyle={{ gap: spacing.sm + 2, paddingBottom: spacing.xxl }}
+              contentContainerStyle={{ gap: ROW_GAP, paddingBottom: spacing.xxl }}
+              // Beim Ziehen gehört die Fingerbewegung dem Griff, nicht dem
+              // Scrollen — sonst raten Geste und Liste gegeneinander.
+              scrollEnabled={dragIndex === null}
             >
               {/* Subfolders */}
               {subfolders.length > 0 && (
@@ -421,40 +572,76 @@ export default function FolderDetailScreen() {
                   </TouchableOpacity>
                 </View>
               ) : (
-                decks.map((deck) => (
-                  <TouchableOpacity
+                decks.map((deck, index) => (
+                  <Animated.View
                     key={deck.id}
-                    onPress={() =>
-                      router.push(`/deck/${deck.id}?title=${encodeURIComponent(deck.title)}`)
+                    onLayout={
+                      index === 0
+                        ? (e) => {
+                            rowHeightRef.current = e.nativeEvent.layout.height;
+                          }
+                        : undefined
                     }
-                    onLongPress={() => handleRemoveDeck(deck)}
-                    activeOpacity={0.7}
-                    style={{
-                      backgroundColor: colors.surface,
-                      borderRadius: radius.md,
-                      padding: 14,
-                      borderWidth: 1,
-                      borderColor: colors.border,
-                      ...shadows.sm,
-                    }}
+                    style={
+                      dragIndex === index
+                        ? {
+                            transform: [{ translateY: dragY }, { scale: 1.02 }],
+                            zIndex: 2,
+                            opacity: 0.9,
+                          }
+                        : null
+                    }
                   >
-                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                      <View style={{ flexDirection: "row", alignItems: "center", flex: 1, gap: spacing.sm }}>
-                        <Layers size={18} color={colors.primary} />
-                        <Text
-                          style={{
-                            fontWeight: typography.semibold,
-                            fontSize: typography.base,
-                            flex: 1,
-                            color: colors.text,
-                          }}
-                        >
-                          {deck.title}
-                        </Text>
+                    <TouchableOpacity
+                      onPress={() =>
+                        router.push(`/deck/${deck.id}?title=${encodeURIComponent(deck.title)}`)
+                      }
+                      onLongPress={() => handleRemoveDeck(deck)}
+                      activeOpacity={0.7}
+                      style={{
+                        backgroundColor: colors.surface,
+                        borderRadius: radius.md,
+                        padding: 14,
+                        borderWidth: 1,
+                        borderColor: dragIndex === index ? colors.primary : colors.border,
+                        ...shadows.sm,
+                      }}
+                    >
+                      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                        <View style={{ flexDirection: "row", alignItems: "center", flex: 1, gap: spacing.sm }}>
+                          <Layers size={18} color={colors.primary} />
+                          <Text
+                            style={{
+                              fontWeight: typography.semibold,
+                              fontSize: typography.base,
+                              flex: 1,
+                              color: colors.text,
+                            }}
+                          >
+                            {deck.title}
+                          </Text>
+                        </View>
+                        {/* Griff nur zeigen, wenn Sortieren etwas bewirken kann. */}
+                        {decks.length > 1 && (
+                          <View
+                            accessible
+                            accessibilityLabel={t("folderDetail.moveDeck", { title: deck.title })}
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            style={{ paddingHorizontal: spacing.sm, paddingVertical: 4 }}
+                            // onTouchStart feuert vor der Responder-Vergabe und
+                            // sagt dem geteilten Fänger, WELCHE Zeile es ist.
+                            onTouchStart={() => {
+                              pendingIndexRef.current = index;
+                            }}
+                            {...gripResponder.panHandlers}
+                          >
+                            <GripVertical size={18} color={colors.textTertiary} />
+                          </View>
+                        )}
+                        <ChevronRight size={18} color={colors.textTertiary} />
                       </View>
-                      <ChevronRight size={18} color={colors.textTertiary} />
-                    </View>
-                  </TouchableOpacity>
+                    </TouchableOpacity>
+                  </Animated.View>
                 ))
               )}
             </ScrollView>
@@ -488,6 +675,23 @@ export default function FolderDetailScreen() {
           confirmLabel={t("common.save")}
           onCancel={() => setRenamePromptVisible(false)}
           onSubmit={handleRenameSubmit}
+        />
+      ) : null}
+
+      {descriptionPromptVisible ? (
+        <TextPromptModal
+          visible
+          icon={FolderOpen}
+          title={t("folderDetail.editDescription")}
+          label={t("folderDetail.descriptionPrompt")}
+          placeholder={t("folderDetail.descriptionPlaceholder")}
+          initialValue={description ?? ""}
+          confirmLabel={t("common.save")}
+          // Freitext: mehrzeilig, und leer speichern löscht die Beschreibung.
+          multiline
+          allowEmpty
+          onCancel={() => setDescriptionPromptVisible(false)}
+          onSubmit={handleDescriptionSubmit}
         />
       ) : null}
     </SafeAreaView>
