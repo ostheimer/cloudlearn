@@ -206,7 +206,14 @@ describe("Offline-Warteschlange — was beim Hochladen mit einer Antwort passier
     // ausgerechnet die fleißigsten Offline-Lerner nichts mehr synchronisieren.
     const viele = Array.from({ length: 501 }, (_, i) => operation(`review-${i}`));
     useOfflineQueueStore.setState({
-      queue: { pending: viele, inFlight: [], syncing: false, hydrated: true },
+      queue: {
+        pending: viele,
+        inFlight: [],
+        syncing: false,
+        hydrated: true,
+        lastSyncedAt: null,
+        rejectedCount: 0,
+      },
     });
 
     syncReviewOperations.mockImplementation(async (_userId: string, ops: unknown[]) => {
@@ -225,7 +232,14 @@ describe("Offline-Warteschlange — was beim Hochladen mit einer Antwort passier
   it("arbeitet den Rückstand in Runden ab, bis er leer ist", async () => {
     const viele = Array.from({ length: 1200 }, (_, i) => operation(`review-${i}`));
     useOfflineQueueStore.setState({
-      queue: { pending: viele, inFlight: [], syncing: false, hydrated: true },
+      queue: {
+        pending: viele,
+        inFlight: [],
+        syncing: false,
+        hydrated: true,
+        lastSyncedAt: null,
+        rejectedCount: 0,
+      },
     });
     syncReviewOperations.mockImplementation(async (_u: string, ops: unknown[]) =>
       serverAnswer({ accepted: (ops as { operationId: string }[]).map((o) => o.operationId) })
