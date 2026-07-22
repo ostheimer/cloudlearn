@@ -10,6 +10,9 @@
  * dem Modell greifen; hier, dass die Grenzen beim späteren Ablegen genauso
  * gelten, obwohl dabei keine Lernpunkte mehr fließen.
  */
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const USER_ID = "6e5db9e4-7e48-4e11-8d8c-6ca90c18d42a";
@@ -136,6 +139,7 @@ beforeEach(() => {
   mockedExtractPdf.mockResolvedValue({
     extractedText: "Lernstoff aus dem Skript.",
     pageCount: 3,
+    extractedCharacters: "Lernstoff aus dem Skript.".length,
   });
   mockedExtractUrl.mockResolvedValue({
     sourceUrl: "https://example.com",
@@ -284,7 +288,7 @@ describe("Ablegen der durchgesehenen Karten (#427)", () => {
 
   it("speichert die Fassung der Nutzerin, nicht die des Modells", async () => {
     const result = await saveImportedCards(saveBody(), "req-9", USER_ID);
-    expect(result.cards[0].front).toBe("Bearbeitet 0");
+    expect(result.cards[0]?.front).toBe("Bearbeitet 0");
   });
 
   it("hängt an ein bestehendes Deck an", async () => {
@@ -329,11 +333,14 @@ describe("Ablegen der durchgesehenen Karten (#427)", () => {
     expect(mockedInsertCards).not.toHaveBeenCalled();
   });
 
-  it("kostet keine Lernpunkte — die flossen beim Erzeugen", async () => {
-    // Der Dienst kennt weder Guthaben noch Abzug; geprüft wird das hier über
-    // seine Abhängigkeiten: Er ruft nichts aus dem LP-Bereich auf.
-    const quelle = await import("node:fs/promises").then((fs) =>
-      fs.readFile("src/services/importSaveService.ts", "utf-8")
+  it("kostet keine Lernpunkte — die flossen beim Erzeugen", () => {
+    // Der Dienst kennt weder Guthaben noch Abzug; geprüft wird das über seine
+    // Abhängigkeiten: Er ruft nichts aus dem LP-Bereich auf. Der Pfad hängt am
+    // Testdateiort, nicht am Arbeitsverzeichnis — sonst schlägt der Test je
+    // nach Aufruf (Repo-Wurzel vs. apps/api) unterschiedlich an.
+    const quelle = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), "../services/importSaveService.ts"),
+      "utf-8"
     );
     expect(quelle).not.toMatch(/lpService|spendLp|runLpChargedIdempotentRequest/);
   });
