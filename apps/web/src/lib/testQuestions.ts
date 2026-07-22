@@ -25,6 +25,42 @@ export interface TestQuestion {
   tfIsCorrect: boolean; // nur "trueFalse" — ob die gezeigte Paarung stimmt
 }
 
+/** Was die Prüfung zu einer Frage festhält — eine Antwort je Fragetyp. */
+export interface TestAnswer {
+  mc: number | null;
+  tf: boolean | null;
+  text: string;
+}
+
+/**
+ * Gilt diese Frage als beantwortet?
+ *
+ * Entscheidet, was beim vorzeitigen Verlassen einer Prüfung gemeldet wird.
+ * Absichtlich streng: nur eine wirklich gegebene Antwort zählt, nicht eine
+ * bloß gesehene Frage. Wer auf Frage 29 steht und dort noch nichts angetippt
+ * hat, bekommt für diese Karte kein „nicht gewusst" angehängt — das würde den
+ * Lernplan aufgrund von Schweigen verstellen.
+ *
+ * Beim vollständigen Abgeben gilt weiterhin die andere Regel: Dort zählt eine
+ * leer gelassene Frage als falsch, weil man sich bewusst dafür entschieden
+ * hat, sie leer abzugeben.
+ */
+export function isAnswered(answer: TestAnswer | undefined): boolean {
+  if (!answer) return false;
+  return answer.mc !== null || answer.tf !== null || answer.text.trim().length > 0;
+}
+
+/** Die Plätze der beantworteten Fragen, in ursprünglicher Reihenfolge. */
+export function answeredIndices(
+  answers: ReadonlyArray<TestAnswer | undefined>
+): number[] {
+  const kept: number[] = [];
+  answers.forEach((answer, i) => {
+    if (isAnswered(answer)) kept.push(i);
+  });
+  return kept;
+}
+
 export interface BuildTestOptions {
   count: number;
   types: TestQuestionType[];

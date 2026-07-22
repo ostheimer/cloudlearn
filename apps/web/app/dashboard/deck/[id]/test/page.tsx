@@ -4,10 +4,13 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
+import { Modal } from "@/components/app/modal";
 import { listCardsInDeck, reviewCard, isApiError, type Card } from "@/lib/api";
 import { isAnswerCorrect } from "@/lib/answerCheck";
 import {
+  answeredIndices,
   buildTestQuestions,
+  type TestAnswer,
   type TestQuestion,
   type TestQuestionType,
 } from "@/lib/testQuestions";
@@ -31,10 +34,42 @@ const SECONDS_PER_QUESTION = 30;
 // dass auch eine lange Prüfung in Sekundenbruchteilen durch ist.
 const REVIEW_CHUNK_SIZE = 25;
 
-type Answer = { mc: number | null; tf: boolean | null; text: string };
+type Answer = TestAnswer;
 type Graded = { correct: boolean; overridden: boolean };
 
+const EMPTY_ANSWER: Answer = { mc: null, tf: null, text: "" };
+
 const lastResultKey = (deckId: string) => `clearn:test:last:${deckId}`;
+
+function gradeAnswer(q: TestQuestion, a: Answer, strict: boolean): boolean {
+  if (q.type === "mc") return a.mc === q.correctIndex;
+  if (q.type === "trueFalse") return a.tf === q.tfIsCorrect;
+  return isAnswerCorrect(a.text, q.expected, { strict });
+}
+
+/**
+ * Meldet die Antworten einer Prüfung — in Häppchen, mit Warten dazwischen.
+ *
+ * Ein `map` ohne `await` feuert bei einer 100-Fragen-Prüfung 100 gleichzeitige
+ * Anfragen los; die Bremse auf der Review-Route (#358) würde einen Teil davon
+ * abweisen und die Antworten wären still weg.
+ *
+ * Modul-Ebene statt im Bauteil, weil auch der Notausgang sie braucht: Beim
+ * Verlassen läuft sie aus der Aufräum-Funktion heraus weiter, wenn der
+ * Bildschirm längst weg ist. Ein `fetch` überlebt einen Seitenwechsel innerhalb
+ * der App — nur das Schließen des Tabs nicht.
+ */
+async function flushReviews(
+  userId: string,
+  toSend: ReadonlyArray<{ cardId: string; rating: "good" | "again" }>
+): Promise<void> {
+  for (let i = 0; i < toSend.length; i += REVIEW_CHUNK_SIZE) {
+    const chunk = toSend.slice(i, i + REVIEW_CHUNK_SIZE);
+    await Promise.allSettled(
+      chunk.map((r) => reviewCard(userId, r.cardId, r.rating, { mode: "test" }).catch(() => {}))
+    );
+  }
+}
 
 function formatTime(s: number): string {
   const m = Math.floor(s / 60);
@@ -70,6 +105,22 @@ export default function TestPage() {
   // Merkt sich, ob die Runde auf „Schriftlich" zurückgefallen ist (zu wenige
   // offene Karten für Wahr/Falsch bzw. Multiple Choice) — für den Hinweis im Spiel.
   const [fellBackToWritten, setFellBackToWritten] = useState(false);
+  // Nachfrage vor dem vorzeitigen Beenden.
+  const [leavePrompt, setLeavePrompt] = useState(false);
+  // Wurde diese Runde vorzeitig beendet? Dann ist die Prozentzahl auf weniger
+  // Fragen berechnet, als man sich vorgenommen hatte, und darf NICHT als
+  // „Letztes Ergebnis" stehenbleiben.
+  const [aborted, setAborted] = useState(false);
+  /**
+   * Sind die Antworten dieser Runde schon rausgegangen?
+   *
+   * Es gibt drei Wege hinaus — Abgeben, vorzeitig Beenden und der Notausgang
+   * beim Verlassen des Bildschirms. Ohne diese Sperre könnten zwei davon
+   * zusammenfallen und dieselbe Karte doppelt melden: einmal „nicht gewusst",
+   * einmal dasselbe nochmal. Die Statistik hätte doppelte Zeilen und der
+   * Streak-Tag wäre zweimal gezählt.
+   */
+  const sentRef = useRef(false);
 
   // Keine LP-Zustände mehr: die Prüfung rechnet nichts ab (Schritt 7). Die
   // Wiederholungen werden weiterhin gesendet — sie tragen Streak und Statistik
@@ -158,9 +209,14 @@ export default function TestPage() {
       }
       setFellBackToWritten(fellBack);
       setQuestions(qs);
-      setAnswers(qs.map(() => ({ mc: null, tf: null, text: "" })));
+      setAnswers(qs.map(() => ({ ...EMPTY_ANSWER })));
       setGraded([]);
       setIdx(0);
+      // Eine neue Runde darf wieder melden — sonst bliebe „Nochmal" nach einem
+      // vorzeitigen Beenden für immer stumm.
+      sentRef.current = false;
+      setAborted(false);
+      setLeavePrompt(false);
       // Zeitbudget aus den TATSÄCHLICH gebauten Fragen (nicht der angeforderten
       // Anzahl) — buildTestQuestions kann weniger liefern (z. B. Lücken-Karten bei
       // ausgeschaltetem „Schriftlich"). Nur im Zeit-Modus relevant.
@@ -172,44 +228,48 @@ export default function TestPage() {
 
   const startTest = useCallback(() => buildAndStart(cards), [buildAndStart, cards]);
 
-  const submit = useCallback(() => {
-    const toSend: Array<{ cardId: string; rating: "good" | "again" }> = [];
-    const result: Graded[] = questions.map((q, i) => {
-      const a = answers[i] ?? { mc: null, tf: null, text: "" };
-      let correct = false;
-      if (q.type === "mc") correct = a.mc === q.correctIndex;
-      else if (q.type === "trueFalse") correct = a.tf === q.tfIsCorrect;
-      else correct = isAnswerCorrect(a.text, q.expected, { strict });
-      if (userId) toSend.push({ cardId: q.cardId, rating: correct ? "good" : "again" });
-      return { correct, overridden: false };
-    });
-    setGraded(result);
+  /**
+   * Schließt die Runde ab: bewerten, melden, Ergebnis zeigen.
+   *
+   * `scope: "all"` ist das normale Abgeben — jede Frage zählt, eine leer
+   * gelassene als falsch. `scope: "answered"` ist das vorzeitige Beenden: Dann
+   * bleiben nur die Fragen übrig, auf die es wirklich eine Antwort gibt, und
+   * die Durchsicht zeigt genau diese. Unberührte Fragen verschwinden komplett,
+   * statt als „nicht gewusst" in den Lernplan zu wandern.
+   */
+  const finish = useCallback(
+    (scope: "all" | "answered") => {
+      if (sentRef.current) return;
+      const keep =
+        scope === "all" ? questions.map((_, i) => i) : answeredIndices(answers);
+      const keptQuestions = keep.map((i) => questions[i]!);
+      const keptAnswers = keep.map((i) => answers[i] ?? EMPTY_ANSWER);
 
-    // Abgeben feuerte bisher ALLE Antworten in derselben Millisekunde los (ein
-    // map ohne await). Bei einer 100-Fragen-Prüfung sind das 100 gleichzeitige
-    // Anfragen — die erste Bremse auf der Review-Route (#358) würde davon einen
-    // Teil abweisen und die Antworten wären still weg. Deshalb in Häppchen, mit
-    // Warten dazwischen. Für die Nutzerin ändert sich nichts: das Ergebnis
-    // erscheint sofort, das Senden läuft dahinter weiter.
-    if (toSend.length > 0 && userId) {
-      const flush = (async () => {
-        for (let i = 0; i < toSend.length; i += REVIEW_CHUNK_SIZE) {
-          const chunk = toSend.slice(i, i + REVIEW_CHUNK_SIZE);
-          await Promise.allSettled(
-            chunk.map((r) =>
-              reviewCard(userId, r.cardId, r.rating, { mode: "test" }).catch(() => {})
-            )
-          );
-        }
-      })();
-      // Niemand wartet mehr darauf: es wird nichts abgerechnet. Die
-      // Wiederholungen laufen im Hintergrund weiter — für Streak, Statistik und
-      // um falsch beantwortete Karten zurückzuholen.
-      void flush;
-    }
+      const toSend: Array<{ cardId: string; rating: "good" | "again" }> = [];
+      const result: Graded[] = keptQuestions.map((q, i) => {
+        const correct = gradeAnswer(q, keptAnswers[i]!, strict);
+        if (userId) toSend.push({ cardId: q.cardId, rating: correct ? "good" : "again" });
+        return { correct, overridden: false };
+      });
 
-    setPhase("result");
-  }, [questions, answers, strict, userId]);
+      sentRef.current = true;
+      setQuestions(keptQuestions);
+      setAnswers(keptAnswers);
+      setGraded(result);
+      setAborted(scope === "answered");
+
+      // Bewusst kein await: Das Ergebnis erscheint sofort, das Melden läuft
+      // dahinter weiter. Es wird nichts abgerechnet, worauf jemand warten müsste.
+      if (toSend.length > 0 && userId) void flushReviews(userId, toSend);
+
+      setPhase("result");
+    },
+    [questions, answers, strict, userId]
+  );
+
+  const submit = useCallback(() => finish("all"), [finish]);
+
+  const answeredCount = useMemo(() => answeredIndices(answers).length, [answers]);
 
   // submit über eine Ref ansprechen, damit der Countdown-Effekt nicht bei jeder
   // Antwort neu startet.
@@ -233,9 +293,76 @@ export default function TestPage() {
     }
   }, [phase, timed, remaining, questions.length]);
 
-  // Letztes Ergebnis merken (aktualisiert sich beim Nachbewerten).
+  /**
+   * Notausgang: Was beim Verlassen des Bildschirms noch nicht gemeldet wurde,
+   * geht jetzt raus.
+   *
+   * Deckt alles ab, was an der Nachfrage vorbeiführt — Zurück-Taste des
+   * Browsers, ein Klick in der Seitenleiste, ein Link von außen. Die Nachfrage
+   * ist der bewusste Weg, dieser hier der stille Rettungsanker.
+   *
+   * Der Effekt hat KEINE Abhängigkeiten und liest den Stand über eine Ref:
+   * Liefe er bei jeder Antwort neu, würde seine Aufräum-Funktion mitten in der
+   * Prüfung feuern und nach der ersten Frage melden.
+   *
+   * Was er nicht kann: das Schließen des Tabs. Dort läuft keine
+   * Aufräum-Funktion mehr — dafür ist die Warnung unten da.
+   */
+  const liveRef = useRef({ phase, questions, answers, strict, userId });
+  // Nachführen in einem Effekt ohne Abhängigkeiten, NICHT beim Zeichnen: React
+  // darf einen begonnenen Durchlauf verwerfen. Schriebe man die Ref beim
+  // Zeichnen, könnte darin ein Stand landen, den es nie auf den Bildschirm
+  // geschafft hat — und der Notausgang meldete Antworten aus einer Runde, die
+  // so nie stattgefunden hat.
   useEffect(() => {
-    if (phase !== "result" || !deckId || questions.length === 0) return;
+    liveRef.current = { phase, questions, answers, strict, userId };
+  });
+  useEffect(() => {
+    return () => {
+      const { phase: p, questions: qs, answers: as, strict: st, userId: uid } = liveRef.current;
+      if (sentRef.current || p !== "play" || !uid) return;
+      const keep = answeredIndices(as);
+      if (keep.length === 0) return;
+      sentRef.current = true;
+      void flushReviews(
+        uid,
+        keep.map((i) => ({
+          cardId: qs[i]!.cardId,
+          rating: gradeAnswer(qs[i]!, as[i] ?? EMPTY_ANSWER, st)
+            ? ("good" as const)
+            : ("again" as const),
+        }))
+      );
+    };
+  }, []);
+
+  /**
+   * Tab schließen oder neu laden: Der Browser fragt mit seinem eigenen Fenster
+   * nach. Den Text dürfen Webseiten seit Jahren nicht mehr bestimmen — nur ob
+   * gefragt wird.
+   *
+   * Bestätigt man das Verlassen, gehen die Antworten verloren. Wir könnten sie
+   * hier nicht zuverlässig noch rausschicken (der Zugangs-Schlüssel muss dafür
+   * erst geholt werden, und dazu kommt es beim Schließen oft nicht mehr). Ein
+   * Versuch, der mal klappt und mal nicht, wäre schlimmer als eine klare Regel:
+   * Dann wüsste niemand, ob die Prüfung gezählt hat.
+   */
+  useEffect(() => {
+    if (phase !== "play") return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (sentRef.current || answeredIndices(answers).length === 0) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [phase, answers]);
+
+  // Letztes Ergebnis merken (aktualisiert sich beim Nachbewerten). Eine
+  // vorzeitig beendete Runde bleibt draußen: „Letztes Ergebnis: 40 %" nach
+  // einem Abbruch bei Frage drei sagt nichts über das Können aus.
+  useEffect(() => {
+    if (phase !== "result" || !deckId || questions.length === 0 || aborted) return;
     try {
       window.localStorage.setItem(lastResultKey(deckId), String(percent));
     } catch {
@@ -461,6 +588,16 @@ export default function TestPage() {
           <p className="muted" style={{ margin: 0, fontSize: "0.85rem" }}>
             Eine Prüfung misst — Lernpunkte gibt es beim Lernen.
           </p>
+          {aborted && (
+            // Ohne diesen Satz sähe eine vorzeitig beendete Prüfung aus wie eine
+            // vollständige — mit einer Quote, die sich auf weniger Fragen
+            // bezieht, als man sich vorgenommen hatte.
+            <p className="muted" style={{ margin: 0, fontSize: "0.85rem" }}>
+              Vorzeitig beendet — gewertet sind die {questions.length}{" "}
+              {questions.length === 1 ? "Frage" : "Fragen"}, die du beantwortet
+              hast.
+            </p>
+          )}
         </div>
 
         <div className="cl-dir__lbl">Durchsicht</div>
@@ -572,6 +709,27 @@ export default function TestPage() {
             <Clock size={14} /> {formatTime(Math.max(remaining, 0))}
           </span>
         )}
+        {/* Vor dieser Taste gab es aus der laufenden Prüfung gar keinen Weg
+            hinaus außer der Zurück-Taste des Browsers. */}
+        <button
+          type="button"
+          aria-label="Prüfung beenden"
+          onClick={() => {
+            if (answeredCount === 0) router.push(`/dashboard/deck/${deckId}`);
+            else setLeavePrompt(true);
+          }}
+          style={{
+            background: "none",
+            border: "none",
+            padding: 4,
+            margin: -4,
+            display: "grid",
+            cursor: "pointer",
+            color: "var(--ink-3)",
+          }}
+        >
+          <X size={18} />
+        </button>
       </div>
       <div className="progress">
         <i style={{ width: `${Math.max(progress * 100, 2)}%` }} />
@@ -665,6 +823,36 @@ export default function TestPage() {
           {!isLast && <ChevronRight size={18} />}
         </button>
       </div>
+
+      {leavePrompt && (
+        <Modal title="Prüfung beenden?" onClose={() => setLeavePrompt(false)}>
+          <p className="muted" style={{ margin: 0 }}>
+            Du hast {answeredCount} von {questions.length}{" "}
+            {questions.length === 1 ? "Frage" : "Fragen"} beantwortet. Deine
+            bisherigen Antworten werden gespeichert und zählen für Streak,
+            Statistik und Lernplan.
+          </p>
+          <div className="modal__actions">
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setLeavePrompt(false)}
+            >
+              Weiter machen
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => {
+                setLeavePrompt(false);
+                finish("answered");
+              }}
+            >
+              Beenden und speichern
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
