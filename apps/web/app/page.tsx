@@ -78,8 +78,8 @@ const features: { Icon: IconType; tint: string; title: string; body: string }[] 
   {
     Icon: Folder,
     tint: "g-amber",
-    title: "Kurse & Ordner",
-    body: "Ordne deine Decks in Kursen und Ordnern — klare Struktur für jedes Fach statt einer langen Liste.",
+    title: "Ordner",
+    body: "Ordne deine Decks in Ordnern — klare Struktur für jedes Fach statt einer langen Liste.",
   },
   {
     Icon: Share,
@@ -109,7 +109,7 @@ const faqs = [
   },
   {
     q: "Was kostet clearn? Was ist gratis, was Pro?",
-    a: "Starten ist kostenlos: Konto anlegen, Decks & Karten erstellen und lernen — inklusive Spaced Repetition, allen Lernmodi, Kurse & Ordner, Teilen und Statistik. Das KI-Erstellen läuft über Lernpunkte, die du dir durchs Lernen verdienst. Mit Pro gibt es mehr: mehr Decks & Karten, PDF-Import, Bild-Occlusion, Offline-Download, günstigere KI-Kosten und monatliche Lernpunkte.",
+    a: "Starten ist kostenlos: Konto anlegen, Decks & Karten erstellen und lernen — inklusive Spaced Repetition, allen Lernmodi, Ordner, Teilen und Statistik. Das KI-Erstellen läuft über Lernpunkte, die du dir durchs Lernen verdienst. Mit Pro gibt es mehr: mehr Decks & Karten, PDF-Import, Bild-Occlusion, Offline-Download, günstigere KI-Kosten und monatliche Lernpunkte.",
   },
   {
     q: "Woraus kann ich Karten erstellen?",
