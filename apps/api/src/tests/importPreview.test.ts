@@ -40,7 +40,7 @@ vi.mock("@/lib/db", () => ({
     dbState.deckIds.includes(deckId) ? deckRecord(deckId) : null
   ),
   createDeck: vi.fn(async (_userId: string, title: string) => {
-    const id = `deck-neu-${dbState.deckIds.length}`;
+    const id = `00000000-0000-4000-8000-${String(dbState.deckIds.length + 1).padStart(12, "0")}`;
     dbState.deckIds.push(id);
     return { ...deckRecord(id), title };
   }),
@@ -74,14 +74,22 @@ vi.mock("@/lib/urlContentExtractor", () => ({ extractUrlContent: vi.fn() }));
 vi.mock("@/lib/idempotencyStore", () => ({
   getIdempotentResult: vi.fn(),
   storeIdempotentResult: vi.fn(),
+  takeIdempotentResult: vi.fn(),
 }));
+vi.mock("@/lib/limits", () => ({ assertEntitlement: vi.fn() }));
 vi.mock("@/services/subscriptionService", () => ({ getSubscriptionStatus: vi.fn() }));
 
 import { insertCards, recordScan } from "@/lib/db";
 import { generateFlashcardsAsync, generateFlashcardsFromUrlContentAsync } from "@/lib/llm";
 import { extractPdfText } from "@/lib/pdf";
 import { extractUrlContent } from "@/lib/urlContentExtractor";
-import { getIdempotentResult, storeIdempotentResult } from "@/lib/idempotencyStore";
+import {
+  getIdempotentResult,
+  storeIdempotentResult,
+  takeIdempotentResult,
+} from "@/lib/idempotencyStore";
+import { assertEntitlement } from "@/lib/limits";
+import { HttpError } from "@/lib/http";
 import { getSubscriptionStatus } from "@/services/subscriptionService";
 import { processScan } from "@/services/scanService";
 import { processPdfImport } from "@/services/pdfImportService";
@@ -96,7 +104,19 @@ const mockedExtractPdf = vi.mocked(extractPdfText);
 const mockedExtractUrl = vi.mocked(extractUrlContent);
 const mockedGetIdempotentResult = vi.mocked(getIdempotentResult);
 const mockedStoreIdempotentResult = vi.mocked(storeIdempotentResult);
+const mockedTakeIdempotentResult = vi.mocked(takeIdempotentResult);
+const mockedAssertEntitlement = vi.mocked(assertEntitlement);
 const mockedSubscription = vi.mocked(getSubscriptionStatus);
+
+const previewReceipt = {
+  requestId: "req-preview",
+  model: "gemini",
+  fallbackUsed: false,
+  cards: cards(6),
+  deckTitle: "PIT Kapitel 4",
+  generatedCount: 6,
+  savedCount: 0,
+};
 
 function cards(count: number, prefix = "Frage") {
   return Array.from({ length: count }, (_value, index) => ({
@@ -123,7 +143,15 @@ beforeEach(() => {
   dbState.cardIds = [];
   dbState.nextCardId = 0;
   setTier("free");
-  mockedGetIdempotentResult.mockResolvedValue(null);
+  mockedGetIdempotentResult.mockImplementation(async (key) =>
+    key.startsWith("import-preview:") ? previewReceipt : null
+  );
+  mockedTakeIdempotentResult.mockResolvedValue(previewReceipt);
+  mockedAssertEntitlement.mockImplementation((tier) => {
+    if (tier === "free") {
+      throw new HttpError("Pro erforderlich", 402, "PAYWALL_REQUIRED");
+    }
+  });
   mockedGenerateText.mockResolvedValue({
     cards: cards(6),
     model: "gemini",
@@ -268,14 +296,98 @@ describe("Vorschau: erzeugen ohne zu speichern (#427)", () => {
     expect(mockedInsertCards).not.toHaveBeenCalled();
     expect(result.savedCount).toBe(0);
   });
+
+  it("prüft auch eine Vorschau ohne Ziel vor dem bezahlten Modelllauf", async () => {
+    dbState.deckIds = Array.from({ length: 20 }, (_value, index) => `deck-${index}`);
+
+    const attempts = [
+      () => processScan(
+        {
+          userId: USER_ID,
+          extractedText: "Text",
+          idempotencyKey: "vorschau-scan-am-limit",
+          preview: true,
+        },
+        "req-limit-scan",
+        USER_ID
+      ),
+      () => processPdfImport(
+        {
+          userId: USER_ID,
+          fileName: "Skript.pdf",
+          fileBase64: "A".repeat(200),
+          idempotencyKey: "vorschau-pdf-am-limit",
+          preview: true,
+        },
+        "req-limit-pdf",
+        USER_ID
+      ),
+      () => processUrlImport(
+        {
+          userId: USER_ID,
+          sourceUrl: "https://example.com",
+          idempotencyKey: "vorschau-url-am-limit",
+          preview: true,
+        },
+        "req-limit-url",
+        USER_ID
+      ),
+    ];
+
+    for (const attempt of attempts) {
+      await expect(attempt()).rejects.toMatchObject({ code: "DECK_LIMIT_REACHED" });
+    }
+    expect(mockedGenerateText).not.toHaveBeenCalled();
+    expect(mockedGenerateUrl).not.toHaveBeenCalled();
+    expect(mockedExtractPdf).not.toHaveBeenCalled();
+    expect(mockedExtractUrl).not.toHaveBeenCalled();
+  });
+
+  it("legt für die Vorschau einen getrennten, nutzergebundenen Save-Beleg ab", async () => {
+    await processScan(
+      {
+        userId: USER_ID,
+        extractedText: "Text",
+        idempotencyKey: "vorschau-beleg",
+        preview: true,
+      },
+      "req-receipt",
+      USER_ID
+    );
+
+    expect(mockedStoreIdempotentResult).toHaveBeenCalledWith(
+      `import-preview:${USER_ID}:scan:vorschau-beleg`,
+      expect.objectContaining({ savedCount: 0 })
+    );
+  });
 });
 
 describe("Ablegen der durchgesehenen Karten (#427)", () => {
   const saveBody = (extra: Record<string, unknown> = {}) => ({
     userId: USER_ID,
     cards: cards(3, "Bearbeitet"),
+    previewKind: "scan",
+    previewIdempotencyKey: "vorschau-scan-1",
     idempotencyKey: "speichern-1",
     ...extra,
+  });
+
+  it("verlangt den Nachweis einer zuvor bezahlten Vorschau", async () => {
+    mockedGetIdempotentResult.mockResolvedValue(null);
+
+    await expect(
+      saveImportedCards(saveBody(), "req-proof", USER_ID)
+    ).rejects.toMatchObject({ code: "PREVIEW_REQUIRED" });
+    expect(mockedInsertCards).not.toHaveBeenCalled();
+  });
+
+  it("behandelt eine bereits beanspruchte Vorschau als laufenden Parallel-Request", async () => {
+    mockedTakeIdempotentResult.mockResolvedValueOnce(null);
+
+    await expect(
+      saveImportedCards(saveBody(), "req-parallel", USER_ID)
+    ).rejects.toMatchObject({ code: "IMPORT_SAVE_IN_PROGRESS" });
+    expect(mockedInsertCards).not.toHaveBeenCalled();
   });
 
   it("legt ein neues Deck mit dem gewünschten Titel an", async () => {
@@ -284,6 +396,20 @@ describe("Ablegen der durchgesehenen Karten (#427)", () => {
     expect(result.deckTitle).toBe("PIT Kapitel 4");
     expect(result.savedCount).toBe(3);
     expect(mockedInsertCards).toHaveBeenCalledTimes(1);
+    expect(mockedTakeIdempotentResult).toHaveBeenCalledWith(
+      `import-preview:${USER_ID}:scan:vorschau-scan-1`
+    );
+  });
+
+  it("erlaubt Bearbeiten und Löschen, aber nicht mehr Karten als die bezahlte Vorschau", async () => {
+    await expect(
+      saveImportedCards(
+        saveBody({ cards: cards(7, "Zusätzlich") }),
+        "req-too-many",
+        USER_ID
+      )
+    ).rejects.toMatchObject({ code: "PREVIEW_CARD_COUNT_EXCEEDED" });
+    expect(mockedInsertCards).not.toHaveBeenCalled();
   });
 
   it("speichert die Fassung der Nutzerin, nicht die des Modells", async () => {
@@ -321,15 +447,45 @@ describe("Ablegen der durchgesehenen Karten (#427)", () => {
   });
 
   it("gibt beim zweiten Druck dasselbe Ergebnis statt doppelter Karten", async () => {
-    const first = await saveImportedCards(saveBody({ title: "Einmalig" }), "req-13", USER_ID);
-    expect(mockedStoreIdempotentResult).toHaveBeenCalledWith("speichern-1", first);
+    const first = await saveImportedCards(
+      saveBody({ title: "Einmalig" }),
+      "request-13",
+      USER_ID
+    );
+    expect(mockedStoreIdempotentResult).toHaveBeenCalledWith(
+      expect.stringContaining("import-save:"),
+      first
+    );
 
     mockedGetIdempotentResult.mockResolvedValueOnce(first);
     mockedInsertCards.mockClear();
 
-    const second = await saveImportedCards(saveBody({ title: "Einmalig" }), "req-14", USER_ID);
+    const second = await saveImportedCards(
+      saveBody({ title: "Einmalig" }),
+      "request-14",
+      USER_ID
+    );
 
     expect(second).toEqual(first);
+    expect(mockedInsertCards).not.toHaveBeenCalled();
+  });
+
+  it("lässt Gratis-Konten keine Occlusion-Karte über den Vorschau-Speicherweg anlegen", async () => {
+    const occlusion = {
+      ...cards(1)[0],
+      type: "occlusion" as const,
+      sourceImageUrl: "user/deck/card.png",
+      extraData: { regions: [], hideIndex: 0 },
+    };
+
+    await expect(
+      saveImportedCards(
+        saveBody({ cards: [occlusion] }),
+        "req-occlusion",
+        USER_ID
+      )
+    ).rejects.toMatchObject({ code: "PAYWALL_REQUIRED" });
+    expect(mockedAssertEntitlement).toHaveBeenCalledWith("free", "imageOcclusion");
     expect(mockedInsertCards).not.toHaveBeenCalled();
   });
 

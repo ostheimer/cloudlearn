@@ -5,6 +5,7 @@ import {
 } from "@/lib/contracts";
 import { recordScan } from "@/lib/db";
 import { getIdempotentResult, storeIdempotentResult } from "@/lib/idempotencyStore";
+import { importPreviewReceiptKey } from "@/lib/importPreviewReceipt";
 import { reserveImportTarget, storeImportedCards } from "@/lib/importCapacity";
 import {
   generateFlashcardsAsync,
@@ -35,10 +36,7 @@ export async function processScan(
   // wäre die Erzeugung für die Katz), das Ergebnis aber nicht zum Speichern
   // benutzt: `target` bleibt in der Vorschau immer leer.
   const { tier } = await getSubscriptionStatus(userId);
-  const checked =
-    parsed.preview && !parsed.deckId
-      ? null
-      : await reserveImportTarget({ userId, tier, deckId: parsed.deckId });
+  const checked = await reserveImportTarget({ userId, tier, deckId: parsed.deckId });
   const target = parsed.preview ? null : checked;
 
   let generated: LLMGenerationResult;
@@ -78,6 +76,10 @@ export async function processScan(
       generatedCount: cards.length,
       savedCount: 0,
     };
+    await storeIdempotentResult(
+      importPreviewReceiptKey(userId, "scan", parsed.idempotencyKey),
+      previewResponse
+    );
     await storeIdempotentResult(parsed.idempotencyKey, previewResponse);
     return previewResponse;
   }

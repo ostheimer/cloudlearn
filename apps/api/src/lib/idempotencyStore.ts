@@ -31,6 +31,28 @@ export async function storeIdempotentResult(key: string, value: unknown): Promis
 }
 
 /**
+ * Atomically removes and returns a one-shot idempotency value.
+ *
+ * Used for paid import preview receipts: concurrent save requests can both see
+ * the receipt, but only one DELETE ... RETURNING statement can claim it. The
+ * loser must wait/retry instead of writing a second deck.
+ */
+export async function takeIdempotentResult<T>(key: string): Promise<T | null> {
+  const db = createSupabaseAdminClient();
+  if (!db) return null;
+
+  const { data, error } = await db
+    .from("idempotency_keys")
+    .delete()
+    .eq("key", key)
+    .select("response")
+    .maybeSingle();
+
+  if (error || !data) return null;
+  return data.response as T;
+}
+
+/**
  * No-op retained for backwards compatibility. Idempotency state now lives in
  * Postgres (`idempotency_keys` table), so there is no in-process store to clear.
  */

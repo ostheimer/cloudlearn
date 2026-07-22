@@ -299,7 +299,11 @@ export const importSaveRequestSchema = z.object({
   cards: flashcardListSchema,
   deckId: z.string().uuid().optional(),
   title: z.string().trim().min(1).max(100).optional(),
-  idempotencyKey: z.string().min(8).max(128),
+  // The save consumes the one-shot receipt created by this paid preview. The
+  // internal save-result key uses a separate namespace, so reusing the client
+  // key cannot collide with the generation response.
+  previewKind: z.enum(["scan", "url", "pdf"]),
+  previewIdempotencyKey: z.string().min(8).max(128),
 });
 
 export type ImportSaveRequest = z.infer<typeof importSaveRequestSchema>;

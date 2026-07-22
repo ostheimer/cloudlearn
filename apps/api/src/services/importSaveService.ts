@@ -1,9 +1,21 @@
 import {
   importSaveRequestSchema,
+  importSaveResponseSchema,
   type ImportSaveResponse,
 } from "@/lib/contracts";
-import { getIdempotentResult, storeIdempotentResult } from "@/lib/idempotencyStore";
+import {
+  getIdempotentResult,
+  storeIdempotentResult,
+  takeIdempotentResult,
+} from "@/lib/idempotencyStore";
+import {
+  importPreviewReceiptKey,
+  importSaveResultKey,
+  parseImportPreviewReceipt,
+} from "@/lib/importPreviewReceipt";
 import { reserveImportTarget, storeImportedCards } from "@/lib/importCapacity";
+import { HttpError } from "@/lib/http";
+import { assertEntitlement } from "@/lib/limits";
 import { getSubscriptionStatus } from "@/services/subscriptionService";
 
 /**
@@ -29,37 +41,95 @@ export async function saveImportedCards(
   userId: string
 ): Promise<ImportSaveResponse> {
   const parsed = importSaveRequestSchema.parse(input);
+  const receiptKey = importPreviewReceiptKey(
+    userId,
+    parsed.previewKind,
+    parsed.previewIdempotencyKey
+  );
+  const saveKey = importSaveResultKey(
+    userId,
+    parsed.previewKind,
+    parsed.previewIdempotencyKey
+  );
 
-  const existing = await getIdempotentResult<ImportSaveResponse>(parsed.idempotencyKey);
-  if (existing) {
-    return existing;
+  const existing = importSaveResponseSchema.safeParse(
+    await getIdempotentResult<unknown>(saveKey)
+  );
+  if (existing.success) {
+    return existing.data;
+  }
+
+  const availableReceipt = parseImportPreviewReceipt(
+    await getIdempotentResult<unknown>(receiptKey)
+  );
+  if (!availableReceipt) {
+    throw new HttpError(
+      "Für diese Karten fehlt eine bezahlte Vorschau. Erzeuge die Vorschau erneut.",
+      409,
+      "PREVIEW_REQUIRED"
+    );
+  }
+  if (parsed.cards.length > availableReceipt.cards.length) {
+    throw new HttpError(
+      "Die Vorschau enthält weniger Karten als der Speicherauftrag.",
+      409,
+      "PREVIEW_CARD_COUNT_EXCEEDED"
+    );
   }
 
   const { tier } = await getSubscriptionStatus(userId);
-  const target = await reserveImportTarget({ userId, tier, deckId: parsed.deckId });
+  if (parsed.cards.some((card) => card.type === "occlusion")) {
+    assertEntitlement(tier, "imageOcclusion");
+  }
 
-  // Ohne eigenen Titel bekommt ein neues Deck denselben Notnagel wie eh und je;
-  // bei einem bestehenden Deck spielt der Titel keine Rolle, es behält seinen.
-  const title = parsed.title ?? "Importierte Karten";
+  // DELETE ... RETURNING is the atomic claim. Two concurrent save requests can
+  // both validate the receipt above, but only one can take it and write cards.
+  const claimedReceipt = parseImportPreviewReceipt(
+    await takeIdempotentResult<unknown>(receiptKey)
+  );
+  if (!claimedReceipt) {
+    const completed = importSaveResponseSchema.safeParse(
+      await getIdempotentResult<unknown>(saveKey)
+    );
+    if (completed.success) return completed.data;
+    throw new HttpError(
+      "Diese Vorschau wird bereits gespeichert. Bitte versuche es gleich erneut.",
+      409,
+      "IMPORT_SAVE_IN_PROGRESS"
+    );
+  }
 
-  const stored = await storeImportedCards({
-    userId,
-    tier,
-    target,
-    title,
-    tags: ["scan"],
-    cards: parsed.cards,
-  });
+  try {
+    const target = await reserveImportTarget({ userId, tier, deckId: parsed.deckId });
 
-  const response: ImportSaveResponse = {
-    requestId,
-    deckId: stored.deck.id,
-    deckTitle: stored.deck.title,
-    cards: stored.savedCards,
-    generatedCount: stored.generatedCount,
-    savedCount: stored.savedCount,
-  };
+    // Ohne eigenen Titel bekommt ein neues Deck denselben Notnagel wie eh und je;
+    // bei einem bestehenden Deck spielt der Titel keine Rolle, es behält seinen.
+    const title = parsed.title ?? "Importierte Karten";
 
-  await storeIdempotentResult(parsed.idempotencyKey, response);
-  return response;
+    const stored = await storeImportedCards({
+      userId,
+      tier,
+      target,
+      title,
+      tags: ["scan"],
+      cards: parsed.cards,
+    });
+
+    const response: ImportSaveResponse = {
+      requestId,
+      deckId: stored.deck.id,
+      deckTitle: stored.deck.title,
+      cards: stored.savedCards,
+      generatedCount: stored.generatedCount,
+      savedCount: stored.savedCount,
+    };
+
+    await storeIdempotentResult(saveKey, response);
+    return response;
+  } catch (error) {
+    // A validation/capacity/database failure must not burn the one-shot receipt;
+    // the client may correct the target or retry a transient failure.
+    await storeIdempotentResult(receiptKey, claimedReceipt);
+    throw error;
+  }
 }

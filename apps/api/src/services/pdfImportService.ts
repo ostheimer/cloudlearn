@@ -12,6 +12,7 @@ import {
 } from "@/lib/contracts";
 import { recordScan } from "@/lib/db";
 import { getIdempotentResult, storeIdempotentResult } from "@/lib/idempotencyStore";
+import { importPreviewReceiptKey } from "@/lib/importPreviewReceipt";
 import { reserveImportTarget, storeImportedCards } from "@/lib/importCapacity";
 import { generateFlashcardsAsync } from "@/lib/llm";
 import { extractPdfText } from "@/lib/pdf";
@@ -90,10 +91,7 @@ export async function processPdfImport(
   // #427: In der Vorschau wird nichts abgelegt — gespeichert wird erst über
   // importSaveService, wenn die Nutzerin Ziel und Karten festgelegt hat. Ein
   // bereits genanntes Deck wird trotzdem vorher geprüft.
-  const checked =
-    parsed.preview && !parsed.deckId
-      ? null
-      : await reserveImportTarget({ userId, tier, deckId: parsed.deckId });
+  const checked = await reserveImportTarget({ userId, tier, deckId: parsed.deckId });
   const target = parsed.preview ? null : checked;
 
   const extracted = await extractPdfText(parsed.fileBase64);
@@ -123,6 +121,10 @@ export async function processPdfImport(
       generatedCount: cards.length,
       savedCount: 0,
     };
+    await storeIdempotentResult(
+      importPreviewReceiptKey(userId, "pdf", parsed.idempotencyKey),
+      previewResponse
+    );
     await storeIdempotentResult(parsed.idempotencyKey, previewResponse);
     return previewResponse;
   }
