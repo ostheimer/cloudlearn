@@ -8,9 +8,10 @@
  *
  * The Supabase admin client is replaced with a thenable query-builder fake:
  * every chained method returns the builder itself, and awaiting it resolves
- * the next queued response — getReviewStats awaits six queries in a fixed
+ * the next queued response — getReviewStats awaits ten queries in a fixed
  * order (today / week / all-time total counts, then the window's total and
- * good counts, then the daily rows).
+ * good counts, then vier Zählungen für die nach Art getrennte Quote, dann die
+ * Tageszeilen).
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -45,7 +46,7 @@ function makeDbMock(responses: QueryResponse[]) {
     // bleibt aber stehen: die Attrappe soll an einem wiederkehrenden Filter
     // nicht zerbrechen. Fehlt eine Methode hier, wirft der Aufruf
     // „is not a function" — schon einmal so passiert (#334).
-    for (const method of ["select", "eq", "neq", "gte", "lte", "order", "limit", "range"]) {
+    for (const method of ["select", "eq", "neq", "gte", "lte", "in", "order", "limit", "range"]) {
       builder[method] = (...args: unknown[]) => {
         calls.push({ method, args });
         return builder;
@@ -64,12 +65,21 @@ function makeDbMock(responses: QueryResponse[]) {
 
 /**
  * Responses in getReviewStats' query order: today, week, all-time total,
- * window total, window good, daily rows.
+ * window total, window good, dann je Gruppe total+good (Abruf, dann
+ * Wiedererkennen), dann daily rows.
+ *
+ * Die vier Gruppen-Zählungen laufen per Promise.all, aber `from()` wird beim
+ * Start jeder einzelnen synchron gerufen — die Reihenfolge in der Warteschlange
+ * steht also fest.
  */
 function statsResponses(
   dailyRows: unknown[],
   windowTotal = 80,
-  windowGood = 60
+  windowGood = 60,
+  recallTotal = 50,
+  recallGood = 26,
+  recognitionTotal = 20,
+  recognitionGood = 18
 ): QueryResponse[] {
   return [
     { count: 3, error: null },
@@ -77,6 +87,10 @@ function statsResponses(
     { count: 200, error: null },
     { count: windowTotal, error: null },
     { count: windowGood, error: null },
+    { count: recallTotal, error: null },
+    { count: recallGood, error: null },
+    { count: recognitionTotal, error: null },
+    { count: recognitionGood, error: null },
     { data: dailyRows, error: null },
   ];
 }
@@ -211,6 +225,13 @@ describe("getReviewStats – 7/30-day window + durationMsByDay", () => {
       { count: 1200, error: null },
       { count: 1200, error: null },
       { count: 1200, error: null },
+      // Die vier Zählungen der nach Art getrennten Quote. Hier egal, aber sie
+      // stehen in der Warteschlange VOR den Tageszeilen — fehlten sie, rutschte
+      // die erste Seite an ihre Stelle und der Test prüfte die falsche Abfrage.
+      { count: 1000, error: null },
+      { count: 800, error: null },
+      { count: 200, error: null },
+      { count: 150, error: null },
       { data: olderPage, error: null },
       { data: newestPage, error: null },
     ]);
@@ -316,5 +337,62 @@ describe("getReviewStats – 7/30-day window + durationMsByDay", () => {
 
     // Keine einzige Abfrage darf Prüfungen noch aussortieren.
     expect(calls.filter((c) => c.method === "neq")).toEqual([]);
+  });
+
+  it("rechnet die getrennte Quote je Gruppe mit dem EIGENEN Nenner", async () => {
+    // 26 von 50 abgerufen (52 %), 18 von 20 wiedererkannt (90 %). Absichtlich
+    // so gewählt, dass die falsche Rechnung auffiele: über beide Gruppen
+    // zusammen wären es 44/70 = 63 %, und keiner der beiden Werte käme heraus.
+    const { db } = makeDbMock(statsResponses(DAILY_ROWS, 80, 60, 50, 26, 20, 18));
+    mockedCreateDb.mockReturnValue(db);
+
+    const stats = await getReviewStats(USER_ID, 30);
+
+    expect(stats.accuracyByKind).toEqual({
+      recall: { rate: 0.52, answers: 50 },
+      recognition: { rate: 0.9, answers: 20 },
+    });
+    // Die Gruppen summieren sich NICHT auf das Fenster (50 + 20 < 80): die
+    // Differenz sind Prüfungen, die keiner Gruppe angehören. Stünde hier
+    // Gleichheit, wäre 'test' versehentlich in eine Gruppe gerutscht.
+    expect(stats.accuracyByKind.recall.answers + stats.accuracyByKind.recognition.answers)
+      .toBeLessThan(stats.reviewsInWindow);
+  });
+
+  it("meldet eine nie benutzte Gruppe als 0 Antworten statt als 0 %", async () => {
+    // Laras Stand heute: Multiple Choice und Zuordnen noch nie gespielt. „0 %"
+    // wäre eine Behauptung über Antworten, die es nicht gibt — der Client
+    // erkennt den Unterschied nur an `answers` und zeigt sonst einen Strich.
+    const { db } = makeDbMock(statsResponses(DAILY_ROWS, 80, 60, 177, 92, 0, 0));
+    mockedCreateDb.mockReturnValue(db);
+
+    const stats = await getReviewStats(USER_ID, 30);
+
+    expect(stats.accuracyByKind.recognition).toEqual({ rate: 0, answers: 0 });
+    expect(stats.accuracyByKind.recall.answers).toBe(177);
+  });
+
+  it("filtert die beiden Gruppen nach den richtigen Modi — und nie nach 'test'", async () => {
+    const { db, calls } = makeDbMock(statsResponses(DAILY_ROWS));
+    mockedCreateDb.mockReturnValue(db);
+
+    await getReviewStats(USER_ID, 30);
+
+    // Vier Abfragen mit .in("mode", …): je total und good pro Gruppe.
+    const modeFilter = calls
+      .filter((c) => c.method === "in" && c.args[0] === "mode")
+      .map((c) => c.args[1]);
+
+    expect(modeFilter).toHaveLength(4);
+    expect(modeFilter[0]).toEqual(["flashcard", "practice", "cloze", "occlusion"]);
+    expect(modeFilter[1]).toEqual(["flashcard", "practice", "cloze", "occlusion"]);
+    expect(modeFilter[2]).toEqual(["quiz", "match"]);
+    expect(modeFilter[3]).toEqual(["quiz", "match"]);
+    // Rutschte 'test' in eine Gruppe, stünden Prüfungszahlen in einer Quote,
+    // neben der sie gleich nochmal einzeln stehen — dieselbe Größe zweimal
+    // verschieden, genau der Widerspruch aus #390.
+    for (const modes of modeFilter) {
+      expect(modes).not.toContain("test");
+    }
   });
 });

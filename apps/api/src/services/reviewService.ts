@@ -1,11 +1,11 @@
 import { applyReview, createNewFsrsCard, reconstructFsrsCard } from "@/lib/domain";
 import { logInfo } from "@/lib/observability";
 import {
-  reviewModeSchema,
+  RECALL_MODES,
   reviewRequestSchema,
+  type ReviewMode,
   type ReviewResponse,
 } from "@/lib/contracts";
-import type { z } from "zod";
 import type { CardRecord } from "@/lib/db";
 import {
   createReview,
@@ -34,19 +34,12 @@ function buildReviewResponse(requestId: string, card: CardRecord): ReviewRespons
   };
 }
 
-type ReviewMode = z.infer<typeof reviewModeSchema>;
-
 /**
- * Modi, in denen die Antwort AUS DEM KOPF produziert wird — Tippen oder
- * Selbstbewerten. Nur sie dürfen den Wiederhol-Plan bewegen.
- *
- * Nicht dabei: quiz und match (die Antwort steht zur Auswahl da, ein Treffer
- * kann geraten sein) und test (misst, statt zu lernen — Produktentscheidung).
+ * Nur Abruf-Modi dürfen den Wiederhol-Plan bewegen (Liste in `@/lib/contracts`).
  * Würde Raten als „gewusst" gebucht, schöbe FSRS die Karte in die Zukunft,
  * obwohl der Lernende sie nicht kann: der Plan verschlechtert sich unsichtbar.
  * Das war der Kern von #210.
  */
-const RECALL_MODES: readonly ReviewMode[] = ["flashcard", "practice", "cloze", "occlusion"];
 
 /**
  * Darf diese Wiederholung den Plan bewegen?

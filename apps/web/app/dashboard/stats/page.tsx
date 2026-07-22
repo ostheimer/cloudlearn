@@ -12,13 +12,7 @@ import {
 } from "@/lib/api";
 import { BarChart, ChevronRight, Flame, Lock } from "@/components/icons";
 import { AccuracyRing, AccuracyTrendChart, ActivityBars } from "@/components/app/stats-charts";
-
-function accColor(rate: number): string {
-  const pct = rate <= 1 ? rate * 100 : rate;
-  if (pct < 60) return "#e2504a";
-  if (pct < 80) return "#d97706";
-  return "#16a34a";
-}
+import { AccuracyByKindPanel, accColor } from "@/components/app/accuracy-by-kind";
 
 export default function StatsPage() {
   const [rangeDays, setRangeDays] = useState<7 | 30>(30);
@@ -104,7 +98,6 @@ export default function StatsPage() {
     : 0;
   const accRate = stats ? (stats.accuracyRate <= 1 ? stats.accuracyRate : stats.accuracyRate / 100) : 0;
   const goal = stats?.dailyGoal ?? 0;
-
   const sortedDecks = decks
     ? [...decks].sort((a, b) => {
         if (a.answersTotal === 0 && b.answersTotal > 0) return 1;
@@ -229,6 +222,11 @@ export default function StatsPage() {
           </span>
         </div>
       </div>
+
+      {/* Aufgeschlüsselt: die Kachel oben mischt Abrufen und Wiedererkennen.
+          Nur zeigen, wenn die API das Feld liefert — ältere Stände sollen keine
+          leere Karte hinterlassen. */}
+      {stats?.accuracyByKind && <AccuracyByKindPanel data={stats.accuracyByKind} />}
 
       {/* Hero: Trefferquote-Verlauf, volle Breite */}
       <div className="panel">

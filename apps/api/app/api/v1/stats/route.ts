@@ -52,6 +52,7 @@ export async function GET(request: NextRequest) {
         reviewsTotal: reviewStats.reviewsTotal,
         reviewsInWindow: reviewStats.reviewsInWindow,
         accuracyRate: reviewStats.accuracyRate,
+        accuracyByKind: reviewStats.accuracyByKind,
         // The window actually served, after the tier clamp — a Free account
         // asking for 30 gets 7. Clients label the accuracy with THIS, so the
         // label can't promise a month of data and show a week's.

@@ -148,6 +148,32 @@ export const reviewModeSchema = z.enum([
   "match",
   "test",
 ]);
+export type ReviewMode = z.infer<typeof reviewModeSchema>;
+
+/**
+ * Modi, in denen die Antwort AUS DEM KOPF produziert wird — Tippen oder
+ * Selbstbewerten.
+ *
+ * Nicht dabei: quiz und match (die Antwort steht zur Auswahl da, ein Treffer
+ * kann geraten sein) und test (misst, statt zu lernen — Produktentscheidung).
+ *
+ * Zwei Leser hängen daran, und beide brauchen GENAU dieselbe Liste:
+ * `movesTheSchedule` (nur Abruf darf FSRS bewegen, #210) und die getrennte
+ * Trefferquote der Statistik. Liefen sie auseinander, zeigte die Statistik eine
+ * Quote „aus dem Kopf", die andere Karten meint als der Lernplan — ein
+ * Widerspruch, den niemand sieht, weil beide Zahlen für sich stimmig wirken.
+ */
+export const RECALL_MODES: readonly ReviewMode[] = ["flashcard", "practice", "cloze", "occlusion"];
+
+/**
+ * Modi, in denen die richtige Antwort sichtbar zur Auswahl steht: Wiedererkennen
+ * statt Abrufen. Ein Treffer kann geraten sein.
+ *
+ * `test` fehlt hier absichtlich in BEIDEN Gruppen — die Prüfung bekommt ihren
+ * eigenen Bereich. Zusammen decken die Gruppen deshalb bewusst nicht alle Modi
+ * ab; wer hier etwas ergänzt, muss `reviewsInWindow` als Nenner prüfen.
+ */
+export const RECOGNITION_MODES: readonly ReviewMode[] = ["quiz", "match"];
 
 export const reviewRequestSchema = z.object({
   userId: z.string().uuid(),

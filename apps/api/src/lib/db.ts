@@ -7,7 +7,14 @@
 import { createSupabaseAdminClient } from "./supabase";
 import { daysBetween, startOfLocalDayIso, startOfTodayLocalIso, todayLocal } from "./localDay";
 import { STREAK_REPAIR } from "./featureGates";
-import { deriveCardType, type Flashcard, type SubscriptionTier } from "./contracts";
+import {
+  deriveCardType,
+  RECALL_MODES,
+  RECOGNITION_MODES,
+  type Flashcard,
+  type ReviewMode,
+  type SubscriptionTier,
+} from "./contracts";
 
 // ─── Interfaces (same shape as inMemoryStore) ───────────────────────────────
 
@@ -789,6 +796,15 @@ export async function getReviewStats(
   /** Share of good+easy answers **within the chosen 7/30-day window**, not
    *  all-time — see the counts below for why. */
   accuracyRate: number;
+  /** Trefferquote getrennt nach Art der Antwort — abgerufen (aus dem Kopf)
+   *  gegen wiedererkannt (aus einer Auswahl getippt). `answers` ist der eigene
+   *  Nenner der Gruppe; 0 heißt „in diesem Zeitraum nichts davon gemacht" und
+   *  soll als Strich angezeigt werden, nicht als 0 %. Prüfungen zählen in
+   *  keiner der beiden Gruppen. */
+  accuracyByKind: {
+    recall: { rate: number; answers: number };
+    recognition: { rate: number; answers: number };
+  };
   reviewsByDay: Array<{ date: string; count: number }>;
   accuracyByDay: Array<{ date: string; accuracy: number; count: number }>;
   durationMsByDay: Array<{ date: string; durationMs: number }>;
@@ -876,6 +892,36 @@ export async function getReviewStats(
     .gte("reviewed_at", windowStart)
     .gte("rating", 3); // 3=good, 4=easy
 
+  // Dieselbe Trefferquote, aufgeteilt nach der Art der Antwort. Die
+  // Gesamtzahl mischt zwei verschiedene Leistungen: „ich wusste es" (Karte
+  // umgedreht, selbst bewertet) und „ich habe die richtige von vier Kacheln
+  // getroffen". Seit Quiz/Zuordnen zählen, hebt Raten die Quote, ohne dass
+  // eine Karte aus dem Kopf kam — die eine Zahl wird dadurch schmeichelhaft.
+  //
+  // `test` bleibt in beiden Gruppen außen vor: die Prüfung bekommt einen
+  // eigenen Bereich. Die Gruppen summieren sich deshalb NICHT auf
+  // `reviewsInWindow` — jede Gruppe bringt ihren eigenen Nenner mit, damit
+  // ein Client "keine Antworten" von "alle falsch" unterscheiden kann.
+  const countInWindow = async (modes: readonly ReviewMode[], onlyGood: boolean) => {
+    let q = db
+      .from("review_logs")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .gte("reviewed_at", windowStart)
+      .in("mode", [...modes]);
+    if (onlyGood) q = q.gte("rating", 3);
+    const { count } = await q;
+    return count ?? 0;
+  };
+  // Gebündelt: vier zusätzliche Zählungen nacheinander wären vier
+  // Netzwerk-Wartezeiten in einer Route, die ohnehin viele Abfragen macht.
+  const [recallTotal, recallGood, recognitionTotal, recognitionGood] = await Promise.all([
+    countInWindow(RECALL_MODES, false),
+    countInWindow(RECALL_MODES, true),
+    countInWindow(RECOGNITION_MODES, false),
+    countInWindow(RECOGNITION_MODES, true),
+  ]);
+
   const total = totalCount ?? 0;
   const windowTotal = windowTotalCount ?? 0;
   const windowGood = windowGoodCount ?? 0;
@@ -938,6 +984,19 @@ export async function getReviewStats(
     reviewsTotal: total,
     reviewsInWindow: windowTotal,
     accuracyRate: Math.round(accuracyRate * 100) / 100,
+    accuracyByKind: {
+      recall: {
+        rate: recallTotal > 0 ? Math.round((recallGood / recallTotal) * 100) / 100 : 0,
+        answers: recallTotal,
+      },
+      recognition: {
+        rate:
+          recognitionTotal > 0
+            ? Math.round((recognitionGood / recognitionTotal) * 100) / 100
+            : 0,
+        answers: recognitionTotal,
+      },
+    },
     reviewsByDay,
     accuracyByDay,
     durationMsByDay,
