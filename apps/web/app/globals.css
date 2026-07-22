@@ -3384,6 +3384,93 @@ a.lp-pill:hover {
   width: calc(100% - 26px);
 }
 
+/* #427: Vorschau der erzeugten Karten — lesen, ändern, aussortieren, dann
+   speichern. Am Desktop Liste links, Ziel und Knöpfe rechts; am Handy alles
+   untereinander mit dem Ziel am Ende, wo man nach dem Durchsehen ankommt. */
+.draft-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.draft-head__t {
+  font-size: 1.35rem;
+  font-weight: 800;
+  margin: 0;
+}
+.draft-grid {
+  display: grid;
+  gap: 16px;
+}
+@media (min-width: 900px) {
+  .draft-grid {
+    grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+    align-items: start;
+  }
+  /* Das Ziel bleibt beim Scrollen durch lange Kartenlisten sichtbar. */
+  .draft-side {
+    position: sticky;
+    top: 84px;
+  }
+}
+.draft-list {
+  display: grid;
+  gap: 12px;
+}
+.draft-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 14px 14px;
+}
+.draft-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.draft-card__n {
+  font-size: 0.75rem;
+  color: var(--ink-4);
+  font-weight: 700;
+}
+.draft-card__del {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--ink-3);
+  display: inline-flex;
+  padding: 4px;
+  border-radius: 6px;
+}
+.draft-card__del:hover {
+  /* Dieselbe Warnfarbe wie „Konto löschen" im Profil — es gibt keine Variable
+     dafür, der Wert steht dort ebenso wörtlich. */
+  color: #dc2626;
+  background: var(--bg-softer);
+}
+.draft-card__lbl {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--ink-3);
+  margin-bottom: 3px;
+}
+.draft-card__field {
+  width: 100%;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+  /* Ohne das erbt jedes Feld die Mindesthöhe der großen Eingabe-Textfelder.
+     Bei 18 Karten wird daraus eine endlose Seite; hier zählt die Übersicht,
+     und wer viel schreibt, zieht das Feld an der Ecke auf. */
+  min-height: 0;
+  padding: 8px 10px;
+  line-height: 1.4;
+}
+.draft-card__field:last-child {
+  margin-bottom: 0;
+}
+
 /* Kosten-Chip im Erstellen-Button (wie „⚡N" in der App) */
 .btn-cost {
   display: inline-flex;
