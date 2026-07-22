@@ -576,7 +576,7 @@ export function earnLp(
   });
 }
 
-// ─── Rangliste (global) ────────────────────────────────────────────────────
+// ─── Rangliste ─────────────────────────────────────────────────────────────
 // Datenminimierung: keine rohen Nutzer-IDs — "bin das ich?" entscheidet der
 // Server (isCurrentUser).
 export interface LeaderboardEntry {
@@ -595,6 +595,13 @@ export interface LeaderboardResponse {
 }
 export function getLeaderboard(): Promise<LeaderboardResponse> {
   return authed<LeaderboardResponse>("/api/v1/leaderboard/global");
+}
+export interface FriendsLeaderboardResponse {
+  entries: LeaderboardEntry[];
+  friendCount: number;
+}
+export function getFriendsLeaderboard(): Promise<FriendsLeaderboardResponse> {
+  return authed<FriendsLeaderboardResponse>("/api/v1/leaderboard/friends");
 }
 
 // ─── Freunde einladen (Referral) ───────────────────────────────────────────

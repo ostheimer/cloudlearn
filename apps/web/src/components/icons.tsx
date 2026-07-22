@@ -335,6 +335,20 @@ export const Trophy = (p: IconProps) => (
   </Icon>
 );
 
+export const Crown = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 17 3 6l5 4.5L12 4l4 6.5L21 6l-1 11H4z" />
+    <path d="M5 21h14" />
+  </Icon>
+);
+
+export const Medal = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M9.5 12.5 5 3h4l3 6.5L15 3h4l-4.5 9.5" />
+    <circle cx="12" cy="16" r="5" />
+  </Icon>
+);
+
 export const Clock = (p: IconProps) => (
   <Icon {...p}>
     <circle cx="12" cy="12" r="9" />

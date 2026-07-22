@@ -109,7 +109,7 @@ export default function ProfilePage() {
     }
   }
 
-  const shownEntries = board?.entries.slice(0, 8) ?? [];
+  const shownEntries = board?.entries.slice(0, 5) ?? [];
   const meShown = shownEntries.some((e) => e.isCurrentUser);
 
   return (
@@ -219,7 +219,7 @@ export default function ProfilePage() {
             </Link>
           </div>
 
-          <div className="pf-card pf-card--pad">
+          <Link href="/dashboard/leaderboard" className="pf-card pf-card--pad pf-card--link">
             <div className="pf-card__head">
               <span className="pf-ic pf-ic--amber" aria-hidden>
                 <Trophy size={18} />
@@ -255,7 +255,10 @@ export default function ProfilePage() {
             ) : (
               <p className="muted">Rangliste wird geladen …</p>
             )}
-          </div>
+            <span className="pf-card__more">
+              Ganze Rangliste anzeigen <ChevronRight size={16} />
+            </span>
+          </Link>
         </div>
 
         {/* Hilfe & Rechtliches */}
