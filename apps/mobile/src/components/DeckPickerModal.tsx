@@ -1,12 +1,14 @@
 /**
- * Modal to pick a deck and add it to the current folder — the mirror image of
+ * Modal to pick decks and add them to the current folder — the mirror image of
  * FolderPickerModal (which picks a folder for a deck). Same layout on purpose,
  * so both directions feel like one feature.
  *
- * Why it exists: standing in an empty folder, the only hint was "add decks via
- * the three-dot menu in the deck" — pointing at a menu somewhere else, while the
- * folder's own menu could only rename and delete. The folder told you what to do
- * but could not do it.
+ * Mehrfachauswahl mit sichtbarer Reihenfolge (Laras Wunsch, 22.07.): Antippen
+ * vergibt Nummern in Antipp-Reihenfolge, erst der Knopf unten speichert. Die
+ * Decks landen in genau dieser Reihenfolge HINTER dem, was schon im Ordner
+ * liegt — gespeichert wird dafür nacheinander, denn die Ordner-Sortierung
+ * liest `position nulls last, added_at asc`: die Einfüge-Zeitpunkte SIND die
+ * Reihenfolge, ganz ohne zweiten Schreibweg.
  */
 import React, { useCallback, useEffect, useState } from "react";
 import {
@@ -28,13 +30,19 @@ import {
   addDeckToFolder,
   type Deck,
 } from "../lib/api";
+import { toggleSelection } from "../lib/deckSelection";
 
 interface DeckPickerModalProps {
   visible: boolean;
   folderId: string;
   userId: string;
   onClose: () => void;
-  onAdded: (deck: Deck) => void;
+  /**
+   * Nach JEDEM erfolgreichen Hinzufügen (auch teilweisem) — der Bildschirm
+   * lädt damit seine Liste nach. Kein Erfolgs-Alert mehr: dass die Decks im
+   * Ordner liegen, sieht man direkt in der Liste.
+   */
+  onAdded: (decks: Deck[]) => void;
 }
 
 export default function DeckPickerModal({
@@ -51,8 +59,10 @@ export default function DeckPickerModal({
   // same deck can't be added twice. A deck may well sit in several folders
   // (Laras Entscheidung), so being in another folder does not disable it here.
   const [alreadyIn, setAlreadyIn] = useState<Set<string>>(new Set());
+  // Antipp-Reihenfolge; Position im Array = angezeigte Nummer − 1.
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [adding, setAdding] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -71,21 +81,43 @@ export default function DeckPickerModal({
   }, [folderId, userId, t]);
 
   useEffect(() => {
-    if (visible) void load();
+    if (visible) {
+      setSelectedIds([]);
+      void load();
+    }
   }, [visible, load]);
 
-  const handleAdd = async (deck: Deck) => {
-    setAdding(deck.id);
+  const handleConfirm = async () => {
+    setBusy(true);
+    const added: Deck[] = [];
     try {
-      await addDeckToFolder(folderId, deck.id);
-      onAdded(deck);
+      // Nacheinander statt parallel — die Einfüge-Reihenfolge ist hier die
+      // Zusage an die Nutzerin (siehe Kopfkommentar).
+      for (const deckId of selectedIds) {
+        const deck = decks.find((d) => d.id === deckId);
+        if (!deck) continue;
+        await addDeckToFolder(folderId, deckId);
+        added.push(deck);
+      }
+      onAdded(added);
       onClose();
     } catch {
+      // Die schon gelungenen liegen im Ordner — Bildschirm nachladen lassen,
+      // gelungene aus der Auswahl nehmen, Fenster offen lassen: die Nutzerin
+      // sieht so genau, welche noch fehlen, und kann es erneut versuchen.
+      if (added.length > 0) onAdded(added);
+      setSelectedIds((prev) => prev.filter((id) => !added.some((d) => d.id === id)));
       Alert.alert(t("common.error"), t("folder.addError"));
+      await load();
     } finally {
-      setAdding(null);
+      setBusy(false);
     }
   };
+
+  const confirmLabel =
+    selectedIds.length === 1
+      ? t("folder.addSelectedOne")
+      : t("folder.addSelectedMany", { count: selectedIds.length });
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
@@ -129,20 +161,24 @@ export default function DeckPickerModal({
             ) : (
               decks.map((deck) => {
                 const isIn = alreadyIn.has(deck.id);
+                // Position in der Antipp-Reihenfolge; −1 = nicht ausgewählt.
+                const order = selectedIds.indexOf(deck.id);
+                const isSelected = order >= 0;
                 return (
                   <TouchableOpacity
                     key={deck.id}
-                    onPress={() => handleAdd(deck)}
-                    disabled={isIn || adding === deck.id}
+                    onPress={() => setSelectedIds((prev) => toggleSelection(prev, deck.id))}
+                    disabled={isIn || busy}
                     activeOpacity={0.7}
+                    accessibilityState={{ selected: isSelected }}
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
                       padding: spacing.lg,
                       backgroundColor: colors.surface,
                       borderRadius: radius.md,
-                      borderWidth: 1,
-                      borderColor: colors.border,
+                      borderWidth: isSelected ? 2 : 1,
+                      borderColor: isSelected ? colors.primary : colors.border,
                       gap: spacing.md,
                       opacity: isIn ? 0.6 : 1,
                     }}
@@ -171,16 +207,86 @@ export default function DeckPickerModal({
                             }`}
                       </Text>
                     </View>
-                    {adding === deck.id ? (
-                      <ActivityIndicator size="small" color={colors.primary} />
-                    ) : isIn ? (
+                    {isIn ? (
                       <Check size={18} color={colors.success} />
-                    ) : null}
+                    ) : isSelected ? (
+                      // Die Nummer zeigt die Antipp-Reihenfolge — und damit die
+                      // Reihenfolge, in der die Decks im Ordner landen.
+                      <View
+                        style={{
+                          width: 26,
+                          height: 26,
+                          borderRadius: 13,
+                          backgroundColor: colors.primary,
+                          justifyContent: "center",
+                          alignItems: "center",
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: colors.textInverse,
+                            fontSize: typography.sm,
+                            fontWeight: typography.bold,
+                          }}
+                        >
+                          {order + 1}
+                        </Text>
+                      </View>
+                    ) : (
+                      <View
+                        style={{
+                          width: 26,
+                          height: 26,
+                          borderRadius: 13,
+                          borderWidth: 1.5,
+                          borderColor: colors.border,
+                        }}
+                      />
+                    )}
                   </TouchableOpacity>
                 );
               })
             )}
           </ScrollView>
+        )}
+
+        {/* Bestätigen erst hier — Antippen allein speichert nichts mehr. */}
+        {!loading && selectedIds.length > 0 && (
+          <View
+            style={{
+              padding: spacing.lg,
+              borderTopWidth: 1,
+              borderTopColor: colors.border,
+              backgroundColor: colors.surface,
+            }}
+          >
+            <TouchableOpacity
+              onPress={handleConfirm}
+              disabled={busy}
+              activeOpacity={0.8}
+              style={{
+                backgroundColor: colors.primary,
+                borderRadius: radius.md,
+                paddingVertical: spacing.md,
+                alignItems: "center",
+                opacity: busy ? 0.7 : 1,
+              }}
+            >
+              {busy ? (
+                <ActivityIndicator size="small" color={colors.textInverse} />
+              ) : (
+                <Text
+                  style={{
+                    color: colors.textInverse,
+                    fontWeight: typography.bold,
+                    fontSize: typography.base,
+                  }}
+                >
+                  {confirmLabel}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
         )}
       </SafeAreaView>
     </Modal>
