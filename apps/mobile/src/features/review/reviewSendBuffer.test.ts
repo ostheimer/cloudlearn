@@ -22,6 +22,9 @@ function makeDriver() {
     flush() {
       record(buffer.flush());
     },
+    amend(cardId: string, rating: BufferedReview<null>["rating"]) {
+      return buffer.amend(cardId, rating, null);
+    },
     hasPending: () => buffer.hasPending(),
   };
 }
@@ -95,5 +98,54 @@ describe("review send buffer (#283)", () => {
     d.rate("a", "easy");
     d.flush();
     expect(d.sent).toEqual(["a:easy"]);
+  });
+});
+
+// Der Lückentext-Knopf „zählt trotzdem": Eine getippte Antwort wird streng als
+// falsch gewertet, die Lernende überstimmt das. Vorher gingen dabei ZWEI
+// Bewertungen raus — erst „again", dann „good" — und der Rückfall aus der
+// ersten blieb stehen. Die Karte galt als gescheitert UND bestanden.
+describe("amend — „zählt trotzdem“ korrigiert statt zu verdoppeln", () => {
+  it("ersetzt die zurückgehaltene Bewertung derselben Karte", () => {
+    const d = makeDriver();
+    d.rate("a", "again");
+    expect(d.amend("a", "good")).toBe(true);
+    d.flush();
+    // Genau eine Bewertung, und zwar die korrigierte.
+    expect(d.sent).toEqual(["a:good"]);
+  });
+
+  it("meldet false, wenn die Bewertung schon unterwegs ist", () => {
+    const d = makeDriver();
+    d.rate("a", "again");
+    d.rate("b", "good"); // gibt a frei — a ist jetzt beim Server
+    expect(d.amend("a", "good")).toBe(false);
+    // Der Puffer bleibt unangetastet: b darf nicht zu a werden.
+    d.flush();
+    expect(d.sent).toEqual(["a:again", "b:good"]);
+  });
+
+  it("meldet false, wenn gar nichts zurückgehalten wird", () => {
+    const d = makeDriver();
+    expect(d.amend("a", "good")).toBe(false);
+    expect(d.hasPending()).toBe(false);
+  });
+
+  it("lässt sich mehrfach anwenden, ohne etwas zu verdoppeln", () => {
+    const d = makeDriver();
+    d.rate("a", "again");
+    d.amend("a", "good");
+    d.amend("a", "good");
+    d.flush();
+    expect(d.sent).toEqual(["a:good"]);
+  });
+
+  it("verwirft eine korrigierte Bewertung beim Zurückblättern wie jede andere", () => {
+    const d = makeDriver();
+    d.rate("a", "again");
+    d.amend("a", "good");
+    d.back();
+    d.flush();
+    expect(d.sent).toEqual([]);
   });
 });
