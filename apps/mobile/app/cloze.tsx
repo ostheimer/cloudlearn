@@ -32,6 +32,10 @@ import {
   type SessionProgress,
 } from "../src/features/review/sessionProgress";
 import {
+  createReviewSendBuffer,
+  type BufferedReview,
+} from "../src/features/review/reviewSendBuffer";
+import {
   createReviewSyncOperation,
   useOfflineQueueStore,
 } from "../src/features/sync/offlineQueueStore";
@@ -215,20 +219,51 @@ export default function ClozeScreen() {
   // lässt sich nicht raten wie eine angeklickte Option. Web macht das längst
   // (deck/[id]/cloze/page.tsx), der App fehlte es. Fehlschläge wandern in die
   // Offline-Warteschlange, damit Lernen ohne Netz nicht verloren geht.
-  const review = useCallback(
-    (cardId: string, rating: "good" | "again") => {
+  // Bewertungen werden einen Schritt zurückgehalten statt sofort geschickt —
+  // derselbe Puffer wie in den Karteikarten (#283). Nur so kann „zählt
+  // trotzdem“ die Bewertung der Karte auf dem Schirm noch ÄNDERN. Ging sie
+  // sofort raus, blieb der Fehlversuch als Rückfall stehen und das „gut“ kam
+  // obendrauf: Die Karte galt als gescheitert UND bestanden.
+  const reviewBufferRef = useRef(
+    createReviewSendBuffer<ReturnType<typeof createReviewSyncOperation>>(),
+  );
+  const reviewBuffer = reviewBufferRef.current;
+
+  const sendReview = useCallback(
+    (buffered: BufferedReview<ReturnType<typeof createReviewSyncOperation>>) => {
       if (!userId) return;
       sessionReviewsRef.current += 1;
-      const queued = createReviewSyncOperation({ userId, cardId, rating, mode: "cloze" });
-      const reviewPromise = reviewCard(userId, cardId, rating, queued.payload).catch((error) => {
+      const reviewPromise = reviewCard(
+        userId,
+        buffered.cardId,
+        buffered.rating,
+        buffered.queuedReview.payload,
+      ).catch((error) => {
         // Offline oder Serverfehler: für später aufheben. Bei 4xx würde ein
         // erneuter Versuch genauso abgelehnt — dann lieber fallen lassen.
-        if (!isApiError(error) || error.status >= 500) enqueueOfflineReview(queued);
+        if (!isApiError(error) || error.status >= 500) enqueueOfflineReview(buffered.queuedReview);
       });
       pendingReviewsRef.current.push(reviewPromise);
     },
     [userId, enqueueOfflineReview],
   );
+
+  const review = useCallback(
+    (cardId: string, rating: "good" | "again") => {
+      if (!userId) return;
+      const queuedReview = createReviewSyncOperation({ userId, cardId, rating, mode: "cloze" });
+      // Die vorige Karte ist endgültig hinter uns — ihre Bewertung darf raus.
+      const previous = reviewBuffer.rate({ cardId, rating, queuedReview });
+      if (previous) sendReview(previous);
+    },
+    [userId, reviewBuffer, sendReview],
+  );
+
+  /** Zurückgehaltene Bewertung abschicken: Runde vorbei oder Bildschirm verlassen. */
+  const flushReview = useCallback(() => {
+    const last = reviewBuffer.flush();
+    if (last) sendReview(last);
+  }, [reviewBuffer, sendReview]);
 
   const awardSession = useCallback(
     (reviewedCount: number) => {
@@ -270,6 +305,9 @@ export default function ClozeScreen() {
 
       return () => {
         void (async () => {
+          // Erst die zurückgehaltene Bewertung abschicken, dann zählen — sonst
+          // fehlt die letzte Karte in der Abrechnung.
+          flushReview();
           const reviewedCount = getSessionReviewedCount(
             sessionReviewsRef.current,
             pendingReviewsRef.current.length,
@@ -277,7 +315,7 @@ export default function ClozeScreen() {
           await awardSession(reviewedCount);
         })();
       };
-    }, [awardSession]),
+    }, [awardSession, flushReview]),
   );
 
   // Jede Runde ist eine eigene Abrechnung. Weil `handleNext` am Rundenende
@@ -290,6 +328,9 @@ export default function ClozeScreen() {
   // dann entschärfen. Andernfalls setzt der noch laufende Lauf `finalized`
   // wieder auf true, NACHDEM wir es hier zurückgesetzt haben.
   const startRound = async (cardsForRound: Card[], startAt = 0) => {
+    // Eine neue Runde darf keine Bewertung der alten mitschleppen: Die Karte
+    // ist vorbei, ihre Bewertung gehört noch zur vorigen Abrechnung.
+    flushReview();
     await awardSession(
       getSessionReviewedCount(sessionReviewsRef.current, pendingReviewsRef.current.length),
     );
@@ -326,14 +367,29 @@ export default function ClozeScreen() {
   // Self-graded override: the learner decides a wrong-marked answer counts —
   // also retroactively when navigating back to an earlier card.
   const handleOverride = () => {
-    if (!currentResult || wasCorrect || !current) return;
+    if (!currentResult || wasCorrect || !current || !userId) return;
     setResultAt(idx, { ...currentResult, overridden: true });
-    void review(current.id, "good");
+    const queuedReview = createReviewSyncOperation({
+      userId,
+      cardId: current.id,
+      rating: "good",
+      mode: "cloze",
+    });
+    // Solange die Bewertung dieser Karte noch bei uns liegt, wird sie ersetzt —
+    // die Karte bekommt dann genau ein „gut“ und keinen Rückfall. Nur beim
+    // rückwirkenden Übersteuern (zurückgeblättert, Bewertung längst beim
+    // Server) bleibt eine korrigierende zweite Bewertung als einziger Weg.
+    if (!reviewBuffer.amend(current.id, "good", queuedReview)) {
+      sendReview({ cardId: current.id, rating: "good", queuedReview });
+    }
   };
 
   const handleNext = () => {
     if (idx + 1 >= round.length) {
       setPhase("summary");
+      // Die letzte Karte hat kein „danach“, das den Puffer freigäbe — und die
+      // Abrechnung zählt gleich, also muss sie vorher raus.
+      flushReview();
       const reviewedCount = getSessionReviewedCount(
         sessionReviewsRef.current,
         pendingReviewsRef.current.length,

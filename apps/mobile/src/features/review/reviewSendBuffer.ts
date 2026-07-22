@@ -30,6 +30,25 @@ export function createReviewSendBuffer<Op>() {
       return previous;
     },
 
+    /**
+     * Correct the rating we are still holding, if it belongs to `cardId`.
+     *
+     * For the Lückentext "zählt trotzdem" button: a typed answer is graded
+     * wrong, the learner overrules that, and the card must end up with a single
+     * "good" review. Sending a second one instead leaves the lapse from the
+     * first standing — the card counts as failed *and* passed, comes back the
+     * next day and keeps a low stability.
+     *
+     * Returns false when nothing was held for that card (its rating is already
+     * on its way to the server); the caller then has to fall back to sending a
+     * correcting review, which is the best a client can do after the fact.
+     */
+    amend(cardId: string, rating: ReviewRating, queuedReview: Op): boolean {
+      if (!pending || pending.cardId !== cardId) return false;
+      pending = { cardId, rating, queuedReview };
+      return true;
+    },
+
     /** Go back: throw away the rating we were holding for the card we return to. */
     back(): void {
       pending = null;
