@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth, type OAuthProvider } from "./auth-context";
+import { rememberPendingDisplayName } from "./display-name-prompt";
 import {
   getAuthProviderAvailability,
   type AuthProviderAvailability,
@@ -14,6 +15,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const router = useRouter();
   const { status, signIn, signUp, signInWithOAuth } = useAuth();
 
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -45,6 +47,10 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    if (!isLogin && name.trim().length < 2) {
+      setError("Bitte gib deinen Namen ein (mindestens 2 Zeichen).");
+      return;
+    }
     if (!email.trim() || !password) {
       setError("Bitte E-Mail und Passwort eingeben.");
       return;
@@ -68,6 +74,9 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
           setError(error);
           return;
         }
+        // Der Wunschname wird nach der ersten Anmeldung gespeichert — geprüft
+        // vom Server. Lehnt er ihn ab, fragt der Dialog im Dashboard nach.
+        rememberPendingDisplayName(name.trim());
         if (requiresEmailConfirmation) {
           setConfirmSent(true);
           return;
@@ -158,6 +167,23 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       )}
 
       <form onSubmit={handleSubmit} style={{ display: "grid", gap: 14 }} noValidate>
+        {!isLogin && (
+          <div className="field">
+            <label htmlFor="name">Dein Name</label>
+            <input
+              id="name"
+              type="text"
+              className="input"
+              autoComplete="nickname"
+              placeholder="So sehen dich andere Lernende"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              maxLength={20}
+              disabled={busy}
+              required
+            />
+          </div>
+        )}
         <div className="field">
           <label htmlFor="email">E-Mail</label>
           <input
