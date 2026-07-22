@@ -191,9 +191,11 @@ describe("mobile – TextPromptModal selbst", () => {
     expect(source).toContain("autoFocus");
   });
 
-  it("speichert auch über die Eingabetaste", () => {
-    expect(source).toContain('returnKeyType="done"');
-    expect(source).toContain("onSubmitEditing={handleSubmit}");
+  it("speichert auch über die Eingabetaste — ausser im mehrzeiligen Modus", () => {
+    // Mehrzeilig (Ordner-Beschreibung, #437) macht die Eingabetaste zum
+    // Zeilenumbruch; einzeilig speichert sie weiterhin.
+    expect(source).toContain('returnKeyType={multiline ? "default" : "done"}');
+    expect(source).toContain("onSubmitEditing={multiline ? undefined : handleSubmit}");
   });
 
   it("lässt sich per Zurück-Taste und per Tipp daneben schliessen", () => {
@@ -207,8 +209,10 @@ describe("mobile – TextPromptModal selbst", () => {
     expect(source).toContain('behavior={Platform.OS === "ios" ? "padding" : "height"}');
   });
 
-  it("lässt leere Namen gar nicht erst durch", () => {
-    expect(source).toContain("const isValid = value.trim().length > 0;");
+  it("lässt leere Namen gar nicht erst durch — ausser wo leer erlaubt ist", () => {
+    // allowEmpty gibt es nur für die Ordner-Beschreibung (#437): dort ist
+    // leer speichern der Weg, sie zu löschen. Namen bleiben Pflicht.
+    expect(source).toContain("const isValid = allowEmpty || value.trim().length > 0;");
     expect(source).toContain("if (!isValid) return;");
     expect(source).toContain("disabled={!isValid}");
   });

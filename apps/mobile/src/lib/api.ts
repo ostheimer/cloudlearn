@@ -619,6 +619,8 @@ export interface Folder {
   id: string;
   userId: string;
   title: string;
+  /** Freitext unter dem Namen, wie ihn früher nur Kurse hatten (#437). */
+  description: string | null;
   parentId: string | null;
   color: string | null;
   createdAt: string;
@@ -646,7 +648,7 @@ export async function createFolder(
 
 export async function updateFolderApi(
   folderId: string,
-  updates: { title?: string; parentId?: string | null; color?: string }
+  updates: { title?: string; parentId?: string | null; color?: string; description?: string }
 ): Promise<{ folder: Folder }> {
   return requestAuthenticated<{ folder: Folder }>(`/api/v1/folders/${folderId}`, {
     method: "PATCH",
@@ -683,6 +685,20 @@ export async function listDecksInFolder(
   folderId: string
 ): Promise<{ decks: Deck[] }> {
   return requestAuthenticated<{ decks: Deck[] }>(`/api/v1/folders/${folderId}/decks`);
+}
+
+/**
+ * Reihenfolge der Decks im Ordner speichern (#437). `deckIds` ist die
+ * komplette gewünschte Reihenfolge, vorne = oben.
+ */
+export async function setFolderDeckOrder(
+  folderId: string,
+  deckIds: string[]
+): Promise<{ reordered: boolean }> {
+  return requestAuthenticated<{ reordered: boolean }>(`/api/v1/folders/${folderId}/decks`, {
+    method: "PUT",
+    body: JSON.stringify({ deckIds }),
+  });
 }
 
 // --- Deck Actions (Duplicate, Share, Export, Details) ---
