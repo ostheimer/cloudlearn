@@ -75,4 +75,18 @@ describe("mobile import idempotency keys", () => {
     await importPdf("user-1", "notes.pdf", "BBB", "de", "stable-pdf-key");
     expect(lastRequestBody().idempotencyKey).toBe("stable-pdf-key");
   });
+
+  it("schickt preview nur, wenn ausdrücklich verlangt (#442)", async () => {
+    // Ohne Flag verhält sich der Aufruf wie bisher: preview=false, der Server
+    // speichert sofort. Mit true speichert er nichts — nur so entsteht kein
+    // zweites Deck. Ein Regress hier bringt den Doppel-Deck-Bug zurück.
+    await scanText("user-1", "Text", "de", "k1");
+    expect(lastRequestBody().preview).toBe(false);
+
+    await scanText("user-1", "Text", "de", "k2", true);
+    expect(lastRequestBody().preview).toBe(true);
+
+    await scanImage("user-1", "AAA", "image/jpeg", "de", "k3", true);
+    expect(lastRequestBody().preview).toBe(true);
+  });
 });
