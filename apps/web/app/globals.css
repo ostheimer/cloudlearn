@@ -3460,6 +3460,12 @@ a.lp-pill:hover {
   width: 100%;
   margin-bottom: 8px;
   font-size: 0.9rem;
+  /* Ohne das erbt jedes Feld die Mindesthöhe der großen Eingabe-Textfelder.
+     Bei 18 Karten wird daraus eine endlose Seite; hier zählt die Übersicht,
+     und wer viel schreibt, zieht das Feld an der Ecke auf. */
+  min-height: 0;
+  padding: 8px 10px;
+  line-height: 1.4;
 }
 .draft-card__field:last-child {
   margin-bottom: 0;
