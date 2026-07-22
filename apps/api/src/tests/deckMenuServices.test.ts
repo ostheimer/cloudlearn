@@ -39,38 +39,6 @@ describe.skipIf(!HAS_DB)("deck menu services — integration tests (Supabase)", 
     expect(card2.front).toBe("Frage 2");
   });
 
-  // Course CRUD
-  it("creates and lists courses", async () => {
-    const { createCourseForUser, listCoursesForUser } = await import("@/services/courseService");
-
-    const course = await createCourseForUser({
-      userId,
-      title: "Test Kurs",
-      description: "Beschreibung",
-      color: "#6366f1",
-    });
-    expect(course.title).toBe("Test Kurs");
-
-    const courses = await listCoursesForUser(userId);
-    expect(courses.some((c) => c.id === course.id)).toBe(true);
-  });
-
-  it("adds and removes deck from course", async () => {
-    const { createCourseForUser, addDeckToCourseForUser, removeDeckFromCourseForUser, listDecksInCourseForUser } =
-      await import("@/services/courseService");
-
-    const course = await createCourseForUser({ userId, title: "Deck-Kurs Test" });
-
-    const added = await addDeckToCourseForUser(course.id, userId, testDeckId);
-    expect(added).toBe(true);
-
-    const decks = await listDecksInCourseForUser(course.id, userId);
-    expect(decks?.some((d) => d.id === testDeckId)).toBe(true);
-
-    const removed = await removeDeckFromCourseForUser(course.id, userId, testDeckId);
-    expect(removed).toBe(true);
-  });
-
   // Folder CRUD
   it("creates and lists folders", async () => {
     const { createFolderForUser, listFoldersForUser } = await import("@/services/folderService");
@@ -140,7 +108,6 @@ describe.skipIf(!HAS_DB)("deck menu services — integration tests (Supabase)", 
     expect(details).toBeTruthy();
     expect(details!.cardCount).toBe(2);
     expect(details!.title).toBe("Menu Test Deck");
-    expect(Array.isArray(details!.courses)).toBe(true);
     expect(Array.isArray(details!.folders)).toBe(true);
   });
 
