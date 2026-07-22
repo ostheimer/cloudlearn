@@ -4,6 +4,7 @@ import {
 } from "@/lib/contracts";
 import { getIdempotentResult, storeIdempotentResult } from "@/lib/idempotencyStore";
 import { reserveImportTarget, storeImportedCards } from "@/lib/importCapacity";
+import { assertEntitlement } from "@/lib/limits";
 import { getSubscriptionStatus } from "@/services/subscriptionService";
 
 /**
@@ -36,6 +37,16 @@ export async function saveImportedCards(
   }
 
   const { tier } = await getSubscriptionStatus(userId);
+
+  // Die Karten kommen vom Client und dürfen bearbeitet sein — also auch im TYP.
+  // `cardService.ts` prüft dasselbe beim Anlegen von Hand (#235); ohne diese
+  // Zeile wäre die Pro-Schranke für Bild-Occlusion über den Import-Weg
+  // umgehbar, indem ein Gratis-Konto die Anfrage selbst zusammenbaut. Geprüft
+  // wird VOR `reserveImportTarget`, damit eine Ablehnung nichts anlegt.
+  if (parsed.cards.some((card) => card.type === "occlusion")) {
+    assertEntitlement(tier, "imageOcclusion");
+  }
+
   const target = await reserveImportTarget({ userId, tier, deckId: parsed.deckId });
 
   // Ohne eigenen Titel bekommt ein neues Deck denselben Notnagel wie eh und je;
