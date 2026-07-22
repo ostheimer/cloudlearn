@@ -179,36 +179,36 @@ export function isPlanLimitError(error: unknown): boolean {
 }
 
 /**
- * Der Satz zu einer Grenz-Ablehnung — oder `null`, wenn es keine ist.
+ * Der Satz zu einer Grenz-Ablehnung beim SPEICHERN — oder `null`, wenn es keine
+ * ist.
  *
- * Bewusst EIGENER Text statt der Server-Meldung: Die schlägt „oder speichere in
- * ein bestehendes Deck" vor, was es im Browser nicht gibt (#427). Beide Sätze
- * nennen ausdrücklich die Rückbuchung, weil das die erste Frage ist, wenn ein
- * bezahlter Import abbricht.
+ * Bewusst EIGENER Text statt der Server-Meldung, aber aus einem anderen Grund
+ * als früher: Die Seite kennt den Kontext (Vorschau, Karten noch nicht abgelegt,
+ * kein Lernpunkt-Abzug beim Speichern) und kann deshalb genauer beruhigen als
+ * die generische API-Meldung.
  *
- * Erreichbar bleibt das trotz der ausgegrauten Kacheln: Die Deckliste der Seite
- * kann veraltet sein (zweiter Tab, zweites Gerät), und die Grenze hält
- * serverseitig auch beim Schreiben.
+ * Erreichbar bleibt die Grenze trotz vorheriger Prüfung: Die Deckliste kann
+ * veraltet sein (zweiter Tab, zweites Gerät), und der Server hält sie auch beim
+ * Schreiben.
  */
 export function planLimitMessage(error: unknown): string | null {
   const { code } = asErrorLike(error);
+  // Beide Fälle treten seit #427/#445 erst beim SPEICHERN der Vorschau auf. Zwei
+  // Dinge sind dadurch anders als im alten Wortlaut: Es gibt jetzt einen zweiten
+  // Ausweg (ein bestehendes Deck), und das Speichern kostet keine Lernpunkte —
+  // die flossen beim Erzeugen. Es wird hier also nichts „zurückgebucht", und die
+  // Karten sind nicht verloren: Sie stehen weiter in der Vorschau.
   if (code === "DECK_LIMIT_REACHED") {
-    // „Im Browser" wie in deckLimitMessage oben — in der App darf ein Scan sehr
-    // wohl in ein bestehendes Deck.
     return (
-      "Die Deck-Grenze deines Tarifs ist erreicht. Im Browser legt jeder Scan " +
-      "ein neues Deck an — lösche bitte zuerst ein Deck in der Bibliothek. " +
-      "Die Lernpunkte wurden zurückgebucht."
+      "Die Deck-Grenze deines Tarifs ist erreicht. Lösche ein Deck in der " +
+      "Bibliothek — oder speichere die Karten in ein bestehendes Deck. Sie " +
+      "bleiben so lange in der Vorschau."
     );
   }
   if (code === "DECK_FULL") {
-    // Von DIESER Seite aus heute nicht erreichbar: Der Fall entsteht nur beim
-    // Schreiben in ein bestehendes Deck, und im Browser wählt man keins aus —
-    // jeder Import legt sein eigenes neues Deck an, das nie voll ist. Der Zweig
-    // steht hier für #427, das die Deck-Auswahl nachliefert.
     return (
-      "In dieses Deck passt keine weitere Karte. Es wurde nichts gespeichert, " +
-      "die Lernpunkte wurden zurückgebucht."
+      "In dieses Deck passt keine weitere Karte. Wähle ein anderes Deck oder " +
+      "lege ein neues an — deine Karten bleiben so lange in der Vorschau."
     );
   }
   return null;
