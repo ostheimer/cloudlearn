@@ -6,6 +6,7 @@ import {
   getStats,
   getLpBalance,
   getFriendStreaks,
+  getProfile,
   listDecks,
   buyStreakRepair,
   isApiError,
@@ -37,6 +38,7 @@ export default function HomePage() {
   const [lp, setLp] = useState<number | null>(null);
   const [friendStreaks, setFriendStreaks] = useState<FriendStreak[]>([]);
   const [recentDeck, setRecentDeck] = useState<{ id: string; title: string } | null>(null);
+  const [displayName, setDisplayName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [repairing, setRepairing] = useState(false);
@@ -64,6 +66,14 @@ export default function HomePage() {
     getFriendStreaks()
       .then((r) => setFriendStreaks(r.streaks))
       .catch(() => setFriendStreaks([]));
+  }, []);
+
+  // Anzeigename für die persönliche Begrüßung — ohne ihn bleibt es beim
+  // schlichten "Willkommen zurück".
+  useEffect(() => {
+    getProfile()
+      .then((p) => setDisplayName(p.displayName))
+      .catch(() => {});
   }, []);
 
   // Zuletzt bearbeitetes Deck für den "Zuletzt genutzt"-Wiedereinstieg.
@@ -177,7 +187,7 @@ export default function HomePage() {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
         <div>
           <h1 className="h2" style={{ margin: 0 }}>
-            Willkommen zurück
+            Willkommen zurück{displayName ? `, ${displayName}` : ""}
           </h1>
           <p className="muted" style={{ margin: "2px 0 0" }}>
             Bereit für heute?
