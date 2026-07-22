@@ -1,9 +1,5 @@
-import { isApiError, reviewCard } from "../../lib/api";
-import {
-  createReviewSyncOperation,
-  useOfflineQueueStore,
-  type ReviewMode,
-} from "./offlineQueueStore";
+import { isApiError, reviewCard, type ReviewMode } from "../../lib/api";
+import { createReviewSyncOperation, useOfflineQueueStore } from "./offlineQueueStore";
 
 /**
  * Schickt eine Wiederholung und hebt sie auf, wenn das gerade nicht geht.
