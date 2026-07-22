@@ -128,6 +128,8 @@ export interface Flashcard {
   type: string;
   difficulty: string;
   tags: string[];
+  sourceImageUrl?: string;
+  extraData?: Record<string, unknown>;
 }
 
 export interface LpUsageInfo {
@@ -155,6 +157,17 @@ export interface PdfImportResponse extends ScanResponse {
   pageCount: number;
   extractedCharacters: number;
   usage?: LpUsageInfo;
+}
+
+export type ImportPreviewKind = "scan" | "url" | "pdf";
+
+export interface ImportSaveResponse {
+  requestId: string;
+  deckId: string;
+  deckTitle: string;
+  cards: Flashcard[];
+  generatedCount: number;
+  savedCount: number;
 }
 
 export interface AiUsageResponse {
@@ -314,7 +327,8 @@ export async function scanText(
   userId: string,
   text: string,
   language = "de",
-  idempotencyKey?: string
+  idempotencyKey?: string,
+  preview = false
 ): Promise<ScanResponse> {
   return requestAuthenticated<ScanResponse>("/api/v1/scan/process", {
     method: "POST",
@@ -323,6 +337,7 @@ export async function scanText(
       extractedText: text,
       idempotencyKey: idempotencyKey ?? importIdempotencyKey("scan"),
       sourceLanguage: language,
+      preview,
     }),
   });
 }
@@ -332,7 +347,8 @@ export async function scanImage(
   imageBase64: string,
   mimeType: "image/jpeg" | "image/png" | "image/webp" = "image/jpeg",
   language = "de",
-  idempotencyKey?: string
+  idempotencyKey?: string,
+  preview = false
 ): Promise<ScanResponse> {
   return requestAuthenticated<ScanResponse>("/api/v1/scan/process", {
     method: "POST",
@@ -342,6 +358,7 @@ export async function scanImage(
       imageMimeType: mimeType,
       idempotencyKey: idempotencyKey ?? importIdempotencyKey("scan-img"),
       sourceLanguage: language,
+      preview,
     }),
   });
 }
@@ -351,7 +368,8 @@ export async function importFromUrl(
   sourceUrl: string,
   maxImages = 4,
   language = "de",
-  idempotencyKey?: string
+  idempotencyKey?: string,
+  preview = false
 ): Promise<UrlImportResponse> {
   return requestAuthenticated<UrlImportResponse>("/api/v1/import/url", {
     method: "POST",
@@ -361,6 +379,7 @@ export async function importFromUrl(
       maxImages,
       idempotencyKey: idempotencyKey ?? importIdempotencyKey("import-url"),
       sourceLanguage: language,
+      preview,
     }),
   });
 }
@@ -370,7 +389,8 @@ export async function importPdf(
   fileName: string,
   fileBase64: string,
   language = "de",
-  idempotencyKey?: string
+  idempotencyKey?: string,
+  preview = false
 ): Promise<PdfImportResponse> {
   return requestAuthenticated<PdfImportResponse>("/api/v1/import/pdf", {
     method: "POST",
@@ -380,7 +400,24 @@ export async function importPdf(
       fileBase64,
       idempotencyKey: idempotencyKey ?? importIdempotencyKey("import-pdf"),
       sourceLanguage: language,
+      preview,
     }),
+  });
+}
+
+export async function saveImportedCards(
+  userId: string,
+  cards: Flashcard[],
+  options: {
+    previewKind: ImportPreviewKind;
+    previewIdempotencyKey: string;
+    deckId?: string;
+    title?: string;
+  }
+): Promise<ImportSaveResponse> {
+  return requestAuthenticated<ImportSaveResponse>("/api/v1/import/save", {
+    method: "POST",
+    body: JSON.stringify({ userId, cards, ...options }),
   });
 }
 

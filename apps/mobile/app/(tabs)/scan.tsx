@@ -38,13 +38,12 @@ import {
   importFromUrl,
   scanText,
   scanImage,
-  createDeck,
-  createCard,
-  listCardsInDeck,
+  saveImportedCards,
   listDecks,
   getLpBalance,
   type Flashcard,
   type Deck,
+  type ImportPreviewKind,
 } from "../../src/lib/api";
 import {
   DECK_LIMIT_LABEL,
@@ -54,7 +53,6 @@ import {
   isDeckLimitReached,
   nearlyFullWarning,
   savedSummary,
-  selectEvenlySpread,
   shouldOpenLpModal,
 } from "../../src/lib/importLimits";
 import { summarizeCardMedia } from "../../src/lib/cardMedia";
@@ -69,6 +67,7 @@ import { AuthPromptCard } from "../../src/components/AuthPromptCard";
 import { LpBadge } from "../../src/components/LpBadge";
 
 type InputMode = "choose" | "camera" | "text" | "url";
+type PreviewAttempt = { kind: ImportPreviewKind; idempotencyKey: string };
 
 export default function ScanScreen() {
   const router = useRouter();
@@ -143,9 +142,7 @@ export default function ScanScreen() {
   const [model, setModel] = useState("");
   const [deckTitle, setDeckTitle] = useState("");
   const [saved, setSaved] = useState(false);
-  // Deck created for THIS scan. Kept so a retry after a partial save reuses the
-  // same deck instead of creating another one (and re-inserting cards).
-  const [savedDeckId, setSavedDeckId] = useState<string | null>(null);
+  const [previewAttempt, setPreviewAttempt] = useState<PreviewAttempt | null>(null);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [sourceUrl, setSourceUrl] = useState("");
@@ -171,9 +168,9 @@ export default function ScanScreen() {
     );
   }
 
-  // #411: Jeder Scan und Import legt serverseitig ein neues Deck an. Ist die
-  // Deck-Grenze erreicht, lehnt der Server ab — also gar nicht erst anfangen und
-  // keine Lernpunkte ausgeben (Laras Regel: verhindern statt schimpfen).
+  // #411: Eine Vorschau ohne vorgewähltes Ziel muss noch in ein neues Deck
+  // passen. Ist die Deck-Grenze erreicht, lehnt der Server vor dem Modelllauf ab
+  // — also gar nicht erst anfangen und keine Lernpunkte ausgeben.
   const deckLimitReached = decksLoaded && isDeckLimitReached(decks.length, maxDecks);
 
   const blockedByDeckLimit = (): boolean => {
@@ -332,6 +329,7 @@ export default function ScanScreen() {
     setLoading(true);
     setCards([]);
     setSaved(false);
+    setPreviewAttempt(null);
     setSourceUrl("");
     setPdfFileName("");
     setPdfPageCount(null);
@@ -340,7 +338,8 @@ export default function ScanScreen() {
         `scan-img:${mimeType}:${base64}`,
         "scan-img"
       );
-      const result = await scanImage(userId, base64, mimeType, "de", idempotencyKey);
+      const result = await scanImage(userId, base64, mimeType, "de", idempotencyKey, true);
+      setPreviewAttempt({ kind: "scan", idempotencyKey });
       setCards(result.cards);
       setModel(result.model);
       setDeckTitle(result.deckTitle ?? "");
@@ -370,6 +369,7 @@ export default function ScanScreen() {
     setLoading(true);
     setCards([]);
     setSaved(false);
+    setPreviewAttempt(null);
     setImageUri(null);
     setImageBase64(null);
     setSourceUrl("");
@@ -381,7 +381,15 @@ export default function ScanScreen() {
         `import-pdf:${fileName}:${fileBase64}`,
         "import-pdf"
       );
-      const result = await importPdf(userId, fileName, fileBase64, "de", idempotencyKey);
+      const result = await importPdf(
+        userId,
+        fileName,
+        fileBase64,
+        "de",
+        idempotencyKey,
+        true
+      );
+      setPreviewAttempt({ kind: "pdf", idempotencyKey });
       setCards(result.cards);
       setModel(result.model);
       setDeckTitle(result.deckTitle ?? "");
@@ -413,6 +421,7 @@ export default function ScanScreen() {
     setLoading(true);
     setCards([]);
     setSaved(false);
+    setPreviewAttempt(null);
     setImageUri(null);
     setImageBase64(null);
     setSourceUrl("");
@@ -421,7 +430,8 @@ export default function ScanScreen() {
     try {
       const text = editedText.trim();
       const idempotencyKey = getImportAttemptKey(`scan:${text}`, "scan");
-      const result = await scanText(userId, text, "de", idempotencyKey);
+      const result = await scanText(userId, text, "de", idempotencyKey, true);
+      setPreviewAttempt({ kind: "scan", idempotencyKey });
       setCards(result.cards);
       setModel(result.model);
       setDeckTitle(result.deckTitle ?? "");
@@ -458,6 +468,7 @@ export default function ScanScreen() {
     setLoading(true);
     setCards([]);
     setSaved(false);
+    setPreviewAttempt(null);
     setImageUri(null);
     setImageBase64(null);
     setPdfFileName("");
@@ -468,7 +479,15 @@ export default function ScanScreen() {
         `import-url:${normalizedUrl}`,
         "import-url"
       );
-      const result = await importFromUrl(userId, normalizedUrl, 4, "de", idempotencyKey);
+      const result = await importFromUrl(
+        userId,
+        normalizedUrl,
+        4,
+        "de",
+        idempotencyKey,
+        true
+      );
+      setPreviewAttempt({ kind: "url", idempotencyKey });
       setCards(result.cards);
       setModel(result.model);
       setDeckTitle(result.deckTitle ?? "");
@@ -492,49 +511,32 @@ export default function ScanScreen() {
     }
   };
 
-  const saveCardsToDeck = async (deckId: string, title: string) => {
-    if (!userId || cards.length === 0) return;
+  const saveCardsToDeck = async (deckId: string | undefined, title: string) => {
+    if (!userId || cards.length === 0 || !previewAttempt) return;
     setSaving(true);
     try {
-      // Resume-safe: a previous attempt may have created the deck and inserted
-      // some cards before failing. Read what's already in the deck and skip those
-      // (matched on front+back) so a retry doesn't duplicate cards.
-      let existingKeys = new Set<string>();
-      let existingCount: number | null = null;
-      try {
-        const { cards: existing } = await listCardsInDeck(deckId);
-        existingKeys = new Set(existing.map((c) => JSON.stringify([c.front, c.back])));
-        existingCount = existing.length;
-      } catch {
-        // Couldn't read existing cards — fall back to inserting all (best effort).
-      }
-
-      const pending = cards.filter(
-        (card) => !existingKeys.has(JSON.stringify([card.front, card.back]))
-      );
-      // #411: Passt das Kapitel nicht mehr ganz ins Deck, wird gleichmäßig über
-      // den ganzen Stoff ausgedünnt statt hinten abgeschnitten. Konnten wir das
-      // Deck nicht lesen, wird nicht gekürzt — dann entscheidet der Server.
-      const room =
-        existingCount === null ? pending.length : Math.max(0, maxCardsPerDeck - existingCount);
-      const toSave = selectEvenlySpread(pending, Math.min(pending.length, room));
-
-      for (const card of toSave) {
-        await createCard(userId, deckId, card);
-      }
+      const result = await saveImportedCards(userId, cards, {
+        previewKind: previewAttempt.kind,
+        previewIdempotencyKey: previewAttempt.idempotencyKey,
+        ...(deckId ? { deckId } : {}),
+        title,
+      });
 
       setSaved(true);
+      setCards(result.cards);
+      setDeckTitle(result.deckTitle);
       void reloadDecks();
 
-      const savedCount = toSave.length + (cards.length - pending.length);
       Alert.alert(
         "Gespeichert!",
-        `${savedSummary(cards.length, savedCount)}\nDeck: "${title}"`,
+        `${savedSummary(result.generatedCount, result.savedCount)}\nDeck: "${result.deckTitle}"`,
         [
           {
             text: "Deck öffnen",
             onPress: () =>
-              router.push(`/deck/${deckId}?title=${encodeURIComponent(title)}`),
+              router.push(
+                `/deck/${result.deckId}?title=${encodeURIComponent(result.deckTitle)}`
+              ),
           },
         ]
       );
@@ -550,29 +552,8 @@ export default function ScanScreen() {
   const handleSaveNewDeck = async () => {
     if (!userId || cards.length === 0) return;
     if (blockedByDeckLimit()) return;
-    const title =
-      deckTitle || `Scan ${new Date().toLocaleDateString("de")}`;
-    // Retry after a partial save: a deck was already created for this scan, so
-    // reuse it instead of creating a second one. saveCardsToDeck then skips the
-    // cards it already inserted, so no duplicate deck and no duplicate cards.
-    if (savedDeckId) {
-      await saveCardsToDeck(savedDeckId, title);
-      return;
-    }
-    setSaving(true);
-    try {
-      const { deck } = await createDeck(userId, title, ["scan", "auto"]);
-      // Remember the deck up front so a failure in the card loop below still lets
-      // a retry reuse this exact deck.
-      setSavedDeckId(deck.id);
-      void reloadDecks();
-      await saveCardsToDeck(deck.id, deck.title);
-    } catch (error: unknown) {
-      const msg =
-        error instanceof Error ? error.message : "Unbekannter Fehler";
-      Alert.alert("Fehler beim Speichern", msg);
-      setSaving(false);
-    }
+    const title = deckTitle || `Scan ${new Date().toLocaleDateString("de")}`;
+    await saveCardsToDeck(undefined, title);
   };
 
   /**
@@ -651,7 +632,7 @@ export default function ScanScreen() {
     setModel("");
     setDeckTitle("");
     setSaved(false);
-    setSavedDeckId(null);
+    setPreviewAttempt(null);
     setImageUri(null);
     setImageBase64(null);
     setMode("choose");

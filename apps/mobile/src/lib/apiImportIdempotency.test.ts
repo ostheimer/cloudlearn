@@ -10,7 +10,13 @@ vi.mock("./supabase", () => ({
   },
 }));
 
-import { importFromUrl, importPdf, scanImage, scanText } from "./api";
+import {
+  importFromUrl,
+  importPdf,
+  saveImportedCards,
+  scanImage,
+  scanText,
+} from "./api";
 
 const fetchMock = vi.fn();
 
@@ -42,11 +48,13 @@ describe("mobile import idempotency keys", () => {
   });
 
   it("uses provided idempotency keys for all paid scan/import requests", async () => {
-    await scanText("user-1", "Text", "de", "stable-text-key");
+    await scanText("user-1", "Text", "de", "stable-text-key", true);
     expect(lastRequestBody().idempotencyKey).toBe("stable-text-key");
+    expect(lastRequestBody().preview).toBe(true);
 
-    await scanImage("user-1", "AAA", "image/jpeg", "de", "stable-image-key");
+    await scanImage("user-1", "AAA", "image/jpeg", "de", "stable-image-key", true);
     expect(lastRequestBody().idempotencyKey).toBe("stable-image-key");
+    expect(lastRequestBody().preview).toBe(true);
 
     fetchMock.mockResolvedValueOnce(
       jsonResponse({
@@ -58,8 +66,9 @@ describe("mobile import idempotency keys", () => {
         imagesUsed: 0,
       })
     );
-    await importFromUrl("user-1", "https://example.com", 4, "de", "stable-url-key");
+    await importFromUrl("user-1", "https://example.com", 4, "de", "stable-url-key", true);
     expect(lastRequestBody().idempotencyKey).toBe("stable-url-key");
+    expect(lastRequestBody().preview).toBe(true);
 
     fetchMock.mockResolvedValueOnce(
       jsonResponse({
@@ -72,7 +81,42 @@ describe("mobile import idempotency keys", () => {
         extractedCharacters: 10,
       })
     );
-    await importPdf("user-1", "notes.pdf", "BBB", "de", "stable-pdf-key");
+    await importPdf("user-1", "notes.pdf", "BBB", "de", "stable-pdf-key", true);
     expect(lastRequestBody().idempotencyKey).toBe("stable-pdf-key");
+    expect(lastRequestBody().preview).toBe(true);
+  });
+
+  it("saves reviewed cards through the receipt-bound import endpoint", async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        requestId: "req-save",
+        deckId: "deck-1",
+        deckTitle: "Biologie",
+        cards: [],
+        generatedCount: 3,
+        savedCount: 3,
+      })
+    );
+
+    await saveImportedCards(
+      "user-1",
+      [{ front: "Frage", back: "Antwort", type: "basic", difficulty: "medium", tags: [] }],
+      {
+        previewKind: "scan",
+        previewIdempotencyKey: "stable-preview-key",
+        deckId: "deck-1",
+        title: "Biologie",
+      }
+    );
+
+    const [url] = fetchMock.mock.calls.at(-1) as [string, RequestInit];
+    expect(url).toContain("/api/v1/import/save");
+    expect(lastRequestBody()).toMatchObject({
+      userId: "user-1",
+      previewKind: "scan",
+      previewIdempotencyKey: "stable-preview-key",
+      deckId: "deck-1",
+      title: "Biologie",
+    });
   });
 });
