@@ -22,7 +22,7 @@ import {
   Check,
   Pencil,
 } from "lucide-react-native";
-import { listCardsInDeck, reviewCard, earnLp, isApiError, type Card } from "../src/lib/api";
+import { listCardsInDeck, reviewCard, earnLp, type Card } from "../src/lib/api";
 import { setLastUsedDeck } from "../src/lib/lastUsedDeck";
 import {
   clearSessionProgress,
@@ -53,6 +53,7 @@ import {
 } from "../src/components/cardSourcePicker";
 import { useColors, spacing, radius, typography, shadows } from "../src/theme";
 import { StudyResult } from "../src/components/StudyResult";
+import { shouldRetryLater } from "../src/features/sync/sendReview";
 import {
   beginSessionAward,
   getSessionReviewedCount,
@@ -241,7 +242,7 @@ export default function ClozeScreen() {
       ).catch((error) => {
         // Offline oder Serverfehler: für später aufheben. Bei 4xx würde ein
         // erneuter Versuch genauso abgelehnt — dann lieber fallen lassen.
-        if (!isApiError(error) || error.status >= 500) enqueueOfflineReview(buffered.queuedReview);
+        if (shouldRetryLater(error)) enqueueOfflineReview(buffered.queuedReview);
       });
       pendingReviewsRef.current.push(reviewPromise);
     },

@@ -196,4 +196,62 @@ describe("Offline-Warteschlange — was beim Hochladen mit einer Antwort passier
     expect(ids(queue().inFlight)).toEqual([]);
     expect(ids(queue().pending).sort()).toEqual(["review-pending", "review-stranded"]);
   });
+
+  it("schickt höchstens 500 Operationen auf einmal — sonst lehnt der Server alles ab", async () => {
+    // Der Server nimmt je Aufruf 500 Operationen an (syncRequestSchema:
+    // operations.max(500)) und lehnt ein größeres Paket KOMPLETT ab. Ohne
+    // Begrenzung schickte ein langer Offline-Zeitraum alles auf einmal: 501
+    // Nachzügler -> Paket abgelehnt -> zurück in die Warteschlange -> 30 s
+    // später dasselbe zu große Paket. Eine stille Endlosschleife, in der
+    // ausgerechnet die fleißigsten Offline-Lerner nichts mehr synchronisieren.
+    const viele = Array.from({ length: 501 }, (_, i) => operation(`review-${i}`));
+    useOfflineQueueStore.setState({
+      queue: {
+        pending: viele,
+        inFlight: [],
+        syncing: false,
+        hydrated: true,
+        lastSyncedAt: null,
+        rejectedCount: 0,
+      },
+    });
+
+    syncReviewOperations.mockImplementation(async (_userId: string, ops: unknown[]) => {
+      // Der echte Server würde hier werfen. Wir prüfen die Paketgröße direkt.
+      expect(ops.length).toBeLessThanOrEqual(500);
+      return serverAnswer({ accepted: (ops as { operationId: string }[]).map((o) => o.operationId) });
+    });
+
+    const ergebnis = await syncPendingReviewOperations(USER_ID);
+
+    expect(ergebnis?.synced).toBe(500);
+    // Der Rest bleibt liegen und geht beim nächsten Durchlauf raus.
+    expect(queue().pending).toHaveLength(1);
+  });
+
+  it("arbeitet den Rückstand in Runden ab, bis er leer ist", async () => {
+    const viele = Array.from({ length: 1200 }, (_, i) => operation(`review-${i}`));
+    useOfflineQueueStore.setState({
+      queue: {
+        pending: viele,
+        inFlight: [],
+        syncing: false,
+        hydrated: true,
+        lastSyncedAt: null,
+        rejectedCount: 0,
+      },
+    });
+    syncReviewOperations.mockImplementation(async (_u: string, ops: unknown[]) =>
+      serverAnswer({ accepted: (ops as { operationId: string }[]).map((o) => o.operationId) })
+    );
+
+    const groessen: number[] = [];
+    for (let runde = 0; runde < 3; runde += 1) {
+      const r = await syncPendingReviewOperations(USER_ID);
+      if (r) groessen.push(r.synced);
+    }
+
+    expect(groessen).toEqual([500, 500, 200]);
+    expect(queue().pending).toHaveLength(0);
+  });
 });
