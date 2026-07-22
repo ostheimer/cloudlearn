@@ -136,6 +136,16 @@ export interface StatsResponse {
   // "nichts gelernt in dem Zeitraum" (Strich) von "alles falsch" (0 %).
   // Optional während alte API-Versionen auslaufen.
   reviewsInWindow?: number;
+  // Dieselbe Quote, getrennt nach Art der Antwort: abgerufen (aus dem Kopf) vs.
+  // wiedererkannt (aus einer Auswahl getippt). Jede Gruppe bringt ihren eigenen
+  // Nenner mit — `answers: 0` heißt "in dem Zeitraum nicht gemacht" und gehört
+  // als Strich angezeigt. Prüfungen zählen in KEINER Gruppe, die summieren sich
+  // deshalb absichtlich nicht auf `reviewsInWindow`.
+  // Optional während alte API-Versionen auslaufen.
+  accuracyByKind?: {
+    recall: { rate: number; answers: number };
+    recognition: { rate: number; answers: number };
+  };
   // Das tatsächlich gelieferte Fenster (Free wird auf 7 geklemmt), zum Beschriften.
   statsWindowDays?: 7 | 30;
   reviewsByDay: Array<{ date: string; count: number }>;

@@ -80,6 +80,13 @@ const REVIEW_STATS = {
   reviewsTotal: 200,
   reviewsInWindow: 80,
   accuracyRate: 0.85,
+  // Bewusst verschiedene Werte, und ihre Summe (60) liegt unter
+  // reviewsInWindow: Prüfungen zählen in keiner der beiden Gruppen mit, die
+  // Gruppen müssen sich also NICHT zum Fenster addieren.
+  accuracyByKind: {
+    recall: { rate: 0.52, answers: 40 },
+    recognition: { rate: 0.91, answers: 20 },
+  },
   reviewsByDay: [{ date: "2026-07-13", count: 3 }],
   accuracyByDay: [{ date: "2026-07-13", accuracy: 0.67, count: 3 }],
   durationMsByDay: [{ date: "2026-07-13", durationMs: 120000 }],
@@ -193,6 +200,20 @@ describe("GET /api/v1/stats – days whitelist + durationMsByDay", () => {
     // (dash) from "answered, all wrong" (0 %).
     expect(body.stats.reviewsInWindow).toBe(80);
     expect(body.stats.statsWindowDays).toBe(30);
+  });
+
+  it("passes the accuracy split by kind through to the client", async () => {
+    const response = await GET(getRequest("30"));
+    const body = (await response.json()) as { stats: Record<string, unknown> };
+
+    // Die Route reicht nur durch — gerechnet wird in getReviewStats. Der Test
+    // schützt trotzdem: fiele das Feld beim Zusammenbauen der Antwort heraus,
+    // zeigte der Client stillschweigend gar keine Aufteilung mehr, statt zu
+    // scheitern (das Feld ist clientseitig optional, wegen alter API-Stände).
+    expect(body.stats.accuracyByKind).toEqual({
+      recall: { rate: 0.52, answers: 40 },
+      recognition: { rate: 0.91, answers: 20 },
+    });
   });
 
   it("reports the window a Free account actually got, not the one it asked for", async () => {
