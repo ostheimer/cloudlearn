@@ -42,3 +42,28 @@ describe("Scan-Seite ruft alle vier Wege im Vorschau-Modus (#442)", () => {
     }
   });
 });
+
+describe("Karten-Vorschau ist bearbeitbar und löschbar (#427)", () => {
+  const source = readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), "../../app/(tabs)/scan.tsx"),
+    "utf-8"
+  ).replace(/\r\n/g, "\n");
+
+  it("bindet die Textfelder an editCard (sonst nur Ansehen wie früher)", () => {
+    expect(source).toMatch(/editCard\(idx,\s*"front"/);
+    expect(source).toMatch(/editCard\(idx,\s*"back"/);
+  });
+
+  it("hat je Karte einen Löschen-Knopf, der removeCard ruft", () => {
+    expect(source).toMatch(/onPress=\{\(\)\s*=>\s*removeCard\(idx\)\}/);
+    expect(source).toContain("Trash2");
+  });
+
+  it("speichert weiter aus dem cards-State — Änderungen fließen automatisch mit", () => {
+    // saveCardsToDeck liest `cards`; editCard/removeCard schreiben dorthin.
+    // Verlöre eine der beiden Funktionen ihren setCards-Aufruf, ginge die
+    // Bearbeitung ins Leere.
+    expect(source).toContain("setCards((prev) => editCardField(prev, index, side, value))");
+    expect(source).toContain("setCards((prev) => removeCardAt(prev, index))");
+  });
+});

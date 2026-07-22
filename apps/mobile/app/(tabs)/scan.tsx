@@ -30,6 +30,7 @@ import {
   ArrowLeft,
   Zap,
   Layers,
+  Trash2,
 } from "lucide-react-native";
 import { useSessionStore } from "../../src/store/sessionStore";
 import { useOcrEditorState } from "../../src/features/ocr/ocrEditorState";
@@ -58,6 +59,7 @@ import {
   shouldOpenLpModal,
 } from "../../src/lib/importLimits";
 import { summarizeCardMedia } from "../../src/lib/cardMedia";
+import { editCardField, isPlainEditableCard, removeCardAt } from "../../src/lib/cardDraft";
 import {
   getStableImportAttemptKey,
   type ImportAttemptKey,
@@ -495,6 +497,16 @@ export default function ScanScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // #427: Karten in der Vorschau ändern oder einzeln wegwerfen — vor dem
+  // Speichern, wie im Web. `cards` ist die Quelle, aus der saveCardsToDeck
+  // schöpft, also fließt jede Änderung automatisch mit.
+  const editCard = (index: number, side: "front" | "back", value: string) => {
+    setCards((prev) => editCardField(prev, index, side, value));
+  };
+  const removeCard = (index: number) => {
+    setCards((prev) => removeCardAt(prev, index));
   };
 
   const saveCardsToDeck = async (deckId: string, title: string) => {
@@ -1485,6 +1497,10 @@ export default function ScanScreen() {
 
             {cards.map((card, idx) => {
               const media = summarizeCardMedia(card);
+              const editable = isPlainEditableCard({
+                front: card.front,
+                hasMedia: Boolean(media.primaryImage || media.plainFront || media.plainBack),
+              });
               const frontDisplay = (media.plainFront || card.front).replace(
                 /\{\{c\d+::(.+?)\}\}/g,
                 "[$1]"
@@ -1499,8 +1515,36 @@ export default function ScanScreen() {
                     padding: 14,
                     borderWidth: 1,
                     borderColor: colors.border,
+                    gap: spacing.sm,
                   }}
                 >
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: typography.xs,
+                        fontWeight: typography.semibold,
+                        color: colors.textTertiary,
+                      }}
+                    >
+                      Karte {idx + 1}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => removeCard(idx)}
+                      disabled={saving}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Karte ${idx + 1} löschen`}
+                    >
+                      <Trash2 size={18} color={colors.textTertiary} />
+                    </TouchableOpacity>
+                  </View>
+
                   {media.primaryImage ? (
                     <Image
                       source={{ uri: media.primaryImage.url }}
@@ -1508,37 +1552,71 @@ export default function ScanScreen() {
                         width: "100%",
                         height: 160,
                         borderRadius: radius.md,
-                        marginBottom: spacing.sm,
                         backgroundColor: colors.surfaceSecondary,
                       }}
                       resizeMode="contain"
                     />
                   ) : null}
-                  <Text
-                    style={{
-                      fontWeight: typography.semibold,
-                      fontSize: typography.base,
-                      marginBottom: spacing.sm,
-                      color: colors.text,
-                    }}
-                  >
-                    {frontDisplay || media.primaryImage?.alt || "Bildkarte"}
-                  </Text>
-                  <Text
-                    style={{
-                      color: colors.textSecondary,
-                      fontSize: typography.sm + 1,
-                    }}
-                  >
-                    {backDisplay || media.primaryImage?.alt || "—"}
-                  </Text>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      gap: spacing.sm,
-                      marginTop: spacing.sm,
-                    }}
-                  >
+
+                  {editable ? (
+                    <>
+                      <TextInput
+                        value={card.front}
+                        onChangeText={(value) => editCard(idx, "front", value)}
+                        editable={!saving}
+                        multiline
+                        placeholder="Frage"
+                        placeholderTextColor={colors.textTertiary}
+                        style={{
+                          fontWeight: typography.semibold,
+                          fontSize: typography.base,
+                          color: colors.text,
+                          backgroundColor: colors.surfaceSecondary,
+                          borderRadius: radius.sm,
+                          paddingHorizontal: spacing.sm,
+                          paddingVertical: spacing.sm,
+                        }}
+                      />
+                      <TextInput
+                        value={card.back}
+                        onChangeText={(value) => editCard(idx, "back", value)}
+                        editable={!saving}
+                        multiline
+                        placeholder="Antwort"
+                        placeholderTextColor={colors.textTertiary}
+                        style={{
+                          fontSize: typography.sm + 1,
+                          color: colors.textSecondary,
+                          backgroundColor: colors.surfaceSecondary,
+                          borderRadius: radius.sm,
+                          paddingHorizontal: spacing.sm,
+                          paddingVertical: spacing.sm,
+                        }}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <Text
+                        style={{
+                          fontWeight: typography.semibold,
+                          fontSize: typography.base,
+                          color: colors.text,
+                        }}
+                      >
+                        {frontDisplay || media.primaryImage?.alt || "Bildkarte"}
+                      </Text>
+                      <Text
+                        style={{
+                          color: colors.textSecondary,
+                          fontSize: typography.sm + 1,
+                        }}
+                      >
+                        {backDisplay || media.primaryImage?.alt || "—"}
+                      </Text>
+                    </>
+                  )}
+
+                  <View style={{ flexDirection: "row", gap: spacing.sm }}>
                     <Text
                       style={{
                         fontSize: typography.xs,
