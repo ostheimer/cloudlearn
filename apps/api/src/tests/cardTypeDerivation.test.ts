@@ -40,12 +40,20 @@ const userId = "6e5db9e4-7e48-4e11-8d8c-6ca90c18d42a";
 const cardId = "1e5db9e4-7e48-4e11-8d8c-6ca90c18d42b";
 
 const MIT_LUECKE = "Durch ein {{c1::Batch-Skript}} werden Treiber installiert.";
+const MIT_UNTERSTRICH_LUECKE = "Ein ______ identifiziert einen Datensatz eindeutig.";
 const OHNE_LUECKE = "Wozu dient ein Batch-Skript?";
 
 describe("deriveCardType — der Text entscheidet", () => {
   it("erkennt die {{cN::…}}-Markierung", () => {
     expect(deriveCardType(MIT_LUECKE)).toBe("cloze");
     expect(deriveCardType("{{c2::zwei}} und {{c3::drei}}")).toBe("cloze");
+  });
+
+  it("erkennt die ______-Lücke des Scanners (Antwort auf der Rückseite)", () => {
+    expect(deriveCardType(MIT_UNTERSTRICH_LUECKE)).toBe("cloze");
+    expect(deriveCardType("Kurz: __ reicht schon")).toBe("cloze");
+    // Ein einzelner Unterstrich ist keine Lücke (Variablenname o. ä.).
+    expect(deriveCardType("Was macht die Variable _tmp?")).toBe("basic");
   });
 
   it("ohne Markierung ist es basic — egal, was behauptet wird", () => {
@@ -64,6 +72,7 @@ describe("deriveCardType — der Text entscheidet", () => {
 
   it("Spezialtypen werden durchgereicht, Markierung hin oder her", () => {
     expect(deriveCardType(MIT_LUECKE, "occlusion")).toBe("occlusion");
+    expect(deriveCardType(MIT_UNTERSTRICH_LUECKE, "occlusion")).toBe("occlusion");
     expect(deriveCardType(OHNE_LUECKE, "mcq")).toBe("mcq");
     expect(deriveCardType(OHNE_LUECKE, "matching")).toBe("matching");
   });

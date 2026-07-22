@@ -62,9 +62,9 @@ import DeckEditModal from "../../../src/components/DeckEditModal";
 import DeckDetailsModal from "../../../src/components/DeckDetailsModal";
 
 // Card editor modal component. Bewusst OHNE Kartentyp-Schalter: die Achse
-// basic↔cloze leitet der Server aus der {{cN::…}}-Markierung im Text ab —
-// ein von Hand gesetztes Etikett konnte nur lügen (Lücke gibt es nur, wenn
-// die Markierung im Text steht).
+// basic↔cloze leitet der Server aus dem Text ab ({{cN::…}}-Markierung oder
+// ______-Lücke) — ein von Hand gesetztes Etikett konnte nur lügen, denn eine
+// Lücke gibt es nur, wenn sie im Text steht.
 function CardEditor({
   visible,
   card,
