@@ -16,6 +16,12 @@ import { StudyResult } from "../src/components/StudyResult";
 import { useSessionStore } from "../src/store/sessionStore";
 import { listCardsInDeck, earnLp, deleteCard } from "../src/lib/api";
 import { sendReview } from "../src/features/sync/sendReview";
+import {
+  beginSessionAward,
+  getSessionReviewedCount,
+  isSessionEarnFinalized,
+  type SessionAwardState,
+} from "../src/lib/learn-session-lp";
 import { setLastUsedDeck } from "../src/lib/lastUsedDeck";
 import {
   parseOcclusionCard,
@@ -63,7 +69,8 @@ export default function OcclusionStudyScreen() {
   const [wrong, setWrong] = useState<OcclusionStudyItem[]>([]);
   const [earned, setEarned] = useState<number | null>(null);
   const [earnCapReached, setEarnCapReached] = useState(false);
-  const awardedRef = useRef(false);
+  const awardStateRef = useRef<SessionAwardState>({ finalized: false, inFlight: null });
+  const pendingReviewsRef = useRef<Promise<unknown>[]>([]);
   const allItemsRef = useRef<OcclusionStudyItem[]>([]);
 
   const load = useCallback(async () => {
@@ -109,16 +116,36 @@ export default function OcclusionStudyScreen() {
   const current = items[index];
   const done = phase === "study" && index >= total;
 
-  const awardSession = useCallback(async (count: number) => {
-    if (awardedRef.current || count < LP_SESSION_MIN) return;
-    awardedRef.current = true;
-    try {
-      const res = await earnLp("session", count);
-      setEarned(res.granted);
-      setEarnCapReached(res.capReached);
-    } catch {
-      /* LP-Gutschrift ist best-effort */
-    }
+  const awardSession = useCallback((count: number) => {
+    if (count < LP_SESSION_MIN) return Promise.resolve();
+    const state = awardStateRef.current;
+    return beginSessionAward(state, count, async () => {
+      try {
+        const maxAttempts = 3;
+        const retryDelayMs = 250;
+
+        for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+          if (attempt > 0) {
+            await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+          }
+
+          const pendingReviews = pendingReviewsRef.current;
+          pendingReviewsRef.current = [];
+          await Promise.allSettled(pendingReviews);
+
+          const res = await earnLp("session", count);
+          setEarned(res.granted);
+          setEarnCapReached(res.capReached);
+
+          if (isSessionEarnFinalized(res, count)) {
+            state.finalized = true;
+            break;
+          }
+        }
+      } catch {
+        /* LP-Gutschrift ist best-effort */
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -130,18 +157,21 @@ export default function OcclusionStudyScreen() {
     if (!item || !userId) return;
     if (known) setCorrect((n) => n + 1);
     else setWrong((w) => [...w, item]);
-    void sendReview({
+    const reviewPromise = sendReview({
       userId,
       cardId: item.id,
       rating: known ? "good" : "again",
       mode: "occlusion",
     });
+    pendingReviewsRef.current.push(reviewPromise);
     setRevealed(false);
     setTimeout(() => setIndex((i) => i + 1), 140);
   }
 
-  function restart() {
-    awardedRef.current = false;
+  async function restart() {
+    await awardSession(total);
+    awardStateRef.current = { finalized: false, inFlight: null };
+    pendingReviewsRef.current = [];
     setEarned(null);
     setEarnCapReached(false);
     setItems(allItemsRef.current);
@@ -152,9 +182,11 @@ export default function OcclusionStudyScreen() {
     setPhase("setup");
   }
 
-  function restartWrong() {
+  async function restartWrong() {
     const subset = wrong;
-    awardedRef.current = false;
+    await awardSession(total);
+    awardStateRef.current = { finalized: false, inFlight: null };
+    pendingReviewsRef.current = [];
     setEarned(null);
     setEarnCapReached(false);
     setItems(subset);
@@ -409,7 +441,16 @@ export default function OcclusionStudyScreen() {
   return wrap(
     <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.md }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.md }}>
-        <TouchableOpacity onPress={() => { void awardSession(index); goToDeck(); }} style={{ flexDirection: "row", alignItems: "center", gap: spacing.xs }}>
+        <TouchableOpacity
+          onPress={() => {
+            void (async () => {
+              const reviewedCount = getSessionReviewedCount(index, pendingReviewsRef.current.length);
+              await awardSession(reviewedCount);
+              goToDeck();
+            })();
+          }}
+          style={{ flexDirection: "row", alignItems: "center", gap: spacing.xs }}
+        >
           <X size={16} color={colors.textSecondary} />
           <Text style={{ color: colors.textSecondary, fontSize: typography.sm }}>Beenden</Text>
         </TouchableOpacity>
