@@ -18,24 +18,25 @@ describe("Web-Import-Seite – Plan-Grenzen (#411)", () => {
     "\n"
   );
 
-  it("gibt an der Deck-Grenze keine Lernpunkte für eine sichere Absage aus", () => {
-    // Ursprünglich (#411) waren dafür ALLE Quellen-Kacheln gesperrt, weil jeder
-    // Weg ein neues Deck anlegte. Mit der Zielauswahl (#427) wäre das zu viel:
-    // In ein bestehendes Deck darf man auch an der Grenze importieren. Die
-    // Sperre sitzt deshalb jetzt am Absenden — dem einzigen Punkt, an dem
-    // Lernpunkte fließen — und greift nur, solange „neues Deck" gewählt ist.
+  it("lässt an der Deck-Grenze nicht in ein neues Deck speichern", () => {
+    // Wanderung der Sperre: #411 sperrte alle Quellen-Kacheln (jeder Weg legte
+    // ein neues Deck an), #427 verschob sie ans Absenden (Ziel schon vorher
+    // wählbar), und mit der Vorschau sitzt sie am SPEICHERN — dem einzigen
+    // Punkt, an dem noch etwas entstehen kann. Beim Erzeugen wäre sie jetzt
+    // falsch: Da steht das Ziel noch gar nicht fest.
     expect(source).toContain("const newDeckBlocked = deckLimitReached && targetDeckId === null;");
-    const submit = source.indexOf('onClick={handleSubmit}');
-    const guard = source.indexOf("newDeckBlocked", submit);
-    expect(submit).toBeGreaterThan(-1);
-    expect(guard).toBeGreaterThan(submit);
+    const save = source.indexOf("onClick={handleSave}");
+    expect(save).toBeGreaterThan(-1);
+    const guardArea = source.slice(save, save + 400);
+    expect(guardArea).toContain("newDeckBlocked");
   });
 
-  it("sperrt auch das volle Ziel-Deck vor dem Bezahlen", () => {
-    // Ein volles Deck weist der Server ebenso ab wie ein zu volles Konto.
+  it("sperrt auch das volle Ziel-Deck beim Speichern", () => {
+    // Ein volles Deck weist der Server ab — das gehört gesehen, bevor man
+    // drückt, nicht danach.
     expect(source).toContain("const targetDeckFull = targetFreeSlots === 0;");
-    const submit = source.indexOf('onClick={handleSubmit}');
-    expect(source.indexOf("targetDeckFull", submit)).toBeGreaterThan(submit);
+    const save = source.indexOf("onClick={handleSave}");
+    expect(source.slice(save, save + 400)).toContain("targetDeckFull");
   });
 
   it("zeigt den Hinweis, statt nur stumm zu sperren", () => {
@@ -43,15 +44,23 @@ describe("Web-Import-Seite – Plan-Grenzen (#411)", () => {
     expect(source).toContain("{DECK_LIMIT_LABEL}");
   });
 
-  it("reicht das Ziel-Deck an JEDEN der vier Wege durch (#427)", () => {
-    // Sonst landet ein Weg still wieder in einem neuen Deck — genau der Fehler,
-    // den die App bei PDF und URL bis heute hat.
+  it("erzeugt auf JEDEM der vier Wege nur die Vorschau (#427)", () => {
+    // Vergisst ein Weg das preview-Flag, speichert der Server ihn sofort — und
+    // die Nutzerin sieht ihre Karten erst, wenn das Deck schon steht.
     const calls = source.match(/(scanText|importFromUrl|scanImage|importPdf)\(/g) ?? [];
     expect(calls.length).toBe(4);
-    expect(source).toContain("const deckId = targetDeckId ?? undefined;");
-    for (const fragment of ["idemKey, deckId)", "deckId\n        );"]) {
-      expect(source).toContain(fragment);
-    }
+    const previewArgs = source.match(/undefined,\s*\n?\s*true/g) ?? [];
+    expect(previewArgs.length).toBe(4);
+  });
+
+  it("speichert erst auf Knopfdruck, nicht schon beim Erzeugen (#427)", () => {
+    const generate = source.indexOf("async function handleSubmit");
+    const save = source.indexOf("async function handleSave");
+    expect(generate).toBeGreaterThan(-1);
+    expect(save).toBeGreaterThan(generate);
+    // Der Erzeugen-Zweig endet in der Vorschau, nicht in einer Navigation.
+    expect(source).toContain("setDraft(result?.cards ?? []);");
+    expect(source).toContain("saveImportedCards({");
   });
 
   it("holt die Grenzen vom Server, statt sie im Web zu wiederholen", () => {
@@ -78,8 +87,8 @@ describe("Web-Import-Seite – Plan-Grenzen (#411)", () => {
   it("meldet ehrlich, wenn nicht alles ins Deck passte", () => {
     // Ohne diesen Zwischenschritt springt die Seite kommentarlos ins fertige
     // Deck und die fehlenden Karten fallen niemandem auf.
-    expect(source).toContain("setSummary({ text: savedSummary(generated, saved)");
-    expect(source).toContain("saved < generated");
+    expect(source).toContain("setSummary({ text: savedSummary(offered, saved)");
+    expect(source).toContain("saved < offered");
   });
 
   it("springt weiterhin direkt ins Deck, wenn alles passte", () => {

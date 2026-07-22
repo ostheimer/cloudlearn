@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
 import {
   scanText,
@@ -11,9 +11,11 @@ import {
   importPdf,
   getLpBalance,
   listDecks,
+  saveImportedCards,
   isApiError,
   type AiUsageResponse,
   type Deck,
+  type Flashcard,
   type ScanResponse,
 } from "@/lib/api";
 import { compressImageToJpeg, fileToBase64 } from "@/lib/files";
@@ -38,6 +40,8 @@ import {
   Sparkles,
   Zap,
   AlertTriangle,
+  CheckCircle,
+  Trash,
 } from "@/components/icons";
 
 // Ablauf wie im Scan-Bildschirm der App: erst die Quelle wählen ("choose"),
@@ -73,7 +77,13 @@ export default function ImportPage() {
   // `cardCount` mit, wie voll jedes Deck schon ist.
   const [decks, setDecks] = useState<Deck[] | null>(null);
   // Ziel des Imports: `null` = neues Deck (wie bisher), sonst die Deck-ID.
+  // Gewählt wird es seit #427 erst in der Vorschau, wenn die Karten dastehen.
   const [targetDeckId, setTargetDeckId] = useState<string | null>(null);
+  // #427: Die erzeugten, noch NICHT gespeicherten Karten. Solange das gesetzt
+  // ist, zeigt die Seite die Vorschau: bearbeiten, einzeln löschen, Ziel wählen.
+  const [draft, setDraft] = useState<Flashcard[] | null>(null);
+  const [newDeckTitle, setNewDeckTitle] = useState("");
+  const [saving, setSaving] = useState(false);
   // Gesetzt, wenn die Tarifgrenze den Import ausgedünnt hat: dann NICHT
   // stillschweigend ins neue Deck springen, sondern erst sagen, was fehlt.
   const [summary, setSummary] = useState<{ text: string; href: string } | null>(null);
@@ -170,18 +180,6 @@ export default function ImportPage() {
           : mode === "pdf"
             ? Boolean(pdfBase64)
             : false;
-
-  const findNewDeck = useCallback(
-    async (beforeIds: Set<string>): Promise<Deck | null> => {
-      if (!userId) return null;
-      const { decks } = await listDecks(userId);
-      const created = decks.find((d) => !beforeIds.has(d.id));
-      if (created) return created;
-      // Fallback: neuestes Deck (falls die ID-Erkennung mal nicht greift)
-      return [...decks].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] ?? null;
-    },
-    [userId]
-  );
 
   function choose(next: Exclude<Mode, "choose">) {
     setError(null);
@@ -295,21 +293,28 @@ export default function ImportPage() {
       attemptRef.current = { sig, key };
     }
     const idemKey = attemptRef.current.key;
-    let beforeIds = new Set<string>();
     let result: ScanResponse | null = null;
     try {
+      // Frischer Deck-Stand für die Zielauswahl in der Vorschau.
       const before = await listDecks(userId);
-      beforeIds = new Set(before.decks.map((d) => d.id));
-      setDecks(before.decks); // frischer Stand für Grenz-Anzeige und Zielauswahl
+      setDecks(before.decks);
 
-      // #427: Ohne Ziel legt der Server ein neues Deck an — wie bisher.
-      const deckId = targetDeckId ?? undefined;
+      // #427: `preview` — die KI arbeitet, gespeichert wird noch nichts. Wohin
+      // die Karten sollen, entscheidet die Nutzerin erst, wenn sie sie sieht.
       if (mode === "text") {
-        result = await scanText(userId, text.trim(), "de", idemKey, deckId);
+        result = await scanText(userId, text.trim(), "de", idemKey, undefined, true);
       } else if (mode === "url") {
-        result = await importFromUrl(userId, url.trim(), 4, "de", idemKey, deckId);
+        result = await importFromUrl(userId, url.trim(), 4, "de", idemKey, undefined, true);
       } else if (mode === "photo" || mode === "gallery") {
-        result = await scanImage(userId, imageBase64!, "image/jpeg", "de", idemKey, deckId);
+        result = await scanImage(
+          userId,
+          imageBase64!,
+          "image/jpeg",
+          "de",
+          idemKey,
+          undefined,
+          true
+        );
       } else if (mode === "pdf") {
         result = await importPdf(
           userId,
@@ -317,7 +322,8 @@ export default function ImportPage() {
           pdfBase64!,
           "de",
           idemKey,
-          deckId
+          undefined,
+          true
         );
       }
     } catch (e) {
@@ -353,36 +359,61 @@ export default function ImportPage() {
       return;
     }
 
-    // Import erfolgreich (Lernpunkte verbraucht, Deck angelegt). Ein reiner
-    // Nachlade-Fehler darf ab hier NICHT wie ein Fehlschlag aussehen — sonst
-    // würde ein erneuter Klick doppelt importieren und abbuchen.
+    // Erzeugung durch (Lernpunkte verbraucht), gespeichert ist noch nichts.
+    // Ein erneuter Klick soll nicht ein zweites Mal abbuchen.
     attemptRef.current = null; // erfolgreich → nächster Import bekommt neuen Schlüssel
 
-    // #427: Bei gewähltem Ziel-Deck ist die Suche unnötig — wir wissen, wohin.
-    let target = targetDeckId ? `/dashboard/deck/${targetDeckId}` : "/dashboard";
-    if (!targetDeckId) {
-      try {
-        const created = await findNewDeck(beforeIds);
-        if (created) target = `/dashboard/deck/${created.id}`;
-      } catch {
-        /* Deck-Suche misslungen — der Import ist trotzdem durch, ab in die Bibliothek */
+    // #427: Ab hier übernimmt die Vorschau. Der Titelvorschlag der KI steht im
+    // Feld für ein neues Deck und lässt sich überschreiben.
+    setDraft(result?.cards ?? []);
+    setNewDeckTitle(result?.deckTitle ?? "Neue Karten");
+    setTargetDeckId(null);
+    setBusy(false);
+  }
+
+  /** #427: Die durchgesehenen Karten ablegen — neues Deck oder bestehendes. */
+  async function handleSave() {
+    if (!draft || draft.length === 0) return;
+    setError(null);
+    setSaving(true);
+    try {
+      const result = await saveImportedCards({
+        cards: draft,
+        ...(targetDeckId ? { deckId: targetDeckId } : { title: newDeckTitle.trim() || "Neue Karten" }),
+      });
+
+      const target = `/dashboard/deck/${result.deckId}`;
+      // #411: Passt das Material nicht ganz ins Deck, dünnt der Server
+      // gleichmäßig aus. Dann erst sagen, was fehlt, statt stumm zu springen.
+      const offered = result.generatedCount;
+      const saved = result.savedCount;
+      if (typeof offered === "number" && typeof saved === "number" && saved < offered) {
+        setSummary({ text: savedSummary(offered, saved), href: target });
+        setDraft(null);
+        setSaving(false);
+        return;
       }
+      setDraft(null);
+      router.push(target);
+    } catch (e) {
+      const limitMessage = planLimitMessage(e);
+      setError(
+        limitMessage ??
+          (isApiError(e) ? e.message : "Speichern hat nicht geklappt. Bitte versuch es erneut.")
+      );
+      setSaving(false);
     }
+  }
 
-    // #411: Passt das Material nicht ins Deck, dünnt der Server gleichmäßig aus.
-    // Das betrifft auch NEUE Decks: ein PIT-Kapitel ergibt über 100 Karten, die
-    // Gratis-Grenze liegt bei 150. Ohne diesen Zwischenschritt sähe man nur das
-    // fertige Deck und nie, dass Karten fehlen.
-    const generated = result?.generatedCount;
-    const saved = result?.savedCount;
-    if (typeof generated === "number" && typeof saved === "number" && saved < generated) {
-      setSummary({ text: savedSummary(generated, saved), href: target });
-      setBusy(false);
-      return;
-    }
+  /** Karte in der Vorschau ändern — die Fassung der Nutzerin wird gespeichert. */
+  function editDraftCard(index: number, side: "front" | "back", value: string) {
+    setDraft((cards) =>
+      cards ? cards.map((card, i) => (i === index ? { ...card, [side]: value } : card)) : cards
+    );
+  }
 
-    router.push(target);
-    // absichtlich kein setBusy(false): die Seite navigiert weg
+  function removeDraftCard(index: number) {
+    setDraft((cards) => (cards ? cards.filter((_card, i) => i !== index) : cards));
   }
 
   return (
@@ -412,7 +443,13 @@ export default function ImportPage() {
       {/* Die Quellen-Auswahl darf am Desktop die Breite nutzen; die Eingabe
           danach bleibt schmal — ein über 1.000 Pixel breites Textfeld liest
           und tippt sich schlecht. */}
-      <div className={mode === "choose" && !summary ? "import-view import-view--wide" : "import-view"}>
+      <div
+        className={
+          (mode === "choose" || draft) && !summary
+            ? "import-view import-view--wide"
+            : "import-view"
+        }
+      >
         {/* Versteckte Datei-/Kamera-Auswahl (immer im DOM, damit die Karten sie öffnen können) */}
         <input
           ref={photoInputRef}
@@ -440,6 +477,196 @@ export default function ImportPage() {
               Deck öffnen
             </Link>
           </div>
+        ) : draft ? (
+          /* #427: Die Karten sind da, aber noch nirgends. Hier wird gelesen,
+             verbessert, aussortiert — und erst dann gespeichert. */
+          <>
+            <div className="draft-head">
+              <CheckCircle size={22} style={{ color: "var(--green)", flex: "none" }} />
+              <div>
+                <h2 className="draft-head__t">
+                  {draft.length} {draft.length === 1 ? "Karte" : "Karten"} erstellt
+                </h2>
+                <p className="muted" style={{ margin: "2px 0 0", fontSize: "0.88rem" }}>
+                  Sieh sie dir an und ändere, was nicht passt — gespeichert wird erst danach.
+                </p>
+              </div>
+            </div>
+
+            <div className="draft-grid">
+              <div className="draft-list">
+                {draft.map((card, index) => (
+                  <div className="draft-card" key={index}>
+                    <div className="draft-card__head">
+                      <span className="draft-card__n">Karte {index + 1}</span>
+                      <button
+                        type="button"
+                        className="draft-card__del"
+                        onClick={() => removeDraftCard(index)}
+                        disabled={saving}
+                        aria-label={`Karte ${index + 1} löschen`}
+                      >
+                        <Trash size={16} />
+                      </button>
+                    </div>
+                    <label className="draft-card__lbl" htmlFor={`draft-front-${index}`}>
+                      Frage
+                    </label>
+                    <textarea
+                      id={`draft-front-${index}`}
+                      className="textarea draft-card__field"
+                      value={card.front}
+                      onChange={(e) => editDraftCard(index, "front", e.target.value)}
+                      disabled={saving}
+                      rows={2}
+                    />
+                    <label className="draft-card__lbl" htmlFor={`draft-back-${index}`}>
+                      Antwort
+                    </label>
+                    <textarea
+                      id={`draft-back-${index}`}
+                      className="textarea draft-card__field"
+                      value={card.back}
+                      onChange={(e) => editDraftCard(index, "back", e.target.value)}
+                      disabled={saving}
+                      rows={3}
+                    />
+                  </div>
+                ))}
+
+                {draft.length === 0 && (
+                  <div className="info-note" style={{ marginTop: 0 }}>
+                    <AlertTriangle size={16} />
+                    <span>
+                      Du hast alle Karten gelöscht. Es bleibt nichts zu speichern — ein neuer Scan
+                      kostet wieder Lernpunkte.
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="draft-side">
+                <fieldset className="deck-target">
+                  <legend>Wohin damit?</legend>
+
+                  <label
+                    className={targetDeckId === null ? "deck-target__opt is-on" : "deck-target__opt"}
+                  >
+                    <input
+                      type="radio"
+                      name="deck-target"
+                      checked={targetDeckId === null}
+                      onChange={() => setTargetDeckId(null)}
+                      disabled={saving || deckLimitReached}
+                    />
+                    <span className="deck-target__txt">
+                      <span className="deck-target__t">Neues Deck</span>
+                      <span className="deck-target__s">
+                        {deckLimitReached
+                          ? "Geht gerade nicht — deine Deck-Grenze ist erreicht."
+                          : "Titel von der KI, du kannst ihn ändern."}
+                      </span>
+                    </span>
+                  </label>
+
+                  {targetDeckId === null && !deckLimitReached && (
+                    <input
+                      className="input deck-target__pick"
+                      aria-label="Titel des neuen Decks"
+                      value={newDeckTitle}
+                      maxLength={100}
+                      onChange={(e) => setNewDeckTitle(e.target.value)}
+                      disabled={saving}
+                    />
+                  )}
+
+                  {hasDecks && (
+                    <label
+                      className={
+                        targetDeckId !== null ? "deck-target__opt is-on" : "deck-target__opt"
+                      }
+                    >
+                      <input
+                        type="radio"
+                        name="deck-target"
+                        checked={targetDeckId !== null}
+                        onChange={() => setTargetDeckId(decks?.[0]?.id ?? null)}
+                        disabled={saving}
+                      />
+                      <span className="deck-target__txt">
+                        <span className="deck-target__t">Bestehendes Deck</span>
+                        <span className="deck-target__s">
+                          Die Karten kommen zu den vorhandenen dazu.
+                        </span>
+                      </span>
+                    </label>
+                  )}
+
+                  {targetDeckId !== null && (
+                    <select
+                      className="select deck-target__pick"
+                      aria-label="Ziel-Deck"
+                      value={targetDeckId}
+                      onChange={(e) => setTargetDeckId(e.target.value)}
+                      disabled={saving}
+                    >
+                      {(decks ?? []).map((deck) => (
+                        <option key={deck.id} value={deck.id}>
+                          {deckOptionLabel(
+                            deck.title,
+                            freeSlots(deck.cardCount, usage?.limits?.maxCardsPerDeck)
+                          )}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </fieldset>
+
+                {spaceHint && (
+                  <div className="lp-warn" role="status" style={{ margin: "14px 0 0" }}>
+                    <Layers size={16} />
+                    <span>{spaceHint}</span>
+                  </div>
+                )}
+
+                {error && (
+                  <div className="form-error" role="alert" style={{ marginTop: 14 }}>
+                    <AlertTriangle size={16} />
+                    <span>{error}</span>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  className="btn btn-primary btn-block btn-lg"
+                  style={{ marginTop: 16 }}
+                  onClick={handleSave}
+                  disabled={saving || draft.length === 0 || newDeckBlocked || targetDeckFull}
+                >
+                  {saving
+                    ? "Karten werden gespeichert…"
+                    : `${draft.length} ${draft.length === 1 ? "Karte" : "Karten"} speichern`}
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-block"
+                  style={{ marginTop: 8 }}
+                  onClick={() => {
+                    setDraft(null);
+                    setError(null);
+                    setMode("choose");
+                  }}
+                  disabled={saving}
+                >
+                  Verwerfen
+                </button>
+                <p className="muted" style={{ fontSize: "0.78rem", marginTop: 8 }}>
+                  Verwerfen bringt die Lernpunkte nicht zurück — die KI hat schon gearbeitet.
+                </p>
+              </div>
+            </div>
+          </>
         ) : mode === "choose" ? (
           <>
             {deckLimitHint && (
@@ -713,85 +940,6 @@ export default function ImportPage() {
                 )}
                 <span className="muted" style={{ fontSize: "0.8rem" }}>
                   Nur PDFs mit echtem Text (keine reinen Scans), max. ca. 3 MB.
-                </span>
-              </div>
-            )}
-
-            {/* #427: Ziel-Deck. Der Server kann das längst (`deckId`), nur schickte
-                es im Browser nie jemand mit — jeder Import legte ein neues Deck an.
-                Voreinstellung bleibt „Neues Deck", damit sich für alle, die das
-                nicht brauchen, nichts ändert. Ohne eigene Decks entfällt der
-                Block ganz: Es gäbe nichts zu wählen. */}
-            {hasDecks && (
-              <fieldset className="deck-target">
-                <legend>Wohin sollen die Karten?</legend>
-
-                <label className={targetDeckId === null ? "deck-target__opt is-on" : "deck-target__opt"}>
-                  <input
-                    type="radio"
-                    name="deck-target"
-                    checked={targetDeckId === null}
-                    onChange={() => setTargetDeckId(null)}
-                    disabled={busy || deckLimitReached}
-                  />
-                  <span className="deck-target__txt">
-                    <span className="deck-target__t">Neues Deck</span>
-                    <span className="deck-target__s">
-                      {deckLimitReached
-                        ? "Geht gerade nicht — deine Deck-Grenze ist erreicht."
-                        : "Den Titel schlägt die KI vor."}
-                    </span>
-                  </span>
-                </label>
-
-                <label className={targetDeckId !== null ? "deck-target__opt is-on" : "deck-target__opt"}>
-                  <input
-                    type="radio"
-                    name="deck-target"
-                    checked={targetDeckId !== null}
-                    onChange={() => setTargetDeckId(decks?.[0]?.id ?? null)}
-                    disabled={busy}
-                  />
-                  <span className="deck-target__txt">
-                    <span className="deck-target__t">Bestehendes Deck</span>
-                    <span className="deck-target__s">Die Karten kommen zu den vorhandenen dazu.</span>
-                  </span>
-                </label>
-
-                {targetDeckId !== null && (
-                  <select
-                    className="select deck-target__pick"
-                    aria-label="Ziel-Deck"
-                    value={targetDeckId}
-                    onChange={(e) => setTargetDeckId(e.target.value)}
-                    disabled={busy}
-                  >
-                    {(decks ?? []).map((deck) => (
-                      <option key={deck.id} value={deck.id}>
-                        {deckOptionLabel(
-                          deck.title,
-                          freeSlots(deck.cardCount, usage?.limits?.maxCardsPerDeck)
-                        )}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </fieldset>
-            )}
-
-            {spaceHint && !error && (
-              <div className="lp-warn" role="status" style={{ marginTop: 14, marginBottom: 0 }}>
-                <Layers size={16} />
-                <span>{spaceHint}</span>
-              </div>
-            )}
-
-            {newDeckBlocked && !error && (
-              <div className="lp-warn" role="status" style={{ marginTop: 14, marginBottom: 0 }}>
-                <Layers size={16} />
-                <span>
-                  <strong style={{ display: "block", marginBottom: 2 }}>{DECK_LIMIT_LABEL}</strong>
-                  {deckLimitHint}
                 </span>
               </div>
             )}

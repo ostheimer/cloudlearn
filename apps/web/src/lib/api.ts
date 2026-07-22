@@ -420,7 +420,8 @@ export function scanText(
   text: string,
   language = "de",
   idempotencyKey?: string,
-  deckId?: string
+  deckId?: string,
+  preview?: boolean
 ): Promise<ScanResponse> {
   return authed<ScanResponse>("/api/v1/scan/process", {
     method: "POST",
@@ -430,6 +431,7 @@ export function scanText(
       idempotencyKey: idempotencyKey ?? importIdempotencyKey("scan"),
       sourceLanguage: language,
       ...(deckId ? { deckId } : {}),
+      ...(preview ? { preview: true } : {}),
     }),
   });
 }
@@ -441,7 +443,8 @@ export function importFromUrl(
   maxImages = 4,
   language = "de",
   idempotencyKey?: string,
-  deckId?: string
+  deckId?: string,
+  preview?: boolean
 ): Promise<UrlImportResponse> {
   return authed<UrlImportResponse>("/api/v1/import/url", {
     method: "POST",
@@ -452,6 +455,7 @@ export function importFromUrl(
       idempotencyKey: idempotencyKey ?? importIdempotencyKey("import-url"),
       sourceLanguage: language,
       ...(deckId ? { deckId } : {}),
+      ...(preview ? { preview: true } : {}),
     }),
   });
 }
@@ -467,7 +471,8 @@ export function scanImage(
   mimeType: "image/jpeg" | "image/png" | "image/webp" = "image/jpeg",
   language = "de",
   idempotencyKey?: string,
-  deckId?: string
+  deckId?: string,
+  preview?: boolean
 ): Promise<ScanResponse> {
   return authed<ScanResponse>("/api/v1/scan/process", {
     method: "POST",
@@ -478,6 +483,7 @@ export function scanImage(
       idempotencyKey: idempotencyKey ?? importIdempotencyKey("scan-img"),
       sourceLanguage: language,
       ...(deckId ? { deckId } : {}),
+      ...(preview ? { preview: true } : {}),
     }),
   });
 }
@@ -493,7 +499,8 @@ export function importPdf(
   fileBase64: string,
   language = "de",
   idempotencyKey?: string,
-  deckId?: string
+  deckId?: string,
+  preview?: boolean
 ): Promise<PdfImportResponse> {
   return authed<PdfImportResponse>("/api/v1/import/pdf", {
     method: "POST",
@@ -504,6 +511,39 @@ export function importPdf(
       idempotencyKey: idempotencyKey ?? importIdempotencyKey("import-pdf"),
       sourceLanguage: language,
       ...(deckId ? { deckId } : {}),
+      ...(preview ? { preview: true } : {}),
+    }),
+  });
+}
+
+/**
+ * Legt Karten ab, die zuvor mit `preview` erzeugt und von Hand durchgesehen
+ * wurden (#427). Kostet keine Lernpunkte — die flossen beim Erzeugen.
+ *
+ * Ohne `deckId` entsteht ein neues Deck mit `title`, mit `deckId` wird
+ * angehängt. Derselbe `idempotencyKey` liefert dasselbe Ergebnis zurück,
+ * statt die Karten ein zweites Mal anzulegen.
+ */
+export interface ImportSaveResponse {
+  deckId: string;
+  deckTitle: string;
+  cards: Flashcard[];
+  generatedCount?: number;
+  savedCount?: number;
+}
+export function saveImportedCards(params: {
+  cards: Flashcard[];
+  deckId?: string;
+  title?: string;
+  idempotencyKey?: string;
+}): Promise<ImportSaveResponse> {
+  return authed<ImportSaveResponse>("/api/v1/import/save", {
+    method: "POST",
+    body: JSON.stringify({
+      cards: params.cards,
+      ...(params.deckId ? { deckId: params.deckId } : {}),
+      ...(params.title ? { title: params.title } : {}),
+      idempotencyKey: params.idempotencyKey ?? importIdempotencyKey("import-save"),
     }),
   });
 }
