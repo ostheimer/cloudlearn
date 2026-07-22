@@ -4137,7 +4137,8 @@ a.lp-way:hover {
   .lbx {
     max-width: none;
     margin: 0;
-    grid-template-columns: 280px minmax(0, 1fr);
+    grid-template-columns: 300px minmax(0, 1fr);
+    gap: 22px;
     align-items: start;
   }
   .lbx-me-card { display: block; }
@@ -4216,6 +4217,9 @@ a.lp-way:hover {
   font-weight: 800;
   font-size: 1.05rem;
 }
+.lbx-pod__bar--gold { height: 88px; }
+.lbx-pod__bar--silver { height: 66px; }
+.lbx-pod__bar--bronze { height: 56px; }
 .lbx-list { display: flex; flex-direction: column; gap: 3px; }
 .lbx-row {
   display: flex;
@@ -4285,6 +4289,23 @@ a.lp-way:hover {
 }
 .lbx-row__lp svg { color: var(--amber); }
 .lbx-row--me .lbx-row__lp { color: var(--brand-600); }
+
+/* Desktop-Maße: eine Stufe größer, damit die Breite wirklich gefüllt wirkt.
+   Steht bewusst NACH den Grundregeln — sonst überschreiben die sie wieder.
+   Das Handy behält die kompakten App-Maße. */
+@media (min-width: 900px) {
+  .lbx-podium { gap: 18px; }
+  .lbx-pod__ava { width: 56px; height: 56px; font-size: 1.15rem; }
+  .lbx-pod__name { font-size: 0.85rem; max-width: 86px; }
+  .lbx-pod__bar { width: 78px; font-size: 1.2rem; }
+  .lbx-pod__bar--gold { height: 120px; }
+  .lbx-pod__bar--silver { height: 94px; }
+  .lbx-pod__bar--bronze { height: 78px; }
+  .lbx-row { padding: 12px 14px; font-size: 1rem; }
+  .lbx-ava { width: 38px; height: 38px; }
+  .lbx-me-row { font-size: 0.95rem; }
+  .lbx-me-row b { font-size: 1.1rem; }
+}
 
 /* Konto löschen — Bestätigung */
 .danger-confirm {

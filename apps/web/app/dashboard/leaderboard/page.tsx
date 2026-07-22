@@ -29,7 +29,8 @@ const GOLD = "#FFD700";
 const SILVER = "#C0C0C0";
 const BRONZE = "#CD7F32";
 const PODIUM_COLORS = [SILVER, GOLD, BRONZE];
-const PODIUM_HEIGHTS = [66, 88, 56];
+// Balkenhöhen kommen aus dem CSS (am Desktop größer), hier nur die Zuordnung.
+const PODIUM_BAR_CLASS = ["lbx-pod__bar--silver", "lbx-pod__bar--gold", "lbx-pod__bar--bronze"];
 
 function RankBadge({ entry }: { entry: LeaderboardEntry }) {
   if (entry.rank === 1) return <Trophy size={20} style={{ color: GOLD }} fill={GOLD} />;
@@ -214,12 +215,8 @@ export default function LeaderboardPage() {
                         </span>
                         <span className="lbx-pod__name">{entry.displayName}</span>
                         <span
-                          className="lbx-pod__bar"
-                          style={{
-                            height: PODIUM_HEIGHTS[i],
-                            backgroundColor: `${color}33`,
-                            color,
-                          }}
+                          className={`lbx-pod__bar ${PODIUM_BAR_CLASS[i] ?? ""}`}
+                          style={{ backgroundColor: `${color}33`, color }}
                         >
                           {entry.rank}
                         </span>
