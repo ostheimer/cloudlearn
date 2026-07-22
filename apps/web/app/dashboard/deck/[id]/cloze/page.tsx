@@ -161,7 +161,7 @@ export default function ClozePage() {
 
   function review(cardId: string, rating: "good" | "again") {
     if (!userId) return;
-    const reviewPromise = reviewCard(userId, cardId, rating).catch(() => {});
+    const reviewPromise = reviewCard(userId, cardId, rating, { mode: "cloze" }).catch(() => {});
     pendingReviewsRef.current.push(reviewPromise);
   }
 

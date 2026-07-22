@@ -158,7 +158,9 @@ export default function OcclusionLearnPage() {
     if (!item || !userId) return;
     if (known) setCorrect((n) => n + 1);
     else setWrong((w) => [...w, item]);
-    const reviewPromise = reviewCard(userId, item.id, known ? "good" : "again").catch(() => {
+    const reviewPromise = reviewCard(userId, item.id, known ? "good" : "again", {
+      mode: "occlusion",
+    }).catch(() => {
       /* review sync best-effort; scheduling will catch up on next load */
     });
     pendingReviewsRef.current.push(reviewPromise);

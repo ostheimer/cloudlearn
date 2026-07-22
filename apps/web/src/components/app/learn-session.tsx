@@ -96,7 +96,11 @@ export function LearnSession({
     if (!card || !userId) return;
     if (rating === "good" || rating === "easy") setCorrect((n) => n + 1);
     else setNotKnown((prev) => [...prev, card]);
-    const reviewPromise = reviewCard(userId, card.id, rating).catch(() => {
+    // Ausdrücklich, obwohl "flashcard" ohnehin der Server-Default ist: Jeder
+    // Modus soll sagen, wer er ist. Sonst hängt die Richtigkeit dieser Zeile
+    // daran, dass der Default nie geändert wird — und dieser Ablauf trägt
+    // sowohl die Deck- als auch die Ordner-Lernseite.
+    const reviewPromise = reviewCard(userId, card.id, rating, { mode: "flashcard" }).catch(() => {
       /* review sync best-effort; scheduling will catch up on next load */
     });
     pendingReviewsRef.current.push(reviewPromise);
