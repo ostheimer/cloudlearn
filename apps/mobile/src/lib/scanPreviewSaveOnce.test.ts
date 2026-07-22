@@ -66,4 +66,20 @@ describe("Karten-Vorschau ist bearbeitbar und löschbar (#427)", () => {
     expect(source).toContain("setCards((prev) => editCardField(prev, index, side, value))");
     expect(source).toContain("setCards((prev) => removeCardAt(prev, index))");
   });
+
+  it("entscheidet Editierbarkeit über die Medien-Analyse, nicht über plainFront", () => {
+    // Der Geräte-Bug: `plainFront`/`plainBack` sind IMMER gesetzt, also darf die
+    // Editier-Sperre NICHT daran hängen. Nur die fertige Analyse (isCardEditable)
+    // ist erlaubt; ein Rückfall auf plainFront würde wieder alles sperren.
+    expect(source).toContain("isCardEditable(card, media)");
+    expect(source).not.toMatch(/plainFront\s*\|\|\s*media\.plainBack/);
+  });
+
+  it("warnt vor dem Verwerfen ungespeicherter Karten (#442)", () => {
+    // „Neuen Scan starten" wirft die bezahlten Karten weg — vorher fragen, sonst
+    // sind Karten UND Lernpunkte still weg (am Gerät passiert).
+    expect(source).toContain("onPress={startNewScan}");
+    expect(source).toMatch(/!saved && cards\.length > 0/);
+    expect(source).toContain("Lernpunkte kommen nicht zurück");
+  });
 });
