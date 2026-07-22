@@ -576,7 +576,8 @@ Die initiale Migration oben ist nur das Basisschema. Die vollständige, maßgebl
 │   └── GET  /history        # Scan-Historie des Nutzers
 ├── /import
 │   ├── POST   /url          # URL importieren -> Web-Text + Bilder -> Karten
-│   └── GET|POST /pdf        # PDF-Import-Job prüfen/starten (Scaffold; LP-Spend aktiv, Parsing noch Job-basiert)
+│   ├── GET|POST /pdf        # PDF-Import-Job prüfen/starten (Scaffold; LP-Spend aktiv, Parsing noch Job-basiert)
+│   └── POST   /save         # Vorschau-Karten ablegen (#427; kostet keine LP, die flossen beim Erzeugen)
 ├── /export
 │   └── POST   /anki         # Anki-Export (.apkg), Body: { "deckId": "uuid" } (Mock-Content, CL-D04)
 ├── /decks

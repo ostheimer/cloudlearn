@@ -38,6 +38,17 @@ export type Flashcard = z.infer<typeof flashcardSchema>;
 export const MAX_GENERATED_CARDS = 150;
 export const flashcardListSchema = z.array(flashcardSchema).min(1).max(MAX_GENERATED_CARDS);
 
+/**
+ * „Erzeuge die Karten, speichere sie aber noch nicht" (#427).
+ *
+ * Damit kann der Client sie erst zeigen, bearbeiten und einzeln verwerfen
+ * lassen und danach über `POST /api/v1/import/save` ablegen. Die Lernpunkte
+ * kostet trotzdem die Erzeugung — die KI hat gearbeitet, ob gespeichert wird
+ * oder nicht. Voreinstellung ist `false`, damit jeder bestehende Client
+ * unverändert weiterläuft.
+ */
+const previewFlag = z.boolean().default(false);
+
 export const scanProcessRequestSchema = z.object({
   userId: z.string().uuid(),
   extractedText: z.string().min(1).max(20_000).optional(),
@@ -46,7 +57,8 @@ export const scanProcessRequestSchema = z.object({
   idempotencyKey: z.string().min(8).max(128),
   sourceLanguage: z.string().min(2).max(10).default("de"),
   sourceImageUrl: z.string().url().optional(),
-  deckId: z.string().uuid().optional()
+  deckId: z.string().uuid().optional(),
+  preview: previewFlag,
 }).refine(
   (data) => Boolean(data.extractedText) || Boolean(data.imageBase64),
   { message: "Either extractedText or imageBase64 must be provided" }
@@ -79,6 +91,7 @@ export const urlImportRequestSchema = z.object({
   sourceLanguage: z.string().min(2).max(10).default("de"),
   maxImages: z.number().int().min(0).max(8).default(4),
   deckId: z.string().uuid().optional(),
+  preview: previewFlag,
 });
 
 export type UrlImportRequest = z.infer<typeof urlImportRequestSchema>;
@@ -241,6 +254,7 @@ export const pdfImportRequestSchema = z.object({
   idempotencyKey: z.string().min(8).max(128),
   sourceLanguage: z.string().min(2).max(10).default("de"),
   deckId: z.string().uuid().optional(),
+  preview: previewFlag,
 });
 
 export type PdfImportRequest = z.infer<typeof pdfImportRequestSchema>;
@@ -269,3 +283,33 @@ export const pdfImportJobSchema = z.object({
 });
 
 export type PdfImportJob = z.infer<typeof pdfImportJobSchema>;
+
+/**
+ * Der zweite Halbschritt zu `preview` (#427): Karten ablegen, die vorher schon
+ * erzeugt und bezahlt wurden.
+ *
+ * Kostet KEINE Lernpunkte — die sind bei der Erzeugung geflossen. Die Karten
+ * kommen vom Client und dürfen bearbeitet oder ausgedünnt sein; deshalb werden
+ * sie hier genauso geprüft wie frisch erzeugte. Ohne `deckId` entsteht ein
+ * neues Deck mit `title`, mit `deckId` wird angehängt — dieselben Tarifgrenzen
+ * wie beim direkten Import (`reserveImportTarget`).
+ */
+export const importSaveRequestSchema = z.object({
+  userId: z.string().uuid(),
+  cards: flashcardListSchema,
+  deckId: z.string().uuid().optional(),
+  title: z.string().trim().min(1).max(100).optional(),
+  idempotencyKey: z.string().min(8).max(128),
+});
+
+export type ImportSaveRequest = z.infer<typeof importSaveRequestSchema>;
+
+export const importSaveResponseSchema = z.object({
+  requestId: z.string().min(8),
+  deckId: z.string().uuid(),
+  deckTitle: z.string().min(1).max(100),
+  cards: flashcardListSchema,
+  ...importCountFields,
+});
+
+export type ImportSaveResponse = z.infer<typeof importSaveResponseSchema>;
