@@ -11,7 +11,7 @@
 export interface LearnFocusInput {
   /** Deck-Modus (/deck-review) hat eine deckId, der Tab nicht. */
   deckId: string | undefined;
-  /** Zählt Vorgaben von anderen Bildschirmen (Ordner/Kurs „Alle lernen"). */
+  /** Zählt Vorgaben von anderen Bildschirmen (Ordner „Alle lernen"). */
   presetToken: number;
   /** Der presetToken, den DIESER Bildschirm zuletzt gesehen hat. */
   seenPresetToken: number;

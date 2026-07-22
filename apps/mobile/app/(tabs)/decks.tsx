@@ -17,7 +17,6 @@ import {
   Search,
   Layers,
   ChevronRight,
-  BookOpen,
   FolderOpen,
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
@@ -29,26 +28,21 @@ import {
   type CardSearchResult,
   updateDeck,
   deleteDeck,
-  listCourses,
-  createCourse,
-  updateCourseApi,
-  deleteCourseApi,
   listFolders,
   createFolder,
   updateFolderApi,
   deleteFolderApi,
   type Deck,
-  type Course,
   type Folder,
 } from "../../src/lib/api";
 import { searchDecks } from "../../src/lib/searchDecks";
 import { buildDeckCountLabel } from "../../src/lib/deckCountLabel";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
-import { buildLibraryCourseRoute, buildLibraryFolderRoute } from "../../src/navigation/libraryRoutes";
+import { buildLibraryFolderRoute } from "../../src/navigation/libraryRoutes";
 import { AuthPromptCard } from "../../src/components/AuthPromptCard";
 import TextPromptModal from "../../src/components/TextPromptModal";
 
-type TabKey = "decks" | "courses" | "folders";
+type TabKey = "decks" | "folders";
 
 /**
  * Welches Eingabe-Fenster gerade offen ist. Früher lief das über den
@@ -56,8 +50,6 @@ type TabKey = "decks" | "courses" | "folders";
  */
 type PromptState =
   | { kind: "renameDeck"; deck: Deck }
-  | { kind: "createCourse" }
-  | { kind: "renameCourse"; course: Course }
   | { kind: "createFolder" }
   | { kind: "renameFolder"; folder: Folder };
 
@@ -72,7 +64,7 @@ export default function LibraryScreen() {
         <View style={{ flex: 1, justifyContent: "center", padding: spacing.xl }}>
           <AuthPromptCard
             title="Decks brauchen ein Konto"
-            body="Decks, Kurse und Ordner werden an dein Konto gebunden, damit wir sie sicher speichern und auf mehreren Geräten synchronisieren können."
+            body="Decks und Ordner werden an dein Konto gebunden, damit wir sie sicher speichern und auf mehreren Geräten synchronisieren können."
             onPress={() => router.push("/auth")}
           />
         </View>
@@ -98,12 +90,6 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
   const [decksError, setDecksError] = useState(false);
   // Due cards per deck ("N fällig" badge on each deck row).
   const [dueByDeck, setDueByDeck] = useState<Record<string, number>>({});
-
-  // Courses state
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [coursesLoading, setCoursesLoading] = useState(true);
-  const [coursesRefreshing, setCoursesRefreshing] = useState(false);
-  const [coursesError, setCoursesError] = useState(false);
 
   // Folders state
   const [folders, setFolders] = useState<Folder[]>([]);
@@ -146,26 +132,6 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
     }
   }, [userId]);
 
-  const loadCourses = useCallback(async () => {
-    if (!userId) {
-      setCourses([]);
-      setCoursesLoading(false);
-      setCoursesRefreshing(false);
-      return;
-    }
-
-    setCoursesError(false);
-    try {
-      const { courses: fetched } = await listCourses();
-      setCourses(fetched);
-    } catch {
-      setCoursesError(true);
-    } finally {
-      setCoursesLoading(false);
-      setCoursesRefreshing(false);
-    }
-  }, [userId]);
-
   const loadFolders = useCallback(async () => {
     if (!userId) {
       setFolders([]);
@@ -193,9 +159,8 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
   useFocusEffect(
     useCallback(() => {
       loadDecks();
-      loadCourses();
       loadFolders();
-    }, [loadDecks, loadCourses, loadFolders])
+    }, [loadDecks, loadFolders])
   );
 
   const filteredDecks = useMemo(() => searchDecks(decks, query), [decks, query]);
@@ -231,14 +196,6 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
       clearTimeout(timer);
     };
   }, [query, activeTab, userId]);
-
-  const filteredCourses = useMemo(
-    () =>
-      query.trim()
-        ? courses.filter((c) => c.title.toLowerCase().includes(query.toLowerCase()))
-        : courses,
-    [courses, query]
-  );
 
   const filteredFolders = useMemo(
     () =>
@@ -276,45 +233,6 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
               },
             },
           ]);
-        },
-      },
-      { text: t("common.cancel"), style: "cancel" },
-    ]);
-  };
-
-  // --- Course actions ---
-
-  const handleCreateCourse = () => setPrompt({ kind: "createCourse" });
-
-  const handleCourseLongPress = (course: Course) => {
-    Alert.alert(course.title, t("library.courseLongPressPrompt"), [
-      {
-        text: t("library.rename"),
-        onPress: () => setPrompt({ kind: "renameCourse", course }),
-      },
-      {
-        text: t("common.delete"),
-        style: "destructive",
-        onPress: () => {
-          Alert.alert(
-            t("library.deleteCourseTitle"),
-            t("library.deleteCourseMessage", { title: course.title }),
-            [
-              { text: t("common.cancel"), style: "cancel" },
-              {
-                text: t("common.delete"),
-                style: "destructive",
-                onPress: async () => {
-                  try {
-                    await deleteCourseApi(course.id);
-                    setCourses((prev) => prev.filter((c) => c.id !== course.id));
-                  } catch {
-                    Alert.alert(t("common.error"), t("library.deleteCourseError"));
-                  }
-                },
-              },
-            ]
-          );
         },
       },
       { text: t("common.cancel"), style: "cancel" },
@@ -375,22 +293,6 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
           initialValue: prompt.deck.title,
           confirmLabel: t("common.save"),
         };
-      case "createCourse":
-        return {
-          icon: BookOpen,
-          title: t("library.newCourse"),
-          label: t("library.newCoursePrompt"),
-          initialValue: "",
-          confirmLabel: t("library.create"),
-        };
-      case "renameCourse":
-        return {
-          icon: BookOpen,
-          title: t("library.renameCourse"),
-          label: t("library.renamePrompt", { title: prompt.course.title }),
-          initialValue: prompt.course.title,
-          confirmLabel: t("common.save"),
-        };
       case "createFolder":
         return {
           icon: FolderOpen,
@@ -427,26 +329,6 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
         }
         return;
       }
-      case "createCourse": {
-        if (!value.trim() || !userId) return;
-        try {
-          await createCourse(value.trim());
-          loadCourses();
-        } catch {
-          Alert.alert(t("common.error"), t("course.createError"));
-        }
-        return;
-      }
-      case "renameCourse": {
-        if (!value.trim()) return;
-        try {
-          await updateCourseApi(current.course.id, { title: value.trim() });
-          loadCourses();
-        } catch {
-          Alert.alert(t("common.error"), t("library.renameCourseError"));
-        }
-        return;
-      }
       case "createFolder": {
         if (!value.trim() || !userId) return;
         try {
@@ -476,10 +358,6 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
     router.push(`/deck/${deck.id}?title=${encodeURIComponent(deck.title)}`);
   };
 
-  const handleCourseTap = (course: Course) => {
-    router.push(buildLibraryCourseRoute(course.id, course.title));
-  };
-
   const handleFolderTap = (folder: Folder) => {
     router.push(buildLibraryFolderRoute(folder.id, folder.title));
   };
@@ -488,21 +366,17 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
 
   const tabs: { key: TabKey; label: string }[] = [
     { key: "decks", label: t("library.tabDecks") },
-    { key: "courses", label: t("library.tabCourses") },
     { key: "folders", label: t("library.tabFolders") },
   ];
 
-  const isLoading = activeTab === "decks" ? decksLoading : activeTab === "courses" ? coursesLoading : foldersLoading;
-  const isRefreshing = activeTab === "decks" ? decksRefreshing : activeTab === "courses" ? coursesRefreshing : foldersRefreshing;
-  const isError = activeTab === "decks" ? decksError : activeTab === "courses" ? coursesError : foldersError;
+  const isLoading = activeTab === "decks" ? decksLoading : foldersLoading;
+  const isRefreshing = activeTab === "decks" ? decksRefreshing : foldersRefreshing;
+  const isError = activeTab === "decks" ? decksError : foldersError;
 
   const onRefresh = () => {
     if (activeTab === "decks") {
       setDecksRefreshing(true);
       loadDecks();
-    } else if (activeTab === "courses") {
-      setCoursesRefreshing(true);
-      loadCourses();
     } else {
       setFoldersRefreshing(true);
       loadFolders();
@@ -514,9 +388,6 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
     if (activeTab === "decks") {
       setDecksLoading(true);
       loadDecks();
-    } else if (activeTab === "courses") {
-      setCoursesLoading(true);
-      loadCourses();
     } else {
       setFoldersLoading(true);
       loadFolders();
@@ -525,10 +396,9 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
 
   // Decks are made by scanning, not by naming: a deck without cards is a dead
   // end, so this jumps straight to the scan flow, which creates the deck itself.
-  // Courses and folders are just containers, so a name is all they need.
+  // Folders are just containers, so a name is all they need.
   const handleCreate = () => {
     if (activeTab === "decks") router.push("/(tabs)/scan");
-    else if (activeTab === "courses") handleCreateCourse();
     else handleCreateFolder();
   };
 
@@ -612,54 +482,6 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
       )}
       <Text style={{ fontSize: typography.xs, color: colors.textTertiary, marginTop: spacing.sm, marginLeft: 26 }}>
         {new Date(deck.createdAt).toLocaleDateString("de")}
-      </Text>
-    </TouchableOpacity>
-  );
-
-  const renderCourseItem = (course: Course) => (
-    <TouchableOpacity
-      key={course.id}
-      onPress={() => handleCourseTap(course)}
-      onLongPress={() => handleCourseLongPress(course)}
-      activeOpacity={0.7}
-      style={{
-        backgroundColor: colors.surface,
-        borderRadius: radius.md,
-        padding: 14,
-        borderWidth: 1,
-        borderColor: colors.border,
-        ...shadows.sm,
-      }}
-    >
-      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-        <View style={{ flexDirection: "row", alignItems: "center", flex: 1, gap: spacing.sm }}>
-          <View
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: 6,
-              backgroundColor: course.color || colors.primary,
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
-            <BookOpen size={14} color="#fff" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontWeight: typography.semibold, fontSize: typography.base, color: colors.text }}>
-              {course.title}
-            </Text>
-            {course.description ? (
-              <Text numberOfLines={1} style={{ fontSize: typography.sm, color: colors.textSecondary, marginTop: 2 }}>
-                {course.description}
-              </Text>
-            ) : null}
-          </View>
-        </View>
-        <ChevronRight size={18} color={colors.textTertiary} />
-      </View>
-      <Text style={{ fontSize: typography.xs, color: colors.textTertiary, marginTop: spacing.sm, marginLeft: 36 }}>
-        {new Date(course.createdAt).toLocaleDateString("de")}
       </Text>
     </TouchableOpacity>
   );
@@ -830,16 +652,6 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
       );
     }
 
-    if (activeTab === "courses") {
-      if (filteredCourses.length === 0) {
-        return renderEmpty(
-          <BookOpen size={28} color={colors.textTertiary} />,
-          courses.length === 0 ? t("library.emptyCourses") : t("library.noMatchCourses")
-        );
-      }
-      return filteredCourses.map(renderCourseItem);
-    }
-
     if (filteredFolders.length === 0) {
       return renderEmpty(
         <FolderOpen size={28} color={colors.textTertiary} />,
@@ -963,7 +775,6 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
             {renderList()}
 
             {((activeTab === "decks" && filteredDecks.length > 0) ||
-              (activeTab === "courses" && filteredCourses.length > 0) ||
               (activeTab === "folders" && filteredFolders.length > 0)) && (
               <Text
                 style={{

@@ -1,12 +1,11 @@
 /**
- * Deck-specific action sheet with all 8 menu items.
+ * Deck-specific action sheet with all menu items.
  * Used in the deck detail view (three-dot menu).
  */
 import React from "react";
 import {
   Download,
   Pencil,
-  GraduationCap,
   FolderPlus,
   Copy,
   Share2,
@@ -22,7 +21,6 @@ interface DeckActionSheetProps {
   onClose: () => void;
   onDownload: () => void;
   onEdit: () => void;
-  onAddToCourse: () => void;
   onAddToFolder: () => void;
   onDuplicate: () => void;
   onShare: () => void;
@@ -36,7 +34,6 @@ export default function DeckActionSheet({
   onClose,
   onDownload,
   onEdit,
-  onAddToCourse,
   onAddToFolder,
   onDuplicate,
   onShare,
@@ -57,12 +54,6 @@ export default function DeckActionSheet({
       label: t("deckMenu.edit"),
       icon: Pencil,
       onPress: onEdit,
-    },
-    {
-      key: "addToCourse",
-      label: t("deckMenu.addToCourse"),
-      icon: GraduationCap,
-      onPress: onAddToCourse,
     },
     {
       key: "addToFolder",

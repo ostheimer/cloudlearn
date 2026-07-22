@@ -613,79 +613,6 @@ export async function getStats(): Promise<{ stats: StatsResponse }> {
   return requestAuthenticated<{ stats: StatsResponse }>("/api/v1/stats");
 }
 
-// --- Courses ---
-
-export interface Course {
-  id: string;
-  userId: string;
-  title: string;
-  description: string | null;
-  color: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export async function listCourses(): Promise<{ courses: Course[] }> {
-  return requestAuthenticated<{ courses: Course[] }>("/api/v1/courses");
-}
-
-export async function getCourse(courseId: string): Promise<{ course: Course }> {
-  return requestAuthenticated<{ course: Course }>(`/api/v1/courses/${courseId}`);
-}
-
-export async function createCourse(
-  title: string,
-  description?: string,
-  color?: string
-): Promise<{ course: Course }> {
-  return requestAuthenticated<{ course: Course }>("/api/v1/courses", {
-    method: "POST",
-    body: JSON.stringify({ title, description, color }),
-  });
-}
-
-export async function updateCourseApi(
-  courseId: string,
-  updates: { title?: string; description?: string; color?: string }
-): Promise<{ course: Course }> {
-  return requestAuthenticated<{ course: Course }>(`/api/v1/courses/${courseId}`, {
-    method: "PATCH",
-    body: JSON.stringify(updates),
-  });
-}
-
-export async function deleteCourseApi(courseId: string): Promise<{ deleted: boolean }> {
-  return requestAuthenticated<{ deleted: boolean }>(`/api/v1/courses/${courseId}`, {
-    method: "DELETE",
-  });
-}
-
-export async function addDeckToCourse(
-  courseId: string,
-  deckId: string,
-  position = 0
-): Promise<{ added: boolean }> {
-  return requestAuthenticated<{ added: boolean }>(`/api/v1/courses/${courseId}/decks`, {
-    method: "POST",
-    body: JSON.stringify({ deckId, position }),
-  });
-}
-
-export async function removeDeckFromCourse(
-  courseId: string,
-  deckId: string
-): Promise<{ removed: boolean }> {
-  return requestAuthenticated<{ removed: boolean }>(`/api/v1/courses/${courseId}/decks?deckId=${deckId}`, {
-    method: "DELETE",
-  });
-}
-
-export async function listDecksInCourse(
-  courseId: string
-): Promise<{ decks: Deck[] }> {
-  return requestAuthenticated<{ decks: Deck[] }>(`/api/v1/courses/${courseId}/decks`);
-}
-
 // --- Folders ---
 
 export interface Folder {
@@ -792,7 +719,6 @@ export interface DeckDetails {
   title: string;
   tags: string[];
   cardCount: number;
-  courses: Course[];
   folders: Folder[];
   createdAt: string;
   updatedAt: string;

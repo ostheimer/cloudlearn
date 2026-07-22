@@ -139,7 +139,7 @@ describe("missedCardsFrom", () => {
 
   // ── Vorgabe von außen (#282) ──────────────────────────────────────────────
   //
-  // „Alle lernen" im Ordner/Kurs sucht die Karten heraus, legt sie in diesen
+  // „Alle lernen" im Ordner sucht die Karten heraus, legt sie in diesen
   // Store und schickt zum Lern-Tab. Der lud beim ersten Fokus die global
   // fälligen Karten nach und überschrieb damit genau die Auswahl, die die
   // Nutzerin angetippt hatte. `presetToken` ist das Unterscheidungsmerkmal:

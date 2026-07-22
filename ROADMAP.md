@@ -38,7 +38,7 @@ Letzte Aktualisierung: 2026-07-21 (Endpunkte ohne Funktion entfernt/stillgelegt)
 | Image Occlusion | ✅ (Scaffold) | Add-on | ❌ | **✅** (Scaffold) |
 | Offline-Lernen | ✅ | ✅ | Teilweise | **✅** (Download) |
 | Deck-Aktionsmenü | ✅ | ✅ | ✅ | **✅** |
-| Ordner/Kurse | ✅ | ❌ | ❌ | **✅** |
+| Ordner | ✅ | ❌ | ❌ | **✅** |
 | Deck teilen | ✅ | ✅ | ✅ | **✅** |
 | Deck duplizieren | ✅ | ✅ | ❌ | **✅** |
 | KI-Kartenerstellung | Bezahlt | ❌ | ❌ | **✅ USP** |
@@ -79,16 +79,14 @@ Letzte Aktualisierung: 2026-07-21 (Endpunkte ohne Funktion entfernt/stillgelegt)
 | **Auto-Play** | Automatischer Karten-Durchlauf (1s/3s/5s/10s), Play/Pause, TTS-Integration |
 | **Image Occlusion** | Bild-Upload, Rechteck-Zeichnung, Bereiche benennen, Karten-Erstellung |
 | **E2E-Tests** | 51 Playwright-Tests (41 API + 10 Web) über 10 Spec-Dateien |
-| **Deck-Dreipunktemenü** | Bottom-Sheet mit 8 Aktionen: Download, Bearbeiten, Kurs, Ordner, Duplizieren, Teilen, Details, Löschen |
-| **Kurse** | Kurs-CRUD + Decks zu Kursen zuordnen/entfernen (DB + API + Mobile UI) |
+| **Deck-Dreipunktemenü** | Bottom-Sheet mit 7 Aktionen: Download, Bearbeiten, Ordner, Duplizieren, Teilen, Details, Löschen |
 | **Ordner** | Ordner-CRUD + Decks zu Ordnern zuordnen/entfernen (DB + API + Mobile UI) |
 | **Deck duplizieren** | Deck + alle Karten kopieren, automatischer Titel "(Kopie)" |
 | **Deck teilen** | Share-Token generieren, Deep-Link, Native Share-Sheet |
-| **Deck-Details** | Modal mit Kartenanzahl, Erstelldatum, Tags, zugeordnete Kurse/Ordner |
+| **Deck-Details** | Modal mit Kartenanzahl, Erstelldatum, Tags, zugeordnete Ordner |
 | **Offline-Download** | Deck + Karten in AsyncStorage cachen, visueller Indikator (Download-Icon) |
 | **Deck bearbeiten** | Titel und Tags über Modal direkt im Deck-Detail bearbeitbar |
-| **Bibliothek-Tab** | Segmented Control (Decks/Kurse/Ordner), erstellt/umbenennt/löscht alle drei Typen |
-| **Kurs-Detail-Screen** | Zeigt zugeordnete Decks, Umbenennen/Löschen, Deck entfernen per Long-Press |
+| **Bibliothek-Tab** | Segmented Control (Decks/Ordner), erstellt/umbenennt/löscht beide Typen |
 | **Ordner-Detail-Screen** | Zeigt Unterordner + Decks, Umbenennen/Löschen, verschachtelte Navigation |
 
 ### Scaffold vorhanden, NICHT funktionsfähig

@@ -227,7 +227,7 @@ export default function HomeScreen() {
               {
                 icon: <BookOpen size={20} color={colors.primary} />,
                 title: "Decks",
-                body: "Decks, Kurse und Ordner synchronisieren wir mit deinem Konto.",
+                body: "Decks und Ordner synchronisieren wir mit deinem Konto.",
               },
               {
                 icon: <Brain size={20} color={colors.primary} />,
