@@ -1,6 +1,24 @@
 import { z } from "zod";
 
 export const cardTypeSchema = z.enum(["basic", "cloze", "mcq", "matching", "occlusion"]);
+export type CardType = z.infer<typeof cardTypeSchema>;
+
+// Ob eine Karte Lückentext ist, entscheidet ihr TEXT, nicht ein vom Client
+// gesetztes Etikett. Eine Lücke gibt es in zwei Schreibweisen: {{cN::…}} mit
+// eingebetteter Antwort (Anki-Stil, liest apps/mobile/app/cloze.tsx) und
+// ______-Unterstriche mit der Antwort auf der Rückseite (so erzeugt sie der
+// Scan). Die Muster sind dieselben, mit denen Quiz/Test Fill-in-Karten
+// erkennen (quizQuestions.ts) — ein abweichendes Etikett verfälscht dort nur
+// die Distraktoren-Gruppierung (#380). Deshalb wird die Achse basic↔cloze
+// serverseitig abgeleitet. Spezialtypen (mcq, matching, occlusion) tragen
+// keine Markierung und bleiben unverändert.
+const CLOZE_MARKER = /\{\{c\d+::.+?\}\}/;
+const BLANK_MARKER = /_{2,}/;
+
+export function deriveCardType(front: string, requested: CardType = "basic"): CardType {
+  if (requested !== "basic" && requested !== "cloze") return requested;
+  return CLOZE_MARKER.test(front) || BLANK_MARKER.test(front) ? "cloze" : "basic";
+}
 export const difficultySchema = z.enum(["easy", "medium", "hard"]);
 // Tag rules without a default, so partial-update schemas can reuse the validation
 // without inheriting flashcardSchema's `.default([])` — see updateCardSchema.

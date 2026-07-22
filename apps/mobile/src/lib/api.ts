@@ -420,7 +420,9 @@ export async function createCard(
   card: {
     front: string;
     back: string;
-    type: string;
+    // Optional: ohne Angabe leitet der Server basic↔cloze aus dem Text ab.
+    // Nur Spezialtypen (occlusion) müssen ihn explizit mitschicken.
+    type?: string;
     difficulty: string;
     tags: string[];
     // Image cards (Occlusion, #207): storage path + per-card payload. The API

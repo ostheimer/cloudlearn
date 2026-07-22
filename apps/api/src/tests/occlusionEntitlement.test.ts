@@ -210,6 +210,9 @@ describe("image occlusion entitlement (#235)", () => {
 
     it("does not gate edits to other card types for a free user", async () => {
       mockTier("free");
+      // A basic/cloze type is re-derived from the card text, so the service
+      // reads the card first (cardTypeDerivation.test.ts pins that logic).
+      dbMocks.getCard.mockResolvedValue({ ...storedOcclusionCard, ...basicCard });
 
       const card = await updateCardForUser({ userId, cardId, type: "basic" });
 
