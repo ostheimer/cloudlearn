@@ -40,6 +40,12 @@ interface TextPromptModalProps {
   /** Mehrzeiliges Feld — für Freitext wie die Ordner-Beschreibung (#437). */
   multiline?: boolean;
   /**
+   * Tipp-Stopp des Eingabefelds — für Werte mit harter Servergrenze wie den
+   * Anzeigenamen (max. 20 Zeichen), damit der Fehler nicht erst beim
+   * Speichern kommt.
+   */
+  maxLength?: number;
+  /**
    * Leeres Abschicken zulassen. Namen dürfen nie leer sein, eine Beschreibung
    * schon — leer speichern ist dort der Weg, sie wieder zu löschen.
    */
@@ -57,6 +63,7 @@ export default function TextPromptModal({
   confirmLabel,
   icon: Icon,
   multiline = false,
+  maxLength,
   allowEmpty = false,
   onCancel,
   onSubmit,
@@ -130,6 +137,7 @@ export default function TextPromptModal({
                 placeholderTextColor={colors.textTertiary}
                 autoFocus
                 multiline={multiline}
+                maxLength={maxLength}
                 // Mehrzeilig macht die Eingabetaste zum Zeilenumbruch —
                 // gespeichert wird dann nur über den Knopf.
                 returnKeyType={multiline ? "default" : "done"}

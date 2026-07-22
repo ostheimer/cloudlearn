@@ -819,6 +819,8 @@ export default function ProfileScreen() {
         initialValue={displayName ?? ""}
         confirmLabel={t("displayName.save")}
         icon={UserRound}
+        // Servergrenze aus Etappe 1 (#473) — stoppt schon beim Tippen.
+        maxLength={20}
         onCancel={() => setNameEditVisible(false)}
         onSubmit={(value) => {
           void handleNameSave(value);
