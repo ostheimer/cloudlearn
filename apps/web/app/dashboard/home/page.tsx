@@ -319,20 +319,33 @@ export default function HomePage() {
           )}
         </Link>
 
-        {/* Tagesziel */}
-        <div style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 14, padding: "14px 16px" }}>
+        {/* Tagesziel — anklickbar wie in der App: führt zum Ziel-Editor */}
+        <Link
+          href="/dashboard/daily-goal"
+          style={{
+            background: "var(--surface)",
+            border: "1px solid var(--line)",
+            borderRadius: 14,
+            padding: "14px 16px",
+            textDecoration: "none",
+            color: "inherit",
+          }}
+        >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
-            <div style={{ fontWeight: 700, fontSize: "0.95rem" }}>
-              <Target size={15} style={{ verticalAlign: -2, marginRight: 6, color: "var(--ink-3)" }} /> Tagesziel
+            <div style={{ fontWeight: 700, fontSize: "0.95rem", display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <Target size={15} style={{ color: "var(--ink-3)" }} /> Tagesziel
             </div>
-            <div className="muted" style={{ fontSize: "0.9rem" }}>
-              <b style={{ color: "var(--ink)" }}>{today}</b> / {goal || "—"} Karten
+            <div className="muted" style={{ fontSize: "0.9rem", display: "inline-flex", alignItems: "center", gap: 4 }}>
+              <span>
+                <b style={{ color: "var(--ink)" }}>{today}</b> / {goal || "—"} Karten
+              </span>
+              <ChevronRight size={16} style={{ color: "var(--ink-4)" }} />
             </div>
           </div>
           <div className="progress">
             <i style={{ width: `${goalPct}%`, background: "var(--green)" }} />
           </div>
-        </div>
+        </Link>
       </div>
 
       {/* Freunde-Hinweis: Partner hat heute gelernt, du noch nicht */}
