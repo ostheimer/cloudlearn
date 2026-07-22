@@ -320,6 +320,16 @@ export function getStats(days?: 7 | 30): Promise<{ stats: StatsResponse }> {
   );
 }
 
+// Tagesziel (Karten/Tag) setzen — reiner Anzeige-Zielwert, ohne Einfluss auf
+// LP-Verdienst oder -Deckel. Der Server begrenzt final auf [1, 500] und nimmt
+// die Identität aus dem Token (gleicher Endpunkt wie die App, profileApi.ts).
+export function setDailyGoal(goal: number): Promise<{ dailyGoal: number }> {
+  return authed<{ dailyGoal: number }>(`/api/v1/daily-goal`, {
+    method: "PATCH",
+    body: JSON.stringify({ dailyGoal: goal }),
+  });
+}
+
 // Pro-Deck-Genauigkeit (letzte 30 Tage) — für die „Pro Deck"-Liste in der Statistik.
 export interface DeckSummary {
   deckId: string;
