@@ -3,7 +3,7 @@
 // Basis-URL + Auth-Header sind bewusst 1:1 das Muster aus src/lib/api.ts
 // (getAuthHeaders/request), damit eine spätere Konsolidierung trivial bleibt.
 import { supabase } from "./supabase";
-import { type StatsResponse } from "./api";
+import { ApiError, type StatsResponse } from "./api";
 
 const API_BASE =
   process.env.EXPO_PUBLIC_API_URL?.trim() || "https://clearn-api.vercel.app";
@@ -28,16 +28,23 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
 async function requestAuthenticated<T>(path: string): Promise<T> {
   const headers = await getAuthHeaders();
   if (!headers["Authorization"]) {
-    throw new Error("Authentication required");
+    throw new ApiError("Authentication required", 401);
   }
 
   const res = await fetch(`${API_BASE}${path}`, { headers });
   const body = (await res.json().catch(() => null)) as
-    | (T & { message?: string })
+    | (T & { message?: string; code?: string })
     | null;
 
   if (!res.ok || body === null) {
-    throw new Error(body?.message ?? `API error ${res.status}`);
+    // ApiError statt nacktem Error: Die Statistik-Bildschirme erkennen an
+    // status/code (403/PRO_REQUIRED), dass der Server "Pro nötig" meldet, und
+    // zeigen den Schloss-Teaser statt "Konnte … nicht laden" (#377/#387).
+    throw new ApiError(
+      body?.message ?? `API error ${res.status}`,
+      res.status,
+      body?.code
+    );
   }
   return body;
 }
