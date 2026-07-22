@@ -59,7 +59,7 @@ import {
   shouldOpenLpModal,
 } from "../../src/lib/importLimits";
 import { summarizeCardMedia } from "../../src/lib/cardMedia";
-import { editCardField, isPlainEditableCard, removeCardAt } from "../../src/lib/cardDraft";
+import { editCardField, isCardEditable, removeCardAt } from "../../src/lib/cardDraft";
 import {
   getStableImportAttemptKey,
   type ImportAttemptKey,
@@ -677,6 +677,26 @@ export default function ScanScreen() {
     setPdfFileName("");
     setPdfPageCount(null);
     importAttemptRef.current = null;
+  };
+
+  // #442: Seit der Vorschau speichert der Scan nicht mehr automatisch. „Neuen
+  // Scan starten" würde die erzeugten Karten also verwerfen — und die dafür
+  // gezahlten Lernpunkte kommen nicht zurück (die KI hat gearbeitet). Vorher
+  // erst fragen, damit niemand seine Karten aus Versehen wegwirft.
+  const startNewScan = () => {
+    if (!saved && cards.length > 0) {
+      Alert.alert(
+        "Karten verwerfen?",
+        `Du hast ${cards.length} Karten, die noch nicht gespeichert sind. Wenn du neu ` +
+          `scannst, sind sie weg — die Lernpunkte kommen nicht zurück.`,
+        [
+          { text: "Abbrechen", style: "cancel" },
+          { text: "Verwerfen", style: "destructive", onPress: resetAll },
+        ]
+      );
+      return;
+    }
+    resetAll();
   };
 
   // --- Camera View ---
@@ -1497,10 +1517,7 @@ export default function ScanScreen() {
 
             {cards.map((card, idx) => {
               const media = summarizeCardMedia(card);
-              const editable = isPlainEditableCard({
-                front: card.front,
-                hasMedia: Boolean(media.primaryImage || media.plainFront || media.plainBack),
-              });
+              const editable = isCardEditable(card, media);
               const frontDisplay = (media.plainFront || card.front).replace(
                 /\{\{c\d+::(.+?)\}\}/g,
                 "[$1]"
@@ -1680,7 +1697,7 @@ export default function ScanScreen() {
 
             {/* New scan */}
             <TouchableOpacity
-              onPress={resetAll}
+              onPress={startNewScan}
               activeOpacity={0.8}
               style={{
                 backgroundColor: colors.surfaceSecondary,

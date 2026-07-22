@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { editCardField, isPlainEditableCard, removeCardAt } from "./cardDraft";
+import { editCardField, isCardEditable, removeCardAt } from "./cardDraft";
+import { summarizeCardMedia } from "./cardMedia";
 import type { Flashcard } from "./api";
 
 function card(front: string, back: string): Flashcard {
@@ -33,11 +34,22 @@ describe("Karten-Vorschau bearbeiten/löschen (#427)", () => {
     expect(next).toHaveLength(0);
   });
 
-  it("erlaubt Bearbeiten nur bei schlichten Text-Karten", () => {
-    expect(isPlainEditableCard({ front: "Was ist X?" })).toBe(true);
-    // Lückentext: einfaches Textfeld würde die {{c1::…}}-Struktur zerstören.
-    expect(isPlainEditableCard({ front: "Die Hauptstadt ist {{c1::Berlin}}." })).toBe(false);
-    // Bild-Karte: nicht als Text bearbeitbar.
-    expect(isPlainEditableCard({ front: "Alt-Text", hasMedia: true })).toBe(false);
+  it("macht schlichte Text-Karten editierbar — mit der ECHTEN Medien-Analyse", () => {
+    // Der Bug in #456 lief genau hier auf: summarizeCardMedia setzt plainFront/
+    // plainBack IMMER, also machte die alte Prüfung jede Karte „unbearbeitbar".
+    // Dieser Test füttert die echte Analyse und wäre damals rot gewesen.
+    const plain = { front: "Was ist ein Primärschlüssel?", back: "Eindeutige Kennung." };
+    expect(isCardEditable(plain, summarizeCardMedia(plain))).toBe(true);
+  });
+
+  it("sperrt Lückentext und Bild-Karten fürs Bearbeiten (nur löschen)", () => {
+    const cloze = { front: "Die Hauptstadt ist {{c1::Berlin}}.", back: "" };
+    expect(isCardEditable(cloze, summarizeCardMedia(cloze))).toBe(false);
+
+    const image = {
+      front: "![Diagramm](https://example.com/x.png)",
+      back: "Beschreibung",
+    };
+    expect(isCardEditable(image, summarizeCardMedia(image))).toBe(false);
   });
 });
