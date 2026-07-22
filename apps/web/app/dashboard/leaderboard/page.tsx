@@ -106,6 +106,11 @@ export default function LeaderboardPage() {
   const showEmpty = tab === "friends" ? friendCount === 0 : entries.length === 0;
   // Reihenfolge wie in der App: Silber links, Gold in der Mitte, Bronze rechts.
   const podium = entries.length >= 3 ? [entries[1], entries[0], entries[2]] : [];
+  // Eigene Werte für die Übersichts-Karte: die Freunde-Liste enthält einen
+  // selbst immer — LP und Streak stimmen dort auch, wenn man global nicht in
+  // den Top 50 steht.
+  const myEntry = friends?.entries.find((e) => e.isCurrentUser) ?? null;
+  const shownRank = tab === "global" ? myRank : (myEntry?.rank ?? 0);
 
   return (
     <>
@@ -192,35 +197,61 @@ export default function LeaderboardPage() {
         </div>
       ) : (
         <div className="lbx">
-          {podium.length === 3 && (
-            <div className="lbx-podium" aria-hidden>
-              {podium.map((entry, i) => {
-                if (!entry) return null;
-                const color = PODIUM_COLORS[i] ?? "var(--line)";
-                return (
-                  <div key={entry.rank} className="lbx-pod">
-                    <span
-                      className={`lbx-pod__ava${entry.isCurrentUser ? " is-me" : ""}`}
-                      style={{ borderColor: color }}
-                    >
-                      {(entry.displayName?.[0] ?? "?").toUpperCase()}
-                    </span>
-                    <span className="lbx-pod__name">{entry.displayName}</span>
-                    <span
-                      className="lbx-pod__bar"
-                      style={{
-                        height: PODIUM_HEIGHTS[i],
-                        backgroundColor: `${color}33`,
-                        color,
-                      }}
-                    >
-                      {entry.rank}
-                    </span>
-                  </div>
-                );
-              })}
+          <div className="lbx-side">
+            {podium.length === 3 && (
+              <div className="lbx-card lbx-card--pod">
+                <div className="lbx-podium" aria-hidden>
+                  {podium.map((entry, i) => {
+                    if (!entry) return null;
+                    const color = PODIUM_COLORS[i] ?? "var(--line)";
+                    return (
+                      <div key={entry.rank} className="lbx-pod">
+                        <span
+                          className={`lbx-pod__ava${entry.isCurrentUser ? " is-me" : ""}`}
+                          style={{ borderColor: color }}
+                        >
+                          {(entry.displayName?.[0] ?? "?").toUpperCase()}
+                        </span>
+                        <span className="lbx-pod__name">{entry.displayName}</span>
+                        <span
+                          className="lbx-pod__bar"
+                          style={{
+                            height: PODIUM_HEIGHTS[i],
+                            backgroundColor: `${color}33`,
+                            color,
+                          }}
+                        >
+                          {entry.rank}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Nur am Desktop sichtbar — am Handy steht der Rang wie in der
+                App im Seitenkopf. */}
+            <div className="lbx-card lbx-me-card">
+              <div className="lbx-me-card__head">Deine Platzierung</div>
+              <div className="lbx-me-row">
+                <Trophy size={16} /> Rang
+                <b>{shownRank > 0 ? `#${shownRank}` : "–"}</b>
+              </div>
+              <div className="lbx-me-row">
+                <Zap size={16} /> Lernpunkte
+                <b>{myEntry ? myEntry.lpBalance.toLocaleString("de-DE") : "–"}</b>
+              </div>
+              <div className="lbx-me-row">
+                <Flame size={16} /> Streak
+                <b>
+                  {myEntry
+                    ? `${myEntry.currentStreak} ${myEntry.currentStreak === 1 ? "Tag" : "Tage"}`
+                    : "–"}
+                </b>
+              </div>
             </div>
-          )}
+          </div>
 
           <div className="lbx-list">
             {entries.map((entry) => (

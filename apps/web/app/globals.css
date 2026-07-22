@@ -4104,7 +4104,53 @@ a.lp-way:hover {
 .lb-row--me .lb-row__lp { color: var(--brand-600); }
 
 /* ── Rangliste (/dashboard/leaderboard) ──────────────────────────────────── */
-.lbx { max-width: 560px; margin: 0 auto; }
+/* Handy: eine schmale Mittelspalte wie in der App. Desktop (ab 900px):
+   links Treppchen + "Deine Platzierung", rechts die breite Liste. */
+.lbx { display: grid; gap: 18px; max-width: 560px; margin: 0 auto; }
+.lbx-side { display: flex; flex-direction: column; gap: 18px; }
+.lbx-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px;
+}
+.lbx-me-card { display: none; }
+.lbx-me-card__head { font-weight: 700; font-size: 0.95rem; margin-bottom: 4px; }
+.lbx-me-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+  font-size: 0.9rem;
+  color: var(--ink-2);
+}
+.lbx-me-row:first-of-type { border-top: 0; }
+.lbx-me-row svg { color: var(--amber); }
+.lbx-me-row b {
+  margin-left: auto;
+  color: var(--ink);
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+}
+@media (min-width: 900px) {
+  .lbx {
+    max-width: none;
+    margin: 0;
+    grid-template-columns: 280px minmax(0, 1fr);
+    align-items: start;
+  }
+  .lbx-me-card { display: block; }
+}
+@media (max-width: 899.98px) {
+  /* Am Handy verliert das Treppchen seine Karten-Hülle — nackt wie in der App. */
+  .lbx-card--pod {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+  }
+}
 .lbx-tabs { display: flex; gap: 8px; }
 .lbx-tab {
   display: inline-flex;
@@ -4139,7 +4185,6 @@ a.lp-way:hover {
   justify-content: center;
   gap: 14px;
   padding-top: 10px;
-  margin-bottom: 18px;
 }
 .lbx-pod { display: flex; flex-direction: column; align-items: center; gap: 5px; }
 .lbx-pod__ava {
