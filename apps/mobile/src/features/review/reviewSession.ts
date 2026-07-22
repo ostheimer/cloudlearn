@@ -11,7 +11,7 @@ export interface ReviewCard {
 
 /** Eigentümer-Kennung des Lern-Tabs (fällige Karten über alle Decks). */
 export const GLOBAL_OWNER = "__global__";
-/** Eigentümer-Kennung einer Vorgabe aus Ordner/Kurs („Alle lernen"). */
+/** Eigentümer-Kennung einer Vorgabe aus einem Ordner („Alle lernen"). */
 export const PRESET_OWNER = "__preset__";
 
 interface ReviewSessionState {
@@ -25,7 +25,7 @@ interface ReviewSessionState {
   completed: boolean;
   /**
    * Zählt, wie oft ein ANDERER Bildschirm eine Auswahl hierhergelegt hat
-   * (Ordner/Kurs „Alle lernen"). Der Lern-Tab merkt sich den zuletzt von ihm
+   * (Ordner „Alle lernen"). Der Lern-Tab merkt sich den zuletzt von ihm
    * gesehenen Stand: Ist die Zahl gewachsen, hat jemand bewusst etwas
    * hingelegt — dann darf er sie NICHT mit den global fälligen Karten
    * überschreiben (#282).
@@ -49,7 +49,7 @@ interface ReviewSessionState {
    * Die Herkunft gehört deshalb an die Karten selbst, nicht in eine Notiz, die
    * jeder Leser getrennt führt. Werte: "__global__" (fällige Karten des
    * Lern-Tabs), eine Deck-ID, oder "__preset__" für eine Vorgabe aus
-   * Ordner/Kurs.
+   * einem Ordner.
    */
   cardsOwner: string | null;
   /** `startIndex` resumes an interrupted deck session; defaults to the first card. */

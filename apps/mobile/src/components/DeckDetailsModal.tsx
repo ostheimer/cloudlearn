@@ -1,5 +1,5 @@
 /**
- * Modal to display deck details (metadata, courses, folders, stats).
+ * Modal to display deck details (metadata, folders, stats).
  */
 import React, { useEffect, useState } from "react";
 import {
@@ -15,7 +15,6 @@ import {
   X,
   Calendar,
   CreditCard,
-  GraduationCap,
   Folder,
   Clock,
   Tag,
@@ -218,16 +217,6 @@ export default function DeckDetailsModal({
                 icon={Tag}
                 label={t("deckDetails.tagsCount")}
                 value={details.tags.length > 0 ? details.tags.join(", ") : t("deckDetails.noTags")}
-              />
-              <DetailRow
-                icon={GraduationCap}
-                label={t("deckDetails.coursesLabel")}
-                value={
-                  details.courses.length > 0
-                    ? details.courses.map((c) => c.title).join(", ")
-                    : t("deckDetails.noCourses")
-                }
-                iconColor={colors.info}
               />
               <DetailRow
                 icon={Folder}

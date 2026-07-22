@@ -280,7 +280,7 @@ export default function FolderDetailScreen() {
                 <Play size={16} color="#fff" fill="#fff" />
               )}
               <Text style={{ color: "#fff", fontWeight: typography.semibold, fontSize: typography.base }}>
-                {t("courseDetail.learnAll")}
+                {t("folderDetail.learnAll")}
               </Text>
             </TouchableOpacity>
           )}

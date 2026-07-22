@@ -26,7 +26,7 @@ import { useColors, spacing, radius, typography, shadows } from "../theme";
 
 interface TextPromptModalProps {
   visible: boolean;
-  /** Überschrift des Fensters, z. B. „Kurs umbenennen". */
+  /** Überschrift des Fensters, z. B. „Ordner umbenennen". */
   title: string;
   /** Zeile über dem Eingabefeld, z. B. „Neuer Name für ...". */
   label: string;

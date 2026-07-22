@@ -59,40 +59,35 @@ describe("mobile – kein iOS-only Eingabe-Alert mehr (#396)", () => {
   });
 });
 
-describe("mobile – alle sieben Stellen benutzen TextPromptModal", () => {
+// Seit #437 gibt es keine Kurse mehr — übrig sind die Bibliothek (Deck
+// umbenennen, Ordner anlegen/umbenennen) und die Ordner-Detailseite.
+describe("mobile – alle vier Stellen benutzen TextPromptModal", () => {
   const decks = read("app/(tabs)/decks.tsx");
-  const course = read("app/(tabs)/library-course/[id].tsx");
   const folder = read("app/(tabs)/library-folder/[id].tsx");
 
-  it("bindet das Fenster in allen drei Bildschirmen ein", () => {
+  it("bindet das Fenster in beiden Bildschirmen ein", () => {
     expect(decks).toContain('import TextPromptModal from "../../src/components/TextPromptModal";');
-    expect(course).toContain('import TextPromptModal from "../../../src/components/TextPromptModal";');
     expect(folder).toContain('import TextPromptModal from "../../../src/components/TextPromptModal";');
-    for (const source of [decks, course, folder]) {
+    for (const source of [decks, folder]) {
       expect(source).toContain("<TextPromptModal");
     }
   });
 
-  it("deckt in decks.tsx alle fünf früheren Stellen ab", () => {
-    // Deck umbenennen, Kurs anlegen/umbenennen, Ordner anlegen/umbenennen.
+  it("deckt in decks.tsx alle drei Stellen ab", () => {
+    // Deck umbenennen, Ordner anlegen/umbenennen.
     expect(decks).toContain('setPrompt({ kind: "renameDeck", deck })');
-    expect(decks).toContain('setPrompt({ kind: "createCourse" })');
-    expect(decks).toContain('setPrompt({ kind: "renameCourse", course })');
     expect(decks).toContain('setPrompt({ kind: "createFolder" })');
     expect(decks).toContain('setPrompt({ kind: "renameFolder", folder })');
   });
 
-  it("öffnet das Umbenennen-Fenster in den beiden Detailseiten", () => {
-    expect(course).toContain("setRenamePromptVisible(true)");
+  it("öffnet das Umbenennen-Fenster in der Detailseite", () => {
     expect(folder).toContain("setRenamePromptVisible(true)");
   });
 
   it("zeigt je Fall ein passendes gezeichnetes Symbol", () => {
     // Lara will das Symbol ausdrücklich behalten — je Kontext das der Liste.
     expect(decks).toContain("icon: Layers"); // Deck
-    expect(decks).toContain("icon: BookOpen"); // Kurs
     expect(decks).toContain("icon: FolderOpen"); // Ordner
-    expect(course).toContain("icon={BookOpen}");
     expect(folder).toContain("icon={FolderOpen}");
   });
 });
@@ -102,16 +97,11 @@ describe("mobile – alle sieben Stellen benutzen TextPromptModal", () => {
 // dieselben geblieben sind — nicht bloss irgendwo in der Datei.
 describe("mobile – Verhalten je Stelle unverändert", () => {
   const decks = read("app/(tabs)/decks.tsx");
-  const course = read("app/(tabs)/library-course/[id].tsx");
   const folder = read("app/(tabs)/library-folder/[id].tsx");
 
   const decksSubmit = decks.slice(
     decks.indexOf("const handlePromptSubmit"),
     decks.indexOf("// --- Navigation ---"),
-  );
-  const courseSubmit = course.slice(
-    course.indexOf("const handleRenameSubmit"),
-    course.indexOf("const handleDeleteCourse"),
   );
   const folderSubmit = folder.slice(
     folder.indexOf("const handleRenameSubmit"),
@@ -119,89 +109,71 @@ describe("mobile – Verhalten je Stelle unverändert", () => {
   );
 
   it("findet die Speichern-Blöcke überhaupt", () => {
-    for (const block of [decksSubmit, courseSubmit, folderSubmit]) {
+    for (const block of [decksSubmit, folderSubmit]) {
       expect(block).not.toBe("");
     }
   });
 
-  it("verwirft leere und reine Leerzeichen-Namen an jeder der sieben Stellen", () => {
-    // Fünf Wächter in decks.tsx, je einer in den beiden Detailseiten = 7.
-    expect(countOf(decksSubmit, /if \(!value\.trim\(\)/g)).toBe(5);
-    expect(countOf(courseSubmit, /if \(!value\.trim\(\)/g)).toBe(1);
+  it("verwirft leere und reine Leerzeichen-Namen an jeder der vier Stellen", () => {
+    // Drei Wächter in decks.tsx, einer in der Detailseite = 4.
+    expect(countOf(decksSubmit, /if \(!value\.trim\(\)/g)).toBe(3);
     expect(countOf(folderSubmit, /if \(!value\.trim\(\)/g)).toBe(1);
   });
 
   it("verlangt beim Anlegen zusätzlich ein angemeldetes Konto", () => {
-    // Kurs und Ordner anlegen hatten schon immer `|| !userId`.
-    expect(countOf(decksSubmit, /if \(!value\.trim\(\) \|\| !userId\) return;/g)).toBe(2);
+    // Ordner anlegen hatte schon immer `|| !userId`.
+    expect(countOf(decksSubmit, /if \(!value\.trim\(\) \|\| !userId\) return;/g)).toBe(1);
   });
 
   it("ruft dieselben Schnittstellen mit gekürztem Namen auf", () => {
     expect(decksSubmit).toContain("await updateDeck(current.deck.id, { title: value.trim() });");
-    expect(decksSubmit).toContain("await createCourse(value.trim());");
-    expect(decksSubmit).toContain("await updateCourseApi(current.course.id, { title: value.trim() });");
     expect(decksSubmit).toContain("await createFolder(value.trim());");
     expect(decksSubmit).toContain("await updateFolderApi(current.folder.id, { title: value.trim() });");
-    expect(courseSubmit).toContain("await updateCourseApi(courseId, { title: value.trim() });");
     expect(folderSubmit).toContain("await updateFolderApi(folderId, { title: value.trim() });");
   });
 
   it("meldet Fehler weiterhin mit denselben Texten", () => {
     expect(decksSubmit).toContain('t("library.renameDeckError")');
-    expect(decksSubmit).toContain('t("course.createError")');
-    expect(decksSubmit).toContain('t("library.renameCourseError")');
     expect(decksSubmit).toContain('t("folder.createError")');
     expect(decksSubmit).toContain('t("library.renameFolderError")');
-    expect(courseSubmit).toContain('t("courseDetail.renameError")');
     expect(folderSubmit).toContain('t("folderDetail.renameError")');
   });
 
   it("lädt nach dem Speichern wie bisher neu bzw. setzt den Titel", () => {
     expect(decksSubmit).toContain("loadDecks();");
-    expect(decksSubmit).toContain("loadCourses();");
     expect(decksSubmit).toContain("loadFolders();");
-    expect(courseSubmit).toContain("setCurrentTitle(value.trim());");
     expect(folderSubmit).toContain("setCurrentTitle(value.trim());");
   });
 
   it("schliesst das Fenster beim Bestätigen — wie zuvor der Alert", () => {
     expect(decksSubmit).toContain("setPrompt(null);");
-    expect(courseSubmit).toContain("setRenamePromptVisible(false);");
     expect(folderSubmit).toContain("setRenamePromptVisible(false);");
   });
 
   it("belegt beim Umbenennen den bisherigen Namen vor", () => {
     expect(decks).toContain("initialValue: prompt.deck.title");
-    expect(decks).toContain("initialValue: prompt.course.title");
     expect(decks).toContain("initialValue: prompt.folder.title");
-    expect(course).toContain("initialValue={currentTitle}");
     expect(folder).toContain("initialValue={currentTitle}");
   });
 
   it("startet das Anlegen weiterhin mit leerem Feld", () => {
-    expect(countOf(decks, /initialValue: "",/g)).toBe(2);
+    expect(countOf(decks, /initialValue: "",/g)).toBe(1);
   });
 
   it("behält dieselben Überschriften und Knopftexte", () => {
     expect(decks).toContain('title: t("library.renameDeck")');
-    expect(decks).toContain('title: t("library.newCourse")');
-    expect(decks).toContain('title: t("library.renameCourse")');
     expect(decks).toContain('title: t("library.newFolder")');
     expect(decks).toContain('title: t("library.renameFolder")');
     // Anlegen sagt „Erstellen", Umbenennen sagt „Speichern" — wie vorher.
-    expect(countOf(decks, /confirmLabel: t\("library\.create"\)/g)).toBe(2);
-    expect(countOf(decks, /confirmLabel: t\("common\.save"\)/g)).toBe(3);
-    expect(course).toContain('confirmLabel={t("common.save")}');
+    expect(countOf(decks, /confirmLabel: t\("library\.create"\)/g)).toBe(1);
+    expect(countOf(decks, /confirmLabel: t\("common\.save"\)/g)).toBe(2);
     expect(folder).toContain('confirmLabel={t("common.save")}');
   });
 
   it("behält dieselben Beschriftungen über dem Feld", () => {
     expect(decks).toContain('label: t("library.renamePrompt", { title: prompt.deck.title })');
-    expect(decks).toContain('label: t("library.newCoursePrompt")');
-    expect(decks).toContain('label: t("library.renamePrompt", { title: prompt.course.title })');
     expect(decks).toContain('label: t("library.newFolderPrompt")');
     expect(decks).toContain('label: t("library.renamePrompt", { title: prompt.folder.title })');
-    expect(course).toContain('label={t("courseDetail.renamePrompt")}');
     expect(folder).toContain('label={t("folderDetail.renamePrompt")}');
   });
 });

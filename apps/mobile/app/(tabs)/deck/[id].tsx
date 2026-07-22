@@ -55,7 +55,6 @@ import { useColors, spacing, radius, typography, shadows } from "../../../src/th
 import { useTranslation } from "react-i18next";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import DeckActionSheet from "../../../src/components/DeckActionSheet";
-import CoursePickerModal from "../../../src/components/CoursePickerModal";
 import FolderPickerModal from "../../../src/components/FolderPickerModal";
 import { isOcclusionCard } from "../../../src/lib/occlusion";
 import { buildDeckCountLabel } from "../../../src/lib/deckCountLabel";
@@ -407,7 +406,6 @@ export default function DeckDetailScreen() {
 
   // Three-dot menu and modal states
   const [menuVisible, setMenuVisible] = useState(false);
-  const [coursePickerVisible, setCoursePickerVisible] = useState(false);
   const [folderPickerVisible, setFolderPickerVisible] = useState(false);
   const [editDeckVisible, setEditDeckVisible] = useState(false);
   const [detailsVisible, setDetailsVisible] = useState(false);
@@ -545,10 +543,6 @@ export default function DeckDetailScreen() {
   const handleDeckSaved = (newTitle: string, newTags: string[]) => {
     setCurrentDeckTitle(newTitle);
     setCurrentDeckTags(newTags);
-  };
-
-  const handleAddToCourse = () => {
-    setCoursePickerVisible(true);
   };
 
   const handleAddToFolder = () => {
@@ -1225,7 +1219,6 @@ export default function DeckDetailScreen() {
           onClose={() => setMenuVisible(false)}
           onDownload={handleDownloadOffline}
           onEdit={handleEditDeck}
-          onAddToCourse={handleAddToCourse}
           onAddToFolder={handleAddToFolder}
           onDuplicate={handleDuplicate}
           onShare={handleShare}
@@ -1233,15 +1226,6 @@ export default function DeckDetailScreen() {
           onDelete={handleDeleteDeck}
         />
 
-        {/* Course picker modal */}
-        <CoursePickerModal
-          visible={coursePickerVisible}
-          deckId={deckId}
-          onClose={() => setCoursePickerVisible(false)}
-          onAdded={(course) => {
-            Alert.alert(t("common.success"), t("course.addSuccess", { title: course.title }));
-          }}
-        />
 
         {/* Folder picker modal */}
         <FolderPickerModal
