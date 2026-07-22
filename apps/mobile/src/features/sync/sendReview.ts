@@ -46,7 +46,7 @@ export function sendReview(input: {
  * Daten) würde beim zweiten Versuch genauso abgelehnt. Sie einzureihen hieße,
  * die Warteschlange mit Unzustellbarem zu verstopfen.
  */
-function shouldRetryLater(error: unknown): boolean {
+export function shouldRetryLater(error: unknown): boolean {
   if (!isApiError(error)) return true;
   return error.status >= 500 || error.status === 429;
 }

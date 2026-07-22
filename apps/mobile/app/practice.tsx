@@ -10,7 +10,7 @@ import {
 } from "../src/features/review/reviewSession";
 import { useSessionStore } from "../src/store/sessionStore";
 import { useUsageStore } from "../src/store/usageStore";
-import { earnLp, isApiError, reviewCard } from "../src/lib/api";
+import { earnLp, reviewCard } from "../src/lib/api";
 import {
   createReviewSyncOperation,
   useOfflineQueueStore,
@@ -18,6 +18,7 @@ import {
 import { summarizeCardMedia } from "../src/lib/cardMedia";
 import { cleanTerm } from "../src/lib/cardTerms";
 import { useColors, spacing, radius, typography, shadows } from "../src/theme";
+import { shouldRetryLater } from "../src/features/sync/sendReview";
 import {
   beginSessionAward,
   getSessionReviewedCount,
@@ -133,7 +134,7 @@ export default function PracticeScreen() {
     setSaveError(false);
     const reviewPromise = reviewCard(userId, result.cardId, rating, queuedReview.payload).catch(
       (error) => {
-        if (!isApiError(error) || error.status >= 500) {
+        if (shouldRetryLater(error)) {
           // Offline / server error: keep the review for a later retry via the queue.
           enqueueOfflineReview(queuedReview);
         } else {

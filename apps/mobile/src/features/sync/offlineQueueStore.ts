@@ -8,6 +8,15 @@ import {
 
 const OFFLINE_QUEUE_STORAGE_KEY = "clearn-offline-review-queue-v1";
 
+/**
+ * Höchstzahl Operationen je Sync-Aufruf.
+ *
+ * Muss zur Server-Grenze passen (`syncRequestSchema: operations.max(500)` in
+ * apps/api/src/lib/contracts.ts). Ein größeres Paket lehnt der Server komplett
+ * ab — nicht teilweise. Wer das übersieht, baut eine stille Endlosschleife.
+ */
+const SYNC_BATCH_LIMIT = 500;
+
 interface QueueState {
   pending: ReviewSyncOperation[];
   inFlight: ReviewSyncOperation[];
@@ -366,9 +375,19 @@ export async function syncPendingReviewOperations(
     return null;
   }
 
-  const pending = state.queue.pending.filter(
+  // Höchstens so viele, wie der Server in EINEM Aufruf annimmt
+  // (syncRequestSchema: operations.max(500)). Ohne diese Grenze schickte ein
+  // langer Offline-Zeitraum alles auf einmal: 501 Nachzügler → der Server
+  // lehnt das GANZE Paket ab → restoreInFlight legt sie zurück → 30 s später
+  // dasselbe zu große Paket. Eine stille Endlosschleife, in der nichts mehr
+  // ankommt, je länger jemand offline gelernt hat.
+  //
+  // Ältester zuerst (die Warteschlange hängt hinten an), damit die Reihenfolge
+  // stimmt. Der Rest folgt beim nächsten Durchlauf in 30 s.
+  const alleOffenen = state.queue.pending.filter(
     (operation) => operation.payload.userId === userId
   );
+  const pending = alleOffenen.slice(0, SYNC_BATCH_LIMIT);
 
   if (pending.length === 0) {
     return null;

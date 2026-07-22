@@ -51,7 +51,6 @@ import {
   earnLp,
   getDueCards,
   getStats,
-  isApiError,
   listCardsInDeck,
   reviewCard,
   updateCard,
@@ -75,6 +74,7 @@ import {
   useOfflineQueueStore,
 } from "../../src/features/sync/offlineQueueStore";
 import { AuthPromptCard } from "../../src/components/AuthPromptCard";
+import { shouldRetryLater } from "../../src/features/sync/sendReview";
 import {
   filterBySource,
   type CardSource,
@@ -439,7 +439,7 @@ function AuthenticatedLearnScreen({
         review.rating,
         review.queuedReview.payload,
       ).catch((error) => {
-        if (!isApiError(error) || error.status >= 500) {
+        if (shouldRetryLater(error)) {
           // Offline / server error: keep the review for a later retry via the queue.
           enqueueOfflineReview(review.queuedReview);
         } else {
