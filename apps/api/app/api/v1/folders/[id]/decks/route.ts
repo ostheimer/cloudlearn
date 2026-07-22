@@ -6,6 +6,7 @@ import {
   addDeckToFolderForUser,
   removeDeckFromFolderForUser,
   listDecksInFolderForUser,
+  setFolderDeckOrderForUser,
 } from "@/services/folderService";
 
 interface Params {
@@ -50,6 +51,30 @@ export async function POST(request: NextRequest, { params }: Params) {
       return jsonError(requestId, "FOLDER_NOT_FOUND", "Folder not found", 404);
     }
     return jsonOk(requestId, { requestId, added: true }, 201);
+  } catch (error) {
+    const normalized = normalizeError(error);
+    return jsonError(requestId, normalized.code, normalized.message, normalized.status);
+  }
+}
+
+// PUT setzt die Reihenfolge der Decks im Ordner (#437). Bewusst hier statt
+// unter einem eigenen /order-Pfad: die Sortierung ist eine Eigenschaft genau
+// dieser Zuordnung, und ein neuer Ordner unter v1/ zieht Doku-Pflichten nach
+// sich, die für einen einzigen Handgriff nicht lohnen.
+export async function PUT(request: NextRequest, { params }: Params) {
+  const { requestId } = createRequestContext(request.headers);
+  try {
+    const auth = await getAuthUser(request);
+    if (!auth) return jsonError(requestId, "UNAUTHORIZED", "Authentication required", 401);
+
+    const { id } = await params;
+    const body = await request.json();
+    const ok = await setFolderDeckOrderForUser(id, auth.userId, body);
+    if (!ok) {
+      // Folder not owned by the caller → 404 (don't leak existence).
+      return jsonError(requestId, "FOLDER_NOT_FOUND", "Folder not found", 404);
+    }
+    return jsonOk(requestId, { requestId, reordered: true });
   } catch (error) {
     const normalized = normalizeError(error);
     return jsonError(requestId, normalized.code, normalized.message, normalized.status);

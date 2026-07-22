@@ -1261,6 +1261,7 @@ export interface FolderRecord {
   id: string;
   userId: string;
   title: string;
+  description: string | null;
   parentId: string | null;
   color: string | null;
   createdAt: string;
@@ -1273,6 +1274,7 @@ function mapFolderRow(row: any): FolderRecord {
     id: row.id,
     userId: row.user_id,
     title: row.title,
+    description: row.description ?? null,
     parentId: row.parent_id ?? null,
     color: row.color ?? null,
     createdAt: row.created_at,
@@ -1284,7 +1286,8 @@ export async function createFolder(
   userId: string,
   title: string,
   parentId?: string,
-  color?: string
+  color?: string,
+  description?: string
 ): Promise<FolderRecord> {
   const db = getDb();
   const { data, error } = await db
@@ -1294,6 +1297,7 @@ export async function createFolder(
       title,
       parent_id: parentId ?? null,
       color: color ?? null,
+      description: description ?? null,
     })
     .select()
     .single();
@@ -1329,13 +1333,16 @@ export async function getFolder(folderId: string, userId: string): Promise<Folde
 export async function updateFolder(
   folderId: string,
   userId: string,
-  updates: Partial<Pick<FolderRecord, "title" | "parentId" | "color">>
+  updates: Partial<Pick<FolderRecord, "title" | "parentId" | "color" | "description">>
 ): Promise<FolderRecord | null> {
   const db = getDb();
   const dbUpdates: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (updates.title !== undefined) dbUpdates.title = updates.title;
   if (updates.parentId !== undefined) dbUpdates.parent_id = updates.parentId;
   if (updates.color !== undefined) dbUpdates.color = updates.color;
+  // Leerer Text löscht die Beschreibung (null), statt "" zu speichern — sonst
+  // müsste jeder Leser zwischen "" und null unterscheiden.
+  if (updates.description !== undefined) dbUpdates.description = updates.description || null;
   const { data, error } = await db
     .from("folders")
     .update(dbUpdates)
@@ -1397,16 +1404,55 @@ export async function listDecksInFolder(folderId: string, userId: string): Promi
     .from("folder_decks")
     // Zähler wie in listDecks / listDecksInCourse: Occlusion-Karten zählen nicht
     // als „Karten" des Decks, der Filterpfad geht über folder_decks → decks → cards.
-    .select("deck_id, decks(*, cards(count))")
+    .select("deck_id, position, added_at, decks(*, cards(count))")
     .neq("decks.cards.card_type", "occlusion")
     .is("decks.cards.deleted_at", null)
-    .eq("folder_id", folderId);
+    .eq("folder_id", folderId)
+    // Eine Tabelle hat von sich aus keine Reihenfolge — ohne dieses `order`
+    // liefert Postgres die Zeilen so, wie es ihm gerade passt, und dieselbe
+    // Abfrage kann morgen anders herum antworten. `nulls last`: nie sortierte
+    // Decks hängen hinten dran, in der Reihenfolge des Hinzufügens (#437).
+    .order("position", { ascending: true, nullsFirst: false })
+    .order("added_at", { ascending: true });
   if (error) throw new Error(`listDecksInFolder: ${error.message}`);
   return (data ?? [])
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .filter((r: any) => r.decks && !r.decks.deleted_at && r.decks.user_id === userId)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .map((r: any) => mapDeckRow(r.decks));
+}
+
+/**
+ * Schreibt die Reihenfolge der Decks eines Ordners neu (#437).
+ *
+ * `deckIds` ist die vollständige gewünschte Reihenfolge. Decks, die im Ordner
+ * liegen, aber nicht in der Liste stehen, bleiben unangetastet und rutschen
+ * durch `nulls last` bzw. ihre alte Zahl an ihre Stelle — die Funktion kann
+ * also nichts aus dem Ordner werfen, sie kann nur umsortieren.
+ *
+ * Rückgabe false = Ordner gehört dem Aufrufer nicht (Route antwortet 404).
+ */
+export async function setFolderDeckOrder(
+  folderId: string,
+  userId: string,
+  deckIds: string[]
+): Promise<boolean> {
+  const folder = await getFolder(folderId, userId);
+  if (!folder) return false;
+  const db = getDb();
+  // Nacheinander statt in einem Rutsch: ein `upsert` würde Zeilen ANLEGEN, wenn
+  // eine übergebene deck_id gar nicht in diesem Ordner liegt — damit könnte man
+  // über die Sortier-Route fremde Decks einhängen. Ein `update` mit beiden
+  // Schlüsseln trifft nur, was schon da ist.
+  for (let i = 0; i < deckIds.length; i += 1) {
+    const { error } = await db
+      .from("folder_decks")
+      .update({ position: i })
+      .eq("folder_id", folderId)
+      .eq("deck_id", deckIds[i]);
+    if (error) throw new Error(`setFolderDeckOrder: ${error.message}`);
+  }
+  return true;
 }
 
 export async function listFoldersForDeck(deckId: string): Promise<FolderRecord[]> {

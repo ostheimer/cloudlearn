@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
 import { Modal } from "@/components/app/modal";
 import {
@@ -11,6 +11,8 @@ import {
   listDecksInFolder,
   addDeckToFolder,
   removeDeckFromFolder,
+  setFolderDeckOrder,
+  updateFolder,
   getDueCards,
   isApiError,
   type Deck,
@@ -25,6 +27,8 @@ import {
   AlertTriangle,
   Trash,
   Play,
+  Pencil,
+  GripVertical,
 } from "@/components/icons";
 
 export default function FolderDetailPage() {
@@ -40,11 +44,23 @@ export default function FolderDetailPage() {
   const [notFound, setNotFound] = useState(false);
   const [pageError, setPageError] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
+  const [editingDescription, setEditingDescription] = useState(false);
   // undefined = still counting. The button stays usable either way; only its
   // label waits for the number.
   const [dueCount, setDueCount] = useState<number | undefined>(undefined);
   // Fällige Karten je Deck ("N fällig"-Abzeichen auf den Kacheln).
   const [dueByDeck, setDueByDeck] = useState<Record<string, number>>({});
+
+  // Welcher Karten-Index gerade am Griff gezogen wird; null = kein Ziehen.
+  // Die Liste wird schon WÄHREND des Ziehens umsortiert (sichtbares Feedback),
+  // gespeichert wird erst beim Loslassen.
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  // Der Pointer-Up-Handler ist eine alte Closure — er würde den Deck-Stand vom
+  // Beginn des Zugs speichern. Der Ref zeigt immer auf den neuesten Stand.
+  const decksRef = useRef<Deck[]>([]);
+  useEffect(() => {
+    decksRef.current = decks;
+  }, [decks]);
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -109,6 +125,54 @@ export default function FolderDetailPage() {
     else router.push("/dashboard");
   }
 
+  // ─── Reihenfolge per Ziehgriff (#437) ─────────────────────────────────────
+  // Pointer-Events statt HTML5-Drag&Drop: Letzteres feuert auf dem Handy nicht.
+  // Der Griff trägt `touch-action: none`, damit der Browser dort nicht scrollt
+  // — nur dort, die Karte selbst bleibt normal scroll- und klickbar.
+
+  function onGripPointerDown(e: React.PointerEvent<HTMLButtonElement>, index: number) {
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setDragIndex(index);
+  }
+
+  function onGripPointerMove(e: React.PointerEvent<HTMLButtonElement>) {
+    if (dragIndex === null) return;
+    // Pointer-Capture leitet alle Events auf den Griff um — welches Element
+    // unter dem Finger liegt, verrät deshalb nur elementFromPoint.
+    const over = document
+      .elementFromPoint(e.clientX, e.clientY)
+      ?.closest<HTMLElement>("[data-deck-index]");
+    if (!over) return;
+    const target = Number(over.dataset.deckIndex);
+    if (Number.isNaN(target) || target === dragIndex) return;
+    setDecks((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(dragIndex, 1);
+      if (!moved) return prev;
+      next.splice(target, 0, moved);
+      return next;
+    });
+    setDragIndex(target);
+  }
+
+  async function onGripPointerUp() {
+    if (dragIndex === null) return;
+    setDragIndex(null);
+    try {
+      await setFolderDeckOrder(
+        folderId,
+        decksRef.current.map((d) => d.id)
+      );
+    } catch {
+      // Erst neu laden, DANN die Meldung setzen — load() räumt pageError bei
+      // Erfolg auf, in der anderen Reihenfolge verschwände sie sofort wieder
+      // und das Zurückspringen der Karten bliebe unerklärt.
+      await load();
+      setPageError("Die Reihenfolge konnte nicht gespeichert werden.");
+    }
+  }
+
   if (notFound) {
     return (
       <div className="empty-state">
@@ -149,6 +213,31 @@ export default function FolderDetailPage() {
             {decks.length} {decks.length === 1 ? "Deck" : "Decks"}
             {totalCards > 0 && ` · ${totalCards} ${totalCards === 1 ? "Karte" : "Karten"}`}
           </p>
+          {folder &&
+            (folder.description ? (
+              <p className="muted" style={{ marginTop: 8, maxWidth: 560 }}>
+                {folder.description}
+                <button
+                  type="button"
+                  className="icon-btn"
+                  style={{ width: 26, height: 26, verticalAlign: "middle", marginLeft: 4 }}
+                  aria-label="Beschreibung bearbeiten"
+                  title="Beschreibung bearbeiten"
+                  onClick={() => setEditingDescription(true)}
+                >
+                  <Pencil size={14} />
+                </button>
+              </p>
+            ) : (
+              <button
+                type="button"
+                className="btn btn-ghost"
+                style={{ marginTop: 8, padding: "4px 10px", fontSize: "0.85rem" }}
+                onClick={() => setEditingDescription(true)}
+              >
+                + Beschreibung
+              </button>
+            ))}
         </div>
         <button
           type="button"
@@ -205,8 +294,19 @@ export default function FolderDetailPage() {
         </div>
       ) : (
         <div className="deck-grid">
-          {decks.map((deck) => (
-            <div key={deck.id} style={{ position: "relative" }}>
+          {decks.map((deck, index) => (
+            <div
+              key={deck.id}
+              data-deck-index={index}
+              style={{
+                position: "relative",
+                // Die gezogene Karte hebt sich ab, damit man sieht, WAS man
+                // gerade bewegt — die anderen rutschen darunter zurecht.
+                ...(dragIndex === index
+                  ? { opacity: 0.75, transform: "scale(1.02)", zIndex: 2 }
+                  : null),
+              }}
+            >
               <Link href={`/dashboard/deck/${deck.id}`} className="deck-card">
                 <div className="deck-card__top">
                   <span className="deck-card__badge" aria-hidden>
@@ -226,6 +326,28 @@ export default function FolderDetailPage() {
                   )}
                 </div>
               </Link>
+              {/* Griff nur zeigen, wenn Sortieren etwas bewirken kann. */}
+              {decks.length > 1 && (
+                <button
+                  type="button"
+                  className="icon-btn"
+                  style={{
+                    position: "absolute",
+                    top: 12,
+                    right: 52,
+                    touchAction: "none",
+                    cursor: dragIndex === index ? "grabbing" : "grab",
+                  }}
+                  aria-label={`„${deck.title}" verschieben`}
+                  title="Ziehen zum Sortieren"
+                  onPointerDown={(e) => onGripPointerDown(e, index)}
+                  onPointerMove={onGripPointerMove}
+                  onPointerUp={onGripPointerUp}
+                  onPointerCancel={onGripPointerUp}
+                >
+                  <GripVertical size={18} />
+                </button>
+              )}
               <button
                 type="button"
                 className="icon-btn"
@@ -237,8 +359,10 @@ export default function FolderDetailPage() {
                   try {
                     await removeDeckFromFolder(folderId, deck.id);
                   } catch {
-                    setPageError("Das Deck konnte nicht entfernt werden.");
+                    // load() vor der Meldung — sonst räumt es sie gleich
+                    // wieder weg (siehe onGripPointerUp).
                     await load();
+                    setPageError("Das Deck konnte nicht entfernt werden.");
                   }
                 }}
               >
@@ -260,7 +384,83 @@ export default function FolderDetailPage() {
           }}
         />
       )}
+
+      {editingDescription && folder && (
+        <EditDescriptionModal
+          initial={folder.description ?? ""}
+          onClose={() => setEditingDescription(false)}
+          onSubmit={async (value) => {
+            const { folder: updated } = await updateFolder(folderId, { description: value });
+            // Nur den einen Ordner austauschen — ein voller Reload würde die
+            // Deck-Zähler erneut anfragen, obwohl sich an Decks nichts ändert.
+            setFolders((prev) => prev.map((f) => (f.id === updated.id ? updated : f)));
+            setEditingDescription(false);
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+function EditDescriptionModal({
+  initial,
+  onClose,
+  onSubmit,
+}: {
+  initial: string;
+  onClose: () => void;
+  onSubmit: (value: string) => Promise<void>;
+}) {
+  const [value, setValue] = useState(initial);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      // Leer abschicken ist erlaubt — so löscht man eine Beschreibung wieder.
+      await onSubmit(value.trim());
+    } catch {
+      setError("Das hat nicht geklappt. Bitte versuche es erneut.");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal title="Beschreibung" onClose={onClose}>
+      <form onSubmit={submit} style={{ display: "grid", gap: 16 }}>
+        <div className="field">
+          <label htmlFor="folder-description">Worum geht es in diesem Ordner?</label>
+          <textarea
+            id="folder-description"
+            className="input"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder="z. B. Grundkurs Deutsch für Anfänger"
+            disabled={busy}
+            maxLength={500}
+            rows={3}
+            style={{ resize: "vertical", minHeight: 72 }}
+            autoFocus
+          />
+        </div>
+        {error && (
+          <div className="form-error" role="alert">
+            <AlertTriangle size={16} />
+            <span>{error}</span>
+          </div>
+        )}
+        <div className="modal__actions">
+          <button type="button" className="btn btn-ghost" onClick={onClose} disabled={busy}>
+            Abbrechen
+          </button>
+          <button type="submit" className="btn btn-primary" disabled={busy}>
+            {busy ? "Bitte warten…" : "Speichern"}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 

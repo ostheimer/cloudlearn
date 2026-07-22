@@ -29,6 +29,7 @@ import {
   addDeckToFolder,
   removeDeckFromFolder,
   listDecksInFolder,
+  setFolderDeckOrder,
 } from "@/lib/db";
 import { createSupabaseAdminClient } from "@/lib/supabase";
 
@@ -441,9 +442,25 @@ describe("listDecksInFolder — requires folder ownership", () => {
     const decks = await listDecksInFolder(FOLDER_ID, USER_ID);
 
     expect(decks?.[0]?.cardCount).toBe(7);
-    expect(selectArgs(calls)).toContain("deck_id, decks(*, cards(count))");
+    expect(selectArgs(calls)).toContain("deck_id, position, added_at, decks(*, cards(count))");
     expect(neqArgs(calls)).toContainEqual(["decks.cards.card_type", "occlusion"]);
     expect(isArgs(calls)).toContainEqual(["decks.cards.deleted_at", null]);
+  });
+
+  it("orders by position (nulls last), then added_at — a table has no order of its own (#437)", async () => {
+    const { db, calls } = makeDbMock([
+      { data: folderDbRow, error: null },
+      { data: [], error: null },
+    ]);
+    mockedCreateDb.mockReturnValue(db);
+
+    await listDecksInFolder(FOLDER_ID, USER_ID);
+
+    const orderCalls = calls.filter((c) => c.method === "order").map((c) => c.args);
+    expect(orderCalls).toEqual([
+      ["position", { ascending: true, nullsFirst: false }],
+      ["added_at", { ascending: true }],
+    ]);
   });
 
   it("reports 0 (not undefined) for a deck holding only occlusion cards", async () => {
@@ -458,6 +475,40 @@ describe("listDecksInFolder — requires folder ownership", () => {
     const decks = await listDecksInFolder(FOLDER_ID, USER_ID);
 
     expect(decks?.[0]?.cardCount).toBe(0);
+  });
+});
+
+describe("setFolderDeckOrder — requires folder ownership, updates only existing links (#437)", () => {
+  const DECK_ID_2 = "66666666-6666-4666-8666-666666666666";
+
+  it("writes position 0..n via UPDATE scoped to folder AND deck", async () => {
+    const { db, calls } = makeDbMock([
+      { data: folderDbRow, error: null },
+      { data: null, error: null },
+      { data: null, error: null },
+    ]);
+    mockedCreateDb.mockReturnValue(db);
+
+    expect(await setFolderDeckOrder(FOLDER_ID, USER_ID, [DECK_ID_2, DECK_ID])).toBe(true);
+    expect(fromTables(calls)).toEqual(["folders", "folder_decks", "folder_decks"]);
+    // UPDATE statt upsert: ein upsert könnte über die Sortier-Route eine NEUE
+    // Zeile anlegen und so ein fremdes Deck in den Ordner hängen.
+    expect(calls.filter((c) => c.method === "upsert")).toEqual([]);
+    expect(calls.filter((c) => c.method === "update").map((c) => c.args[0])).toEqual([
+      { position: 0 },
+      { position: 1 },
+    ]);
+    expect(eqArgs(calls)).toContainEqual(["folder_id", FOLDER_ID]);
+    expect(eqArgs(calls)).toContainEqual(["deck_id", DECK_ID_2]);
+    expect(eqArgs(calls)).toContainEqual(["deck_id", DECK_ID]);
+  });
+
+  it("returns false and writes nothing when the folder isn't owned", async () => {
+    const { db, calls } = makeDbMock([{ data: null, error: null }]);
+    mockedCreateDb.mockReturnValue(db);
+
+    expect(await setFolderDeckOrder(FOLDER_ID, USER_ID, [DECK_ID])).toBe(false);
+    expect(fromTables(calls)).toEqual(["folders"]);
   });
 });
 

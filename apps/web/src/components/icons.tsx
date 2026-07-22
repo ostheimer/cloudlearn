@@ -461,6 +461,17 @@ export const Bell = (p: IconProps) => (
   </Icon>
 );
 
+export const GripVertical = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="9" cy="6" r="1" />
+    <circle cx="9" cy="12" r="1" />
+    <circle cx="9" cy="18" r="1" />
+    <circle cx="15" cy="6" r="1" />
+    <circle cx="15" cy="12" r="1" />
+    <circle cx="15" cy="18" r="1" />
+  </Icon>
+);
+
 export const Gift = (p: IconProps) => (
   <Icon {...p}>
     <rect x="3" y="8" width="18" height="4" rx="1" />

@@ -7,6 +7,7 @@ function folder(id: string, title: string, parentId: string | null = null): Fold
     id,
     userId: "u1",
     title,
+    description: null,
     parentId,
     color: null,
     createdAt: "2026-07-16T00:00:00Z",

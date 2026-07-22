@@ -9,13 +9,19 @@ import {
   removeDeckFromFolder,
   listDecksInFolder,
   listFoldersForDeck,
+  setFolderDeckOrder,
 } from "@/lib/db";
+
+// Freitext von der Nutzerin — gedeckelt, damit niemand über die Beschreibung
+// beliebig viel in die Datenbank schreibt. Zwei Sätze passen bequem hinein.
+const DESCRIPTION_MAX = 500;
 
 const createFolderSchema = z.object({
   userId: z.string().uuid(),
   title: z.string().min(1),
   parentId: z.string().uuid().optional(),
   color: z.string().optional(),
+  description: z.string().max(DESCRIPTION_MAX).optional(),
 });
 
 const updateFolderSchema = z.object({
@@ -26,11 +32,18 @@ const updateFolderSchema = z.object({
   title: z.string().min(1).optional(),
   parentId: z.string().uuid().nullable().optional(),
   color: z.string().optional(),
+  // `.max()` ohne `.default()` — ein `.default().optional()` würde in zod v4
+  // beim PATCH den Wert überschreiben, statt ihn wegzulassen (#355).
+  description: z.string().max(DESCRIPTION_MAX).optional(),
+});
+
+const reorderSchema = z.object({
+  deckIds: z.array(z.string().uuid()).max(500),
 });
 
 export async function createFolderForUser(input: unknown) {
   const parsed = createFolderSchema.parse(input);
-  return createFolder(parsed.userId, parsed.title, parsed.parentId, parsed.color);
+  return createFolder(parsed.userId, parsed.title, parsed.parentId, parsed.color, parsed.description);
 }
 
 export async function listFoldersForUser(userId: string) {
@@ -43,10 +56,16 @@ export async function getFolderById(folderId: string, userId: string) {
 
 export async function updateFolderForUser(input: unknown) {
   const parsed = updateFolderSchema.parse(input);
-  const updates: Partial<{ title: string; parentId: string | null; color: string }> = {};
+  const updates: Partial<{
+    title: string;
+    parentId: string | null;
+    color: string;
+    description: string;
+  }> = {};
   if (parsed.title !== undefined) updates.title = parsed.title;
   if (parsed.parentId !== undefined) updates.parentId = parsed.parentId;
   if (parsed.color !== undefined) updates.color = parsed.color;
+  if (parsed.description !== undefined) updates.description = parsed.description;
   return updateFolder(parsed.folderId, parsed.userId, updates);
 }
 
@@ -68,4 +87,14 @@ export async function listDecksInFolderForUser(folderId: string, userId: string)
 
 export async function listFoldersForDeckForUser(deckId: string) {
   return listFoldersForDeck(deckId);
+}
+
+/** Reihenfolge der Decks in einem Ordner setzen (#437). false = nicht der Besitzer. */
+export async function setFolderDeckOrderForUser(
+  folderId: string,
+  userId: string,
+  input: unknown
+): Promise<boolean> {
+  const parsed = reorderSchema.parse(input);
+  return setFolderDeckOrder(folderId, userId, parsed.deckIds);
 }

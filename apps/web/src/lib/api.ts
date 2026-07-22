@@ -675,6 +675,8 @@ export interface Folder {
   id: string;
   userId: string;
   title: string;
+  /** Freitext unter dem Namen, wie ihn früher nur Kurse hatten (#437). */
+  description: string | null;
   parentId: string | null;
   color: string | null;
   createdAt: string;
@@ -698,7 +700,7 @@ export function createFolder(
 
 export function updateFolder(
   folderId: string,
-  updates: { title?: string; parentId?: string | null }
+  updates: { title?: string; parentId?: string | null; description?: string }
 ): Promise<{ folder: Folder }> {
   return authed<{ folder: Folder }>(`/api/v1/folders/${folderId}`, {
     method: "PATCH",
@@ -729,4 +731,18 @@ export function removeDeckFromFolder(
     `/api/v1/folders/${folderId}/decks?deckId=${encodeURIComponent(deckId)}`,
     { method: "DELETE" }
   );
+}
+
+/**
+ * Reihenfolge der Decks im Ordner speichern (#437). `deckIds` ist die
+ * komplette gewünschte Reihenfolge, vorne = oben.
+ */
+export function setFolderDeckOrder(
+  folderId: string,
+  deckIds: string[]
+): Promise<{ reordered: boolean }> {
+  return authed<{ reordered: boolean }>(`/api/v1/folders/${folderId}/decks`, {
+    method: "PUT",
+    body: JSON.stringify({ deckIds }),
+  });
 }
