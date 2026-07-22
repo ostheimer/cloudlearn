@@ -632,6 +632,39 @@ export function deleteAccount(): Promise<DeleteAccountResponse> {
   return authed<DeleteAccountResponse>("/api/v1/account", { method: "DELETE" });
 }
 
+// ─── Anzeigename ───────────────────────────────────────────────────────────
+// Geprüft wird auf dem Server (Länge, Zeichen, Sperrliste) — der Client
+// übersetzt nur die Fehler-Codes in deutsche Meldungen.
+export interface ProfileResponse {
+  displayName: string | null;
+}
+export function getProfile(): Promise<ProfileResponse> {
+  return authed<ProfileResponse>("/api/v1/account/profile");
+}
+export function updateDisplayName(displayName: string): Promise<ProfileResponse> {
+  return authed<ProfileResponse>("/api/v1/account/profile", {
+    method: "PATCH",
+    body: JSON.stringify({ displayName }),
+  });
+}
+export function displayNameErrorMessage(error: unknown): string {
+  if (isApiError(error)) {
+    switch (error.code) {
+      case "DISPLAY_NAME_TOO_SHORT":
+        return "Der Name muss mindestens 2 Zeichen haben.";
+      case "DISPLAY_NAME_TOO_LONG":
+        return "Der Name darf höchstens 20 Zeichen haben.";
+      case "DISPLAY_NAME_INVALID_CHARS":
+        return "Nur Buchstaben, Zahlen, Leerzeichen und . - _ ' sind erlaubt.";
+      case "DISPLAY_NAME_NOT_ALLOWED":
+        return "Dieser Name ist nicht erlaubt.";
+      case "RATE_LIMITED":
+        return "Zu viele Änderungen — versuch es in einer Minute noch einmal.";
+    }
+  }
+  return "Der Name konnte nicht gespeichert werden. Versuch es noch einmal.";
+}
+
 // ─── Streak-Reparatur ──────────────────────────────────────────────────────
 // Reaktives Gegenstück zum Freeze: einen frisch gerissenen Streak gegen LP
 // zurückholen. Preis/Fenster/Berechtigung entscheidet der Server (atomare RPC).

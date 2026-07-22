@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 import { useAuth } from "./auth-context";
+import { DisplayNamePrompt } from "./display-name-prompt";
 import { GraduationCap, Home, Layers, Sparkles, Zap, BarChart, User } from "@/components/icons";
 
 type NavItem = {
@@ -52,6 +53,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="app-shell">
+      <DisplayNamePrompt />
       <header className="app-topbar">
         <div className="container app-topbar__inner">
           <Link href="/dashboard/home" className="brand">

@@ -8,6 +8,9 @@ import {
   getLpBalance,
   getReferralInfo,
   getLeaderboard,
+  getProfile,
+  updateDisplayName,
+  displayNameErrorMessage,
   deleteAccount,
   isApiError,
   type LeaderboardResponse,
@@ -57,12 +60,34 @@ export default function ProfilePage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [nameEditing, setNameEditing] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
+  const [nameBusy, setNameBusy] = useState(false);
+  const [nameErr, setNameErr] = useState<string | null>(null);
+
   useEffect(() => {
     setTheme(getStoredTheme());
     getLpBalance().then((u) => setTier(u.tier)).catch(() => {});
     getReferralInfo().then(setReferral).catch(() => setReferralErr(true));
     getLeaderboard().then(setBoard).catch(() => setBoardErr(true));
+    getProfile().then((p) => setDisplayName(p.displayName)).catch(() => {});
   }, []);
+
+  async function handleNameSave(e: React.FormEvent) {
+    e.preventDefault();
+    setNameErr(null);
+    setNameBusy(true);
+    try {
+      const res = await updateDisplayName(nameDraft);
+      setDisplayName(res.displayName);
+      setNameEditing(false);
+    } catch (err) {
+      setNameErr(displayNameErrorMessage(err));
+    } finally {
+      setNameBusy(false);
+    }
+  }
 
   function chooseTheme(choice: ThemeChoice) {
     applyTheme(choice);
@@ -135,8 +160,60 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Konto: Tarif, Design, Passwort */}
+        {/* Konto: Anzeigename, Tarif, Design, Passwort */}
         <div className="pf-card">
+          <div className="pf-row">
+            <div className="pf-row__t">
+              <b>Anzeigename</b>
+              <span style={nameErr ? { color: "#dc2626" } : undefined}>
+                {nameErr ?? "So sehen dich andere in Rangliste und Freundesliste"}
+              </span>
+            </div>
+            {nameEditing ? (
+              <form onSubmit={handleNameSave} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input
+                  className="input"
+                  value={nameDraft}
+                  onChange={(e) => setNameDraft(e.target.value)}
+                  maxLength={20}
+                  autoFocus
+                  disabled={nameBusy}
+                  aria-label="Anzeigename"
+                  style={{ width: 180 }}
+                />
+                <button type="submit" className="btn btn-primary" disabled={nameBusy || !nameDraft.trim()}>
+                  {nameBusy ? "…" : "Speichern"}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => {
+                    setNameEditing(false);
+                    setNameErr(null);
+                  }}
+                  disabled={nameBusy}
+                >
+                  Abbrechen
+                </button>
+              </form>
+            ) : (
+              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <b>{displayName ?? "—"}</b>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => {
+                    setNameDraft(displayName ?? "");
+                    setNameErr(null);
+                    setNameEditing(true);
+                  }}
+                >
+                  Ändern
+                </button>
+              </div>
+            )}
+          </div>
+
           <div className="pf-row">
             <div className="pf-row__t">
               <b>Dein Tarif</b>
