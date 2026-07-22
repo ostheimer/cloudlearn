@@ -310,11 +310,17 @@ export interface DeleteAccountResponse {
 
 // --- API Methods ---
 
+// #442: `preview` erzeugt die Karten, speichert sie aber NICHT (der Server legt
+// dann nichts an). Genau das behebt den Doppel-Deck-Bug: Bisher legte der Scan
+// serverseitig sofort ein Deck an UND die App beim „Speichern" ein zweites — mit
+// preview entsteht nur noch das eine Deck, das die App beim Speichern anlegt.
+// Voreinstellung `false`: ohne Flag verhält sich der Aufruf unverändert.
 export async function scanText(
   userId: string,
   text: string,
   language = "de",
-  idempotencyKey?: string
+  idempotencyKey?: string,
+  preview = false
 ): Promise<ScanResponse> {
   return requestAuthenticated<ScanResponse>("/api/v1/scan/process", {
     method: "POST",
@@ -323,6 +329,7 @@ export async function scanText(
       extractedText: text,
       idempotencyKey: idempotencyKey ?? importIdempotencyKey("scan"),
       sourceLanguage: language,
+      preview,
     }),
   });
 }
@@ -332,7 +339,8 @@ export async function scanImage(
   imageBase64: string,
   mimeType: "image/jpeg" | "image/png" | "image/webp" = "image/jpeg",
   language = "de",
-  idempotencyKey?: string
+  idempotencyKey?: string,
+  preview = false
 ): Promise<ScanResponse> {
   return requestAuthenticated<ScanResponse>("/api/v1/scan/process", {
     method: "POST",
@@ -342,6 +350,7 @@ export async function scanImage(
       imageMimeType: mimeType,
       idempotencyKey: idempotencyKey ?? importIdempotencyKey("scan-img"),
       sourceLanguage: language,
+      preview,
     }),
   });
 }
@@ -351,7 +360,8 @@ export async function importFromUrl(
   sourceUrl: string,
   maxImages = 4,
   language = "de",
-  idempotencyKey?: string
+  idempotencyKey?: string,
+  preview = false
 ): Promise<UrlImportResponse> {
   return requestAuthenticated<UrlImportResponse>("/api/v1/import/url", {
     method: "POST",
@@ -361,6 +371,7 @@ export async function importFromUrl(
       maxImages,
       idempotencyKey: idempotencyKey ?? importIdempotencyKey("import-url"),
       sourceLanguage: language,
+      preview,
     }),
   });
 }
@@ -370,7 +381,8 @@ export async function importPdf(
   fileName: string,
   fileBase64: string,
   language = "de",
-  idempotencyKey?: string
+  idempotencyKey?: string,
+  preview = false
 ): Promise<PdfImportResponse> {
   return requestAuthenticated<PdfImportResponse>("/api/v1/import/pdf", {
     method: "POST",
@@ -380,6 +392,7 @@ export async function importPdf(
       fileBase64,
       idempotencyKey: idempotencyKey ?? importIdempotencyKey("import-pdf"),
       sourceLanguage: language,
+      preview,
     }),
   });
 }

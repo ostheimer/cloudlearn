@@ -340,7 +340,9 @@ export default function ScanScreen() {
         `scan-img:${mimeType}:${base64}`,
         "scan-img"
       );
-      const result = await scanImage(userId, base64, mimeType, "de", idempotencyKey);
+      // #442: preview → Server speichert nichts, das Deck entsteht erst beim
+      // „Speichern" (sonst zwei Decks je Scan).
+      const result = await scanImage(userId, base64, mimeType, "de", idempotencyKey, true);
       setCards(result.cards);
       setModel(result.model);
       setDeckTitle(result.deckTitle ?? "");
@@ -381,7 +383,8 @@ export default function ScanScreen() {
         `import-pdf:${fileName}:${fileBase64}`,
         "import-pdf"
       );
-      const result = await importPdf(userId, fileName, fileBase64, "de", idempotencyKey);
+      // #442: preview — Deck entsteht erst beim „Speichern".
+      const result = await importPdf(userId, fileName, fileBase64, "de", idempotencyKey, true);
       setCards(result.cards);
       setModel(result.model);
       setDeckTitle(result.deckTitle ?? "");
@@ -421,7 +424,8 @@ export default function ScanScreen() {
     try {
       const text = editedText.trim();
       const idempotencyKey = getImportAttemptKey(`scan:${text}`, "scan");
-      const result = await scanText(userId, text, "de", idempotencyKey);
+      // #442: preview — Deck entsteht erst beim „Speichern".
+      const result = await scanText(userId, text, "de", idempotencyKey, true);
       setCards(result.cards);
       setModel(result.model);
       setDeckTitle(result.deckTitle ?? "");
@@ -468,7 +472,8 @@ export default function ScanScreen() {
         `import-url:${normalizedUrl}`,
         "import-url"
       );
-      const result = await importFromUrl(userId, normalizedUrl, 4, "de", idempotencyKey);
+      // #442: preview — Deck entsteht erst beim „Speichern".
+      const result = await importFromUrl(userId, normalizedUrl, 4, "de", idempotencyKey, true);
       setCards(result.cards);
       setModel(result.model);
       setDeckTitle(result.deckTitle ?? "");
