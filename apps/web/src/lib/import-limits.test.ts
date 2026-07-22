@@ -100,23 +100,16 @@ describe("Platz im Ziel-Deck (#427)", () => {
     expect(deckSpaceNotice(null)).toBeNull();
   });
 
-  it("behauptet die Scan-Regel nie unqualifiziert — in der App gilt sie nicht", () => {
-    // Die App fragt nach dem Scannen „Neues Deck" oder „Bestehendes Deck"
-    // (`handleSaveToExistingDeck`, apps/mobile/app/(tabs)/scan.tsx). Ein Satz
-    // wie „Jeder Scan legt ein neues Deck an" ohne Einschränkung widerspricht
-    // dem, was die Nutzerin auf dem Handy sieht — am 21.07. von Lara bemängelt.
-    //
-    // Bedingt formuliert und nicht am Wortlaut festgenagelt: Wer die Behauptung
-    // ganz streicht, hat das Problem ebenfalls gelöst und soll nicht scheitern.
-    // Rot wird es nur, wenn sie unqualifiziert wieder auftaucht.
+  it("behauptet nicht mehr, jeder Scan lege ein neues Deck an (seit #427 falsch)", () => {
+    // Der Satz stimmte nie ganz (die App bietet ein Ziel-Deck) und stimmt seit
+    // der Web-Zielauswahl (#427/#445) gar nicht mehr. Früher bedingt geduldet,
+    // jetzt hart verboten: Er darf in KEINER der beiden Meldungen mehr stehen.
     const messages = [
       deckLimitMessage(20, 20),
       planLimitMessage({ code: "DECK_LIMIT_REACHED" }) ?? "",
     ];
     for (const message of messages) {
-      if (/jeder Scan legt ein neues Deck/i.test(message)) {
-        expect(message).toMatch(/Im Browser legt jeder Scan ein neues Deck/);
-      }
+      expect(message).not.toMatch(/jeder Scan legt ein neues Deck/i);
     }
   });
 });
@@ -166,13 +159,24 @@ describe("Grenz-Ablehnung statt „Lernpunkte kaufen“ (#371/#411)", () => {
     expect(planLimitMessage(new Error("Netzwerk"))).toBeNull();
   });
 
-  it("sagt bei jeder Grenze ausdrücklich, dass die Lernpunkte zurück sind", () => {
-    // Das ist die erste Frage, wenn ein bezahlter Import abbricht.
-    expect(planLimitMessage({ code: "DECK_LIMIT_REACHED" })).toContain("zurückgebucht");
-    expect(planLimitMessage({ code: "DECK_FULL" })).toContain("zurückgebucht");
+  it("verspricht KEINE Rückbuchung — beim Speichern fließt kein Lernpunkt", () => {
+    // Seit #445 tritt die Grenze erst beim Speichern der Vorschau auf. Bezahlt
+    // wurde beim Erzeugen; das Speichern kostet nichts, also gibt es auch nichts
+    // zurückzubuchen. Der alte Satz „Lernpunkte zurückgebucht" wäre hier gelogen.
+    expect(planLimitMessage({ code: "DECK_LIMIT_REACHED" })).not.toContain("zurückgebucht");
+    expect(planLimitMessage({ code: "DECK_FULL" })).not.toContain("zurückgebucht");
   });
 
-  it("schlägt auch im Fehlerfall kein bestehendes Deck vor (#427)", () => {
-    expect(planLimitMessage({ code: "DECK_LIMIT_REACHED" })).not.toContain("bestehendes Deck");
+  it("beruhigt, dass die Karten nicht verloren sind", () => {
+    // Die erste Frage bei einer Absage: „Sind meine Karten jetzt weg?" Nein —
+    // sie stehen weiter in der Vorschau, bis ein Ziel passt.
+    expect(planLimitMessage({ code: "DECK_LIMIT_REACHED" })).toContain("Vorschau");
+    expect(planLimitMessage({ code: "DECK_FULL" })).toContain("Vorschau");
+  });
+
+  it("bietet beim Speichern ein bestehendes Deck als Ausweg an (#427/#445)", () => {
+    // Umkehr des früheren Tests: An der Deck-Grenze ist ein bestehendes Deck der
+    // schnellere Weg — kein Löschen nötig, das Speichern läuft sofort weiter.
+    expect(planLimitMessage({ code: "DECK_LIMIT_REACHED" })).toContain("bestehendes Deck");
   });
 });
