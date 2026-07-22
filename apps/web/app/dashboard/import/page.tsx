@@ -42,6 +42,7 @@ import {
   AlertTriangle,
   CheckCircle,
   Trash,
+  Plus,
 } from "@/components/icons";
 
 // Ablauf wie im Scan-Bildschirm der App: erst die Quelle wählen ("choose"),
@@ -169,6 +170,8 @@ export default function ImportPage() {
   const newDeckBlocked = deckLimitReached && targetDeckId === null;
   // Volles Ziel-Deck: der Server würde alles abweisen, also gar nicht erst los.
   const targetDeckFull = targetFreeSlots === 0;
+  // #427: Karten mit Inhalt — selbst hinzugefügte, leere zählen nicht mit.
+  const savableCount = (draft ?? []).filter((c) => c.front.trim() || c.back.trim()).length;
 
   const hasInput =
     mode === "text"
@@ -373,12 +376,19 @@ export default function ImportPage() {
 
   /** #427: Die durchgesehenen Karten ablegen — neues Deck oder bestehendes. */
   async function handleSave() {
-    if (!draft || draft.length === 0) return;
+    if (!draft) return;
+    // #427: Selbst hinzugefügte, leer gelassene Karten überspringen — sonst
+    // legt der Server ein leeres Kärtchen an bzw. weist den Import ab.
+    const cards = draft.filter((c) => c.front.trim() || c.back.trim());
+    if (cards.length === 0) {
+      setError("Bitte fülle mindestens eine Karte aus.");
+      return;
+    }
     setError(null);
     setSaving(true);
     try {
       const result = await saveImportedCards({
-        cards: draft,
+        cards,
         ...(targetDeckId ? { deckId: targetDeckId } : { title: newDeckTitle.trim() || "Neue Karten" }),
       });
 
@@ -414,6 +424,14 @@ export default function ImportPage() {
 
   function removeDraftCard(index: number) {
     setDraft((cards) => (cards ? cards.filter((_card, i) => i !== index) : cards));
+  }
+
+  /** #427: Eine leere Karte anhängen, die man selbst ausfüllt. */
+  function addDraftCard() {
+    setDraft((cards) => [
+      ...(cards ?? []),
+      { front: "", back: "", type: "basic", difficulty: "medium", tags: [] },
+    ]);
   }
 
   return (
@@ -543,6 +561,11 @@ export default function ImportPage() {
                     </span>
                   </div>
                 )}
+
+                {/* #427: Karte von Hand hinzufügen, wenn etwas fehlt */}
+                <button type="button" className="draft-add" onClick={addDraftCard} disabled={saving}>
+                  <Plus size={16} /> Karte hinzufügen
+                </button>
               </div>
 
               <div className="draft-side">
@@ -641,11 +664,11 @@ export default function ImportPage() {
                   className="btn btn-primary btn-block btn-lg"
                   style={{ marginTop: 16 }}
                   onClick={handleSave}
-                  disabled={saving || draft.length === 0 || newDeckBlocked || targetDeckFull}
+                  disabled={saving || savableCount === 0 || newDeckBlocked || targetDeckFull}
                 >
                   {saving
                     ? "Karten werden gespeichert…"
-                    : `${draft.length} ${draft.length === 1 ? "Karte" : "Karten"} speichern`}
+                    : `${savableCount} ${savableCount === 1 ? "Karte" : "Karten"} speichern`}
                 </button>
 
                 <button

@@ -3470,6 +3470,30 @@ a.lp-pill:hover {
 .draft-card__field:last-child {
   margin-bottom: 0;
 }
+/* #427: „Karte hinzufügen" — gestrichelter Knopf unter der Kartenliste */
+.draft-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  background: none;
+  border: 1px dashed var(--brand);
+  color: var(--brand-600);
+  border-radius: 12px;
+  padding: 11px;
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.draft-add:hover {
+  background: var(--brand-50);
+}
+.draft-add:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
 
 /* Kosten-Chip im Erstellen-Button (wie „⚡N" in der App) */
 .btn-cost {

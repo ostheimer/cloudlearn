@@ -31,6 +31,7 @@ import {
   Zap,
   Layers,
   Trash2,
+  Plus,
 } from "lucide-react-native";
 import { useSessionStore } from "../../src/store/sessionStore";
 import { useOcrEditorState } from "../../src/features/ocr/ocrEditorState";
@@ -59,7 +60,13 @@ import {
   shouldOpenLpModal,
 } from "../../src/lib/importLimits";
 import { summarizeCardMedia } from "../../src/lib/cardMedia";
-import { editCardField, isCardEditable, removeCardAt } from "../../src/lib/cardDraft";
+import {
+  blankCard,
+  editCardField,
+  isCardEditable,
+  nonEmptyCards,
+  removeCardAt,
+} from "../../src/lib/cardDraft";
 import {
   getStableImportAttemptKey,
   type ImportAttemptKey,
@@ -508,9 +515,20 @@ export default function ScanScreen() {
   const removeCard = (index: number) => {
     setCards((prev) => removeCardAt(prev, index));
   };
+  // #427: Eine leere Karte anhängen, die die Nutzerin selbst ausfüllt.
+  const addCard = () => {
+    setCards((prev) => [...prev, blankCard()]);
+  };
 
   const saveCardsToDeck = async (deckId: string, title: string) => {
-    if (!userId || cards.length === 0) return;
+    if (!userId) return;
+    // #427: Selbst hinzugefügte, leer gelassene Karten fallen hier raus — sie
+    // sollen kein leeres Kärtchen anlegen und nicht den Server-Check reißen.
+    const savable = nonEmptyCards(cards);
+    if (savable.length === 0) {
+      Alert.alert("Nichts zu speichern", "Bitte fülle mindestens eine Karte aus.");
+      return;
+    }
     setSaving(true);
     try {
       // Resume-safe: a previous attempt may have created the deck and inserted
@@ -526,7 +544,7 @@ export default function ScanScreen() {
         // Couldn't read existing cards — fall back to inserting all (best effort).
       }
 
-      const pending = cards.filter(
+      const pending = savable.filter(
         (card) => !existingKeys.has(JSON.stringify([card.front, card.back]))
       );
       // #411: Passt das Kapitel nicht mehr ganz ins Deck, wird gleichmäßig über
@@ -543,10 +561,10 @@ export default function ScanScreen() {
       setSaved(true);
       void reloadDecks();
 
-      const savedCount = toSave.length + (cards.length - pending.length);
+      const savedCount = toSave.length + (savable.length - pending.length);
       Alert.alert(
         "Gespeichert!",
-        `${savedSummary(cards.length, savedCount)}\nDeck: "${title}"`,
+        `${savedSummary(savable.length, savedCount)}\nDeck: "${title}"`,
         [
           {
             text: "Deck öffnen",
@@ -1664,6 +1682,37 @@ export default function ScanScreen() {
                 </View>
               );
             })}
+
+            {/* #427: Karte von Hand hinzufügen, wenn etwas fehlt */}
+            {!saved && (
+              <TouchableOpacity
+                onPress={addCard}
+                disabled={saving}
+                activeOpacity={0.8}
+                style={{
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  borderStyle: "dashed",
+                  borderRadius: radius.md,
+                  paddingVertical: 14,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: spacing.sm,
+                }}
+              >
+                <Plus size={18} color={colors.primary} />
+                <Text
+                  style={{
+                    color: colors.primary,
+                    fontSize: typography.base,
+                    fontWeight: typography.semibold,
+                  }}
+                >
+                  Karte hinzufügen
+                </Text>
+              </TouchableOpacity>
+            )}
 
             {/* Save and learn */}
             {!saved && (
