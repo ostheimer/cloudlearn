@@ -33,6 +33,17 @@ export function accColor(rate: number): string {
 
 // Die Lernmodi stehen im Klartext dabei: „Abruf" und „Wiedererkennen" sind die
 // Fachwörter, aber die Namen der Modi sind das, was man angetippt hat.
+//
+// Die Beschriftungen sind bewusst gleich gebaut — „Aus dem Kopf" gegen „Aus den
+// Antworten" —, weil dann nur der mittlere Teil den Unterschied trägt und man
+// ihn nicht dazudenken muss. Zwei frühere Fassungen sind daran gescheitert und
+// sollen nicht zurückkommen:
+//   „Beim Aufwärmen getroffen" — Sport-Bild, das die App nirgends erklärt, und
+//   es klingt, als wäre Multiple Choice kein richtiges Lernen. Dasselbe gilt für
+//   jedes „getroffen": es klingt nach Glückstreffer statt nach Können.
+//   „Aus der Auswahl erkannt" — „Auswahl" heißt in genau diesen beiden Modi
+//   schon etwas anderes: „Für diese Auswahl sind mindestens 2 Karten nötig"
+//   meint die vorgenommenen Karten, nicht die Antwortkacheln.
 const ROWS = [
   {
     key: "recall" as const,
@@ -41,7 +52,9 @@ const ROWS = [
   },
   {
     key: "recognition" as const,
-    label: "Beim Aufwärmen getroffen",
+    // Plural, weil es auch fürs Zuordnen stimmen muss: dort liegen viele
+    // Kacheln offen statt vier Antworten zu einer Frage.
+    label: "Aus den Antworten erkannt",
     modes: "Multiple Choice · Zuordnen",
   },
 ];
