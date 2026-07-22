@@ -572,7 +572,8 @@ export default function FolderDetailScreen() {
                   </TouchableOpacity>
                 </View>
               ) : (
-                decks.map((deck, index) => (
+                <>
+                {decks.map((deck, index) => (
                   <Animated.View
                     key={deck.id}
                     onLayout={
@@ -642,7 +643,34 @@ export default function FolderDetailScreen() {
                       </View>
                     </TouchableOpacity>
                   </Animated.View>
-                ))
+                ))}
+                {/* Dauerhaft unter der Liste — vorher gab es den Knopf nur im
+                    LEEREN Ordner, danach musste man ihn im Drei-Punkte-Menü
+                    suchen (Laras Fund, 22.07.). Gestrichelt, damit er nicht
+                    wie eine Deck-Zeile aussieht. */}
+                <TouchableOpacity
+                  onPress={() => setDeckPickerVisible(true)}
+                  activeOpacity={0.7}
+                  style={{
+                    borderWidth: 1.5,
+                    borderStyle: "dashed",
+                    borderColor: colors.primary,
+                    borderRadius: radius.md,
+                    padding: 14,
+                    alignItems: "center",
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: colors.primary,
+                      fontWeight: typography.semibold,
+                      fontSize: typography.base,
+                    }}
+                  >
+                    + {t("folderDetail.addDeck")}
+                  </Text>
+                </TouchableOpacity>
+                </>
               )}
             </ScrollView>
           )}
@@ -654,11 +682,11 @@ export default function FolderDetailScreen() {
           folderId={folderId}
           userId={userId}
           onClose={() => setDeckPickerVisible(false)}
-          onAdded={(deck) => {
-            // Reload so the deck shows up right away — the picker only writes the
-            // link, this screen holds its own list.
+          onAdded={() => {
+            // Reload so the decks show up right away — the picker only writes
+            // the links, this screen holds its own list. Kein Erfolgs-Alert:
+            // dass die Decks da sind, zeigt die Liste selbst.
             loadContent();
-            Alert.alert(t("common.success"), t("folder.deckAddSuccess", { title: deck.title }));
           }}
         />
       ) : null}
