@@ -164,6 +164,9 @@ export default function LeaderboardScreen() {
   useEffect(() => { void loadData(); }, [loadData]);
 
   const entries = activeTab === "global" ? globalEntries : friendEntries;
+  // Der Server zählt einen selbst immer mit — ohne Freunde wäre man "allein
+  // auf Platz 1". Dann lieber der Einladen-Hinweis statt einer Ein-Personen-Liste.
+  const showEmpty = activeTab === "friends" ? friendCount === 0 : entries.length === 0;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
@@ -232,7 +235,7 @@ export default function LeaderboardScreen() {
             <Text style={{ color: "#fff" }}>{t("common.retry")}</Text>
           </TouchableOpacity>
         </View>
-      ) : entries.length === 0 ? (
+      ) : showEmpty ? (
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: spacing.xl }}>
           <Users size={40} color={colors.textTertiary} style={{ marginBottom: spacing.md }} />
           <Text style={{ fontSize: typography.lg, fontWeight: typography.semibold, color: colors.text, textAlign: "center" }}>
