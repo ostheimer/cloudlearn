@@ -80,23 +80,50 @@ for (const { name, rel, mode } of PAYLOAD_SCREENS) {
   });
 }
 
-describe('mobile occlusion (Bild-Abdecken) – meldet mode "occlusion"', () => {
-  const source = read("app/occlusion.tsx");
+/**
+ * Die vier Bildschirme, die seit #460 über den gemeinsamen Helfer senden.
+ *
+ * Vorher baute jeder sein eigenes `reviewCard(...).catch(() => {})` — und alle
+ * vier warfen Antworten bei Netzproblemen still weg. Für sie steht das Etikett
+ * jetzt im sendReview-Aufruf; die Warteschlange füllt der Helfer.
+ *
+ * Der frühere Sonderfall occlusion ist damit keiner mehr: Sein Kommentar hier
+ * lautete „Bild-Abdecken kennt keine Offline-Warteschlange" — das beschrieb
+ * genau den Fehler aus #460 als gewolltes Verhalten.
+ */
+const HELPER_SCREENS: { name: string; rel: string; mode: string }[] = [
+  { name: "occlusion (Bild-Abdecken)", rel: "app/occlusion.tsx", mode: "occlusion" },
+  { name: "quiz (Multiple Choice)", rel: "app/quiz.tsx", mode: "quiz" },
+  { name: "match (Zuordnen)", rel: "app/match.tsx", mode: "match" },
+  { name: "test (Prüfung)", rel: "app/test.tsx", mode: "test" },
+];
 
-  it("setzt das Etikett direkt am reviewCard-Aufruf", () => {
-    // Bild-Abdecken kennt keine Offline-Warteschlange: Es ruft reviewCard mit
-    // einem eigenen Optionen-Objekt, das Etikett gehört also dorthin.
-    const call = extractCall(source, "reviewCard");
-    expect(call).not.toBe("");
-    expect(call).toContain('mode: "occlusion"');
-  });
+for (const { name, rel, mode } of HELPER_SCREENS) {
+  describe(`mobile ${name} – meldet mode "${mode}" über den Helfer`, () => {
+    const source = read(rel);
 
-  it("schickt kein fremdes Etikett", () => {
-    for (const other of ["flashcard", "practice", "cloze", "quiz", "match", "test"]) {
-      expect(source).not.toContain(`mode: "${other}"`);
-    }
+    it("setzt das Etikett IM sendReview-Aufruf", () => {
+      const call = extractCall(source, "sendReview");
+      expect(call).not.toBe("");
+      expect(call).toContain(`mode: "${mode}"`);
+    });
+
+    it("ruft reviewCard nicht mehr selbst", () => {
+      // Der eigene Aufruf war die Ursache von #460: ohne Warteschlange gingen
+      // Antworten bei wackelndem Netz spurlos verloren.
+      expect(source).not.toMatch(/reviewCard\(/);
+    });
+
+    it("schickt kein fremdes Etikett", () => {
+      const others = ["flashcard", "practice", "cloze", "occlusion", "quiz", "match", "test"].filter(
+        (m) => m !== mode
+      );
+      for (const other of others) {
+        expect(source).not.toContain(`mode: "${other}"`);
+      }
+    });
   });
-});
+}
 
 describe("mobile Warteschlange – trägt das Etikett mit", () => {
   const api = read("src/lib/api.ts");
@@ -129,17 +156,21 @@ describe("mobile Warteschlange – trägt das Etikett mit", () => {
 });
 
 /**
- * Die drei Rate-Modi kamen mit #409 und werden hier NICHT verändert — nur
- * festgenagelt, damit alle sieben Etiketten an einer Stelle nachlesbar sind.
+ * Alle sieben Etiketten an einer Stelle — damit nachlesbar bleibt, welcher
+ * Bildschirm was meldet, ohne sieben Dateien öffnen zu müssen.
  */
-describe("mobile Rate-Modi (#409) – Etiketten bleiben, wie sie sind", () => {
-  const CASES: { rel: string; mode: string }[] = [
-    { rel: "app/test.tsx", mode: "test" },
+describe("mobile – alle sieben Modi melden ihr eigenes Etikett", () => {
+  const ALLE: { rel: string; mode: string }[] = [
+    { rel: "app/(tabs)/learn.tsx", mode: "flashcard" },
+    { rel: "app/practice.tsx", mode: "practice" },
+    { rel: "app/cloze.tsx", mode: "cloze" },
+    { rel: "app/occlusion.tsx", mode: "occlusion" },
     { rel: "app/quiz.tsx", mode: "quiz" },
     { rel: "app/match.tsx", mode: "match" },
+    { rel: "app/test.tsx", mode: "test" },
   ];
 
-  for (const { rel, mode } of CASES) {
+  for (const { rel, mode } of ALLE) {
     it(`${rel} meldet "${mode}"`, () => {
       expect(read(rel)).toContain(`mode: "${mode}"`);
     });
