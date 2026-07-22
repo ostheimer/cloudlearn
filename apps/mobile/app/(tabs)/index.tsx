@@ -31,6 +31,7 @@ import { useColors, spacing, radius, typography, shadows } from "../../src/theme
 import { LpBadge } from "../../src/components/LpBadge";
 import { AuthPromptCard } from "../../src/components/AuthPromptCard";
 import { NotificationPermissionPrompt } from "../../src/components/NotificationPermissionPrompt";
+import { DisplayNamePrompt } from "../../src/components/DisplayNamePrompt";
 
 export default function HomeScreen() {
   const colors = useColors();
@@ -918,6 +919,8 @@ export default function HomeScreen() {
       </ScrollView>
       {/* One-time notification permission ask (Etappe 0) — only for logged-in users. */}
       <NotificationPermissionPrompt />
+      {/* Einmalige Namensabfrage, solange kein Anzeigename gesetzt ist. */}
+      <DisplayNamePrompt />
     </SafeAreaView>
   );
 }

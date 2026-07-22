@@ -423,6 +423,22 @@ export const resources = {
       "referral.selfReferral": "Du kannst deinen eigenen Code nicht verwenden.",
       "referral.claimError": "Fehler beim Einlösen des Codes. Bitte versuche es später erneut.",
 
+      // Anzeigename
+      "displayName.title": "Wie sollen wir dich nennen?",
+      "displayName.label": "Dein Name erscheint in der Rangliste und bei deinen Freunden.",
+      "displayName.placeholder": "Dein Name",
+      "displayName.save": "Speichern",
+      "displayName.profileRow": "Anzeigename",
+      "displayName.profileRowEmpty": "Noch nicht festgelegt",
+      "displayName.editTitle": "Anzeigename ändern",
+      "displayName.errorTitle": "Name nicht gespeichert",
+      "displayName.errorTooShort": "Der Name muss mindestens 2 Zeichen haben.",
+      "displayName.errorTooLong": "Der Name darf höchstens 20 Zeichen haben.",
+      "displayName.errorInvalidChars": "Nur Buchstaben, Zahlen, Leerzeichen und . - _ ' sind erlaubt.",
+      "displayName.errorNotAllowed": "Dieser Name ist nicht erlaubt.",
+      "displayName.errorRateLimited": "Zu viele Änderungen — versuch es in einer Minute noch einmal.",
+      "displayName.errorGeneric": "Der Name konnte nicht gespeichert werden. Versuch es noch einmal.",
+
       // Leaderboard
       "leaderboard.title": "Rangliste",
       "leaderboard.profileButton": "Rangliste",
@@ -860,6 +876,22 @@ export const resources = {
       "referral.codeNotFound": "This code does not exist.",
       "referral.selfReferral": "You cannot use your own referral code.",
       "referral.claimError": "Error redeeming code. Please try again later.",
+
+      // Display name
+      "displayName.title": "What should we call you?",
+      "displayName.label": "Your name appears on the leaderboard and to your friends.",
+      "displayName.placeholder": "Your name",
+      "displayName.save": "Save",
+      "displayName.profileRow": "Display name",
+      "displayName.profileRowEmpty": "Not set yet",
+      "displayName.editTitle": "Change display name",
+      "displayName.errorTitle": "Name not saved",
+      "displayName.errorTooShort": "The name needs at least 2 characters.",
+      "displayName.errorTooLong": "The name can have at most 20 characters.",
+      "displayName.errorInvalidChars": "Only letters, numbers, spaces and . - _ ' are allowed.",
+      "displayName.errorNotAllowed": "This name is not allowed.",
+      "displayName.errorRateLimited": "Too many changes — try again in a minute.",
+      "displayName.errorGeneric": "The name could not be saved. Please try again.",
 
       // Leaderboard
       "leaderboard.title": "Leaderboard",
