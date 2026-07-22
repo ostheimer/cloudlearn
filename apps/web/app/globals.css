@@ -3430,9 +3430,31 @@ a.lp-pill:hover {
   margin-bottom: 8px;
 }
 .draft-card__n {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 0.75rem;
   color: var(--ink-4);
   font-weight: 700;
+}
+/* #427: Ziehgriff zum Sortieren. touch-action:none, damit der Browser am Griff
+   nicht scrollt — die Karte selbst bleibt normal scrollbar. */
+.draft-card__grip {
+  display: inline-flex;
+  background: none;
+  border: none;
+  padding: 2px;
+  color: var(--ink-3);
+  cursor: grab;
+  touch-action: none;
+}
+.draft-card__grip:active {
+  cursor: grabbing;
+}
+.draft-card.is-dragging {
+  opacity: 0.75;
+  transform: scale(1.01);
+  box-shadow: var(--shadow-md);
 }
 .draft-card__del {
   background: none;

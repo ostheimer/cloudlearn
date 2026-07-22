@@ -89,4 +89,13 @@ describe("Karten-Vorschau ist bearbeitbar und löschbar (#427)", () => {
     // Speichern filtert leere Karten raus, sonst reißt der Server-Check.
     expect(source).toContain("const savable = nonEmptyCards(cards)");
   });
+
+  it("verdrahtet den Ziehgriff zum Sortieren (#427)", () => {
+    // Ein geteilter PanResponder, der Griff meldet per onTouchStart seine Karte,
+    // und die Reihenfolge wird über moveCard im cards-State getauscht.
+    expect(source).toContain("gripResponder.panHandlers");
+    expect(source).toContain("pendingIndexRef.current = idx");
+    expect(source).toMatch(/setCards\(\(prev\) => moveCard\(prev, from, from [+-] 1\)\)/);
+    expect(source).toContain("<GripVertical");
+  });
 });
