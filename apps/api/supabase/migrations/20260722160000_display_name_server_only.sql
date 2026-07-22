@@ -1,0 +1,12 @@
+-- Anzeigename nur noch über die geprüfte API (Namensfilter, Etappe 1).
+-- 20260404140000 hatte display_name als "kosmetische" Spalte für direkte
+-- Client-Schreibzugriffe (PostgREST) freigegeben. Seit es den Endpunkt
+-- PATCH /api/v1/account/profile mit Inhaltsfilter gibt, wäre dieser direkte
+-- Weg eine Umgehung: Jeder könnte sich am Filter vorbei beliebige Namen
+-- setzen. Deshalb wird die Spalten-Freigabe entzogen; der Endpunkt schreibt
+-- über die service_role und ist nicht betroffen.
+--
+-- Kein Client nutzt den direkten Weg (App und Web schreiben display_name
+-- bis heute gar nicht) — es geht nur ums Zuschließen, bevor der erste
+-- Schreibweg entsteht.
+REVOKE UPDATE (display_name) ON public.profiles FROM anon, authenticated;

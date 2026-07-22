@@ -625,7 +625,8 @@ Die initiale Migration oben ist nur das Basisschema. Die vollständige, maßgebl
 │   ├── GET    /info         # Eigener Referral-Code und Referral-Status
 │   └── POST   /claim        # Referral-Code einlösen
 ├── /account
-│   └── DELETE /             # Account-Löschung (via accountDeletionService.ts)
+│   ├── DELETE /             # Account-Löschung (via accountDeletionService.ts)
+│   └── GET|PATCH /profile   # Anzeigename lesen/ändern mit Inhaltsfilter (via displayNameService.ts)
 ├── /math
 │   └── POST   /formula      # Stillgelegt (#425): antwortet 501, Mathpix ist nicht angebunden
 ├── /beta
