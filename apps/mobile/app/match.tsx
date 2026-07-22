@@ -21,7 +21,8 @@ import {
   CheckCircle2,
   Zap,
 } from "lucide-react-native";
-import { earnLp, listCardsInDeck, reviewCard, type Card } from "../src/lib/api";
+import { earnLp, listCardsInDeck, type Card } from "../src/lib/api";
+import { sendReview } from "../src/features/sync/sendReview";
 import { setLastUsedDeck } from "../src/lib/lastUsedDeck";
 import { finishRateModeRound } from "../src/lib/rateModeRound";
 import { useSessionStore } from "../src/store/sessionStore";
@@ -242,7 +243,7 @@ export default function MatchScreen() {
             cardIds.map((cardId) => ({ cardId, correct: !missedIds.has(cardId) })),
             {
               reportReview: (cardId, rating) =>
-                reviewCard(userId, cardId, rating, { mode: "match" }).catch(() => {}),
+                sendReview({ userId, cardId, rating, mode: "match" }),
               earn: async (count) => {
                 const res = await earnLp("session", count);
                 if (res.granted > 0) setUsage({ lpBalance: res.newBalance });

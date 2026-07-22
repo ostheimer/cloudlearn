@@ -14,7 +14,8 @@ import { AlertTriangle, ImagePlus, Pencil, Trash2, X, Zap } from "lucide-react-n
 import { useColors, spacing, radius, typography } from "../src/theme";
 import { StudyResult } from "../src/components/StudyResult";
 import { useSessionStore } from "../src/store/sessionStore";
-import { listCardsInDeck, reviewCard, earnLp, deleteCard } from "../src/lib/api";
+import { listCardsInDeck, earnLp, deleteCard } from "../src/lib/api";
+import { sendReview } from "../src/features/sync/sendReview";
 import { setLastUsedDeck } from "../src/lib/lastUsedDeck";
 import {
   parseOcclusionCard,
@@ -129,7 +130,12 @@ export default function OcclusionStudyScreen() {
     if (!item || !userId) return;
     if (known) setCorrect((n) => n + 1);
     else setWrong((w) => [...w, item]);
-    reviewCard(userId, item.id, known ? "good" : "again", { mode: "occlusion" }).catch(() => {});
+    void sendReview({
+      userId,
+      cardId: item.id,
+      rating: known ? "good" : "again",
+      mode: "occlusion",
+    });
     setRevealed(false);
     setTimeout(() => setIndex((i) => i + 1), 140);
   }
