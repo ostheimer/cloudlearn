@@ -75,6 +75,8 @@ export function DisplayNamePrompt() {
       initialValue={initialValue}
       confirmLabel={t("displayName.save")}
       icon={UserRound}
+      // Servergrenze aus Etappe 1 (#473) — stoppt schon beim Tippen.
+      maxLength={20}
       onCancel={() => setVisible(false)}
       onSubmit={(value) => {
         void handleSubmit(value);
