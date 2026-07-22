@@ -27,6 +27,27 @@ export function blankCard(): Flashcard {
 }
 
 /**
+ * Verschiebt die Karte von `from` an die Stelle `to` (Reihenfolge per Ziehgriff,
+ * #427). Ungültige oder gleiche Indizes lassen die Liste unverändert.
+ */
+export function moveCard(cards: Flashcard[], from: number, to: number): Flashcard[] {
+  if (
+    from === to ||
+    from < 0 ||
+    to < 0 ||
+    from >= cards.length ||
+    to >= cards.length
+  ) {
+    return cards;
+  }
+  const next = [...cards];
+  const [moved] = next.splice(from, 1);
+  if (!moved) return cards;
+  next.splice(to, 0, moved);
+  return next;
+}
+
+/**
  * Nur Karten mit Inhalt. Eine per Hand hinzugefügte, aber leer gelassene Karte
  * wird beim Speichern übersprungen — sonst würde sie den Server-Check reißen
  * (leere Vorder-/Rückseite) oder eine sinnlose Karte anlegen.

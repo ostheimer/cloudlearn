@@ -43,11 +43,24 @@ import {
   CheckCircle,
   Trash,
   Plus,
+  GripVertical,
 } from "@/components/icons";
 
 // Ablauf wie im Scan-Bildschirm der App: erst die Quelle wählen ("choose"),
 // dann die Eingabe für diese Quelle.
 type Mode = "choose" | "photo" | "gallery" | "text" | "url" | "pdf";
+
+/** #427: Karte von `from` an Stelle `to` verschieben (Ziehgriff-Reihenfolge). */
+function moveDraftCard(cards: Flashcard[], from: number, to: number): Flashcard[] {
+  if (from === to || from < 0 || to < 0 || from >= cards.length || to >= cards.length) {
+    return cards;
+  }
+  const next = [...cards];
+  const [moved] = next.splice(from, 1);
+  if (!moved) return cards;
+  next.splice(to, 0, moved);
+  return next;
+}
 
 const MAX_TEXT = 20000;
 // Vercel lehnt Anfragen über ~4,5 MB ab; base64 bläht ~33% auf → wir bleiben
@@ -85,6 +98,8 @@ export default function ImportPage() {
   const [draft, setDraft] = useState<Flashcard[] | null>(null);
   const [newDeckTitle, setNewDeckTitle] = useState("");
   const [saving, setSaving] = useState(false);
+  // #427: Welche Karte gerade am Ziehgriff gezogen wird (null = keine).
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
   // Gesetzt, wenn die Tarifgrenze den Import ausgedünnt hat: dann NICHT
   // stillschweigend ins neue Deck springen, sondern erst sagen, was fehlt.
   const [summary, setSummary] = useState<{ text: string; href: string } | null>(null);
@@ -434,6 +449,34 @@ export default function ImportPage() {
     ]);
   }
 
+  // ─── Reihenfolge per Ziehgriff (#427) ───────────────────────────────────────
+  // Pointer-Events wie bei der Ordner-Sortierung (#437): HTML5-Drag feuert am
+  // Handy nicht, Pointer-Capture + elementFromPoint schon. Der Griff trägt
+  // `touch-action: none`, damit der Browser dort nicht scrollt. Anders als bei
+  // den Ordnern wird NICHTS gespeichert — die Reihenfolge zählt erst beim
+  // „Speichern".
+  function onGripPointerDown(e: React.PointerEvent<HTMLButtonElement>, index: number) {
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setDragIndex(index);
+  }
+
+  function onGripPointerMove(e: React.PointerEvent<HTMLButtonElement>) {
+    if (dragIndex === null) return;
+    const over = document
+      .elementFromPoint(e.clientX, e.clientY)
+      ?.closest<HTMLElement>("[data-draft-index]");
+    if (!over) return;
+    const target = Number(over.dataset.draftIndex);
+    if (Number.isNaN(target) || target === dragIndex) return;
+    setDraft((cards) => (cards ? moveDraftCard(cards, dragIndex, target) : cards));
+    setDragIndex(target);
+  }
+
+  function onGripPointerUp() {
+    setDragIndex(null);
+  }
+
   return (
     <>
       <Link href="/dashboard" className="crumb">
@@ -514,9 +557,29 @@ export default function ImportPage() {
             <div className="draft-grid">
               <div className="draft-list">
                 {draft.map((card, index) => (
-                  <div className="draft-card" key={index}>
+                  <div
+                    className={dragIndex === index ? "draft-card is-dragging" : "draft-card"}
+                    key={index}
+                    data-draft-index={index}
+                  >
                     <div className="draft-card__head">
-                      <span className="draft-card__n">Karte {index + 1}</span>
+                      <span className="draft-card__n">
+                        {draft.length > 1 && (
+                          <button
+                            type="button"
+                            className="draft-card__grip"
+                            aria-label={`Karte ${index + 1} verschieben`}
+                            title="Ziehen zum Sortieren"
+                            onPointerDown={(e) => onGripPointerDown(e, index)}
+                            onPointerMove={onGripPointerMove}
+                            onPointerUp={onGripPointerUp}
+                            onPointerCancel={onGripPointerUp}
+                          >
+                            <GripVertical size={16} />
+                          </button>
+                        )}
+                        Karte {index + 1}
+                      </span>
                       <button
                         type="button"
                         className="draft-card__del"

@@ -4,7 +4,9 @@ import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Image,
+  PanResponder,
   Platform,
   ScrollView,
   Text,
@@ -32,6 +34,7 @@ import {
   Layers,
   Trash2,
   Plus,
+  GripVertical,
 } from "lucide-react-native";
 import { useSessionStore } from "../../src/store/sessionStore";
 import { useOcrEditorState } from "../../src/features/ocr/ocrEditorState";
@@ -64,6 +67,7 @@ import {
   blankCard,
   editCardField,
   isCardEditable,
+  moveCard,
   nonEmptyCards,
   removeCardAt,
 } from "../../src/lib/cardDraft";
@@ -519,6 +523,66 @@ export default function ScanScreen() {
   const addCard = () => {
     setCards((prev) => [...prev, blankCard()]);
   };
+
+  // ─── Reihenfolge per Ziehgriff (#427) ───────────────────────────────────────
+  // Übernommen von der Ordner-Sortierung (#437): EIN geteilter PanResponder für
+  // alle Griffe, ein Animated.Value für die sichtbare Verschiebung. Anders als
+  // bei den Ordnern wird NICHTS gespeichert — die Reihenfolge zählt erst beim
+  // „Speichern". `cardsRef` hält den aktuellen Stand für den Fänger, der über
+  // die ganze Lebenszeit lebt und keine wandernde Closure sehen darf.
+  const cardsRef = useRef(cards);
+  useEffect(() => {
+    cardsRef.current = cards;
+  }, [cards]);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const dragY = useRef(new Animated.Value(0)).current;
+  const dragState = useRef<{ index: number; baseline: number } | null>(null);
+  const rowHeightRef = useRef(0);
+  const pendingIndexRef = useRef(0);
+  const CARD_GAP = spacing.md;
+
+  const gripResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        dragState.current = { index: pendingIndexRef.current, baseline: 0 };
+        dragY.setValue(0);
+        setDragIndex(pendingIndexRef.current);
+      },
+      onPanResponderMove: (_evt, gesture) => {
+        const s = dragState.current;
+        if (!s) return;
+        const slot = rowHeightRef.current + CARD_GAP;
+        if (slot <= CARD_GAP) return;
+        const rel = gesture.dy - s.baseline;
+        if (rel > slot / 2 && s.index < cardsRef.current.length - 1) {
+          const from = s.index;
+          setCards((prev) => moveCard(prev, from, from + 1));
+          s.index += 1;
+          s.baseline += slot;
+          setDragIndex(s.index);
+        } else if (rel < -slot / 2 && s.index > 0) {
+          const from = s.index;
+          setCards((prev) => moveCard(prev, from, from - 1));
+          s.index -= 1;
+          s.baseline -= slot;
+          setDragIndex(s.index);
+        }
+        dragY.setValue(gesture.dy - s.baseline);
+      },
+      onPanResponderRelease: () => {
+        dragState.current = null;
+        dragY.setValue(0);
+        setDragIndex(null);
+      },
+      onPanResponderTerminate: () => {
+        dragState.current = null;
+        dragY.setValue(0);
+        setDragIndex(null);
+      },
+    })
+  ).current;
 
   const saveCardsToDeck = async (deckId: string, title: string) => {
     if (!userId) return;
@@ -1542,43 +1606,79 @@ export default function ScanScreen() {
               );
               const backDisplay = media.plainBack || card.back;
               return (
-                <View
+                <Animated.View
                   key={idx}
-                  style={{
-                    backgroundColor: colors.surface,
-                    borderRadius: radius.md,
-                    padding: 14,
-                    borderWidth: 1,
-                    borderColor: colors.border,
-                    gap: spacing.sm,
-                  }}
+                  onLayout={
+                    idx === 0
+                      ? (e) => {
+                          rowHeightRef.current = e.nativeEvent.layout.height;
+                        }
+                      : undefined
+                  }
+                  style={
+                    dragIndex === idx
+                      ? {
+                          transform: [{ translateY: dragY }, { scale: 1.02 }],
+                          zIndex: 2,
+                          opacity: 0.95,
+                        }
+                      : undefined
+                  }
                 >
                   <View
                     style={{
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      alignItems: "center",
+                      backgroundColor: colors.surface,
+                      borderRadius: radius.md,
+                      padding: 14,
+                      borderWidth: 1,
+                      borderColor: dragIndex === idx ? colors.primary : colors.border,
+                      gap: spacing.sm,
                     }}
                   >
-                    <Text
+                    <View
                       style={{
-                        fontSize: typography.xs,
-                        fontWeight: typography.semibold,
-                        color: colors.textTertiary,
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        alignItems: "center",
                       }}
                     >
-                      Karte {idx + 1}
-                    </Text>
-                    <TouchableOpacity
-                      onPress={() => removeCard(idx)}
-                      disabled={saving}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Karte ${idx + 1} löschen`}
-                    >
-                      <Trash2 size={18} color={colors.textTertiary} />
-                    </TouchableOpacity>
-                  </View>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+                        {/* Ziehgriff — nur wenn Sortieren etwas bewirken kann */}
+                        {cards.length > 1 && (
+                          <View
+                            accessible
+                            accessibilityLabel={`Karte ${idx + 1} verschieben`}
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            // onTouchStart feuert vor der Responder-Vergabe und
+                            // sagt dem geteilten Fänger, WELCHE Karte gezogen wird.
+                            onTouchStart={() => {
+                              pendingIndexRef.current = idx;
+                            }}
+                            {...gripResponder.panHandlers}
+                          >
+                            <GripVertical size={18} color={colors.textTertiary} />
+                          </View>
+                        )}
+                        <Text
+                          style={{
+                            fontSize: typography.xs,
+                            fontWeight: typography.semibold,
+                            color: colors.textTertiary,
+                          }}
+                        >
+                          Karte {idx + 1}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => removeCard(idx)}
+                        disabled={saving}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Karte ${idx + 1} löschen`}
+                      >
+                        <Trash2 size={18} color={colors.textTertiary} />
+                      </TouchableOpacity>
+                    </View>
 
                   {media.primaryImage ? (
                     <Image
@@ -1679,7 +1779,8 @@ export default function ScanScreen() {
                       {card.difficulty}
                     </Text>
                   </View>
-                </View>
+                  </View>
+                </Animated.View>
               );
             })}
 

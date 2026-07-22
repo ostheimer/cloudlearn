@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { blankCard, editCardField, isCardEditable, nonEmptyCards, removeCardAt } from "./cardDraft";
+import {
+  blankCard,
+  editCardField,
+  isCardEditable,
+  moveCard,
+  nonEmptyCards,
+  removeCardAt,
+} from "./cardDraft";
 import { summarizeCardMedia } from "./cardMedia";
 import type { Flashcard } from "./api";
 
@@ -60,6 +67,23 @@ describe("Karten-Vorschau bearbeiten/löschen (#427)", () => {
     expect(blank.type).toBe("basic");
     // Muss editierbar sein, sonst könnte man die hinzugefügte Karte nicht füllen.
     expect(isCardEditable(blank, summarizeCardMedia(blank))).toBe(true);
+  });
+
+  it("verschiebt eine Karte an eine neue Stelle (Reihenfolge, #427)", () => {
+    const list = [card("A", ""), card("B", ""), card("C", ""), card("D", "")];
+    // B (Index 1) ans Ende
+    expect(moveCard(list, 1, 3).map((c) => c.front)).toEqual(["A", "C", "D", "B"]);
+    // C (Index 2) an den Anfang
+    expect(moveCard(list, 2, 0).map((c) => c.front)).toEqual(["C", "A", "B", "D"]);
+    // eins hoch (Nachbartausch), wie beim Ziehen um eine Zeile
+    expect(moveCard(list, 2, 1).map((c) => c.front)).toEqual(["A", "C", "B", "D"]);
+  });
+
+  it("lässt die Liste bei unsinnigen Indizes unverändert", () => {
+    const list = [card("A", ""), card("B", "")];
+    expect(moveCard(list, 0, 0)).toBe(list); // gleiche Stelle
+    expect(moveCard(list, 0, 5)).toBe(list); // außerhalb
+    expect(moveCard(list, -1, 1)).toBe(list);
   });
 
   it("überspringt leere Karten beim Speichern, füllt gefüllte durch", () => {
