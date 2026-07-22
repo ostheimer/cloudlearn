@@ -170,6 +170,67 @@ export default function ScanScreen() {
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const colors = useColors();
 
+  // ─── Reihenfolge per Ziehgriff (#427) ───────────────────────────────────────
+  // Übernommen von der Ordner-Sortierung (#437): EIN geteilter PanResponder für
+  // alle Griffe, ein Animated.Value für die sichtbare Verschiebung. Anders als
+  // bei den Ordnern wird NICHTS gespeichert — die Reihenfolge zählt erst beim
+  // „Speichern". `cardsRef` hält den aktuellen Stand für den Fänger, der über
+  // die ganze Lebenszeit lebt und keine wandernde Closure sehen darf.
+  const cardsRef = useRef(cards);
+  useEffect(() => {
+    cardsRef.current = cards;
+  }, [cards]);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const dragY = useRef(new Animated.Value(0)).current;
+  const dragState = useRef<{ index: number; baseline: number } | null>(null);
+  const rowHeightRef = useRef(0);
+  const pendingIndexRef = useRef(0);
+  const CARD_GAP = spacing.md;
+
+  const gripResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        dragState.current = { index: pendingIndexRef.current, baseline: 0 };
+        dragY.setValue(0);
+        setDragIndex(pendingIndexRef.current);
+      },
+      onPanResponderMove: (_evt, gesture) => {
+        const s = dragState.current;
+        if (!s) return;
+        const slot = rowHeightRef.current + CARD_GAP;
+        if (slot <= CARD_GAP) return;
+        const rel = gesture.dy - s.baseline;
+        if (rel > slot / 2 && s.index < cardsRef.current.length - 1) {
+          const from = s.index;
+          setCards((prev) => moveCard(prev, from, from + 1));
+          s.index += 1;
+          s.baseline += slot;
+          setDragIndex(s.index);
+        } else if (rel < -slot / 2 && s.index > 0) {
+          const from = s.index;
+          setCards((prev) => moveCard(prev, from, from - 1));
+          s.index -= 1;
+          s.baseline -= slot;
+          setDragIndex(s.index);
+        }
+        dragY.setValue(gesture.dy - s.baseline);
+      },
+      onPanResponderRelease: () => {
+        dragState.current = null;
+        dragY.setValue(0);
+        setDragIndex(null);
+      },
+      onPanResponderTerminate: () => {
+        dragState.current = null;
+        dragY.setValue(0);
+        setDragIndex(null);
+      },
+    })
+  ).current;
+
+
   if (!userId) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
@@ -523,66 +584,6 @@ export default function ScanScreen() {
   const addCard = () => {
     setCards((prev) => [...prev, blankCard()]);
   };
-
-  // ─── Reihenfolge per Ziehgriff (#427) ───────────────────────────────────────
-  // Übernommen von der Ordner-Sortierung (#437): EIN geteilter PanResponder für
-  // alle Griffe, ein Animated.Value für die sichtbare Verschiebung. Anders als
-  // bei den Ordnern wird NICHTS gespeichert — die Reihenfolge zählt erst beim
-  // „Speichern". `cardsRef` hält den aktuellen Stand für den Fänger, der über
-  // die ganze Lebenszeit lebt und keine wandernde Closure sehen darf.
-  const cardsRef = useRef(cards);
-  useEffect(() => {
-    cardsRef.current = cards;
-  }, [cards]);
-  const [dragIndex, setDragIndex] = useState<number | null>(null);
-  const dragY = useRef(new Animated.Value(0)).current;
-  const dragState = useRef<{ index: number; baseline: number } | null>(null);
-  const rowHeightRef = useRef(0);
-  const pendingIndexRef = useRef(0);
-  const CARD_GAP = spacing.md;
-
-  const gripResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: () => {
-        dragState.current = { index: pendingIndexRef.current, baseline: 0 };
-        dragY.setValue(0);
-        setDragIndex(pendingIndexRef.current);
-      },
-      onPanResponderMove: (_evt, gesture) => {
-        const s = dragState.current;
-        if (!s) return;
-        const slot = rowHeightRef.current + CARD_GAP;
-        if (slot <= CARD_GAP) return;
-        const rel = gesture.dy - s.baseline;
-        if (rel > slot / 2 && s.index < cardsRef.current.length - 1) {
-          const from = s.index;
-          setCards((prev) => moveCard(prev, from, from + 1));
-          s.index += 1;
-          s.baseline += slot;
-          setDragIndex(s.index);
-        } else if (rel < -slot / 2 && s.index > 0) {
-          const from = s.index;
-          setCards((prev) => moveCard(prev, from, from - 1));
-          s.index -= 1;
-          s.baseline -= slot;
-          setDragIndex(s.index);
-        }
-        dragY.setValue(gesture.dy - s.baseline);
-      },
-      onPanResponderRelease: () => {
-        dragState.current = null;
-        dragY.setValue(0);
-        setDragIndex(null);
-      },
-      onPanResponderTerminate: () => {
-        dragState.current = null;
-        dragY.setValue(0);
-        setDragIndex(null);
-      },
-    })
-  ).current;
 
   const saveCardsToDeck = async (deckId: string, title: string) => {
     if (!userId) return;
