@@ -57,6 +57,7 @@ vi.mock("@/lib/db", () => ({
   removeDeckFromFolder: vi.fn(),
   listDecksInFolder: vi.fn(),
   listFoldersForDeck: vi.fn(),
+  setFolderDeckOrder: vi.fn(),
 }));
 
 import { GET as courseGet, PATCH as coursePatch, DELETE as courseDelete } from "../../app/api/v1/courses/[id]/route";
@@ -69,6 +70,7 @@ import { GET as folderGet, PATCH as folderPatch, DELETE as folderDelete } from "
 import {
   GET as folderDecksGet,
   POST as folderDecksPost,
+  PUT as folderDecksPut,
   DELETE as folderDecksDelete,
 } from "../../app/api/v1/folders/[id]/decks/route";
 import { getAuthUser } from "@/lib/auth";
@@ -85,6 +87,7 @@ import {
   addDeckToFolder,
   removeDeckFromFolder,
   listDecksInFolder,
+  setFolderDeckOrder,
 } from "@/lib/db";
 
 const mockedGetAuthUser = vi.mocked(getAuthUser);
@@ -109,6 +112,7 @@ const folderRow = {
   id: FOLDER_ID,
   userId: AUTH_USER_ID,
   title: "Klasse 10",
+  description: null,
   parentId: null,
   color: null,
   createdAt: "2026-07-15T00:00:00.000Z",
@@ -453,6 +457,40 @@ describe("/api/v1/folders/[id]/decks — owner-scoped deck links", () => {
 
     expect(res.status).toBe(404);
     expect(body.code).toBe("FOLDER_NOT_FOUND");
+  });
+
+  it("reorders decks scoped to the token user (#437)", async () => {
+    vi.mocked(setFolderDeckOrder).mockResolvedValue(true);
+
+    const res = await folderDecksPut(
+      req(`http://localhost/api/v1/folders/${FOLDER_ID}/decks`, {
+        method: "PUT",
+        body: JSON.stringify({ deckIds: [DECK_ID] }),
+        headers: { "content-type": "application/json" },
+      }),
+      ctx(FOLDER_ID)
+    );
+
+    expect(res.status).toBe(200);
+    expect(setFolderDeckOrder).toHaveBeenCalledWith(FOLDER_ID, AUTH_USER_ID, [DECK_ID]);
+  });
+
+  it("returns 404 on reorder when the folder isn't owned", async () => {
+    vi.mocked(setFolderDeckOrder).mockResolvedValue(false);
+
+    const res = await folderDecksPut(
+      req(`http://localhost/api/v1/folders/${FOLDER_ID}/decks`, {
+        method: "PUT",
+        body: JSON.stringify({ deckIds: [DECK_ID] }),
+        headers: { "content-type": "application/json" },
+      }),
+      ctx(FOLDER_ID)
+    );
+    const body = (await res.json()) as { code: string };
+
+    expect(res.status).toBe(404);
+    expect(body.code).toBe("FOLDER_NOT_FOUND");
+    expect(setFolderDeckOrder).toHaveBeenCalledWith(FOLDER_ID, AUTH_USER_ID, [DECK_ID]);
   });
 
   it("removes a deck scoped to the token user", async () => {
