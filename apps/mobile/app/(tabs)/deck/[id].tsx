@@ -61,7 +61,10 @@ import { buildDeckCountLabel } from "../../../src/lib/deckCountLabel";
 import DeckEditModal from "../../../src/components/DeckEditModal";
 import DeckDetailsModal from "../../../src/components/DeckDetailsModal";
 
-// Card editor modal component
+// Card editor modal component. Bewusst OHNE Kartentyp-Schalter: die Achse
+// basic↔cloze leitet der Server aus der {{cN::…}}-Markierung im Text ab —
+// ein von Hand gesetztes Etikett konnte nur lügen (Lücke gibt es nur, wenn
+// die Markierung im Text steht).
 function CardEditor({
   visible,
   card,
@@ -72,13 +75,11 @@ function CardEditor({
   card: {
     front: string;
     back: string;
-    type: string;
     difficulty: string;
   } | null;
   onSave: (data: {
     front: string;
     back: string;
-    type: string;
     difficulty: string;
   }) => void;
   onCancel: () => void;
@@ -86,19 +87,16 @@ function CardEditor({
   const colors = useColors();
   const [front, setFront] = useState("");
   const [back, setBack] = useState("");
-  const [type, setType] = useState("basic");
   const [difficulty, setDifficulty] = useState("medium");
 
   useEffect(() => {
     if (card) {
       setFront(card.front);
       setBack(card.back);
-      setType(card.type);
       setDifficulty(card.difficulty);
     } else {
       setFront("");
       setBack("");
-      setType("basic");
       setDifficulty("medium");
     }
   }, [card, visible]);
@@ -160,7 +158,6 @@ function CardEditor({
                 onSave({
                   front: front.trim(),
                   back: back.trim(),
-                  type,
                   difficulty,
                 })
               }
@@ -254,53 +251,6 @@ function CardEditor({
                   color: colors.text,
                 }}
               />
-            </View>
-
-            {/* Type selector */}
-            <View style={{ gap: spacing.sm }}>
-              <Text
-                style={{
-                  fontWeight: typography.semibold,
-                  color: colors.textSecondary,
-                  fontSize: typography.sm,
-                  textTransform: "uppercase",
-                  letterSpacing: 0.5,
-                }}
-              >
-                Kartentyp
-              </Text>
-              <View style={{ flexDirection: "row", gap: spacing.sm }}>
-                {(["basic", "cloze"] as const).map((t) => (
-                  <TouchableOpacity
-                    key={t}
-                    onPress={() => setType(t)}
-                    activeOpacity={0.8}
-                    style={{
-                      flex: 1,
-                      paddingVertical: spacing.md,
-                      borderRadius: radius.md,
-                      borderWidth: 2,
-                      borderColor:
-                        type === t ? colors.primary : colors.border,
-                      backgroundColor:
-                        type === t ? colors.primaryLight : colors.surface,
-                      alignItems: "center",
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontWeight: typography.semibold,
-                        color:
-                          type === t
-                            ? colors.primary
-                            : colors.textSecondary,
-                      }}
-                    >
-                      {t === "basic" ? "Basic" : "Lückentext"}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
             </View>
 
             {/* Difficulty selector */}
@@ -670,7 +620,6 @@ export default function DeckDetailScreen() {
   const handleSaveCard = async (data: {
     front: string;
     back: string;
-    type: string;
     difficulty: string;
   }) => {
     if (!userId || !deckId) return;
@@ -1200,7 +1149,6 @@ export default function DeckDetailScreen() {
               ? {
                   front: editingCard.front,
                   back: editingCard.back,
-                  type: editingCard.type,
                   difficulty: editingCard.difficulty,
                 }
               : null

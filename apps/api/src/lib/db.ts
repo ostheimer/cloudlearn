@@ -7,7 +7,7 @@
 import { createSupabaseAdminClient } from "./supabase";
 import { daysBetween, startOfLocalDayIso, startOfTodayLocalIso, todayLocal } from "./localDay";
 import { STREAK_REPAIR } from "./featureGates";
-import type { Flashcard, SubscriptionTier } from "./contracts";
+import { deriveCardType, type Flashcard, type SubscriptionTier } from "./contracts";
 
 // ─── Interfaces (same shape as inMemoryStore) ───────────────────────────────
 
@@ -270,7 +270,9 @@ export async function createCard(
       deck_id: deckId,
       front: card.front,
       back: card.back,
-      card_type: card.type,
+      // basic↔cloze folgt der Markierung im Text, nicht der Client-Angabe —
+      // hier für JEDEN Einfügeweg, damit kein Endpunkt sie vergessen kann.
+      card_type: deriveCardType(card.front, card.type),
       source_image_url: card.sourceImageUrl ?? null,
       extra_data: card.extraData ?? null,
       difficulty: card.difficulty,
@@ -310,7 +312,7 @@ export async function insertCards(
         deck_id: deckId,
         front: card.front,
         back: card.back,
-        card_type: card.type,
+        card_type: deriveCardType(card.front, card.type),
         source_image_url: card.sourceImageUrl ?? null,
         extra_data: card.extraData ?? null,
         difficulty: card.difficulty,

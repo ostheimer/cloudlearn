@@ -1,7 +1,13 @@
-import { cardTagsSchema, cardTypeSchema, difficultySchema, flashcardSchema } from "@/lib/contracts";
+import {
+  cardTagsSchema,
+  cardTypeSchema,
+  deriveCardType,
+  difficultySchema,
+  flashcardSchema,
+} from "@/lib/contracts";
 import { z } from "zod";
 import type { CardRecord } from "@/lib/db";
-import { createCard, getDeck, listCardsForDeck, softDeleteCard, updateCard } from "@/lib/db";
+import { createCard, getCard, getDeck, listCardsForDeck, softDeleteCard, updateCard } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import { getSubscriptionStatus } from "./subscriptionService";
 import { assertCardLimit, assertEntitlement } from "@/lib/limits";
@@ -69,6 +75,25 @@ export async function updateCardForUser(input: unknown) {
   if (parsed.difficulty !== undefined) updates.difficulty = parsed.difficulty;
   if (parsed.tags !== undefined) updates.tags = parsed.tags;
   if (parsed.starred !== undefined) updates.starred = parsed.starred;
+  // Auf der Achse basic↔cloze gilt nicht die Client-Angabe, sondern der Text:
+  // eine {{cN::…}}-Markierung macht die Karte zum Lückentext, ihr Fehlen zu
+  // basic (deriveCardType, wie beim Anlegen in db.createCard/insertCards).
+  // Nur Text- oder Typ-Änderungen leiten ab — ein { starred }-PATCH bleibt
+  // ohne Extra-Lesezugriff. Spezialtypen sind doppelt geschützt: explizit
+  // gesendet werden sie unverändert übernommen (occlusion oben bereits hinter
+  // der Pro-Schranke), und eine reine Textänderung an einer bestehenden
+  // occlusion/mcq/matching-Karte stuft sie nicht stillschweigend zu basic um.
+  if (parsed.front !== undefined || parsed.type !== undefined) {
+    const requested = parsed.type;
+    if (requested === undefined || requested === "basic" || requested === "cloze") {
+      const existing = await getCard(parsed.cardId, parsed.userId);
+      if (!existing) return null;
+      const axis = requested ?? existing.type ?? "basic";
+      if (axis === "basic" || axis === "cloze") {
+        updates.type = deriveCardType(parsed.front ?? existing.front);
+      }
+    }
+  }
   return updateCard(parsed.cardId, parsed.userId, updates);
 }
 

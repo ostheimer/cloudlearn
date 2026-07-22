@@ -1,6 +1,20 @@
 import { z } from "zod";
 
 export const cardTypeSchema = z.enum(["basic", "cloze", "mcq", "matching", "occlusion"]);
+export type CardType = z.infer<typeof cardTypeSchema>;
+
+// Ob eine Karte Lückentext ist, entscheidet ihr TEXT ({{cN::…}}-Markierung),
+// nicht ein vom Client gesetztes Etikett: die Lernmodi lesen die Markierung
+// direkt aus der Vorderseite (apps/mobile/app/cloze.tsx u. a.), ein davon
+// abweichendes Etikett verfälscht nur die Quiz-Distraktoren-Gruppierung (#380).
+// Deshalb wird die Achse basic↔cloze serverseitig abgeleitet. Spezialtypen
+// (mcq, matching, occlusion) tragen keine Markierung und bleiben unverändert.
+const CLOZE_MARKER = /\{\{c\d+::.+?\}\}/;
+
+export function deriveCardType(front: string, requested: CardType = "basic"): CardType {
+  if (requested !== "basic" && requested !== "cloze") return requested;
+  return CLOZE_MARKER.test(front) ? "cloze" : "basic";
+}
 export const difficultySchema = z.enum(["easy", "medium", "hard"]);
 // Tag rules without a default, so partial-update schemas can reuse the validation
 // without inheriting flashcardSchema's `.default([])` — see updateCardSchema.

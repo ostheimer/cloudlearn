@@ -15,6 +15,12 @@
  * matching cards into "basic" ones and wiped their tags — the occlusion regions
  * survived in extraData, but the card stopped rendering as an occlusion card.
  *
+ * Since the basic↔cloze axis is DERIVED from the text (deriveCardType), a PATCH
+ * that touches front or type legitimately writes a derived `type` — that is not
+ * the old default-leak (difficulty/tags must still never appear uninvited, and
+ * a PATCH without front/type must still not write type at all). The derivation
+ * itself is pinned in cardTypeDerivation.test.ts.
+ *
  * Only `@/lib/db` is mocked, so the real schema + service logic runs.
  */
 
@@ -22,6 +28,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const dbMocks = vi.hoisted(() => ({
   createCard: vi.fn(),
+  // Read by the type derivation whenever front or type is being changed.
+  getCard: vi.fn(),
   getDeck: vi.fn(),
   listCardsForDeck: vi.fn(),
   softDeleteCard: vi.fn(),
@@ -33,6 +41,7 @@ const dbMocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/db", () => ({
   createCard: dbMocks.createCard,
+  getCard: dbMocks.getCard,
   getDeck: dbMocks.getDeck,
   listCardsForDeck: dbMocks.listCardsForDeck,
   softDeleteCard: dbMocks.softDeleteCard,
@@ -55,6 +64,13 @@ describe("updateCardForUser — partial updates never fabricate fields", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     dbMocks.updateCard.mockResolvedValue({ id: cardId, userId });
+    dbMocks.getCard.mockResolvedValue({
+      id: cardId,
+      userId,
+      front: "Alte Frage",
+      back: "Antwort",
+      type: "basic",
+    });
     // Free by default — none of the partial-update cases below are entitlement
     // gated, so the tier is irrelevant to them (the one exception sets it).
     dbMocks.getSubscriptionTier.mockResolvedValue({
@@ -87,12 +103,14 @@ describe("updateCardForUser — partial updates never fabricate fields", () => {
     expect(Object.keys(updates)).toEqual(["starred"]);
   });
 
-  it("editing only the front leaves every other column untouched", async () => {
+  it("editing only the front writes front + derived type, nothing else", async () => {
     const { updateCardForUser } = await import("@/services/cardService");
 
     await updateCardForUser({ userId, cardId, front: "Neue Frage" });
 
-    expect(lastUpdates()).toEqual({ front: "Neue Frage" });
+    // `type` here is DERIVED from the new text (no {{cN::…}} marker → basic),
+    // not a leaked default; difficulty/tags must still stay absent.
+    expect(lastUpdates()).toEqual({ front: "Neue Frage", type: "basic" });
   });
 
   it("still writes the fields that ARE explicitly sent", async () => {
@@ -112,7 +130,9 @@ describe("updateCardForUser — partial updates never fabricate fields", () => {
     expect(lastUpdates()).toEqual({
       front: "F",
       back: "B",
-      type: "cloze",
+      // The sent "cloze" is overridden by derivation: "F" carries no {{cN::…}}
+      // marker, so the stored type is basic — the label follows the text.
+      type: "basic",
       difficulty: "hard",
       tags: ["bio"],
       starred: true,
