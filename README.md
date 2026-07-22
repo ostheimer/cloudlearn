@@ -630,13 +630,6 @@ Die initiale Migration oben ist nur das Basisschema. Die vollständige, maßgebl
 │   └── POST   /formula      # Stillgelegt (#425): antwortet 501, Mathpix ist nicht angebunden
 ├── /beta
 │   └── GET|POST /feedback   # Beta-Feedback lesen/einreichen (via betaFeedbackService.ts)
-├── /courses
-│   ├── GET    /             # Alle Kurse des Nutzers
-│   ├── POST   /             # Neuen Kurs erstellen
-│   ├── GET    /:id          # Einzelnen Kurs abrufen
-│   ├── PATCH  /:id          # Kurs bearbeiten
-│   ├── DELETE /:id          # Kurs löschen
-│   └── GET|POST|DELETE /:id/decks # Decks zu Kursen zuordnen/entfernen
 ├── /folders
 │   ├── GET    /             # Alle Ordner des Nutzers
 │   ├── POST   /             # Neuen Ordner erstellen

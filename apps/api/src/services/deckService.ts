@@ -11,7 +11,6 @@ import {
   getDeckShareToken,
   getDeckByShareToken as dbGetDeckByShareToken,
   getDeckWithCardCount,
-  listCoursesForDeck,
   listFoldersForDeck,
 } from "@/lib/db";
 import { randomUUID } from "node:crypto";
@@ -107,9 +106,8 @@ export async function importSharedDeck(userId: string, shareToken: string) {
 export async function getDeckDetails(userId: string, deckId: string) {
   const deck = await getDeckWithCardCount(deckId, userId);
   if (!deck) return null;
-  const courses = await listCoursesForDeck(deckId);
   const folders = await listFoldersForDeck(deckId);
-  return { ...deck, courses, folders };
+  return { ...deck, folders };
 }
 
 export async function exportDeckForOffline(userId: string, deckId: string) {

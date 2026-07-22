@@ -1,5 +1,5 @@
 /**
- * Data-layer tests for the course & folder IDOR fix. The admin Supabase client
+ * Data-layer tests for the folder IDOR fix (die Kurs-Hälfte fiel mit #437). The admin Supabase client
  * bypasses RLS, so every accessor must scope its query to the owning user_id.
  * These tests replace the admin client with a queued query-builder fake (same
  * pattern as deckStatsDb.test.ts / reviewStatsDb.test.ts) and assert BOTH the
@@ -8,7 +8,7 @@
  *
  * The deck-link functions get special attention: linking a deck must verify
  * that the deck ALSO belongs to the caller, otherwise a user could attach
- * another user's deck to their own course/folder and read its metadata back.
+ * another user's deck to their own folder and read its metadata back.
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -17,12 +17,6 @@ vi.mock("@/lib/supabase", () => ({ createSupabaseAdminClient: vi.fn() }));
 
 import {
   listDecks,
-  getCourse,
-  updateCourse,
-  deleteCourse,
-  addDeckToCourse,
-  removeDeckFromCourse,
-  listDecksInCourse,
   getFolder,
   updateFolder,
   deleteFolder,
@@ -36,7 +30,6 @@ import { createSupabaseAdminClient } from "@/lib/supabase";
 const mockedCreateDb = vi.mocked(createSupabaseAdminClient);
 
 const USER_ID = "11111111-1111-4111-8111-111111111111";
-const COURSE_ID = "33333333-3333-4333-8333-333333333333";
 const FOLDER_ID = "44444444-4444-4444-8444-444444444444";
 const DECK_ID = "55555555-5555-4555-8555-555555555555";
 
@@ -87,15 +80,6 @@ const isArgs = (calls: RecordedCall[]) => calls.filter((c) => c.method === "is")
 const selectArgs = (calls: RecordedCall[]) => calls.filter((c) => c.method === "select").map((c) => c.args[0]);
 const fromTables = (calls: RecordedCall[]) => calls.filter((c) => c.method === "from").map((c) => c.args[0]);
 
-const courseDbRow = {
-  id: COURSE_ID,
-  user_id: USER_ID,
-  title: "Bio",
-  description: null,
-  color: null,
-  created_at: "2026-07-15T00:00:00.000Z",
-  updated_at: "2026-07-15T00:00:00.000Z",
-};
 const folderDbRow = {
   id: FOLDER_ID,
   user_id: USER_ID,
@@ -119,188 +103,7 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-// ─── Courses ─────────────────────────────────────────────────────────────────
-
-describe("getCourse — scoped to user_id", () => {
-  it("filters by both id and user_id and returns the row when owned", async () => {
-    const { db, calls } = makeDbMock([{ data: courseDbRow, error: null }]);
-    mockedCreateDb.mockReturnValue(db);
-
-    const course = await getCourse(COURSE_ID, USER_ID);
-
-    expect(course?.id).toBe(COURSE_ID);
-    expect(eqArgs(calls)).toContainEqual(["id", COURSE_ID]);
-    expect(eqArgs(calls)).toContainEqual(["user_id", USER_ID]);
-  });
-
-  it("returns null when the scoped lookup finds nothing (not owned)", async () => {
-    const { db, calls } = makeDbMock([{ data: null, error: null }]);
-    mockedCreateDb.mockReturnValue(db);
-
-    expect(await getCourse(COURSE_ID, USER_ID)).toBeNull();
-    expect(eqArgs(calls)).toContainEqual(["user_id", USER_ID]);
-  });
-});
-
-describe("updateCourse — scoped to user_id", () => {
-  it("scopes the update by user_id and returns the updated row", async () => {
-    const { db, calls } = makeDbMock([{ data: { ...courseDbRow, title: "Neu" }, error: null }]);
-    mockedCreateDb.mockReturnValue(db);
-
-    const updated = await updateCourse(COURSE_ID, USER_ID, { title: "Neu" });
-
-    expect(updated?.title).toBe("Neu");
-    expect(eqArgs(calls)).toContainEqual(["id", COURSE_ID]);
-    expect(eqArgs(calls)).toContainEqual(["user_id", USER_ID]);
-  });
-
-  it("returns null when the scoped update matched no row (not owned)", async () => {
-    const { db } = makeDbMock([{ data: null, error: null }]);
-    mockedCreateDb.mockReturnValue(db);
-
-    expect(await updateCourse(COURSE_ID, USER_ID, { title: "Neu" })).toBeNull();
-  });
-});
-
-describe("deleteCourse — scoped to user_id", () => {
-  it("returns true when a scoped row was actually deleted", async () => {
-    const { db, calls } = makeDbMock([{ data: { id: COURSE_ID }, error: null }]);
-    mockedCreateDb.mockReturnValue(db);
-
-    expect(await deleteCourse(COURSE_ID, USER_ID)).toBe(true);
-    expect(eqArgs(calls)).toContainEqual(["user_id", USER_ID]);
-  });
-
-  it("returns false when nothing was deleted (not owned) — route will 404", async () => {
-    const { db, calls } = makeDbMock([{ data: null, error: null }]);
-    mockedCreateDb.mockReturnValue(db);
-
-    expect(await deleteCourse(COURSE_ID, USER_ID)).toBe(false);
-    expect(eqArgs(calls)).toContainEqual(["user_id", USER_ID]);
-  });
-});
-
-describe("addDeckToCourse — verifies course AND deck ownership before linking", () => {
-  it("links the deck when the caller owns both course and deck", async () => {
-    // 1: getCourse → owned, 2: getDeck → owned, 3: upsert into course_decks
-    const { db, calls } = makeDbMock([
-      { data: courseDbRow, error: null },
-      { data: deckDbRow, error: null },
-      { data: null, error: null },
-    ]);
-    mockedCreateDb.mockReturnValue(db);
-
-    expect(await addDeckToCourse(COURSE_ID, USER_ID, DECK_ID, 0)).toBe(true);
-    expect(fromTables(calls)).toEqual(["courses", "decks", "course_decks"]);
-    // The deck lookup was scoped to the caller.
-    expect(eqArgs(calls)).toContainEqual(["id", DECK_ID]);
-    expect(eqArgs(calls)).toContainEqual(["user_id", USER_ID]);
-  });
-
-  it("rejects (false) and never links when the course isn't owned", async () => {
-    const { db, calls } = makeDbMock([{ data: null, error: null }]); // getCourse → null
-    mockedCreateDb.mockReturnValue(db);
-
-    expect(await addDeckToCourse(COURSE_ID, USER_ID, DECK_ID, 0)).toBe(false);
-    // Bailed after the course check — deck was never queried, nothing inserted.
-    expect(fromTables(calls)).toEqual(["courses"]);
-  });
-
-  it("rejects (false) when the course is owned but the DECK isn't the caller's", async () => {
-    const { db, calls } = makeDbMock([
-      { data: courseDbRow, error: null }, // getCourse → owned
-      { data: null, error: null }, // getDeck → not owned
-    ]);
-    mockedCreateDb.mockReturnValue(db);
-
-    expect(await addDeckToCourse(COURSE_ID, USER_ID, DECK_ID, 0)).toBe(false);
-    // Verified the deck, then bailed — never inserted into course_decks.
-    expect(fromTables(calls)).toEqual(["courses", "decks"]);
-    expect(fromTables(calls)).not.toContain("course_decks");
-  });
-});
-
-describe("removeDeckFromCourse — requires course ownership", () => {
-  it("removes the link when the course is owned", async () => {
-    const { db, calls } = makeDbMock([
-      { data: courseDbRow, error: null }, // getCourse → owned
-      { data: null, error: null }, // delete from course_decks
-    ]);
-    mockedCreateDb.mockReturnValue(db);
-
-    expect(await removeDeckFromCourse(COURSE_ID, USER_ID, DECK_ID)).toBe(true);
-    expect(fromTables(calls)).toEqual(["courses", "course_decks"]);
-  });
-
-  it("returns false and touches nothing when the course isn't owned", async () => {
-    const { db, calls } = makeDbMock([{ data: null, error: null }]); // getCourse → null
-    mockedCreateDb.mockReturnValue(db);
-
-    expect(await removeDeckFromCourse(COURSE_ID, USER_ID, DECK_ID)).toBe(false);
-    expect(fromTables(calls)).toEqual(["courses"]);
-  });
-});
-
-describe("listDecksInCourse — requires course ownership", () => {
-  it("returns the owner's decks (empty array when owned but no decks)", async () => {
-    const { db } = makeDbMock([
-      { data: courseDbRow, error: null }, // getCourse → owned
-      { data: [], error: null }, // course_decks join
-    ]);
-    mockedCreateDb.mockReturnValue(db);
-
-    expect(await listDecksInCourse(COURSE_ID, USER_ID)).toEqual([]);
-  });
-
-  it("returns null (not empty) when the course isn't owned — route will 404", async () => {
-    const { db, calls } = makeDbMock([{ data: null, error: null }]); // getCourse → null
-    mockedCreateDb.mockReturnValue(db);
-
-    expect(await listDecksInCourse(COURSE_ID, USER_ID)).toBeNull();
-    expect(fromTables(calls)).toEqual(["courses"]);
-  });
-
-  it("filters out any joined deck not belonging to the caller (defense in depth)", async () => {
-    const foreignDeck = { ...deckDbRow, id: "99999999-9999-4999-8999-999999999999", user_id: "someone-else" };
-    const { db } = makeDbMock([
-      { data: courseDbRow, error: null },
-      {
-        data: [
-          { deck_id: DECK_ID, position: 0, decks: deckDbRow },
-          { deck_id: foreignDeck.id, position: 1, decks: foreignDeck },
-        ],
-        error: null,
-      },
-    ]);
-    mockedCreateDb.mockReturnValue(db);
-
-    const decks = await listDecksInCourse(COURSE_ID, USER_ID);
-    expect(decks?.map((d) => d.id)).toEqual([DECK_ID]);
-  });
-
-  it("carries cardCount through the embed instead of leaving it undefined", async () => {
-    const { db, calls } = makeDbMock([
-      { data: courseDbRow, error: null },
-      { data: [{ deck_id: DECK_ID, position: 0, decks: { ...deckDbRow, cards: [{ count: 7 }] } }], error: null },
-    ]);
-    mockedCreateDb.mockReturnValue(db);
-
-    const decks = await listDecksInCourse(COURSE_ID, USER_ID);
-
-    expect(decks?.[0]?.cardCount).toBe(7);
-    // mapDeckRow reads row.cards[0].count — without the nested embed the count
-    // never arrives and every deck reports "undefined" cards.
-    expect(selectArgs(calls)).toContain("deck_id, position, decks(*, cards(count))");
-    // Occlusion cards are their own mode and must not inflate the count (listDecks
-    // filters them the same way, one level up).
-    expect(neqArgs(calls)).toContainEqual(["decks.cards.card_type", "occlusion"]);
-    // Soft-deleted cards must not inflate it either — same filter as listDecks, so
-    // a deck reports the same number in the library and inside a course.
-    expect(isArgs(calls)).toContainEqual(["decks.cards.deleted_at", null]);
-  });
-});
-
-// ─── Folders (symmetric with courses) ────────────────────────────────────────
+// ─── Folders ──────────────────────── ────────────────────────────────────────
 
 describe("getFolder — scoped to user_id", () => {
   it("filters by id and user_id and returns the row when owned", async () => {
@@ -512,7 +315,7 @@ describe("setFolderDeckOrder — requires folder ownership, updates only existin
   });
 });
 
-// ─── Library (the count courses & folders mirror) ─────────────────────────────
+// ─── Library (the count folders mirror) ─────────────────────────────
 
 describe("listDecks — cardCount embed", () => {
   it("excludes soft-deleted cards from the count", async () => {

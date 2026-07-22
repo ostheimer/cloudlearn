@@ -18,7 +18,6 @@ const dbMocks = vi.hoisted(() => ({
   getDeckShareToken: vi.fn(),
   getDeckByShareToken: vi.fn(),
   getDeckWithCardCount: vi.fn(),
-  listCoursesForDeck: vi.fn(),
   listFoldersForDeck: vi.fn(),
 }));
 
@@ -38,7 +37,6 @@ vi.mock("@/lib/db", () => ({
   getDeckShareToken: dbMocks.getDeckShareToken,
   getDeckByShareToken: dbMocks.getDeckByShareToken,
   getDeckWithCardCount: dbMocks.getDeckWithCardCount,
-  listCoursesForDeck: dbMocks.listCoursesForDeck,
   listFoldersForDeck: dbMocks.listFoldersForDeck,
 }));
 

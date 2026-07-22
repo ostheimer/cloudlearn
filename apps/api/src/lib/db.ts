@@ -1084,177 +1084,6 @@ export async function recordScan(
   return data.id;
 }
 
-// ─── Courses ─────────────────────────────────────────────────────────────────
-
-export interface CourseRecord {
-  id: string;
-  userId: string;
-  title: string;
-  description: string | null;
-  color: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapCourseRow(row: any): CourseRecord {
-  return {
-    id: row.id,
-    userId: row.user_id,
-    title: row.title,
-    description: row.description ?? null,
-    color: row.color ?? null,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
-
-export async function createCourse(
-  userId: string,
-  title: string,
-  description?: string,
-  color?: string
-): Promise<CourseRecord> {
-  const db = getDb();
-  const { data, error } = await db
-    .from("courses")
-    .insert({ user_id: userId, title, description: description ?? null, color: color ?? null })
-    .select()
-    .single();
-  if (error) throw new Error(`createCourse: ${error.message}`);
-  return mapCourseRow(data);
-}
-
-export async function listCourses(userId: string): Promise<CourseRecord[]> {
-  const db = getDb();
-  const { data, error } = await db
-    .from("courses")
-    .select()
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
-  if (error) throw new Error(`listCourses: ${error.message}`);
-  return (data ?? []).map(mapCourseRow);
-}
-
-// All course accessors are scoped to the owning user_id. The admin Supabase
-// client bypasses RLS, so ownership must be enforced here in code — otherwise a
-// user could read/modify/delete another user's course by guessing its id (IDOR).
-export async function getCourse(courseId: string, userId: string): Promise<CourseRecord | null> {
-  const db = getDb();
-  const { data, error } = await db
-    .from("courses")
-    .select()
-    .eq("id", courseId)
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (error || !data) return null;
-  return mapCourseRow(data);
-}
-
-export async function updateCourse(
-  courseId: string,
-  userId: string,
-  updates: Partial<Pick<CourseRecord, "title" | "description" | "color">>
-): Promise<CourseRecord | null> {
-  const db = getDb();
-  const dbUpdates: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (updates.title !== undefined) dbUpdates.title = updates.title;
-  if (updates.description !== undefined) dbUpdates.description = updates.description;
-  if (updates.color !== undefined) dbUpdates.color = updates.color;
-  const { data, error } = await db
-    .from("courses")
-    .update(dbUpdates)
-    .eq("id", courseId)
-    .eq("user_id", userId)
-    .select()
-    .maybeSingle();
-  if (error || !data) return null;
-  return mapCourseRow(data);
-}
-
-export async function deleteCourse(courseId: string, userId: string): Promise<boolean> {
-  const db = getDb();
-  // Scope the delete to the owner and read back the affected row so a
-  // not-owned (or missing) course yields false → the route answers 404.
-  const { data, error } = await db
-    .from("courses")
-    .delete()
-    .eq("id", courseId)
-    .eq("user_id", userId)
-    .select("id")
-    .maybeSingle();
-  return !error && !!data;
-}
-
-export async function addDeckToCourse(
-  courseId: string,
-  userId: string,
-  deckId: string,
-  position = 0
-): Promise<boolean> {
-  // Both the course AND the deck must belong to the caller: without the deck
-  // check a user could attach someone else's deck and read its metadata back
-  // through listDecksInCourse.
-  const course = await getCourse(courseId, userId);
-  if (!course) return false;
-  const deck = await getDeck(deckId, userId);
-  if (!deck) return false;
-  const db = getDb();
-  const { error } = await db
-    .from("course_decks")
-    .upsert({ course_id: courseId, deck_id: deckId, position }, { onConflict: "course_id,deck_id" });
-  return !error;
-}
-
-export async function removeDeckFromCourse(courseId: string, userId: string, deckId: string): Promise<boolean> {
-  // Only the course owner may unlink a deck from it.
-  const course = await getCourse(courseId, userId);
-  if (!course) return false;
-  const db = getDb();
-  const { error } = await db
-    .from("course_decks")
-    .delete()
-    .eq("course_id", courseId)
-    .eq("deck_id", deckId);
-  return !error;
-}
-
-// Returns null when the course isn't owned by userId (so the route can 404
-// without leaking existence); an empty array means the course is owned but has
-// no decks.
-export async function listDecksInCourse(courseId: string, userId: string): Promise<DeckRecord[] | null> {
-  const course = await getCourse(courseId, userId);
-  if (!course) return null;
-  const db = getDb();
-  const { data, error } = await db
-    .from("course_decks")
-    // Zähler wie in listDecks: Bild-Occlusion-Karten sind ein eigener Modus und
-    // zählen nicht als „Karten" des Decks. Der Filterpfad ist hier zweistufig,
-    // weil cards eine Ebene tiefer hängt: course_decks → decks → cards.
-    .select("deck_id, position, decks(*, cards(count))")
-    .neq("decks.cards.card_type", "occlusion")
-    .is("decks.cards.deleted_at", null)
-    .eq("course_id", courseId)
-    .order("position", { ascending: true });
-  if (error) throw new Error(`listDecksInCourse: ${error.message}`);
-  return (data ?? [])
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .filter((r: any) => r.decks && !r.decks.deleted_at && r.decks.user_id === userId)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .map((r: any) => mapDeckRow(r.decks));
-}
-
-export async function listCoursesForDeck(deckId: string): Promise<CourseRecord[]> {
-  const db = getDb();
-  const { data, error } = await db
-    .from("course_decks")
-    .select("courses(*)")
-    .eq("deck_id", deckId);
-  if (error) throw new Error(`listCoursesForDeck: ${error.message}`);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data ?? []).filter((r: any) => r.courses).map((r: any) => mapCourseRow(r.courses));
-}
-
 // ─── Folders ─────────────────────────────────────────────────────────────────
 
 export interface FolderRecord {
@@ -1316,8 +1145,8 @@ export async function listFolders(userId: string): Promise<FolderRecord[]> {
   return (data ?? []).map(mapFolderRow);
 }
 
-// Folder accessors are scoped to the owning user_id for the same IDOR reason as
-// courses: the admin client bypasses RLS, so ownership is enforced here.
+// Folder accessors are scoped to the owning user_id: the admin client
+// bypasses RLS, so ownership (IDOR) is enforced here in code.
 export async function getFolder(folderId: string, userId: string): Promise<FolderRecord | null> {
   const db = getDb();
   const { data, error } = await db
@@ -1369,7 +1198,8 @@ export async function deleteFolder(folderId: string, userId: string): Promise<bo
 }
 
 export async function addDeckToFolder(folderId: string, userId: string, deckId: string): Promise<boolean> {
-  // Both the folder AND the deck must belong to the caller (see addDeckToCourse).
+  // Both the folder AND the deck must belong to the caller: without the deck
+  // check a user could attach someone else's deck and read its metadata back.
   const folder = await getFolder(folderId, userId);
   if (!folder) return false;
   const deck = await getDeck(deckId, userId);
@@ -1402,7 +1232,7 @@ export async function listDecksInFolder(folderId: string, userId: string): Promi
   const db = getDb();
   const { data, error } = await db
     .from("folder_decks")
-    // Zähler wie in listDecks / listDecksInCourse: Occlusion-Karten zählen nicht
+    // Zähler wie in listDecks: Occlusion-Karten zählen nicht
     // als „Karten" des Decks, der Filterpfad geht über folder_decks → decks → cards.
     .select("deck_id, position, added_at, decks(*, cards(count))")
     .neq("decks.cards.card_type", "occlusion")

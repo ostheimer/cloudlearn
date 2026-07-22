@@ -26,7 +26,6 @@ const dbMocks = vi.hoisted(() => ({
   getDeckShareToken: vi.fn(),
   getDeckByShareToken: vi.fn(),
   getDeckWithCardCount: vi.fn(),
-  listCoursesForDeck: vi.fn(),
   listFoldersForDeck: vi.fn(),
   createReview: vi.fn(),
   findReviewByIdempotencyKey: vi.fn(),
