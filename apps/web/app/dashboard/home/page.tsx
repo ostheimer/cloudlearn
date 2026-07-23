@@ -264,13 +264,16 @@ export default function HomePage() {
           gap: 12,
         }}
       >
+        {/* Gelb-orange wie das Streak-Banner der App — nicht Brand-Violett;
+            Laras Wunsch 23.07.: „das helle von der App, wirkt fröhlicher". */}
         <Link
           href="/dashboard/streak-calendar"
           style={{
             display: "flex",
             alignItems: "center",
             gap: 13,
-            background: "rgba(99,102,241,0.10)",
+            background: "var(--amber-50)",
+            border: "1px solid var(--amber)",
             borderRadius: 14,
             padding: "14px 16px",
             textDecoration: "none",
@@ -281,9 +284,9 @@ export default function HomePage() {
             style={{
               width: 44,
               height: 44,
-              borderRadius: 12,
-              background: "var(--brand)",
-              color: "#fff",
+              borderRadius: 999,
+              background: "rgba(245, 158, 11, 0.18)",
+              color: "var(--amber)",
               display: "grid",
               placeItems: "center",
               flex: "none",
@@ -293,7 +296,7 @@ export default function HomePage() {
             <Flame size={24} />
           </span>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: "1.05rem", fontWeight: 700, color: "var(--brand)" }}>
+            <div style={{ fontSize: "1.05rem", fontWeight: 700, color: "var(--amber)" }}>
               {streak > 0 ? `${streak} ${streak === 1 ? "Tag" : "Tage"} Streak` : "Starte deinen Streak"}
             </div>
             <div style={{ fontSize: "0.8rem", color: "var(--ink-3)" }}>
