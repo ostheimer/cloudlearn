@@ -46,6 +46,7 @@ import { summarizeCardMedia } from "../src/lib/cardMedia";
 import { isAnswerCorrect } from "../src/lib/answerCheck";
 import { cleanTerm } from "../src/lib/cardTerms";
 import { fetchDeckStats } from "../src/lib/statsApi";
+import { useDisplayName } from "../src/lib/useDisplayName";
 import {
   CardSourcePicker,
   filterBySource,
@@ -118,6 +119,7 @@ export default function ClozeScreen() {
 
   const userId = useSessionStore((state) => state.userId);
   const setUsage = useUsageStore((s) => s.setUsage);
+  const displayName = useDisplayName();
   const enqueueOfflineReview = useOfflineQueueStore((state) => state.enqueue);
   const awardStateRef = useRef<SessionAwardState>({ finalized: false, inFlight: null });
   const pendingReviewsRef = useRef<Promise<unknown>[]>([]);
@@ -813,7 +815,7 @@ export default function ClozeScreen() {
               headline={`${correct} von ${total}`}
               subtitle={
                 allRight
-                  ? "alles richtig — stark!"
+                  ? `alles richtig — stark${displayName ? `, ${displayName}` : ""}!`
                   : `${wrongCount} ${wrongCount === 1 ? "Karte" : "Karten"} noch offen`
               }
               actions={[
