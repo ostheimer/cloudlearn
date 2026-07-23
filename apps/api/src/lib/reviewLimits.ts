@@ -20,3 +20,14 @@
  * raus.
  */
 export const REVIEW_RATE_LIMIT_PER_MINUTE = 600;
+
+/**
+ * Eigener Topf für POST /api/v1/decks/:id/tests — NICHT der Review-Topf oben.
+ *
+ * Diese Route legt keine review_logs-Zeile an (nur eine test_attempts-Zeile per
+ * Idempotenz-Upsert) und kann die Review-Bremse deshalb nicht aushebeln, anders
+ * als /learn/sync, der sich den Topf teilen MUSS (#358). 60/min deckt ein
+ * Abgeben plus so viele Nachbewertungen („War doch richtig"), wie man in einer
+ * Minute tippt — jede trifft ohnehin dieselbe Zeile.
+ */
+export const TEST_ATTEMPT_RATE_LIMIT_PER_MINUTE = 60;

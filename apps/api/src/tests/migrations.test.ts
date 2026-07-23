@@ -470,4 +470,89 @@ describe("supabase migrations", () => {
       ).toBe(true);
     }
   });
+
+  it("test_attempts: eigene Tabelle, RLS ohne Policy, Rechte entzogen, Funktion abgesichert", () => {
+    const sql = readFileSync(
+      join(apiRoot, "supabase/migrations/20260723071835_test_attempts.sql"),
+      "utf-8"
+    );
+    // Kommentare zitieren dieselben Verben; nur echtes SQL, Whitespace geglättet.
+    const flat = sql.replace(/--[^\n]*/g, "").replace(/\s+/g, " ");
+
+    // Tabelle + beide Fremdschlüssel als Kaskade → verhindert, dass die
+    // Konto-Löschung Prüfungen zurücklässt.
+    expect(flat).toContain("create table if not exists test_attempts");
+    expect(flat).toContain("user_id uuid not null references profiles(id) on delete cascade");
+    expect(flat).toContain("deck_id uuid not null references decks(id) on delete cascade");
+    // Tippfehlerschutz → „35 von 30" ist nicht speicherbar.
+    expect(flat).toContain("question_count between 1 and 5000");
+    expect(flat).toContain("correct_count between 0 and question_count");
+
+    // RLS an, aber KEINE Policy: die fehlende Policy IST das Sicherheitsmerkmal.
+    // Eine Policy hier würde jeder Nutzerin „30 von 30" und das Löschen
+    // missratener Prüfungen erlauben — ein späteres Hinzufügen soll rot werden.
+    expect(flat).toContain("alter table test_attempts enable row level security");
+    expect(flat).not.toMatch(/create policy/i);
+    expect(flat).toContain("revoke all on table public.test_attempts from anon, authenticated");
+
+    // Doppel-Abgabe (Zeit-Modus) trifft eine Zeile, nicht zwei.
+    expect(flat).toContain(
+      "create unique index if not exists test_attempts_idempotency_key_idx on test_attempts (user_id, idempotency_key)"
+    );
+
+    // Funktion: greatest() macht die Korrektur monoton (ältere 18 überschreibt
+    // keine gespeicherte 19), WHERE deck_id verhindert das Umschreiben einer
+    // fremden Prüfung auf ein anderes Deck.
+    expect(flat).toContain("greatest(test_attempts.question_count, excluded.question_count)");
+    expect(flat).toContain("greatest(test_attempts.correct_count, excluded.correct_count)");
+    expect(flat).toContain("where test_attempts.deck_id = excluded.deck_id");
+    // revoke gegen public allein sperrt anon/authenticated NICHT aus (die
+    // delete_account_data-Lücke) → beide werden ausdrücklich entzogen.
+    expect(flat).toContain(
+      "revoke execute on function record_test_attempt(uuid, uuid, text, int, int) from anon"
+    );
+    expect(flat).toContain(
+      "revoke execute on function record_test_attempt(uuid, uuid, text, int, int) from authenticated"
+    );
+    expect(flat).toContain(
+      "grant execute on function record_test_attempt(uuid, uuid, text, int, int) to service_role"
+    );
+  });
+
+  it("test_attempts: die Härtung verankert den Suchpfad fest", () => {
+    const sql = readFileSync(
+      join(apiRoot, "supabase/migrations/20260723072036_test_attempts_harden_search_path.sql"),
+      "utf-8"
+    );
+    // Ohne festen search_path wäre die Funktion „role mutable" (Advisor-WARN)
+    // und potentiell über einen manipulierten Pfad angreifbar.
+    expect(sql.replace(/\s+/g, " ")).toContain("set search_path = ''");
+  });
+
+  it("jede create-table-Migration ab 20260722 aktiviert RLS in derselben Datei", () => {
+    // Die Fehlerklasse „neue Tabelle offen, bis jemand zusperrt" hat viermal
+    // zugeschlagen. Für neue Migrationen ist RLS in derselben Datei Pflicht.
+    // Bewusst erst ab 20260722: ältere Tabellen bekamen RLS teils erst Monate
+    // später (z. B. deleted_accounts) — die rückwirkend zu prüfen, würde den
+    // Test ohne Sicherheitsgewinn rot machen.
+    const migrationDir = join(apiRoot, "supabase/migrations");
+    const files = readdirSync(migrationDir)
+      .filter((file) => file.endsWith(".sql"))
+      .sort();
+    for (const file of files) {
+      if (file < "20260722") continue;
+      const sql = readFileSync(join(migrationDir, file), "utf-8")
+        .replace(/--[^\n]*/g, "")
+        .toLowerCase();
+      const tables = [
+        ...sql.matchAll(/create table(?:\s+if not exists)?\s+(?:public\.)?([a-z_][a-z0-9_]*)/g),
+      ].map((match) => match[1]);
+      for (const table of tables) {
+        expect(
+          new RegExp(`alter table\\s+(?:public\\.)?${table}\\s+enable row level security`).test(sql),
+          `${table} (in ${file}) braucht "enable row level security" in derselben Datei`
+        ).toBe(true);
+      }
+    }
+  });
 });
