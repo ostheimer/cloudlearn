@@ -33,6 +33,7 @@ import {
 import { listCardsInDeck, type Card } from "../src/lib/api";
 import { sendReview } from "../src/features/sync/sendReview";
 import { setLastUsedDeck } from "../src/lib/lastUsedDeck";
+import { useDisplayName } from "../src/lib/useDisplayName";
 import { useSessionStore } from "../src/store/sessionStore";
 import { excludeOcclusionCards } from "../src/lib/occlusion";
 import { isAnswerCorrect } from "../src/lib/answerCheck";
@@ -114,6 +115,7 @@ async function flushReviews(
 export default function TestScreen() {
   const colors = useColors();
   const { t } = useTranslation();
+  const displayName = useDisplayName();
   const router = useRouter();
   const startReview = useReviewSession((s) => s.start);
   const userId = useSessionStore((s) => s.userId);
@@ -704,6 +706,13 @@ export default function TestScreen() {
               </View>
               <Text style={{ fontSize: typography.xxxl, fontWeight: typography.extrabold, color: colors.text }}>{percent} %</Text>
               <Text style={{ fontSize: typography.base, color: colors.textSecondary }}>{scoredCount} von {questions.length} richtig</Text>
+              {/* Persönliches Lob nur bei voller Punktzahl — eine Prüfung
+                  bleibt sonst bewusst nüchtern (wie im Web). */}
+              {percent === 100 && (
+                <Text style={{ fontSize: typography.base, fontWeight: typography.bold, color: colors.success }}>
+                  Volle Punktzahl — stark{displayName ? `, ${displayName}` : ""}!
+                </Text>
+              )}
               {/* Ohne diesen Satz sähe eine vorzeitig beendete Prüfung aus wie
                   eine vollständige — mit einer Quote, die sich auf weniger
                   Fragen bezieht, als man sich vorgenommen hatte. */}

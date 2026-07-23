@@ -24,6 +24,7 @@ import {
 import { earnLp, listCardsInDeck, type Card } from "../src/lib/api";
 import { sendReview } from "../src/features/sync/sendReview";
 import { setLastUsedDeck } from "../src/lib/lastUsedDeck";
+import { useDisplayName } from "../src/lib/useDisplayName";
 import { finishRateModeRound } from "../src/lib/rateModeRound";
 import { useSessionStore } from "../src/store/sessionStore";
 import { useUsageStore } from "../src/store/usageStore";
@@ -68,6 +69,7 @@ type Phase = "setup" | "playing" | "finished";
 export default function MatchScreen() {
   const colors = useColors();
   const userId = useSessionStore((s) => s.userId);
+  const displayName = useDisplayName();
   const setUsage = useUsageStore((s) => s.setUsage);
   const { deckId, deckTitle } = useLocalSearchParams<{
     deckId: string;
@@ -632,7 +634,7 @@ export default function MatchScreen() {
                 color: colors.text,
               }}
             >
-              {timed ? formatTime(elapsed) : "Geschafft!"}
+              {timed ? formatTime(elapsed) : `Geschafft${displayName ? `, ${displayName}` : ""}!`}
             </Text>
 
             {timed && isNewBest && (

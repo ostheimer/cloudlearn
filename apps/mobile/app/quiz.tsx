@@ -25,6 +25,7 @@ import {
 import { earnLp, listCardsInDeck, type Card } from "../src/lib/api";
 import { sendReview } from "../src/features/sync/sendReview";
 import { setLastUsedDeck } from "../src/lib/lastUsedDeck";
+import { useDisplayName } from "../src/lib/useDisplayName";
 import { finishRateModeRound } from "../src/lib/rateModeRound";
 import { useSessionStore } from "../src/store/sessionStore";
 import { useUsageStore } from "../src/store/usageStore";
@@ -45,6 +46,7 @@ import { useColors, spacing, radius, typography, shadows } from "../src/theme";
 export default function QuizScreen() {
   const colors = useColors();
   const { t } = useTranslation();
+  const displayName = useDisplayName();
   const { deckId, deckTitle } = useLocalSearchParams<{
     deckId: string;
     deckTitle: string;
@@ -624,7 +626,9 @@ export default function QuizScreen() {
                 textAlign: "center",
               }}
             >
-              {scorePercent >= 80
+              {correctCount === answers.length
+                ? `Hervorragend${displayName ? `, ${displayName}` : ""}! Du beherrschst den Stoff.`
+                : scorePercent >= 80
                 ? "Hervorragend! Du beherrschst den Stoff."
                 : scorePercent >= 50
                 ? "Gut! Etwas mehr Übung und du hast es drauf."
