@@ -185,7 +185,8 @@ export default function LpPage() {
               <span className="lp-way__txt">
                 <span className="lp-way__t">Freunde einladen</span>
                 <span className="lp-way__s">
-                  +50 LP je geworbenem Freund, +25 LP fürs Einlösen eines Codes
+                  +50 LP je geworbenem Freund oder geworbener Freundin, +25 LP fürs Einlösen eines
+                  Codes
                 </span>
               </span>
               <ChevronRight size={18} style={{ color: "var(--ink-3)", flex: "none" }} />

@@ -162,7 +162,7 @@ export default function FriendsPage() {
         className="btn btn-primary btn-block"
         style={{ textDecoration: "none", gap: 8, marginBottom: 16 }}
       >
-        <UserPlus size={18} /> Freund hinzufügen
+        <UserPlus size={18} /> Freund oder Freundin hinzufügen
       </Link>
 
       {msg && (
@@ -407,8 +407,8 @@ export default function FriendsPage() {
               </div>
               <h3>Noch keine Freunde</h3>
               <p>
-                Nutze oben „Freund hinzufügen" — teile deinen Code oder gib den einer Freundin ein,
-                dann könnt ihr gemeinsam einen Streak halten.
+                Nutze oben „Freund oder Freundin hinzufügen" — teile deinen Code oder gib den Code
+                eines Freundes oder einer Freundin ein, dann könnt ihr gemeinsam einen Streak halten.
               </p>
             </div>
           ) : null}
