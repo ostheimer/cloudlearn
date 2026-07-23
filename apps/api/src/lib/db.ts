@@ -14,6 +14,7 @@ import {
   type Flashcard,
   type ReviewMode,
   type SubscriptionTier,
+  type TestAttemptSummary,
 } from "./contracts";
 
 // ─── Interfaces (same shape as inMemoryStore) ───────────────────────────────
@@ -1789,4 +1790,111 @@ export async function getDeckReviewSummaries(
       accuracyRate: s.total > 0 ? Math.round((s.good / s.total) * 100) / 100 : 0,
     };
   });
+}
+
+// ─── Prüfungen (test_attempts) ──────────────────────────────────────────────
+
+/**
+ * IDs aller nicht gelöschten Karten, die diesem Nutzer in diesem Deck gehören.
+ * Grundlage für die Prüfungs-Zählung: nur Antworten zu diesen IDs zählen, damit
+ * eine gefälschte oder veraltete cardId den Nenner nicht aufbläht.
+ */
+export async function getDeckCardIds(userId: string, deckId: string): Promise<Set<string>> {
+  const db = getDb();
+  const { data, error } = await db
+    .from("cards")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("deck_id", deckId)
+    .is("deleted_at", null);
+  if (error) throw new Error(`getDeckCardIds: ${error.message}`);
+  return new Set((data ?? []).map((r) => r.id as string));
+}
+
+export interface TestAttemptRow {
+  id: string;
+  deckId: string;
+  questionCount: number;
+  correctCount: number;
+  submittedAt: string;
+}
+
+/**
+ * Fehlermeldung, an der der Service den Deck-Konflikt erkennt (23505 aus dem
+ * ON-CONFLICT-WHERE der Funktion: gleicher Rundenschlüssel, anderes Deck).
+ * Eigene Konstante, damit Werfer und Fänger denselben String benutzen —
+ * message-basierte Erkennung ist hier bereits Konvention (vgl. "Card not
+ * found" in http.ts).
+ */
+export const TEST_ATTEMPT_DECK_CONFLICT = "test_attempt_deck_conflict";
+
+/**
+ * Schreibt (oder korrigiert per „War doch richtig") eine abgegebene Prüfung
+ * über record_test_attempt. Zählen und Filtern der Antworten passiert im
+ * Service; hier nur der atomare, idempotente Upsert.
+ */
+export async function recordTestAttempt(
+  userId: string,
+  deckId: string,
+  idempotencyKey: string,
+  questionCount: number,
+  correctCount: number
+): Promise<TestAttemptRow> {
+  const db = getDb();
+  const { data, error } = await db.rpc("record_test_attempt", {
+    p_user: userId,
+    p_deck: deckId,
+    p_key: idempotencyKey,
+    p_questions: questionCount,
+    p_correct: correctCount,
+  });
+  if (error) {
+    // 23505 kommt ausschließlich aus dem „gleicher Schlüssel, anderes Deck"-
+    // Wächter der Funktion — der Client hat einen Rundenschlüssel wiederverwendet.
+    if ((error as { code?: string }).code === "23505") {
+      throw new Error(TEST_ATTEMPT_DECK_CONFLICT);
+    }
+    throw new Error(`recordTestAttempt: ${error.message}`);
+  }
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) throw new Error("recordTestAttempt: no row returned");
+  return {
+    id: row.id as string,
+    deckId: row.deck_id as string,
+    questionCount: row.question_count as number,
+    correctCount: row.correct_count as number,
+    submittedAt: row.submitted_at as string,
+  };
+}
+
+/**
+ * Die letzten `limit` abgegebenen Prüfungen dieser Nutzerin, neueste zuerst,
+ * mit Deck-Titel. Prüfungen zu WEICH gelöschten Decks fallen raus (inner join +
+ * `decks.deleted_at is null`): Laras Regel „Deck gelöscht -> Prüfungen weg".
+ * Der FK-Cascade allein trägt das nicht, weil softDeleteDeck nur deleted_at
+ * setzt und die Kaskade deshalb nie feuert. Der Filter läuft VOR dem limit, es
+ * kommen also die letzten fünf mit noch lebendem Deck.
+ */
+export async function getLastTestAttempts(
+  userId: string,
+  limit = 5
+): Promise<TestAttemptSummary[]> {
+  const db = getDb();
+  const { data, error } = await db
+    .from("test_attempts")
+    .select("id, deck_id, question_count, correct_count, submitted_at, decks!inner(title, deleted_at)")
+    .eq("user_id", userId)
+    .is("decks.deleted_at", null)
+    .order("submitted_at", { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(`getLastTestAttempts: ${error.message}`);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return ((data ?? []) as any[]).map((r) => ({
+    id: r.id as string,
+    deckId: r.deck_id as string,
+    deckTitle: (r.decks?.title as string | null) ?? "",
+    questionCount: r.question_count as number,
+    correctCount: r.correct_count as number,
+    submittedAt: r.submitted_at as string,
+  }));
 }

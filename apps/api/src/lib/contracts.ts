@@ -189,6 +189,46 @@ export const reviewRequestSchema = z.object({
   mode: reviewModeSchema.default("flashcard"),
 });
 
+/**
+ * Eine Antwort einer abgegebenen Prüfung. `correct: boolean` statt eines
+ * Ratings, weil beide Prüfungsbildschirme ohnehin nur richtig/falsch kennen —
+ * die engere Form nimmt dem Client die Möglichkeit, etwas anderes zu schmuggeln.
+ */
+export const testAnswerSchema = z.object({
+  cardId: z.string().uuid(),
+  correct: z.boolean(),
+});
+
+/**
+ * Eine abgegebene Prüfung. Der Client schickt AUSSCHLIESSLICH die Antworten,
+ * nie das Ergebnis: kein `total`, kein `correct`, kein `percent`. Was der
+ * Server nicht entgegennimmt, kann niemand behaupten — er zählt selbst, und nur
+ * Antworten zu eigenen, nicht gelöschten Karten dieses Decks.
+ */
+export const testAttemptSubmitSchema = z.object({
+  userId: z.string().uuid(),
+  deckId: z.string().uuid(),
+  idempotencyKey: z.string().min(8).max(128),
+  // 2000 = maxCardsPerDeck (Pro), die theoretisch längste Runde. Bewusst NICHT
+  // die 500 aus syncRequestSchema: beide Prüfungsschirme setzen die Fragenzahl
+  // per Default auf das GANZE Deck. Mit 500 wäre jede Prüfung über einem großen
+  // Deck still an einer zu engen Grenze verschwunden — ein Offline-Paket darf
+  // man stückeln, eine Prüfung nicht.
+  answers: z.array(testAnswerSchema).min(1).max(2000),
+});
+export type TestAttemptSubmit = z.infer<typeof testAttemptSubmitSchema>;
+
+/** Eine Zeile der „letzte fünf Prüfungen"-Liste. */
+export const testAttemptSummarySchema = z.object({
+  id: z.string().uuid(),
+  deckId: z.string().uuid(),
+  deckTitle: z.string(),
+  questionCount: z.number().int().positive(),
+  correctCount: z.number().int().nonnegative(),
+  submittedAt: z.string().datetime(),
+});
+export type TestAttemptSummary = z.infer<typeof testAttemptSummarySchema>;
+
 export const fsrsStateSchema = z.enum(["new", "learning", "review", "relearning"]);
 
 export const reviewResponseSchema = z.object({
