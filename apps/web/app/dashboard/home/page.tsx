@@ -6,13 +6,13 @@ import {
   getStats,
   getLpBalance,
   getFriendStreaks,
-  getProfile,
   listDecks,
   buyStreakRepair,
   isApiError,
   type StatsResponse,
   type FriendStreak,
 } from "@/lib/api";
+import { useDisplayName } from "@/lib/use-display-name";
 import { useAuth } from "@/components/app/auth-context";
 import {
   Flame,
@@ -38,7 +38,9 @@ export default function HomePage() {
   const [lp, setLp] = useState<number | null>(null);
   const [friendStreaks, setFriendStreaks] = useState<FriendStreak[]>([]);
   const [recentDeck, setRecentDeck] = useState<{ id: string; title: string } | null>(null);
-  const [displayName, setDisplayName] = useState<string | null>(null);
+  // Anzeigename für die persönliche Begrüßung — ohne ihn bleibt es beim
+  // schlichten "Willkommen zurück".
+  const displayName = useDisplayName();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [repairing, setRepairing] = useState(false);
@@ -66,14 +68,6 @@ export default function HomePage() {
     getFriendStreaks()
       .then((r) => setFriendStreaks(r.streaks))
       .catch(() => setFriendStreaks([]));
-  }, []);
-
-  // Anzeigename für die persönliche Begrüßung — ohne ihn bleibt es beim
-  // schlichten "Willkommen zurück".
-  useEffect(() => {
-    getProfile()
-      .then((p) => setDisplayName(p.displayName))
-      .catch(() => {});
   }, []);
 
   // Zuletzt bearbeitetes Deck für den "Zuletzt genutzt"-Wiedereinstieg.

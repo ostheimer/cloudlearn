@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/app/auth-context";
-import { reviewCard, earnLp, getProfile, type Card, type ReviewRating } from "@/lib/api";
+import { reviewCard, earnLp, type Card, type ReviewRating } from "@/lib/api";
+import { useDisplayName } from "@/lib/use-display-name";
 import { X, Trophy, Zap } from "@/components/icons";
 import {
   beginSessionAward,
@@ -47,7 +48,9 @@ export function LearnSession({
   const [notKnown, setNotKnown] = useState<Card[]>([]);
   const [earned, setEarned] = useState<number | null>(null);
   const [earnCapReached, setEarnCapReached] = useState(false);
-  const [displayName, setDisplayName] = useState<string | null>(null);
+  // Anzeigename fürs persönliche Lob am Ende — ohne ihn bleibt es beim
+  // schlichten "Session geschafft!".
+  const displayName = useDisplayName();
   const awardStateRef = useRef<SessionAwardState>({ finalized: false, inFlight: null });
   const pendingReviewsRef = useRef<Promise<unknown>[]>([]);
 
@@ -91,14 +94,6 @@ export function LearnSession({
   useEffect(() => {
     if (done) void awardSession(total);
   }, [done, total, awardSession]);
-
-  // Anzeigename fürs persönliche Lob am Ende — ohne ihn bleibt es beim
-  // schlichten "Session geschafft!" (gleiches Muster wie die Web-Home).
-  useEffect(() => {
-    getProfile()
-      .then((p) => setDisplayName(p.displayName))
-      .catch(() => {});
-  }, []);
 
   function rate(rating: ReviewRating) {
     const card = cards[index];
