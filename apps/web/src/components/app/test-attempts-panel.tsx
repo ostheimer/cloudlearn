@@ -110,8 +110,7 @@ export function TestAttemptsPanel({
             padding: "9px 11px",
           }}
         >
-          In einer Prüfung schneidest du meist etwas schlechter ab als beim Lernen mit
-          Umdrehen — das ist normal und ehrlicher.
+          Prüfungen fallen meist etwas niedriger aus — das ist normal.
         </p>
       )}
 
