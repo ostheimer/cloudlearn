@@ -83,7 +83,14 @@ export function softDeleteDeck(deckId: string): boolean {
     return false;
   }
 
-  decks.set(deckId, { ...current, deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+  const now = new Date().toISOString();
+  decks.set(deckId, { ...current, deletedAt: now, updatedAt: now });
+  // Mirrors db.ts: deleting a deck also soft-deletes its cards (#495).
+  for (const [id, card] of cards) {
+    if (card.deckId === deckId && !card.deletedAt) {
+      cards.set(id, { ...card, deletedAt: now });
+    }
+  }
   return true;
 }
 
@@ -165,6 +172,12 @@ export function listDueCards(userId: string, nowIso: string): CardRecord[] {
   const now = new Date(nowIso).getTime();
   return [...cards.values()]
     .filter((card) => card.userId === userId && !card.deletedAt)
+    // Mirrors the db.ts inner join on live decks: cards of soft-deleted decks
+    // must never count as due (#495).
+    .filter((card) => {
+      const deck = decks.get(card.deckId);
+      return !!deck && !deck.deletedAt;
+    })
     // Mirrors the db.ts query: occlusion cards are learned only in the
     // Bild-Abdecken mode, so they never count as "due" for a flashcard round.
     .filter((card) => card.type !== "occlusion")
