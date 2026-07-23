@@ -133,3 +133,26 @@ describe("generateQuestions — Ablenker nur aus derselben Kartenart (#380)", ()
     expect(questions.length).toBeGreaterThan(0);
   });
 });
+
+describe("generateQuestions — Wahr/Falsch kennt die echte Antwort (#497)", () => {
+  it("tfPairing nennt die wirklich richtige Rückseite und ob die gezeigte stimmt", () => {
+    // Der Ergebnis-Bildschirm zeigt bei einer falschen Paarung, was wirklich
+    // zur Karte gehört — das Feld muss also immer die echte Rückseite tragen.
+    let tfCount = 0;
+    for (const seed of [1, 2, 3, 5, 7, 11, 13, 17]) {
+      for (const q of generateQuestions(vocabCards, {}, seeded(seed))) {
+        if (q.type !== "trueFalse" || !q.tfPairing) continue;
+        tfCount++;
+        const card = vocabCards.find((c) => c.id === q.cardId)!;
+        expect(q.tfPairing.correctBack).toBe(card.back);
+        expect(q.tfPairing.isCorrect).toBe(q.correctAnswer === "Richtig");
+        if (q.tfPairing.isCorrect) {
+          expect(q.tfPairing.back).toBe(card.back);
+        } else {
+          expect(q.tfPairing.back).not.toBe(card.back);
+        }
+      }
+    }
+    expect(tfCount).toBeGreaterThan(0);
+  });
+});

@@ -22,7 +22,9 @@ export interface QuizQuestion {
   options: string[];
   correctIndex: number;
   correctAnswer: string;
-  tfPairing?: { front: string; back: string };
+  // correctBack: die wirklich zur Karte gehörende Antwortseite — der
+  // Ergebnis-Bildschirm zeigt sie, wenn die gezeigte Paarung falsch war (#497).
+  tfPairing?: { front: string; back: string; correctBack: string; isCorrect: boolean };
 }
 
 export interface GenerateOptions {
@@ -141,7 +143,12 @@ export function generateQuestions(
         options: [TRUE_LABEL, FALSE_LABEL],
         correctIndex: effectiveIsCorrect ? 0 : 1,
         correctAnswer: effectiveIsCorrect ? TRUE_LABEL : FALSE_LABEL,
-        tfPairing: { front: current.questionSide || current.label, back: shownAnswer },
+        tfPairing: {
+          front: current.questionSide || current.label,
+          back: shownAnswer,
+          correctBack: current.answerSide || current.label,
+          isCorrect: effectiveIsCorrect,
+        },
       });
       continue;
     }

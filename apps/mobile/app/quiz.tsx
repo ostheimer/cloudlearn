@@ -689,28 +689,65 @@ export default function QuizScreen() {
                       <XCircle size={20} color={colors.error} />
                     )}
                     <View style={{ flex: 1 }}>
+                      {/* Wahr/Falsch: nur die Vorderseite plus „Richtig: Falsch"
+                          las sich wie ein Widerspruch, weil die geprüfte
+                          Zuordnung fehlte (#497). Farbe = hast du die Frage
+                          getroffen, Zeichen (=/≠) = gehört das Paar wirklich
+                          zusammen; der Satz nennt den getippten Knopf wörtlich
+                          und bei einem Schwindel-Paar folgt die echte Antwort. */}
                       <Text
                         style={{
                           fontSize: typography.sm,
                           color: colors.text,
                           fontWeight: typography.medium,
                         }}
-                        numberOfLines={1}
+                        numberOfLines={q.type === "trueFalse" ? 3 : 1}
                       >
                         {q.type === "trueFalse"
-                          ? q.tfPairing!.front
+                          ? `${q.tfPairing!.front} ${q.tfPairing!.isCorrect ? "=" : "≠"} ${q.tfPairing!.back}`
                           : q.questionText}
                       </Text>
-                      {!wasCorrect && (
-                        <Text
-                          style={{
-                            fontSize: typography.xs,
-                            color: colors.success,
-                            marginTop: 2,
-                          }}
-                        >
-                          Richtig: {q.correctAnswer}
-                        </Text>
+                      {q.type === "trueFalse" && q.tfPairing ? (
+                        <>
+                          <Text
+                            style={{
+                              fontSize: typography.xs,
+                              color: colors.textSecondary,
+                              marginTop: 2,
+                            }}
+                          >
+                            {`Du hast „${
+                              wasCorrect === q.tfPairing.isCorrect ? "Richtig" : "Falsch"
+                            }“ getippt — ${
+                              wasCorrect ? "passt:" : "doch"
+                            } das Paar gehört ${
+                              q.tfPairing.isCorrect ? "wirklich" : "nicht"
+                            } zusammen.`}
+                          </Text>
+                          {!q.tfPairing.isCorrect && (
+                            <Text
+                              style={{
+                                fontSize: typography.xs,
+                                color: colors.success,
+                                marginTop: 2,
+                              }}
+                            >
+                              Tatsächlich gehört dazu: {q.tfPairing.correctBack}
+                            </Text>
+                          )}
+                        </>
+                      ) : (
+                        !wasCorrect && (
+                          <Text
+                            style={{
+                              fontSize: typography.xs,
+                              color: colors.success,
+                              marginTop: 2,
+                            }}
+                          >
+                            Richtig: {q.correctAnswer}
+                          </Text>
+                        )
                       )}
                     </View>
                   </View>

@@ -340,7 +340,24 @@ export default function QuizPage() {
           <div className="quiz-sum">
             {questions.map((qq, i) => {
               const ok = answers[i];
-              const label = qq.type === "trueFalse" ? qq.tfPairing?.front : qq.questionText;
+              // Wahr/Falsch: nur die Vorderseite plus „Richtig: Falsch" las sich
+              // wie ein Widerspruch, weil die geprüfte Zuordnung fehlte (#497).
+              // Farbe = hast du die Frage getroffen, Zeichen (=/≠) = gehört das
+              // gezeigte Paar wirklich zusammen. Weil man aus Häkchen+Zeichen
+              // den eigenen Tipp erst zusammenreimen musste, nennt der Satz ihn
+              // wörtlich („Du hast ‚Falsch' getippt — …") und sagt direkt, wie
+              // es wirklich ist; bei einem Schwindel-Paar folgt die echte Antwort.
+              const tf = qq.type === "trueFalse" ? qq.tfPairing : undefined;
+              const label = tf
+                ? `${tf.front} ${tf.isCorrect ? "=" : "≠"} ${tf.back}`
+                : qq.questionText;
+              // Getippt wurde der richtige Knopf genau dann, wenn die Antwort
+              // stimmt — der richtige Knopf heißt „Richtig", wenn das Paar echt ist.
+              const tfNote = tf
+                ? `Du hast „${ok === tf.isCorrect ? "Richtig" : "Falsch"}“ getippt — ${
+                    ok ? "passt:" : "doch"
+                  } das Paar gehört ${tf.isCorrect ? "wirklich" : "nicht"} zusammen.`
+                : null;
               return (
                 <div key={i} className={`quiz-sum__row ${ok ? "ok" : "no"}`}>
                   <span
@@ -350,8 +367,21 @@ export default function QuizPage() {
                     {ok ? <CheckCircle size={18} /> : <X size={18} />}
                   </span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className="quiz-sum__q">{label}</div>
-                    {!ok && <div className="quiz-sum__fix">Richtig: {qq.correctAnswer}</div>}
+                    <div className={`quiz-sum__q${tf ? " quiz-sum__q--wrap" : ""}`}>
+                      {label}
+                    </div>
+                    {tf ? (
+                      <>
+                        <div className="quiz-sum__note">{tfNote}</div>
+                        {!tf.isCorrect && (
+                          <div className="quiz-sum__fix">
+                            Tatsächlich gehört dazu: {tf.correctBack}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      !ok && <div className="quiz-sum__fix">Richtig: {qq.correctAnswer}</div>
+                    )}
                   </div>
                 </div>
               );

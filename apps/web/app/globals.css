@@ -1857,6 +1857,16 @@ a.mode-card:hover {
   color: var(--green);
   margin-top: 2px;
 }
+/* Wahr/Falsch-Zeilen zeigen die ganze geprüfte Zuordnung (#497) — die darf
+   umbrechen, sonst schneidet die Ellipse genau den Teil ab, um den es geht. */
+.quiz-sum__q--wrap {
+  white-space: normal;
+}
+.quiz-sum__note {
+  font-size: 0.72rem;
+  color: var(--ink-2);
+  margin-top: 2px;
+}
 
 /* ---------- Occlusion-Editor ---------- */
 .occ-tools {
