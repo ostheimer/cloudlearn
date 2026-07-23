@@ -3,6 +3,7 @@
   "framework": "nextjs",
   "installCommand": "pnpm install --frozen-lockfile",
   "buildCommand": "pnpm run build",
+  "regions": ["dub1"],
   "crons": [
     { "path": "/api/v1/push/streak-alerts", "schedule": "0 17 * * *" }
   ]
