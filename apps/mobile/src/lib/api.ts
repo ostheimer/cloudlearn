@@ -531,6 +531,37 @@ export async function syncReviewOperations(
   });
 }
 
+export interface TestAttemptResult {
+  id: string;
+  deckId: string;
+  questionCount: number;
+  correctCount: number;
+  submittedAt: string;
+}
+
+/**
+ * Eine ABGEGEBENE Prüfung als eine Zeile protokollieren (test_attempts).
+ *
+ * Nicht der Weg für Streak, Statistik-Menge oder Lernplan — die hängen weiter
+ * an den einzelnen `sendReview(..., mode: "test")`-Aufrufen daneben. Hier wird
+ * nur die Prüfung als Einheit festgehalten, für den Prüfungs-Bereich der
+ * Statistik (letzte Prüfungen mit Deck, Datum und „18 von 30").
+ *
+ * Nur die Antwortliste, nie das Ergebnis: der Server zählt selbst gegen die
+ * echten Karten des Decks.
+ */
+export async function recordTestAttempt(
+  userId: string,
+  deckId: string,
+  idempotencyKey: string,
+  answers: Array<{ cardId: string; correct: boolean }>
+): Promise<TestAttemptResult> {
+  return requestAuthenticated<TestAttemptResult>(`/api/v1/decks/${deckId}/tests`, {
+    method: "POST",
+    body: JSON.stringify({ userId, idempotencyKey, answers }),
+  });
+}
+
 // --- Deck Management ---
 
 export async function updateDeck(
