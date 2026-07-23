@@ -20,6 +20,7 @@ import {
 } from "lucide-react-native";
 import { useColors, spacing, radius, typography } from "../src/theme";
 import { useSessionStore } from "../src/store/sessionStore";
+import { supabase } from "../src/lib/supabase";
 import {
   getStats,
   getStreakCalendar,
@@ -64,6 +65,27 @@ export default function StreakCalendarScreen() {
   const [calendar, setCalendar] = useState<StreakCalendarResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  // Before signup there was nothing to learn — paging back ends there, same
+  // rule as on the web calendar. The date lives in the local Supabase session,
+  // no API call needed; created_at is UTC, which is close enough for a month
+  // boundary (at worst one extra month is allowed, never one too few).
+  const [signupMonth, setSignupMonth] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        const created = data.session?.user.created_at;
+        if (active && created) setSignupMonth(created.slice(0, 7));
+      })
+      .catch(() => {
+        // Without the date, paging back stays open as before.
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // /api/v1/stats is heavier than the calendar endpoint (decks, due cards, full
   // review stats), so it lands noticeably later. Refetch on focus and keep the
@@ -95,6 +117,7 @@ export default function StreakCalendarScreen() {
   const learned = new Set(calendar?.learnedDays ?? []);
   const frozen = new Set(calendar?.frozenDays ?? []);
   const atCurrentMonth = month >= currentMonth;
+  const atSignupMonth = signupMonth !== null && month <= signupMonth;
 
   const [y, m] = month.split("-").map(Number);
   const monthLabel = new Date(y ?? 0, (m ?? 1) - 1, 1).toLocaleDateString(
@@ -208,9 +231,10 @@ export default function StreakCalendarScreen() {
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
             <TouchableOpacity
               onPress={() => setMonth((prev) => shiftMonth(prev, -1))}
+              disabled={atSignupMonth}
               hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
             >
-              <ChevronLeft size={22} color={colors.text} />
+              <ChevronLeft size={22} color={atSignupMonth ? colors.textTertiary : colors.text} />
             </TouchableOpacity>
             <Text style={{ fontSize: typography.base, fontWeight: typography.semibold, color: colors.text }}>
               {monthLabel}
