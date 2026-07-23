@@ -48,6 +48,42 @@ for (const { name, rel } of SCREENS) {
   });
 }
 
+describe("mobile occlusion – earnLp erst, wenn die Reviews durch sind", () => {
+  const source = read("app/occlusion.tsx");
+
+  it("überlässt die Ein-Karten-Schwelle dem gemeinsamen Helper", () => {
+    const from = source.indexOf("const awardSession = useCallback");
+    const to = source.indexOf("useEffect(() =>", from);
+    const awardSession = from > -1 && to > from ? source.slice(from, to) : "";
+
+    expect(awardSession).not.toBe("");
+    expect(awardSession).toContain("return beginSessionAward(state, count");
+    expect(awardSession).not.toMatch(/if\s*\(\s*count\s*</);
+  });
+
+  it("hängt jede sendReview-Anfrage in die Warteliste", () => {
+    expect(source).toContain("pendingReviewsRef.current.push(reviewPromise);");
+  });
+
+  it("wartet die offenen Reviews ab, BEVOR earnLp läuft", () => {
+    const waited = source.indexOf("await Promise.allSettled(pendingReviews);");
+    const earned = source.indexOf('earnLp("session"');
+    expect(waited).toBeGreaterThan(-1);
+    expect(earned).toBeGreaterThan(-1);
+    expect(waited).toBeLessThan(earned);
+  });
+
+  it("wiederholt earnLp, solange der Server noch nichts gutgeschrieben hat", () => {
+    expect(source).toContain("for (let attempt = 0; attempt < maxAttempts; attempt += 1)");
+    expect(source).toContain("isSessionEarnFinalized(res, count)");
+  });
+
+  it("sichert LP vor Neustart und nutzt kein awardedRef mehr", () => {
+    expect(source).toContain("await awardSession(total);");
+    expect(source).not.toContain("awardedRef");
+  });
+});
+
 describe("mobile cloze – Folgerunden werden weiter abgerechnet", () => {
   const source = read("app/cloze.tsx");
 
