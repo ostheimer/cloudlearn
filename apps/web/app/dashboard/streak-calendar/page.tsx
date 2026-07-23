@@ -179,7 +179,7 @@ export default function StreakCalendarPage() {
       </div>
 
       {/* Monatskalender */}
-      <div className="panel">
+      <div className="panel cal-panel">
         <div
           style={{
             display: "flex",

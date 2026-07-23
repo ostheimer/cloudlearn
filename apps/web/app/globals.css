@@ -4342,6 +4342,13 @@ a.lp-way:hover {
 .btn-danger:disabled { opacity: 0.6; cursor: default; }
 
 /* ── Streak-Kalender (/dashboard/streak-calendar) ────────────────────────── */
+/* Mittelmaß nach Laras Feedback: volle Kastenbreite (1040px) machte die Zellen
+   riesig und die 48px-Marker wirkten darin verloren; 420px war ihr zu klein.
+   Bei 640px füllt der Kalender seinen Kasten ohne leere Ränder, Zellen ~82px. */
+.cal-panel {
+  max-width: 640px;
+  margin: 0 auto;
+}
 .cal {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -4417,6 +4424,8 @@ a.lp-way:hover {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
+  max-width: 640px;
+  margin: 0 auto;
 }
 .cal-chip {
   display: flex;
