@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
 import { listCardsInDeck, reviewCard, earnLp, isApiError, type Card } from "@/lib/api";
 import { isAnswerCorrect } from "@/lib/answerCheck";
+import { useDisplayName } from "@/lib/use-display-name";
 import {
   beginSessionAward,
   getSessionReviewedCount,
@@ -60,6 +61,7 @@ export default function ClozePage() {
   const deckId = params.id;
   const router = useRouter();
   const { userId } = useAuth();
+  const displayName = useDisplayName();
 
   const [allCards, setAllCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
@@ -340,7 +342,7 @@ export default function ClozePage() {
           </p>
           {allRight ? (
             <p style={{ margin: 0, color: "var(--green)", fontWeight: 700 }}>
-              Alles richtig — stark!
+              Alles richtig — stark{displayName ? `, ${displayName}` : ""}!
             </p>
           ) : (
             <p className="muted" style={{ margin: 0 }}>

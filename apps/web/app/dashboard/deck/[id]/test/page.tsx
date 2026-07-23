@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
 import { Modal } from "@/components/app/modal";
 import { listCardsInDeck, reviewCard, isApiError, type Card } from "@/lib/api";
+import { useDisplayName } from "@/lib/use-display-name";
 import { isAnswerCorrect } from "@/lib/answerCheck";
 import {
   answeredIndices,
@@ -82,6 +83,7 @@ export default function TestPage() {
   const deckId = params.id;
   const router = useRouter();
   const { userId } = useAuth();
+  const displayName = useDisplayName();
 
   const [cards, setCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
@@ -585,6 +587,13 @@ export default function TestPage() {
           <p className="muted" style={{ margin: 0 }}>
             {scoredCount} von {questions.length} richtig
           </p>
+          {/* Persönliches Lob nur bei voller Punktzahl — eine Prüfung bleibt
+              sonst bewusst nüchtern. */}
+          {percent === 100 && (
+            <p style={{ margin: 0, color: "var(--green)", fontWeight: 700 }}>
+              Volle Punktzahl — stark{displayName ? `, ${displayName}` : ""}!
+            </p>
+          )}
           <p className="muted" style={{ margin: 0, fontSize: "0.85rem" }}>
             Eine Prüfung misst — Lernpunkte gibt es beim Lernen.
           </p>

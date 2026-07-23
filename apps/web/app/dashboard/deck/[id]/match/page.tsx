@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
 import { earnLp, listCardsInDeck, reviewCard, isApiError, type Card } from "@/lib/api";
+import { useDisplayName } from "@/lib/use-display-name";
 import {
   ArrowLeft,
   X,
@@ -43,6 +44,7 @@ const bestKey = (deckId: string) => `clearn:zuordnen:best:${deckId}`;
 export default function MatchPage() {
   const params = useParams<{ id: string }>();
   const deckId = params.id;
+  const displayName = useDisplayName();
   const router = useRouter();
   const { userId } = useAuth();
   const [earned, setEarned] = useState<number | null>(null);
@@ -347,7 +349,7 @@ export default function MatchPage() {
               fontVariantNumeric: "tabular-nums",
             }}
           >
-            {timed ? formatTime(elapsed) : "Geschafft!"}
+            {timed ? formatTime(elapsed) : `Geschafft${displayName ? `, ${displayName}` : ""}!`}
           </div>
           {timed && isNewBest && (
             <span className="lp-pill">
