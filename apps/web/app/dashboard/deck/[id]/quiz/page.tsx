@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
 import { listCardsInDeck, reviewCard, earnLp, isApiError, type Card } from "@/lib/api";
+import { useDisplayName } from "@/lib/use-display-name";
 import { generateQuestions, type QuizQuestion } from "@/lib/quizQuestions";
 import {
   beginSessionAward,
@@ -28,6 +29,7 @@ export default function QuizPage() {
   const deckId = params.id;
   const router = useRouter();
   const { userId } = useAuth();
+  const displayName = useDisplayName();
 
   const [cards, setCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
@@ -296,13 +298,15 @@ export default function QuizPage() {
     // Multiple Choice braucht mind. 2 Karten für Ablenker — bei weniger würde
     // generateQuestions keine Fragen liefern, dann Knopf ausblenden.
     const canRetryWrong = wrongCards.length >= 2;
-    const msg =
-      pct >= 80
+    const allRight = correct === total;
+    // Der Name gehört nur in die fehlerfreie Runde — wie überall sonst.
+    const msg = allRight
+      ? `Hervorragend${displayName ? `, ${displayName}` : ""}! Du beherrschst den Stoff.`
+      : pct >= 80
         ? "Hervorragend! Du beherrschst den Stoff."
         : pct >= 50
           ? "Gut! Etwas mehr Übung und du hast es drauf."
           : "Weiter üben! Wiederholung ist der Schlüssel.";
-    const allRight = correct === total;
     return (
       <div className="study-wrap">
         <div className="study-done">

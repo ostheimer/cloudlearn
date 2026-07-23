@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/app/auth-context";
 import { reviewCard, earnLp, type Card, type ReviewRating } from "@/lib/api";
+import { useDisplayName } from "@/lib/use-display-name";
 import { X, Trophy, Zap } from "@/components/icons";
 import {
   beginSessionAward,
@@ -47,6 +48,9 @@ export function LearnSession({
   const [notKnown, setNotKnown] = useState<Card[]>([]);
   const [earned, setEarned] = useState<number | null>(null);
   const [earnCapReached, setEarnCapReached] = useState(false);
+  // Anzeigename fürs persönliche Lob am Ende — ohne ihn bleibt es beim
+  // schlichten "Session geschafft!".
+  const displayName = useDisplayName();
   const awardStateRef = useRef<SessionAwardState>({ finalized: false, inFlight: null });
   const pendingReviewsRef = useRef<Promise<unknown>[]>([]);
 
@@ -135,7 +139,7 @@ export function LearnSession({
           <div className="big" aria-hidden style={{ color: "var(--amber)" }}>
             <Trophy size={56} />
           </div>
-          <h2 className="h2">Session geschafft!</h2>
+          <h2 className="h2">Session geschafft{displayName ? `, ${displayName}` : ""}!</h2>
           <p className="lead">
             Du hast {total} {total === 1 ? "Karte" : "Karten"} wiederholt — {correct} davon sicher
             gewusst.

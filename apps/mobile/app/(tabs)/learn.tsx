@@ -56,6 +56,7 @@ import {
   updateCard,
 } from "../../src/lib/api";
 import { setLastUsedDeck } from "../../src/lib/lastUsedDeck";
+import { useDisplayName } from "../../src/lib/useDisplayName";
 import { useUsageStore } from "../../src/store/usageStore";
 import { excludeOcclusionCards } from "../../src/lib/occlusion";
 import {
@@ -164,6 +165,7 @@ function AuthenticatedLearnScreen({
   initialIndex?: number | undefined;
 }) {
   const { t } = useTranslation();
+  const displayName = useDisplayName();
   const router = useRouter();
   const c = useColors();
   const { cards, index, revealed, completed, swipedLeft, swipedRight, history, ratingHistory, presetToken, cardsOwner, start, reveal, rateCurrent, canGoBack, goBack } =
@@ -918,7 +920,9 @@ function AuthenticatedLearnScreen({
                 <Text style={{ color: c.textSecondary, textAlign: "center", fontSize: typography.base }}>
                   {missedCards.length > 0
                     ? t("review.resultSubPractice", { count: missedCards.length })
-                    : t("review.resultSubAll")}
+                    : displayName
+                      ? t("review.resultSubAllNamed", { name: displayName })
+                      : t("review.resultSubAll")}
                 </Text>
                 <View style={{ width: "100%", maxWidth: 340, gap: spacing.sm, marginTop: spacing.sm }}>
                   {missedCards.length > 0 && (

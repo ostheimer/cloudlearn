@@ -30,6 +30,7 @@ import {
   type OcclusionImageGroup,
 } from "../src/lib/occlusion";
 import { getCardImageSignedUrl, removeCardImage } from "../src/lib/occlusionStorage";
+import { useDisplayName } from "../src/lib/useDisplayName";
 
 const LP_SESSION_MIN = 5;
 type Media = { url: string; aspect: number };
@@ -48,6 +49,7 @@ export default function OcclusionStudyScreen() {
   const colors = useColors();
   const router = useRouter();
   const userId = useSessionStore((s) => s.userId);
+  const displayName = useDisplayName();
   const { deckId, deckTitle } = useLocalSearchParams<{ deckId?: string; deckTitle?: string }>();
 
   // Studying IS using the deck (#415).
@@ -328,7 +330,11 @@ export default function OcclusionStudyScreen() {
     return wrap(
       <StudyResult
         headline={`${correct} von ${total}`}
-        subtitle={wrong.length > 0 ? `gewusst · ${wrong.length} noch üben` : "alles gewusst — stark!"}
+        subtitle={
+          wrong.length > 0
+            ? `gewusst · ${wrong.length} noch üben`
+            : `alles gewusst — stark${displayName ? `, ${displayName}` : ""}!`
+        }
         accessory={lpAccessory}
         actions={[
           ...(wrong.length > 0

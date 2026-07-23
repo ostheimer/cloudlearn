@@ -322,6 +322,38 @@ export function reviewCard(
   });
 }
 
+export interface TestAttemptResult {
+  id: string;
+  deckId: string;
+  questionCount: number;
+  correctCount: number;
+  submittedAt: string;
+}
+
+/**
+ * Eine ABGEGEBENE Prüfung als eine Zeile protokollieren (test_attempts).
+ *
+ * Das ist NICHT der Weg für Streak, Statistik-Menge oder Lernplan — die hängen
+ * weiter an den einzelnen `reviewCard(..., { mode: "test" })`-Aufrufen, die
+ * daneben laufen. Hier wird nur die Prüfung als Einheit festgehalten, damit die
+ * letzten Prüfungen mit Deck, Datum und „18 von 30" dastehen können.
+ *
+ * Nur die Antwortliste, nie das Ergebnis: der Server zählt selbst gegen die
+ * echten, nicht gelöschten Karten des Decks. Ein gefälschtes „30 von 30" kostet
+ * damit mindestens 30 echte Karten.
+ */
+export function recordTestAttempt(
+  userId: string,
+  deckId: string,
+  idempotencyKey: string,
+  answers: Array<{ cardId: string; correct: boolean }>
+): Promise<TestAttemptResult> {
+  return authed<TestAttemptResult>(`/api/v1/decks/${deckId}/tests`, {
+    method: "POST",
+    body: JSON.stringify({ userId, idempotencyKey, answers }),
+  });
+}
+
 // ─── Stats ──────────────────────────────────────────────────────────────────
 
 export function getStats(days?: 7 | 30): Promise<{ stats: StatsResponse }> {

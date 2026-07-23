@@ -17,6 +17,7 @@ import {
 } from "../src/features/sync/offlineQueueStore";
 import { summarizeCardMedia } from "../src/lib/cardMedia";
 import { cleanTerm } from "../src/lib/cardTerms";
+import { useDisplayName } from "../src/lib/useDisplayName";
 import { useColors, spacing, radius, typography, shadows } from "../src/theme";
 import { shouldRetryLater } from "../src/features/sync/sendReview";
 import {
@@ -37,6 +38,7 @@ export default function PracticeScreen() {
   const router = useRouter();
   const c = useColors();
   const userId = useSessionStore((s) => s.userId);
+  const displayName = useDisplayName();
   const {
     cards,
     index,
@@ -261,7 +263,7 @@ export default function PracticeScreen() {
               subtitle={
                 missedCards.length > 0
                   ? `gewusst · ${missedCards.length} noch üben`
-                  : "alles gewusst — stark!"
+                  : `alles gewusst — stark${displayName ? `, ${displayName}` : ""}!`
               }
               actions={[
                 ...(missedCards.length > 0

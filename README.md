@@ -590,6 +590,7 @@ Die initiale Migration oben ist nur das Basisschema. Die vollständige, maßgebl
 │   ├── POST   /:id/duplicate # Deck duplizieren
 │   ├── GET    /:id/export   # Offline-Export (Deck + Karten)
 │   ├── POST   /:id/share    # Share-Link/Deep-Link generieren
+│   ├── POST   /:id/tests    # Abgegebene Prüfung protokollieren (test_attempts; keine LP)
 │   └── GET    /share/:token # Geteiltes Deck samt Karten abrufen
 ├── /cards
 │   ├── POST   /             # Karte(n) erstellen
@@ -600,7 +601,8 @@ Die initiale Migration oben ist nur das Basisschema. Die vollständige, maßgebl
 │   ├── GET    /due          # Fällige Karten abrufen
 │   └── POST   /sync         # FSRS-Daten synchronisieren (Device <-> Server)
 ├── /stats
-│   └── GET    /             # Lernstatistiken
+│   ├── GET    /             # Lernstatistiken
+│   └── GET    /tests        # Letzte fünf abgegebene Prüfungen (Deck, Datum, x von y)
 ├── /daily-goal
 │   └── PATCH  /             # Tagesziel setzen (Karten pro Tag)
 ├── /usage

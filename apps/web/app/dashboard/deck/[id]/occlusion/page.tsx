@@ -13,6 +13,7 @@ import {
 } from "@/lib/api";
 import { getSupabase } from "@/lib/supabase-browser";
 import { ArrowLeft, X, Trophy, ImageIcon, AlertTriangle, Zap } from "@/components/icons";
+import { useDisplayName } from "@/lib/use-display-name";
 import {
   beginSessionAward,
   getSessionReviewedCount,
@@ -63,6 +64,7 @@ export default function OcclusionLearnPage() {
   const deckId = params.id;
   const router = useRouter();
   const { userId } = useAuth();
+  const displayName = useDisplayName();
 
   const [items, setItems] = useState<OccItem[]>([]);
   const [urls, setUrls] = useState<Record<string, string | null>>({});
@@ -246,7 +248,7 @@ export default function OcclusionLearnPage() {
           <div className="big" aria-hidden style={{ color: "var(--amber)" }}>
             <Trophy size={56} />
           </div>
-          <h2 className="h2">Session geschafft!</h2>
+          <h2 className="h2">Session geschafft{displayName ? `, ${displayName}` : ""}!</h2>
           <p className="lead">
             Du hast {total} {total === 1 ? "Bereich" : "Bereiche"} durchgegangen — {correct} davon
             sicher gewusst.

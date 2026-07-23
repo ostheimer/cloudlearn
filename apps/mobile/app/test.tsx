@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
+import { usePreventRemove } from "@react-navigation/native";
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -28,14 +30,17 @@ import {
   Minus,
   Plus,
 } from "lucide-react-native";
-import { listCardsInDeck, type Card } from "../src/lib/api";
+import { listCardsInDeck, recordTestAttempt, type Card } from "../src/lib/api";
 import { sendReview } from "../src/features/sync/sendReview";
 import { setLastUsedDeck } from "../src/lib/lastUsedDeck";
+import { useDisplayName } from "../src/lib/useDisplayName";
 import { useSessionStore } from "../src/store/sessionStore";
 import { excludeOcclusionCards } from "../src/lib/occlusion";
 import { isAnswerCorrect } from "../src/lib/answerCheck";
 import {
+  answeredIndices,
   buildTestQuestions,
+  type TestAnswer,
   type TestQuestion,
   type TestQuestionType,
 } from "../src/lib/testQuestions";
@@ -63,11 +68,9 @@ function formatTime(s: number) {
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
-interface Answer {
-  mc: number | null;
-  tf: boolean | null;
-  text: string;
-}
+type Answer = TestAnswer;
+
+const EMPTY_ANSWER: Answer = { mc: null, tf: null, text: "" };
 
 interface Graded {
   correct: boolean;
@@ -76,9 +79,43 @@ interface Graded {
 
 type Phase = "setup" | "play" | "result";
 
+function gradeAnswer(q: TestQuestion, a: Answer, strict: boolean): boolean {
+  if (q.type === "mc") return a.mc === q.correctIndex;
+  if (q.type === "trueFalse") return a.tf === q.tfIsCorrect;
+  return isAnswerCorrect(a.text, q.expected, { strict });
+}
+
+/**
+ * Meldet die Antworten einer Prüfung — in Häppchen, mit Warten dazwischen.
+ *
+ * Ein `map` ohne `await` feuert bei einer 100-Fragen-Prüfung 100 gleichzeitige
+ * Anfragen los; die Bremse auf der Review-Route (#358) würde einen Teil davon
+ * abweisen. Gleiche Aufteilung wie im Web.
+ *
+ * Auf Modul-Ebene, weil auch der Notausgang beim Verlassen sie braucht — dann
+ * läuft sie weiter, wenn der Bildschirm schon weg ist. `sendReview` hebt dabei
+ * auf, was gerade nicht rausgeht (Warteschlange, #460).
+ */
+async function flushReviews(
+  userId: string,
+  toSend: ReadonlyArray<{ cardId: string; rating: "good" | "again" }>
+): Promise<void> {
+  for (let i = 0; i < toSend.length; i += REVIEW_CHUNK_SIZE) {
+    const chunk = toSend.slice(i, i + REVIEW_CHUNK_SIZE);
+    await Promise.allSettled(
+      chunk.map((r) =>
+        // mode "test": hält den Streak und füllt die Statistik, gibt aber keine
+        // Lernpunkte, und nur FEHLER bewegen den Lernplan.
+        sendReview({ userId, cardId: r.cardId, rating: r.rating, mode: "test" })
+      )
+    );
+  }
+}
+
 export default function TestScreen() {
   const colors = useColors();
   const { t } = useTranslation();
+  const displayName = useDisplayName();
   const router = useRouter();
   const startReview = useReviewSession((s) => s.start);
   const userId = useSessionStore((s) => s.userId);
@@ -116,6 +153,21 @@ export default function TestScreen() {
   const [idx, setIdx] = useState(0);
   const [remaining, setRemaining] = useState(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Wurde diese Runde vorzeitig beendet? Dann ist die Prozentzahl auf weniger
+  // Fragen berechnet, als man sich vorgenommen hatte, und darf NICHT als
+  // „Letztes Ergebnis" stehenbleiben.
+  const [aborted, setAborted] = useState(false);
+  /**
+   * Sind die Antworten dieser Runde schon gemeldet?
+   *
+   * Es gibt drei Wege hinaus — Abgeben, vorzeitig Beenden und der Notausgang
+   * beim Verlassen des Bildschirms. Ohne diese Sperre könnten zwei davon
+   * zusammenfallen und dieselbe Karte doppelt melden.
+   */
+  const sentRef = useRef(false);
+  // Ein stabiler Schlüssel je Prüfungsrunde, damit ein Doppel-Abgeben (Zeit-Modus
+  // feuert submit, während man noch tippt) EINE test_attempts-Zeile ergibt.
+  const roundKeyRef = useRef("");
 
   // All cards with both a question and an answer — the base pool for the test.
   const usableCards = useMemo(
@@ -207,10 +259,15 @@ export default function TestScreen() {
     if (qs.length === 0) return;
 
     setQuestions(qs);
-    setAnswers(qs.map(() => ({ mc: null, tf: null, text: "" })));
+    setAnswers(qs.map(() => ({ ...EMPTY_ANSWER })));
     setGraded([]);
     setIdx(0);
     setRemaining(timed ? qs.length * SECONDS_PER_QUESTION : 0);
+    // Eine neue Runde darf wieder melden — sonst bliebe „Nochmal" nach einem
+    // vorzeitigen Beenden für immer stumm.
+    sentRef.current = false;
+    roundKeyRef.current = `test-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    setAborted(false);
     setPhase("play");
   };
 
@@ -218,48 +275,57 @@ export default function TestScreen() {
     setAnswers((prev) => prev.map((a, j) => (j === i ? { ...a, ...patch } : a)));
   };
 
-  const submit = () => {
+  /**
+   * Schließt die Runde ab: bewerten, melden, Ergebnis zeigen.
+   *
+   * `scope: "all"` ist das normale Abgeben — jede Frage zählt, eine leer
+   * gelassene als falsch. `scope: "answered"` ist das vorzeitige Beenden: Dann
+   * bleiben nur die Fragen übrig, auf die es wirklich eine Antwort gibt.
+   *
+   * Vorher meldete die Prüfung gar nichts, bis man abgab. Für die App sah ein
+   * Prüfungstag deshalb aus wie ein Tag ohne Lernen (Issue #406, behoben in
+   * #409) — und wer vorzeitig rausging, verlor alles trotzdem wieder.
+   */
+  const finish = (scope: "all" | "answered") => {
+    if (sentRef.current) return;
+    const keep = scope === "all" ? questions.map((_, i) => i) : answeredIndices(answers);
+    const keptQuestions = keep.map((i) => questions[i]!);
+    const keptAnswers = keep.map((i) => answers[i] ?? EMPTY_ANSWER);
+
     const toSend: Array<{ cardId: string; rating: "good" | "again" }> = [];
-    const result: Graded[] = questions.map((q, i) => {
-      const a = answers[i] ?? { mc: null, tf: null, text: "" };
-      let correct = false;
-      if (q.type === "mc") correct = a.mc === q.correctIndex;
-      else if (q.type === "trueFalse") correct = a.tf === q.tfIsCorrect;
-      else correct = isAnswerCorrect(a.text, q.expected, { strict });
+    const result: Graded[] = keptQuestions.map((q, i) => {
+      const correct = gradeAnswer(q, keptAnswers[i]!, strict);
       if (userId) toSend.push({ cardId: q.cardId, rating: correct ? "good" : "again" });
       return { correct, overridden: false };
     });
-    setGraded(result);
 
-    // Die Prüfung meldete bisher gar nichts — sie bewertete im Handy und war
-    // damit fertig. Für die App sah ein Prüfungstag deshalb aus wie ein Tag
-    // ohne Lernen: Streak riss, nichts landete in der Statistik, und Fehler
-    // kamen nie beim Lernplan an (Issue #406). Auf der Website zählt dieselbe
-    // Prüfung seit #394 vollständig.
-    //
-    // In Häppchen mit Warten dazwischen: Ein `map` ohne `await` feuert bei
-    // einer 100-Fragen-Prüfung 100 gleichzeitige Anfragen los, und die Bremse
-    // auf der Review-Route (#358) würde einen Teil davon abweisen — die
-    // Antworten wären still weg. Gleiche Aufteilung wie im Web.
-    if (toSend.length > 0 && userId) {
-      void (async () => {
-        for (let i = 0; i < toSend.length; i += REVIEW_CHUNK_SIZE) {
-          const chunk = toSend.slice(i, i + REVIEW_CHUNK_SIZE);
-          await Promise.allSettled(
-            chunk.map((r) =>
-              // mode "test": hält den Streak und füllt die Statistik, gibt aber
-              // keine Lernpunkte, und nur FEHLER bewegen den Lernplan.
-              sendReview({ userId, cardId: r.cardId, rating: r.rating, mode: "test" })
-            )
-          );
-        }
-      })();
-    }
+    sentRef.current = true;
+    setQuestions(keptQuestions);
+    setAnswers(keptAnswers);
+    setGraded(result);
+    setAborted(scope === "answered");
 
     // Bewusst kein await: Das Ergebnis erscheint sofort, das Melden läuft
     // dahinter weiter. Es wird nichts abgerechnet, worauf jemand warten müsste.
+    if (toSend.length > 0 && userId) void flushReviews(userId, toSend);
+
+    // Die Prüfung als EINHEIT festhalten — nur bei vollständiger Abgabe. Ein
+    // Abbruch (scope "answered") ist keine gültige Prüfungsnote; die
+    // beantworteten Karten zählen trotzdem einzeln (oben), nur die Prüfungs-Zeile
+    // entsteht nicht.
+    if (scope === "all" && userId && keptQuestions.length > 0) {
+      void recordTestAttempt(
+        userId,
+        deckId,
+        roundKeyRef.current,
+        keptQuestions.map((q, i) => ({ cardId: q.cardId, correct: result[i]!.correct }))
+      ).catch(() => {});
+    }
+
     setPhase("result");
   };
+
+  const submit = () => finish("all");
 
   // Countdown (only in timed mode). Auto-submits when it hits zero.
   useEffect(() => {
@@ -285,6 +351,81 @@ export default function TestScreen() {
     };
   }, []);
 
+  const answeredCount = useMemo(() => answeredIndices(answers).length, [answers]);
+
+  /**
+   * Zurück-Taste und Wisch-Geste abfangen, solange eine Prüfung mit Antworten
+   * läuft.
+   *
+   * `usePreventRemove` hält den Bildschirm auf, bis wir entscheiden. Ohne die
+   * Nachfrage wäre der Weg raus derselbe wie bisher — und alles Beantwortete
+   * wäre weg, ohne dass jemand danach gefragt hätte.
+   *
+   * Ohne Antworten wird nicht gefragt: Da gibt es nichts zu verlieren, und ein
+   * Fenster, das nur „nichts passiert" sagt, ist reine Reibung.
+   */
+  usePreventRemove(phase === "play" && answeredCount > 0 && !sentRef.current, ({ data }) => {
+    Alert.alert(
+      "Prüfung beenden?",
+      `Du hast ${answeredCount} von ${questions.length} ${
+        questions.length === 1 ? "Frage" : "Fragen"
+      } beantwortet. Deine bisherigen Antworten werden gespeichert und zählen für Streak, Statistik und Lernplan.`,
+      [
+        // „Weiter machen" ist der cancel-Knopf (wird fett/betont dargestellt):
+        // Wer die Prüfung aus Versehen verlässt, kommt am leichtesten zurück.
+        // „Beenden" ist destructive → roter Text.
+        { text: "Weiter machen", style: "cancel" },
+        {
+          text: "Beenden und speichern",
+          style: "destructive",
+          onPress: () => {
+            finish("answered");
+            // NICHT dispatch(data.action): Das Ergebnis der beantworteten
+            // Fragen soll hier stehenbleiben (Laras Entscheidung). Der
+            // Bildschirm wechselt auf „result", die Sperre greift dann nicht
+            // mehr, und der nächste Druck auf Zurück geht ohne Nachfrage durch.
+            void data;
+          },
+        },
+      ]
+    );
+  });
+
+  /**
+   * Notausgang: Was beim Verlassen noch nicht gemeldet wurde, geht jetzt raus.
+   *
+   * Fängt alles, was an der Nachfrage vorbeikommt — etwa ein Sprung von außen
+   * in die App hinein. Der Effekt hat KEINE Abhängigkeiten und liest den Stand
+   * über eine Ref: Liefe er bei jeder Antwort neu, würde seine Aufräum-Funktion
+   * mitten in der Prüfung feuern und nach der ersten Frage melden.
+   */
+  const liveRef = useRef({ phase, questions, answers, strict, userId });
+  // Nachführen in einem Effekt ohne Abhängigkeiten, NICHT beim Zeichnen: React
+  // darf einen begonnenen Durchlauf verwerfen. Schriebe man die Ref beim
+  // Zeichnen, könnte darin ein Stand landen, den es nie auf den Bildschirm
+  // geschafft hat.
+  useEffect(() => {
+    liveRef.current = { phase, questions, answers, strict, userId };
+  });
+  useEffect(() => {
+    return () => {
+      const { phase: p, questions: qs, answers: as, strict: st, userId: uid } = liveRef.current;
+      if (sentRef.current || p !== "play" || !uid) return;
+      const keep = answeredIndices(as);
+      if (keep.length === 0) return;
+      sentRef.current = true;
+      void flushReviews(
+        uid,
+        keep.map((i) => ({
+          cardId: qs[i]!.cardId,
+          rating: gradeAnswer(qs[i]!, as[i] ?? EMPTY_ANSWER, st)
+            ? ("good" as const)
+            : ("again" as const),
+        }))
+      );
+    };
+  }, []);
+
   const scoredCount = graded.filter((g) => g.correct || g.overridden).length;
   const percent =
     questions.length > 0 ? Math.round((scoredCount / questions.length) * 100) : 0;
@@ -306,9 +447,11 @@ export default function TestScreen() {
     router.push(`/practice?title=${encodeURIComponent(deckTitle ?? "Falsche Antworten")}`);
   };
 
-  // Persist the latest percentage (updates when an answer is overridden).
+  // Persist the latest percentage (updates when an answer is overridden). Eine
+  // vorzeitig beendete Runde bleibt draußen: „Letztes Ergebnis: 40 %" nach
+  // einem Abbruch bei Frage drei sagt nichts über das Können aus.
   useEffect(() => {
-    if (phase === "result" && deckId) {
+    if (phase === "result" && deckId && !aborted) {
       AsyncStorage.setItem(lastResultKey(deckId), String(percent)).catch(() => {});
       setLastResult(percent);
     }
@@ -580,6 +723,22 @@ export default function TestScreen() {
               </View>
               <Text style={{ fontSize: typography.xxxl, fontWeight: typography.extrabold, color: colors.text }}>{percent} %</Text>
               <Text style={{ fontSize: typography.base, color: colors.textSecondary }}>{scoredCount} von {questions.length} richtig</Text>
+              {/* Persönliches Lob nur bei voller Punktzahl — eine Prüfung
+                  bleibt sonst bewusst nüchtern (wie im Web). */}
+              {percent === 100 && (
+                <Text style={{ fontSize: typography.base, fontWeight: typography.bold, color: colors.success }}>
+                  Volle Punktzahl — stark{displayName ? `, ${displayName}` : ""}!
+                </Text>
+              )}
+              {/* Ohne diesen Satz sähe eine vorzeitig beendete Prüfung aus wie
+                  eine vollständige — mit einer Quote, die sich auf weniger
+                  Fragen bezieht, als man sich vorgenommen hatte. */}
+              {aborted && (
+                <Text style={{ fontSize: typography.sm, color: colors.textTertiary, textAlign: "center" }}>
+                  Vorzeitig beendet — gewertet sind die {questions.length}{" "}
+                  {questions.length === 1 ? "Frage" : "Fragen"}, die du beantwortet hast.
+                </Text>
+              )}
             </View>
 
             {/* Durchsicht */}
