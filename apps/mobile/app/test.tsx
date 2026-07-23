@@ -352,9 +352,13 @@ export default function TestScreen() {
         questions.length === 1 ? "Frage" : "Fragen"
       } beantwortet. Deine bisherigen Antworten werden gespeichert und zählen für Streak, Statistik und Lernplan.`,
       [
+        // „Weiter machen" ist der cancel-Knopf (wird fett/betont dargestellt):
+        // Wer die Prüfung aus Versehen verlässt, kommt am leichtesten zurück.
+        // „Beenden" ist destructive → roter Text.
         { text: "Weiter machen", style: "cancel" },
         {
           text: "Beenden und speichern",
+          style: "destructive",
           onPress: () => {
             finish("answered");
             // NICHT dispatch(data.action): Das Ergebnis der beantworteten

@@ -833,22 +833,26 @@ export default function TestPage() {
             Statistik und Lernplan.
           </p>
           <div className="modal__actions">
+            {/* „Weiter machen" ist bewusst der betonte (ausgefüllte) Knopf:
+                Wer das Fenster aus Versehen öffnet, kommt am leichtesten zurück
+                in die Prüfung. Beenden bleibt umrandet und rot markiert. */}
             <button
               type="button"
               className="btn btn-ghost"
-              onClick={() => setLeavePrompt(false)}
-            >
-              Weiter machen
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary"
+              style={{ color: "#ef4444" }}
               onClick={() => {
                 setLeavePrompt(false);
                 finish("answered");
               }}
             >
               Beenden und speichern
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setLeavePrompt(false)}
+            >
+              Weiter machen
             </button>
           </div>
         </Modal>
