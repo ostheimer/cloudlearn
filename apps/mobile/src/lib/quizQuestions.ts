@@ -20,7 +20,9 @@ export interface QuizQuestion {
   correctAnswer: string;
   options: string[];
   correctIndex: number;
-  tfPairing?: { front: string; back: string; isCorrect: boolean };
+  // correctBack: the card's real answer side — the result screen shows it when
+  // the displayed pairing was wrong (#497).
+  tfPairing?: { front: string; back: string; correctBack: string; isCorrect: boolean };
   image?: { url: string; alt: string };
 }
 
@@ -206,6 +208,7 @@ export function generateQuestions(
         tfPairing: {
           front: current.questionSide || current.label,
           back: displayAnswer,
+          correctBack: current.answerSide || current.label,
           isCorrect: effectiveIsCorrect,
         },
       };

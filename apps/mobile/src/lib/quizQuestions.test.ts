@@ -296,6 +296,26 @@ describe("quizQuestions", () => {
     expect(questions.length).toBeGreaterThan(0);
   });
 
+  it("carries the card's real back so the result screen can show it (#497)", () => {
+    // When the displayed pairing is wrong, the result screen names the answer
+    // that really belongs to the card — so correctBack must always hold it.
+    let tfCount = 0;
+    for (const seed of [1, 2, 3, 5, 7, 11, 13, 17]) {
+      for (const q of generateQuestions(vocabCards, 99, undefined, seeded(seed))) {
+        if (q.type !== "trueFalse" || !q.tfPairing) continue;
+        tfCount++;
+        const card = vocabCards.find((c) => c.id === q.cardId)!;
+        expect(q.tfPairing.correctBack).toBe(card.back);
+        if (q.tfPairing.isCorrect) {
+          expect(q.tfPairing.back).toBe(card.back);
+        } else {
+          expect(q.tfPairing.back).not.toBe(card.back);
+        }
+      }
+    }
+    expect(tfCount).toBeGreaterThan(0);
+  });
+
   it("drops duplicate cards before generating questions", () => {
     const cards = [
       { id: "a1", front: "le soleil", back: "die Sonne" },

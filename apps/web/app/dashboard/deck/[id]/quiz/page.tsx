@@ -340,7 +340,12 @@ export default function QuizPage() {
           <div className="quiz-sum">
             {questions.map((qq, i) => {
               const ok = answers[i];
-              const label = qq.type === "trueFalse" ? qq.tfPairing?.front : qq.questionText;
+              // Wahr/Falsch: nur die Vorderseite plus „Richtig: Falsch" las sich
+              // wie ein Widerspruch, weil die geprüfte Zuordnung fehlte (#497).
+              // Deshalb zeigt die Zeile die ganze Paarung, sagt im Klartext, ob
+              // sie stimmt, und nennt bei einer falschen Paarung die echte Antwort.
+              const tf = qq.type === "trueFalse" ? qq.tfPairing : undefined;
+              const label = tf ? `${tf.front} = ${tf.back}` : qq.questionText;
               return (
                 <div key={i} className={`quiz-sum__row ${ok ? "ok" : "no"}`}>
                   <span
@@ -350,8 +355,26 @@ export default function QuizPage() {
                     {ok ? <CheckCircle size={18} /> : <X size={18} />}
                   </span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className="quiz-sum__q">{label}</div>
-                    {!ok && <div className="quiz-sum__fix">Richtig: {qq.correctAnswer}</div>}
+                    <div className={`quiz-sum__q${tf ? " quiz-sum__q--wrap" : ""}`}>
+                      {label}
+                    </div>
+                    {!ok &&
+                      (tf ? (
+                        tf.isCorrect ? (
+                          <div className="quiz-sum__note">
+                            Diese Zuordnung stimmt tatsächlich.
+                          </div>
+                        ) : (
+                          <>
+                            <div className="quiz-sum__note">Diese Zuordnung stimmt nicht.</div>
+                            <div className="quiz-sum__fix">
+                              Tatsächlich gehört dazu: {tf.correctBack}
+                            </div>
+                          </>
+                        )
+                      ) : (
+                        <div className="quiz-sum__fix">Richtig: {qq.correctAnswer}</div>
+                      ))}
                   </div>
                 </div>
               );

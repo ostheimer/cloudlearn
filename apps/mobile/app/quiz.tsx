@@ -689,29 +689,59 @@ export default function QuizScreen() {
                       <XCircle size={20} color={colors.error} />
                     )}
                     <View style={{ flex: 1 }}>
+                      {/* Wahr/Falsch: nur die Vorderseite plus „Richtig: Falsch"
+                          las sich wie ein Widerspruch, weil die geprüfte
+                          Zuordnung fehlte (#497) — Zeile zeigt die Paarung, den
+                          Klartext-Vermerk und ggf. die echte Antwort. */}
                       <Text
                         style={{
                           fontSize: typography.sm,
                           color: colors.text,
                           fontWeight: typography.medium,
                         }}
-                        numberOfLines={1}
+                        numberOfLines={q.type === "trueFalse" ? 3 : 1}
                       >
                         {q.type === "trueFalse"
-                          ? q.tfPairing!.front
+                          ? `${q.tfPairing!.front} = ${q.tfPairing!.back}`
                           : q.questionText}
                       </Text>
-                      {!wasCorrect && (
-                        <Text
-                          style={{
-                            fontSize: typography.xs,
-                            color: colors.success,
-                            marginTop: 2,
-                          }}
-                        >
-                          Richtig: {q.correctAnswer}
-                        </Text>
-                      )}
+                      {!wasCorrect &&
+                        (q.type === "trueFalse" && q.tfPairing ? (
+                          <>
+                            <Text
+                              style={{
+                                fontSize: typography.xs,
+                                color: colors.textSecondary,
+                                marginTop: 2,
+                              }}
+                            >
+                              {q.tfPairing.isCorrect
+                                ? "Diese Zuordnung stimmt tatsächlich."
+                                : "Diese Zuordnung stimmt nicht."}
+                            </Text>
+                            {!q.tfPairing.isCorrect && (
+                              <Text
+                                style={{
+                                  fontSize: typography.xs,
+                                  color: colors.success,
+                                  marginTop: 2,
+                                }}
+                              >
+                                Tatsächlich gehört dazu: {q.tfPairing.correctBack}
+                              </Text>
+                            )}
+                          </>
+                        ) : (
+                          <Text
+                            style={{
+                              fontSize: typography.xs,
+                              color: colors.success,
+                              marginTop: 2,
+                            }}
+                          >
+                            Richtig: {q.correctAnswer}
+                          </Text>
+                        ))}
                     </View>
                   </View>
                 );
