@@ -515,6 +515,28 @@ export async function listDueCards(
   return (data ?? []).map(mapCardRow);
 }
 
+/**
+ * How many cards are due — same filters as listDueCards, but counted by the
+ * database (`head: true` ships no rows). For display counts (stats page):
+ * fetching every due card with full front/back text only to take `.length`
+ * moves the whole backlog over the wire, and — unlike listDueCards, which
+ * /learn/due consumes page-unaware — a count can't be silently truncated by
+ * PostgREST's row cap. Keep both in sync: a filter added to one without the
+ * other makes the count promise cards the learn round won't serve.
+ */
+export async function countDueCards(userId: string, nowIso: string): Promise<number> {
+  const db = getDb();
+  const { count, error } = await db
+    .from("cards")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .is("deleted_at", null)
+    .neq("card_type", "occlusion")
+    .lte("fsrs_due", nowIso);
+  if (error) throw new Error(`countDueCards: ${error.message}`);
+  return count ?? 0;
+}
+
 export interface CardSearchResult {
   cardId: string;
   deckId: string;
@@ -847,21 +869,24 @@ export async function getReviewStats(
   // entfernt) und der Streak jeder Antwort folgt, nicht dem Ziel. Was Prüfungen
   // ausserdem NICHT tun: Lernpunkte geben (earn_session_lp überspringt sie) und
   // den Lernplan bewegen (reviewService, außer bei Fehlern).
-  const { count: todayCount } = await db
+  // Alle Zählungen werden erst GEBAUT und unten in EINEM Promise.all
+  // abgeschickt — sie sind voneinander unabhängig, und nacheinander wären es
+  // sechs volle Netzwerk-Wartezeiten statt einer (#492).
+  const todayCountQuery = db
     .from("review_logs")
     .select("*", { count: "exact", head: true })
     .eq("user_id", userId)
     .gte("reviewed_at", todayStart);
 
   // Reviews this week
-  const { count: weekCount } = await db
+  const weekCountQuery = db
     .from("review_logs")
     .select("*", { count: "exact", head: true })
     .eq("user_id", userId)
     .gte("reviewed_at", weekStart);
 
   // Reviews total
-  const { count: totalCount } = await db
+  const totalCountQuery = db
     .from("review_logs")
     .select("*", { count: "exact", head: true })
     .eq("user_id", userId);
@@ -882,14 +907,14 @@ export async function getReviewStats(
   // verrechnen. Der Nenner reviewsInWindow wandert mit — der Client beschriftet
   // die Quote damit („X Antworten"), und Zähler und Nenner müssen dieselbe
   // Menge meinen.
-  const { count: windowTotalCount } = await db
+  const windowTotalCountQuery = db
     .from("review_logs")
     .select("*", { count: "exact", head: true })
     .eq("user_id", userId)
     .gte("reviewed_at", windowStart)
     .neq("mode", "test");
 
-  const { count: windowGoodCount } = await db
+  const windowGoodCountQuery = db
     .from("review_logs")
     .select("*", { count: "exact", head: true })
     .eq("user_id", userId)
@@ -918,25 +943,20 @@ export async function getReviewStats(
     const { count } = await q;
     return count ?? 0;
   };
-  // Gebündelt: vier zusätzliche Zählungen nacheinander wären vier
-  // Netzwerk-Wartezeiten in einer Route, die ohnehin viele Abfragen macht.
-  const [recallTotal, recallGood, recognitionTotal, recognitionGood] = await Promise.all([
-    countInWindow(RECALL_MODES, false),
-    countInWindow(RECALL_MODES, true),
-    countInWindow(RECOGNITION_MODES, false),
-    countInWindow(RECOGNITION_MODES, true),
-  ]);
-
-  const total = totalCount ?? 0;
-  const windowTotal = windowTotalCount ?? 0;
-  const windowGood = windowGoodCount ?? 0;
-  const accuracyRate = windowTotal > 0 ? windowGood / windowTotal : 0;
+  // Die Gruppen-Zählungen starten hier (nicht erst im Promise.all-Array),
+  // damit die Abfrage-Reihenfolge stabil bleibt: Zählungen zuerst, die
+  // Tageszeilen als letzte — darauf verlässt sich die Test-Attrappe
+  // (reviewStatsDb.test.ts), die Antworten der Reihe nach ausgibt.
+  const recallTotalPromise = countInWindow(RECALL_MODES, false);
+  const recallGoodPromise = countInWindow(RECALL_MODES, true);
+  const recognitionTotalPromise = countInWindow(RECOGNITION_MODES, false);
+  const recognitionGoodPromise = countInWindow(RECOGNITION_MODES, true);
 
   // Daily counts + learn time for the requested window (bar chart, trend,
   // per-day detail). `review_duration_ms` is nullable — treat null as 0.
   // Paged: sorted oldest-first, a single page would drop the newest days of a
   // busy month — the bar chart would show 0 cards for days that were studied.
-  const dailyData = await selectAllRows<{
+  const dailyDataPromise = selectAllRows<{
     reviewed_at: string;
     rating: number | null;
     review_duration_ms: number | null;
@@ -952,6 +972,38 @@ export async function getReviewStats(
         .range(from, to),
     "getReviewStats"
   );
+
+  // Das eine Bündel: neun Zählungen + Tagesverlauf gleichzeitig. Einzige
+  // Serialität, die bleibt, ist das Blättern INNERHALB von selectAllRows —
+  // dort erzwingt sie die Abbruchregel (Seite kürzer als der Cap).
+  const [
+    { count: todayCount },
+    { count: weekCount },
+    { count: totalCount },
+    { count: windowTotalCount },
+    { count: windowGoodCount },
+    recallTotal,
+    recallGood,
+    recognitionTotal,
+    recognitionGood,
+    dailyData,
+  ] = await Promise.all([
+    todayCountQuery,
+    weekCountQuery,
+    totalCountQuery,
+    windowTotalCountQuery,
+    windowGoodCountQuery,
+    recallTotalPromise,
+    recallGoodPromise,
+    recognitionTotalPromise,
+    recognitionGoodPromise,
+    dailyDataPromise,
+  ]);
+
+  const total = totalCount ?? 0;
+  const windowTotal = windowTotalCount ?? 0;
+  const windowGood = windowGoodCount ?? 0;
+  const accuracyRate = windowTotal > 0 ? windowGood / windowTotal : 0;
 
   // Zwei Zähler je Tag, weil hier MENGE und QUOTE nebeneinander wohnen:
   //  - count/durationMs zählen ALLES (auch Prüfungen) -> reviewsByDay „Karten

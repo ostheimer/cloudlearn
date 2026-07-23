@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   getStats,
   getDeckSummaries,
@@ -18,7 +18,10 @@ import { AccuracyByKindPanel, accColor } from "@/components/app/accuracy-by-kind
 import { TestAttemptsPanel } from "@/components/app/test-attempts-panel";
 
 export default function StatsPage() {
-  const [rangeDays, setRangeDays] = useState<7 | 30>(30);
+  // Startet auf 7 (dem Free-Fenster), obwohl die erste Anfrage 30 verlangt:
+  // Free — der Normalfall — sieht so nie einen springenden Umschalter; bei
+  // Pro stellt die Antwort (statsWindowDays) ihn einmal auf 30.
+  const [rangeDays, setRangeDays] = useState<7 | 30>(7);
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,26 +34,47 @@ export default function StatsPage() {
   const [tier, setTier] = useState<"free" | "pro" | "lifetime" | null>(null);
   const [proHint, setProHint] = useState(false);
 
-  useEffect(() => {
-    let active = true;
+  // Genau EINE Stats-Anfrage, deren Antwort auch den Umschalter stellt: Der
+  // Server klemmt Free auf 7 Tage und meldet das gelieferte Fenster zurück
+  // (statsWindowDays). Der Zähler lässt veraltete Antworten verfallen
+  // (Wechsel während des Ladens).
+  const statsRequestSeq = useRef(0);
+  const loadStats = useCallback((days: 7 | 30) => {
+    const seq = ++statsRequestSeq.current;
     setLoading(true);
-    getStats(rangeDays)
-      .then(({ stats }) => active && setStats(stats))
-      .catch((e) => active && setError(isApiError(e) ? e.message : "Statistik nicht verfügbar."))
-      .finally(() => active && setLoading(false));
-    return () => {
-      active = false;
-    };
-  }, [rangeDays]);
+    getStats(days)
+      .then(({ stats }) => {
+        if (seq !== statsRequestSeq.current) return;
+        setStats(stats);
+        setRangeDays((stats.statsWindowDays ?? days) === 30 ? 30 : 7);
+      })
+      .catch((e) => {
+        if (seq === statsRequestSeq.current)
+          setError(isApiError(e) ? e.message : "Statistik nicht verfügbar.");
+      })
+      .finally(() => {
+        if (seq === statsRequestSeq.current) setLoading(false);
+      });
+  }, []);
 
+  // Beim Öffnen das größtmögliche Fenster anfragen — Pro bekommt 30, Free
+  // bekommt geklemmte 7 und der Umschalter zeigt es ehrlich.
+  useEffect(() => {
+    loadStats(30);
+    return () => {
+      statsRequestSeq.current++; // in-flight Antworten nach dem Verlassen verfallen
+    };
+  }, [loadStats]);
+
+  // Der Tarif steuert nur noch Schloss + Hinweis am 30-Tage-Knopf. Welches
+  // Fenster die Daten haben, sagt die Stats-Antwort selbst — früher setzte
+  // „free" hier rangeDays auf 7 und löste damit eine zweite, identische
+  // Stats-Anfrage aus (#492).
   useEffect(() => {
     let active = true;
-    // Free bekommt vom Server ohnehin nur 7 Tage — die Auswahl soll das ehrlich zeigen.
     getLpBalance()
       .then((u) => {
-        if (!active) return;
-        setTier(u.tier);
-        if (u.tier === "free") setRangeDays(7);
+        if (active) setTier(u.tier);
       })
       .catch(() => {
         /* Tarif unbekannt — beim Deck-Vergleich entscheidet ohnehin der Server */
@@ -140,7 +164,9 @@ export default function StatsPage() {
             return;
           }
           setProHint(false);
-          setRangeDays(days);
+          if (active) return; // schon gewählt — nichts neu laden
+          setRangeDays(days); // sofort fürs Auge; die Antwort bestätigt das Fenster
+          loadStats(days);
         }}
         style={{
           display: "inline-flex",
