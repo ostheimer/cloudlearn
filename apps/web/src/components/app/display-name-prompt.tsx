@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import {
   getProfile,
   updateDisplayName,
+  updateGender,
   displayNameErrorMessage,
 } from "@/lib/api";
 import { AlertTriangle, User } from "@/components/icons";
@@ -16,6 +17,7 @@ import { AlertTriangle, User } from "@/components/icons";
  * Bei Netzfehlern beim Laden bleibt der Dialog weg (kein Aussperren).
  */
 const PENDING_KEY = "clearn.pendingDisplayName";
+const PENDING_GENDER_KEY = "clearn.pendingGender";
 
 export function DisplayNamePrompt() {
   const [open, setOpen] = useState(false);
@@ -28,7 +30,30 @@ export function DisplayNamePrompt() {
     (async () => {
       try {
         const profile = await getProfile();
-        if (!active || profile.displayName) return;
+        if (!active) return;
+
+        // Geschlecht aus der Registrierung still nachreichen — kein eigener
+        // Dialog: Bestandskonten tragen es einfach im Profil nach.
+        if (!profile.gender) {
+          const pendingGender = window.localStorage.getItem(PENDING_GENDER_KEY);
+          if (
+            pendingGender === "female" ||
+            pendingGender === "male" ||
+            pendingGender === "diverse"
+          ) {
+            try {
+              await updateGender(pendingGender);
+              window.localStorage.removeItem(PENDING_GENDER_KEY);
+            } catch {
+              // Später im Profil nachtragbar — nicht blockieren.
+            }
+          } else if (pendingGender) {
+            window.localStorage.removeItem(PENDING_GENDER_KEY);
+          }
+          if (!active) return;
+        }
+
+        if (profile.displayName) return;
 
         const pending = window.localStorage.getItem(PENDING_KEY);
         if (pending) {
@@ -117,5 +142,14 @@ export function rememberPendingDisplayName(name: string) {
     window.localStorage.setItem(PENDING_KEY, name);
   } catch {
     // localStorage gesperrt (Privatmodus): dann fragt der Dialog einfach.
+  }
+}
+
+/** Merkt sich die Geschlechts-Angabe aus der Registrierung bis zur ersten Anmeldung. */
+export function rememberPendingGender(gender: string) {
+  try {
+    window.localStorage.setItem(PENDING_GENDER_KEY, gender);
+  } catch {
+    // localStorage gesperrt (Privatmodus): dann bleibt die Profil-Einstellung.
   }
 }

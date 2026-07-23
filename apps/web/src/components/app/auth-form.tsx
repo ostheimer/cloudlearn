@@ -4,18 +4,26 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth, type OAuthProvider } from "./auth-context";
-import { rememberPendingDisplayName } from "./display-name-prompt";
+import { rememberPendingDisplayName, rememberPendingGender } from "./display-name-prompt";
+import type { Gender } from "@/lib/api";
 import {
   getAuthProviderAvailability,
   type AuthProviderAvailability,
 } from "@/lib/auth-availability";
 import { GraduationCap, MailCheck, AlertTriangle } from "@/components/icons";
 
+const GENDER_OPTIONS: { value: Gender; label: string }[] = [
+  { value: "female", label: "Weiblich" },
+  { value: "male", label: "Männlich" },
+  { value: "diverse", label: "Divers" },
+];
+
 export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const router = useRouter();
   const { status, signIn, signUp, signInWithOAuth } = useAuth();
 
   const [name, setName] = useState("");
+  const [gender, setGender] = useState<Gender | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -51,6 +59,10 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       setError("Bitte gib deinen Namen ein (mindestens 2 Zeichen).");
       return;
     }
+    if (!isLogin && !gender) {
+      setError("Bitte wähle aus, wie clearn dich nennen soll.");
+      return;
+    }
     if (!email.trim() || !password) {
       setError("Bitte E-Mail und Passwort eingeben.");
       return;
@@ -77,6 +89,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         // Der Wunschname wird nach der ersten Anmeldung gespeichert — geprüft
         // vom Server. Lehnt er ihn ab, fragt der Dialog im Dashboard nach.
         rememberPendingDisplayName(name.trim());
+        if (gender) rememberPendingGender(gender);
         if (requiresEmailConfirmation) {
           setConfirmSent(true);
           return;
@@ -182,6 +195,28 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
               disabled={busy}
               required
             />
+          </div>
+        )}
+        {!isLogin && (
+          <div className="field">
+            <label id="gender-label">Geschlecht</label>
+            <div className="seg" role="group" aria-labelledby="gender-label">
+              {GENDER_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  className={`seg__btn${gender === opt.value ? " is-on" : ""}`}
+                  aria-pressed={gender === opt.value}
+                  onClick={() => setGender(opt.value)}
+                  disabled={busy}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <span className="muted" style={{ fontSize: "0.8rem" }}>
+              Damit dich clearn bei Freunden richtig nennt.
+            </span>
           </div>
         )}
         <div className="field">
