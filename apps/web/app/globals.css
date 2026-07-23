@@ -4447,9 +4447,11 @@ a.lp-way:hover {
   border: 1px solid var(--line);
   background: var(--surface);
 }
+/* Gleiche Farben wie die „Gelernt"-Kreise (.cal-day--learned), damit Kachel
+   und Kalender zusammengehören — Laras Wunsch nach dem #496-Umbau. */
 .cal-chip--streak {
-  background: var(--amber-50);
-  border-color: transparent;
+  background: var(--cal-mark-bg);
+  border-color: var(--amber);
 }
 .cal-chip b {
   font-size: 1.15rem;
