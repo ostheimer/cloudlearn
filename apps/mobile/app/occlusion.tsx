@@ -32,7 +32,6 @@ import {
 import { getCardImageSignedUrl, removeCardImage } from "../src/lib/occlusionStorage";
 import { useDisplayName } from "../src/lib/useDisplayName";
 
-const LP_SESSION_MIN = 5;
 type Media = { url: string; aspect: number };
 
 async function imageAspect(url: string): Promise<number> {
@@ -119,7 +118,6 @@ export default function OcclusionStudyScreen() {
   const done = phase === "study" && index >= total;
 
   const awardSession = useCallback((count: number) => {
-    if (count < LP_SESSION_MIN) return Promise.resolve();
     const state = awardStateRef.current;
     return beginSessionAward(state, count, async () => {
       try {

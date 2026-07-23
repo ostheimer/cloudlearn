@@ -51,6 +51,16 @@ for (const { name, rel } of SCREENS) {
 describe("mobile occlusion – earnLp erst, wenn die Reviews durch sind", () => {
   const source = read("app/occlusion.tsx");
 
+  it("überlässt die Ein-Karten-Schwelle dem gemeinsamen Helper", () => {
+    const from = source.indexOf("const awardSession = useCallback");
+    const to = source.indexOf("useEffect(() =>", from);
+    const awardSession = from > -1 && to > from ? source.slice(from, to) : "";
+
+    expect(awardSession).not.toBe("");
+    expect(awardSession).toContain("return beginSessionAward(state, count");
+    expect(awardSession).not.toMatch(/if\s*\(\s*count\s*</);
+  });
+
   it("hängt jede sendReview-Anfrage in die Warteliste", () => {
     expect(source).toContain("pendingReviewsRef.current.push(reviewPromise);");
   });
