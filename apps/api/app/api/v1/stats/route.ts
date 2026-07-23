@@ -3,7 +3,7 @@ import { jsonError, jsonOk, normalizeError } from "@/lib/http";
 import { createRequestContext } from "@/lib/observability";
 import { getAuthUser } from "@/lib/auth";
 import { listDecksForUser } from "@/services/deckService";
-import { getDueCards } from "@/services/learnService";
+import { getDueCardCount } from "@/services/learnService";
 import { getStreakInfo, getReviewStats, getLastStudiedDeck } from "@/lib/db";
 import { getSubscriptionStatus } from "@/services/subscriptionService";
 import { effectiveStatsWindowDays } from "@/lib/limits";
@@ -26,9 +26,11 @@ export async function GET(request: NextRequest) {
     const { tier } = await getSubscriptionStatus(auth.userId);
     const days = effectiveStatsWindowDays(tier, requestedDays);
 
-    const [decks, dueCards, streak, reviewStats, lastStudiedDeck] = await Promise.all([
+    const [decks, dueCardCount, streak, reviewStats, lastStudiedDeck] = await Promise.all([
       listDecksForUser(auth.userId),
-      getDueCards(auth.userId),
+      // Nur die ZAHL — die Route zeigt einen Zähler, keine Karten. getDueCards
+      // würde den ganzen fälligen Rückstand mit Kartentext übertragen (#492).
+      getDueCardCount(auth.userId),
       getStreakInfo(auth.userId),
       getReviewStats(auth.userId, days),
       getLastStudiedDeck(auth.userId),
@@ -38,7 +40,7 @@ export async function GET(request: NextRequest) {
       requestId,
       stats: {
         totalDecks: decks.length,
-        dueCards: dueCards.length,
+        dueCards: dueCardCount,
         currentStreak: streak.currentStreak,
         longestStreak: streak.longestStreak,
         lastReviewDate: streak.lastReviewDate,

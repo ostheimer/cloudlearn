@@ -44,14 +44,14 @@ vi.mock("@/lib/db", () => ({
   getLastStudiedDeck: vi.fn(),
 }));
 vi.mock("@/services/deckService", () => ({ listDecksForUser: vi.fn() }));
-vi.mock("@/services/learnService", () => ({ getDueCards: vi.fn() }));
+vi.mock("@/services/learnService", () => ({ getDueCardCount: vi.fn() }));
 vi.mock("@/services/subscriptionService", () => ({ getSubscriptionStatus: vi.fn() }));
 
 import { GET } from "../../app/api/v1/stats/route";
 import { getAuthUser } from "@/lib/auth";
 import { getStreakInfo, getReviewStats, getLastStudiedDeck } from "@/lib/db";
 import { listDecksForUser } from "@/services/deckService";
-import { getDueCards } from "@/services/learnService";
+import { getDueCardCount } from "@/services/learnService";
 import { getSubscriptionStatus } from "@/services/subscriptionService";
 
 const mockedGetAuthUser = vi.mocked(getAuthUser);
@@ -59,7 +59,7 @@ const mockedGetStreakInfo = vi.mocked(getStreakInfo);
 const mockedGetReviewStats = vi.mocked(getReviewStats);
 const mockedGetLastStudiedDeck = vi.mocked(getLastStudiedDeck);
 const mockedListDecksForUser = vi.mocked(listDecksForUser);
-const mockedGetDueCards = vi.mocked(getDueCards);
+const mockedGetDueCardCount = vi.mocked(getDueCardCount);
 const mockedGetSubscriptionStatus = vi.mocked(getSubscriptionStatus);
 
 function mockTier(tier: "free" | "pro" | "lifetime") {
@@ -107,7 +107,7 @@ describe("GET /api/v1/stats – days whitelist + durationMsByDay", () => {
       email: "lara@example.com",
     });
     mockedListDecksForUser.mockResolvedValue([] as never);
-    mockedGetDueCards.mockResolvedValue([] as never);
+    mockedGetDueCardCount.mockResolvedValue(0);
     mockedGetStreakInfo.mockResolvedValue({
       currentStreak: 4,
       longestStreak: 9,
@@ -245,7 +245,7 @@ describe("GET /api/v1/stats – advanced-stats gate for free users (#235)", () =
       email: "lara@example.com",
     });
     mockedListDecksForUser.mockResolvedValue([] as never);
-    mockedGetDueCards.mockResolvedValue([] as never);
+    mockedGetDueCardCount.mockResolvedValue(0);
     mockedGetStreakInfo.mockResolvedValue({
       currentStreak: 4,
       longestStreak: 9,

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -59,7 +59,10 @@ export default function StatsScreen() {
   const colors = useColors();
   const router = useRouter();
 
-  const [rangeDays, setRangeDays] = useState<7 | 30>(30);
+  // Startet auf 7 (dem Free-Fenster), obwohl die erste Anfrage 30 verlangt:
+  // Free — der Normalfall — sieht so nie einen springenden Chip; bei Pro
+  // stellt die Antwort (statsWindowDays) den Chip einmal auf 30.
+  const [rangeDays, setRangeDays] = useState<7 | 30>(7);
   const [stats, setStats] = useState<StatsWithDuration | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -104,14 +107,15 @@ export default function StatsScreen() {
 
   useEffect(() => loadDeckSummaries(), [loadDeckSummaries]);
 
-  // Free bekommt vom Server nur 7 Tage — die Auswahl soll das ehrlich zeigen.
+  // Der Tarif steuert nur noch Schloss + Hinweis am 30-Tage-Knopf. Welches
+  // Fenster die Daten haben, sagt die Stats-Antwort selbst (statsWindowDays) —
+  // früher setzte „free" hier rangeDays auf 7 und löste damit eine zweite,
+  // identische Stats-Anfrage aus (#492).
   useEffect(() => {
     let cancelled = false;
     getLpBalance()
       .then((u) => {
-        if (cancelled) return;
-        setTier(u.tier);
-        if (u.tier === "free") setRangeDays(7);
+        if (!cancelled) setTier(u.tier);
       })
       .catch(() => {
         /* Tarif unbekannt — beim Deck-Vergleich entscheidet ohnehin der Server */
@@ -121,24 +125,36 @@ export default function StatsScreen() {
     };
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
+  // Genau EINE Stats-Anfrage, deren Antwort auch den Chip stellt: Der Server
+  // klemmt Free auf 7 Tage und meldet das gelieferte Fenster zurück. Der
+  // Zähler lässt veraltete Antworten verfallen (Wechsel während des Ladens).
+  const statsRequestSeq = useRef(0);
+  const loadStats = useCallback((days: 7 | 30) => {
+    const seq = ++statsRequestSeq.current;
     setLoading(true);
     setError("");
-    fetchStats(rangeDays)
+    fetchStats(days)
       .then((res) => {
-        if (!cancelled) setStats(res.stats);
+        if (seq !== statsRequestSeq.current) return;
+        setStats(res.stats);
+        setRangeDays((res.stats.statsWindowDays ?? days) === 30 ? 30 : 7);
       })
       .catch((e) => {
-        if (!cancelled) setError(String(e));
+        if (seq === statsRequestSeq.current) setError(String(e));
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (seq === statsRequestSeq.current) setLoading(false);
       });
+  }, []);
+
+  // Beim Öffnen das größtmögliche Fenster anfragen — Pro bekommt 30, Free
+  // bekommt geklemmte 7 und der Chip zeigt es ehrlich.
+  useEffect(() => {
+    loadStats(30);
     return () => {
-      cancelled = true;
+      statsRequestSeq.current++; // in-flight Antworten nach dem Schließen verfallen
     };
-  }, [rangeDays]);
+  }, [loadStats]);
 
   // Prüfungen (fenster-unabhängig, immer die letzten). null = noch nicht
   // geladen -> Karte bleibt weg; Fehler ist unkritisch (Nebenpanel).
@@ -168,7 +184,8 @@ export default function StatsScreen() {
     setProHint(false);
     setSelectedDate(null); // Auswahl gilt nur innerhalb eines Zeitraums
     setSelectedTrendIndex(null);
-    setRangeDays(days);
+    setRangeDays(days); // sofort fürs Auge; die Antwort bestätigt das Fenster
+    loadStats(days);
   };
 
   // ─── Chart data (guard undefined / sort ascending) ───────────────────────
