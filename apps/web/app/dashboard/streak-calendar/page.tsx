@@ -234,20 +234,17 @@ export default function StreakCalendarPage() {
               const isLearned = !isFrozen && learned.has(dateStr);
               const isToday = dateStr === today;
               const isFuture = dateStr > today;
-              const cls =
-                "cal-cell" +
-                (isLearned ? " cal-cell--learned" : "") +
-                (isToday ? " cal-cell--today" : isFrozen ? " cal-cell--frozen" : "") +
-                (isFuture && !isLearned && !isFrozen ? " cal-cell--future" : "");
+              // Die Tagesnummer bleibt immer stehen; Zustände zeigen sich nur an
+              // Füllung/Rand/Ring des Kreises — Symbole ersetzten sie früher (#496).
+              const dayCls =
+                "cal-day" +
+                (isLearned ? " cal-day--learned" : "") +
+                (isFrozen ? " cal-day--frozen" : "") +
+                (isToday ? " cal-day--today" : "") +
+                (isFuture && !isLearned && !isFrozen ? " cal-day--future" : "");
               return (
-                <div key={dateStr} className={cls}>
-                  {isFrozen ? (
-                    <Shield size={15} style={{ color: "var(--amber)" }} />
-                  ) : isLearned ? (
-                    <Flame size={15} style={{ color: "var(--amber)" }} />
-                  ) : (
-                    day
-                  )}
+                <div key={dateStr} className="cal-cell">
+                  <span className={dayCls}>{day}</span>
                 </div>
               );
             })}
@@ -259,6 +256,7 @@ export default function StreakCalendarPage() {
           style={{
             display: "flex",
             flexWrap: "wrap",
+            justifyContent: "center",
             gap: 14,
             marginTop: 14,
             fontSize: "0.78rem",
@@ -266,12 +264,14 @@ export default function StreakCalendarPage() {
           }}
         >
           <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-            <Flame size={14} style={{ color: "var(--amber)" }} /> Gelernt
+            <span className="cal-dot cal-dot--learned" /> Gelernt
           </span>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-            <Shield size={14} style={{ color: "var(--amber)" }} /> Durch Freeze geschützt
+            <span className="cal-dot cal-dot--frozen" /> Durch Freeze geschützt
           </span>
-          <span>Leere Tage: nicht gelernt</span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+            <span className="cal-dot cal-dot--today" /> Heute
+          </span>
         </div>
       </div>
 

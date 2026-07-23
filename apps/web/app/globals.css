@@ -15,6 +15,11 @@
   --violet-600: #7c3aed;
   --amber: #f59e0b;
   --amber-50: #fffbeb;
+  /* Streak-Kalender: --amber-50 geht auf weißem Grund unter, deshalb eigene,
+     kräftigere Markierungsfarben (#496). */
+  --cal-mark-bg: rgba(245, 158, 11, 0.22);
+  --cal-mark-ink: #92400e;
+  --cal-today-ring: #b45309;
   --green: #10b981;
   --pink: #ec4899;
   --info: #3b82f6;
@@ -80,6 +85,8 @@
     --info: #60a5fa;
     --info-50: #1e3a5f;
     --amber-50: #451a03;
+    --cal-mark-ink: #fcd34d;
+    --cal-today-ring: #d97706;
     color-scheme: dark;
   }
 }
@@ -98,6 +105,8 @@
   --info: #60a5fa;
   --info-50: #1e3a5f;
   --amber-50: #451a03;
+  --cal-mark-ink: #fcd34d;
+  --cal-today-ring: #d97706;
   color-scheme: dark;
 }
 
@@ -4337,6 +4346,10 @@ a.lp-way:hover {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 4px;
+  /* Ohne Deckel wachsen die 1fr-Spalten auf Desktop-Breite zu ~140px-Zellen —
+     die Markierungen wurden zu Riesen-Kreisen (#496). */
+  max-width: 420px;
+  margin: 0 auto;
 }
 .cal-wd {
   text-align: center;
@@ -4345,27 +4358,54 @@ a.lp-way:hover {
   padding: 2px 0 4px;
 }
 .cal-cell {
-  aspect-ratio: 1;
+  height: 40px;
   display: grid;
   place-items: center;
+}
+.cal-day {
+  width: 34px;
+  height: 34px;
   border-radius: 999px;
+  display: grid;
+  place-items: center;
   font-size: 0.8rem;
   color: var(--ink-2);
   border: 2px solid transparent;
-  box-sizing: border-box;
 }
-.cal-cell--future {
+.cal-day--future {
   color: var(--ink-4);
 }
-.cal-cell--learned {
-  background: var(--amber-50);
-  color: var(--amber);
+.cal-day--learned {
+  background: var(--cal-mark-bg);
+  border-color: var(--amber);
+  color: var(--cal-mark-ink);
+  font-weight: 600;
 }
-.cal-cell--today {
-  border-color: var(--brand);
-}
-.cal-cell--frozen {
+.cal-day--frozen {
   border: 2px dashed var(--amber);
+  color: var(--cal-mark-ink);
+  font-weight: 600;
+}
+.cal-day--today {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--cal-today-ring);
+}
+.cal-dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 999px;
+  display: inline-block;
+  border: 2px solid transparent;
+  flex-shrink: 0;
+}
+.cal-dot--learned {
+  background: var(--cal-mark-bg);
+  border-color: var(--amber);
+}
+.cal-dot--frozen {
+  border: 2px dashed var(--amber);
+}
+.cal-dot--today {
+  border-color: var(--cal-today-ring);
 }
 .cal-chips {
   display: grid;
