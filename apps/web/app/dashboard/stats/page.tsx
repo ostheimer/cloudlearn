@@ -6,13 +6,16 @@ import {
   getStats,
   getDeckSummaries,
   getLpBalance,
+  getTestAttempts,
   isApiError,
   type StatsResponse,
   type DeckSummary,
+  type TestAttemptSummary,
 } from "@/lib/api";
 import { BarChart, ChevronRight, Flame, Lock } from "@/components/icons";
 import { AccuracyRing, AccuracyTrendChart, ActivityBars } from "@/components/app/stats-charts";
 import { AccuracyByKindPanel, accColor } from "@/components/app/accuracy-by-kind";
+import { TestAttemptsPanel } from "@/components/app/test-attempts-panel";
 
 export default function StatsPage() {
   const [rangeDays, setRangeDays] = useState<7 | 30>(30);
@@ -21,6 +24,8 @@ export default function StatsPage() {
   const [error, setError] = useState<string | null>(null);
   const [decks, setDecks] = useState<DeckSummary[] | null>(null);
   const [decksErr, setDecksErr] = useState(false);
+  // Prüfungen: null = noch nicht geladen (Block bleibt weg), [] = geladen, keine.
+  const [attempts, setAttempts] = useState<TestAttemptSummary[] | null>(null);
   // Deck-Vergleich ist Pro-only; der Server meldet das mit 403/PRO_REQUIRED.
   const [proLocked, setProLocked] = useState(false);
   const [tier, setTier] = useState<"free" | "pro" | "lifetime" | null>(null);
@@ -64,6 +69,21 @@ export default function StatsPage() {
         if (isApiError(e) && (e.code === "PRO_REQUIRED" || e.status === 403)) setProLocked(true);
         else setDecksErr(true);
       });
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    // Fenster-unabhängig (immer die letzten Prüfungen), daher eigener Effekt.
+    // Schlägt es fehl, bleibt attempts null und der Block einfach weg — kein
+    // Fehlerkasten für ein Nebenpanel.
+    getTestAttempts()
+      .then(({ attempts }) => active && setAttempts(attempts))
+      .catch(() => {
+        /* Prüfungs-Block ist optional; bei Fehler nicht anzeigen */
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   if (loading && !stats) return <div className="spinner" />;
@@ -227,6 +247,17 @@ export default function StatsPage() {
           Nur zeigen, wenn die API das Feld liefert — ältere Stände sollen keine
           leere Karte hinterlassen. */}
       {stats?.accuracyByKind && <AccuracyByKindPanel data={stats.accuracyByKind} />}
+
+      {/* Prüfungs-Bereich — direkt unter „Trefferquote genauer". Erst zeigen,
+          wenn geladen (attempts !== null): sonst blitzte der Leerzustand kurz
+          auf, bevor die Prüfungen da sind. Die selbst vergebene Vergleichszahl
+          ist die „Aus dem Kopf gewusst"-Quote. */}
+      {attempts !== null && (
+        <TestAttemptsPanel
+          attempts={attempts}
+          selfGradedRate={stats?.accuracyByKind?.recall.rate ?? null}
+        />
+      )}
 
       {/* Hero: Trefferquote-Verlauf, volle Breite */}
       <div className="panel">

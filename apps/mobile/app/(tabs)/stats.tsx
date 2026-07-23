@@ -24,7 +24,8 @@ import {
   type DeckSummary,
   type StatsWithDuration,
 } from "../../src/lib/statsApi";
-import { ApiError, getLpBalance } from "../../src/lib/api";
+import { ApiError, getLpBalance, getTestAttempts, type TestAttemptSummary } from "../../src/lib/api";
+import { TestAttemptsCard } from "../../src/components/TestAttemptsCard";
 import {
   AccuracyRing,
   AccuracyTrendChart,
@@ -138,6 +139,23 @@ export default function StatsScreen() {
       cancelled = true;
     };
   }, [rangeDays]);
+
+  // Prüfungen (fenster-unabhängig, immer die letzten). null = noch nicht
+  // geladen -> Karte bleibt weg; Fehler ist unkritisch (Nebenpanel).
+  const [attempts, setAttempts] = useState<TestAttemptSummary[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    getTestAttempts()
+      .then((res) => {
+        if (!cancelled) setAttempts(res.attempts);
+      })
+      .catch(() => {
+        /* Prüfungs-Karte ist optional; bei Fehler nicht anzeigen */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const switchRange = (days: 7 | 30) => {
     if (days === rangeDays) return;
@@ -617,6 +635,17 @@ export default function StatsScreen() {
                 )
               )}
             </View>
+
+            {/* Prüfungs-Bereich — nach „Genauigkeit", wie im Web nach der
+                Trefferquote. Erst wenn geladen (attempts !== null), sonst
+                blitzte der Leerzustand kurz auf. Vergleichszahl „selbst
+                bewertet" ist die „Aus dem Kopf gewusst"-Quote. */}
+            {attempts !== null && (
+              <TestAttemptsCard
+                attempts={attempts}
+                selfGradedRate={stats?.accuracyByKind?.recall.rate ?? null}
+              />
+            )}
 
             {/* Reviews-per-day bar chart. The card itself is pressable so a
                 tap on the background deselects the day. */}

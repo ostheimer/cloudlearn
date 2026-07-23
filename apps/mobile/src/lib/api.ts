@@ -285,6 +285,13 @@ export interface StatsResponse {
   // "nothing studied in this window" (dash) from "all wrong" (0%). Optional
   // while older API versions age out.
   reviewsInWindow?: number;
+  // Dieselbe Quote, getrennt nach Art der Antwort: abgerufen (aus dem Kopf) vs.
+  // wiedererkannt (aus einer Auswahl getippt). Prüfungen zählen in KEINER
+  // Gruppe (eigener Bereich). Optional während alte API-Versionen auslaufen.
+  accuracyByKind?: {
+    recall: { rate: number; answers: number };
+    recognition: { rate: number; answers: number };
+  };
   // The window actually served (Free is clamped to 7) — for the label.
   statsWindowDays?: 7 | 30;
   reviewsByDay: Array<{ date: string; count: number }>;
@@ -560,6 +567,25 @@ export async function recordTestAttempt(
     method: "POST",
     body: JSON.stringify({ userId, idempotencyKey, answers }),
   });
+}
+
+/** Eine abgegebene Prüfung in der „letzte Prüfungen"-Liste. */
+export interface TestAttemptSummary {
+  id: string;
+  deckId: string;
+  deckTitle: string;
+  questionCount: number;
+  correctCount: number;
+  submittedAt: string;
+}
+
+/**
+ * Die letzten Prüfungen (neueste zuerst), je mit Deck-Titel, Datum und „x von
+ * y". Gegenstück zu recordTestAttempt — der Server liefert die letzten fünf,
+ * Prüfungen zu gelöschten Decks bereits herausgefiltert.
+ */
+export async function getTestAttempts(): Promise<{ attempts: TestAttemptSummary[] }> {
+  return requestAuthenticated<{ attempts: TestAttemptSummary[] }>(`/api/v1/stats/tests`);
 }
 
 // --- Deck Management ---

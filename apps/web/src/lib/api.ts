@@ -362,6 +362,25 @@ export function getStats(days?: 7 | 30): Promise<{ stats: StatsResponse }> {
   );
 }
 
+/** Eine abgegebene Prüfung in der „letzte Prüfungen"-Liste. */
+export interface TestAttemptSummary {
+  id: string;
+  deckId: string;
+  deckTitle: string;
+  questionCount: number;
+  correctCount: number;
+  submittedAt: string;
+}
+
+/**
+ * Die letzten Prüfungen (neueste zuerst), je mit Deck-Titel, Datum und „x von
+ * y". Gegenstück zu recordTestAttempt (das schreibt) — der Server liefert die
+ * letzten fünf, Prüfungen zu gelöschten Decks bereits herausgefiltert.
+ */
+export function getTestAttempts(): Promise<{ attempts: TestAttemptSummary[] }> {
+  return authed<{ attempts: TestAttemptSummary[] }>(`/api/v1/stats/tests`);
+}
+
 // Tagesziel (Karten/Tag) setzen — reiner Anzeige-Zielwert, ohne Einfluss auf
 // LP-Verdienst oder -Deckel. Der Server begrenzt final auf [1, 500] und nimmt
 // die Identität aus dem Token (gleicher Endpunkt wie die App, profileApi.ts).
