@@ -109,7 +109,9 @@ export const Shuffle = (p: IconProps) => (
 
 export const Flame = (p: IconProps) => (
   <Icon {...p}>
-    <path d="M12 2.5c2.5 3 4 5 4 8a4 4 0 0 1-8 0c0-1.3.5-2.4 1.3-3.3.2 1.1.9 1.7 1.7 1.8-.8-2.4.2-4.7 1-6.3z" />
+    {/* Startpunkt y=6 statt 2.5: die Form ist 12 hoch und liegt so mittig im
+        24er-Rahmen — sonst sitzt die Flamme in Kreisen/neben Text zu hoch. */}
+    <path d="M12 6c2.5 3 4 5 4 8a4 4 0 0 1-8 0c0-1.3.5-2.4 1.3-3.3.2 1.1.9 1.7 1.7 1.8-.8-2.4.2-4.7 1-6.3z" />
   </Icon>
 );
 
