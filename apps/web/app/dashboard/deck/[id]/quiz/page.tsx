@@ -342,15 +342,22 @@ export default function QuizPage() {
               const ok = answers[i];
               // Wahr/Falsch: nur die Vorderseite plus „Richtig: Falsch" las sich
               // wie ein Widerspruch, weil die geprüfte Zuordnung fehlte (#497).
-              // Deshalb zeigt die Zeile die ganze Paarung, sagt im Klartext, ob
-              // sie stimmt, und nennt bei einer falschen Paarung die echte Antwort.
-              // Farbe = wie DU geantwortet hast, Zeichen = was inhaltlich wahr
-              // ist: falsche Paarungen bekommen ≠, sonst würde eine grün
-              // abgehakte Falsch-Paarung wie ein wahrer Satz aussehen.
+              // Farbe = hast du die Frage getroffen, Zeichen (=/≠) = gehört das
+              // gezeigte Paar wirklich zusammen. Weil man aus Häkchen+Zeichen
+              // den eigenen Tipp erst zusammenreimen musste, nennt der Satz ihn
+              // wörtlich („Du hast ‚Falsch' getippt — …") und sagt direkt, wie
+              // es wirklich ist; bei einem Schwindel-Paar folgt die echte Antwort.
               const tf = qq.type === "trueFalse" ? qq.tfPairing : undefined;
               const label = tf
                 ? `${tf.front} ${tf.isCorrect ? "=" : "≠"} ${tf.back}`
                 : qq.questionText;
+              // Getippt wurde der richtige Knopf genau dann, wenn die Antwort
+              // stimmt — der richtige Knopf heißt „Richtig", wenn das Paar echt ist.
+              const tfNote = tf
+                ? `Du hast „${ok === tf.isCorrect ? "Richtig" : "Falsch"}“ getippt — ${
+                    ok ? "passt:" : "doch"
+                  } das Paar gehört ${tf.isCorrect ? "wirklich" : "nicht"} zusammen.`
+                : null;
               return (
                 <div key={i} className={`quiz-sum__row ${ok ? "ok" : "no"}`}>
                   <span
@@ -363,32 +370,17 @@ export default function QuizPage() {
                     <div className={`quiz-sum__q${tf ? " quiz-sum__q--wrap" : ""}`}>
                       {label}
                     </div>
-                    {!ok &&
-                      (tf ? (
-                        tf.isCorrect ? (
-                          <div className="quiz-sum__note">
-                            Diese Zuordnung stimmt tatsächlich.
-                          </div>
-                        ) : (
-                          <>
-                            <div className="quiz-sum__note">Diese Zuordnung stimmt nicht.</div>
-                            <div className="quiz-sum__fix">
-                              Tatsächlich gehört dazu: {tf.correctBack}
-                            </div>
-                          </>
-                        )
-                      ) : (
-                        <div className="quiz-sum__fix">Richtig: {qq.correctAnswer}</div>
-                      ))}
-                    {ok && tf && !tf.isCorrect && (
+                    {tf ? (
                       <>
-                        <div className="quiz-sum__note">
-                          Richtig erkannt: das gehört nicht zusammen.
-                        </div>
-                        <div className="quiz-sum__fix">
-                          Tatsächlich gehört dazu: {tf.correctBack}
-                        </div>
+                        <div className="quiz-sum__note">{tfNote}</div>
+                        {!tf.isCorrect && (
+                          <div className="quiz-sum__fix">
+                            Tatsächlich gehört dazu: {tf.correctBack}
+                          </div>
+                        )}
                       </>
+                    ) : (
+                      !ok && <div className="quiz-sum__fix">Richtig: {qq.correctAnswer}</div>
                     )}
                   </div>
                 </div>
