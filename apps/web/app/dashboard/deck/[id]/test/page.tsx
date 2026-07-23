@@ -133,6 +133,11 @@ export default function TestPage() {
   // (Uhr läuft ab, während man tippt) oder klickt schnell zweimal, soll daraus
   // EINE test_attempts-Zeile werden, nicht zwei. Der Server entdoppelt darüber.
   const roundKeyRef = useRef("");
+  // Wurde für DIESE Runde eine Prüfungs-Zeile geschrieben (nur bei voller
+  // Abgabe)? Nur dann darf „Trotzdem als richtig zählen" die Note nachziehen —
+  // sonst legte ein Override im Durchsicht-Bildschirm einer ABGEBROCHENEN
+  // Prüfung nachträglich doch eine Zeile an.
+  const attemptRecordedRef = useRef(false);
 
   // Keine LP-Zustände mehr: die Prüfung rechnet nichts ab (Schritt 7). Die
   // Wiederholungen werden weiterhin gesendet — sie tragen Streak und Statistik
@@ -228,6 +233,7 @@ export default function TestPage() {
       // vorzeitigen Beenden für immer stumm.
       sentRef.current = false;
       roundKeyRef.current = `test-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      attemptRecordedRef.current = false;
       setAborted(false);
       setLeavePrompt(false);
       // Zeitbudget aus den TATSÄCHLICH gebauten Fragen (nicht der angeforderten
@@ -281,6 +287,7 @@ export default function TestPage() {
       // wurden. Die beantworteten Karten zählen trotzdem einzeln (oben, über
       // flushReviews) — nur die Prüfungs-Zeile entsteht nicht.
       if (scope === "all" && userId && keptQuestions.length > 0) {
+        attemptRecordedRef.current = true;
         void recordTestAttempt(
           userId,
           deckId,
@@ -423,6 +430,24 @@ export default function TestPage() {
     const card = questions[i];
     if (userId && card) {
       void reviewCard(userId, card.cardId, "good", { mode: "test" }).catch(() => {});
+    }
+
+    // Die gespeicherte Prüfungsnote nachziehen: dieselbe Runde (roundKeyRef),
+    // die eine Karte jetzt zusätzlich als richtig. Nur wenn diese Runde
+    // überhaupt eine Prüfungs-Zeile hat — nach einem Abbruch gibt es keine, und
+    // ein Override in dessen Durchsicht darf keine anlegen. Der Server nimmt per
+    // greatest() die höhere Trefferzahl, das Nachziehen kann also nur steigen,
+    // nie eine echte Abgabe überschreiben.
+    if (userId && attemptRecordedRef.current) {
+      void recordTestAttempt(
+        userId,
+        deckId,
+        roundKeyRef.current,
+        questions.map((q, j) => ({
+          cardId: q.cardId,
+          correct: !!(graded[j]?.correct || graded[j]?.overridden || j === i),
+        }))
+      ).catch(() => {});
     }
   };
 

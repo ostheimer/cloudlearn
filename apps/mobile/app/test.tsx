@@ -168,6 +168,11 @@ export default function TestScreen() {
   // Ein stabiler Schlüssel je Prüfungsrunde, damit ein Doppel-Abgeben (Zeit-Modus
   // feuert submit, während man noch tippt) EINE test_attempts-Zeile ergibt.
   const roundKeyRef = useRef("");
+  // Wurde für DIESE Runde eine Prüfungs-Zeile geschrieben (nur bei voller
+  // Abgabe)? Nur dann darf „Trotzdem als richtig zählen" die Note nachziehen —
+  // sonst legte ein Override in der Durchsicht einer ABGEBROCHENEN Prüfung
+  // nachträglich doch eine Zeile an.
+  const attemptRecordedRef = useRef(false);
 
   // All cards with both a question and an answer — the base pool for the test.
   const usableCards = useMemo(
@@ -267,6 +272,7 @@ export default function TestScreen() {
     // vorzeitigen Beenden für immer stumm.
     sentRef.current = false;
     roundKeyRef.current = `test-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    attemptRecordedRef.current = false;
     setAborted(false);
     setPhase("play");
   };
@@ -314,6 +320,7 @@ export default function TestScreen() {
     // beantworteten Karten zählen trotzdem einzeln (oben), nur die Prüfungs-Zeile
     // entsteht nicht.
     if (scope === "all" && userId && keptQuestions.length > 0) {
+      attemptRecordedRef.current = true;
       void recordTestAttempt(
         userId,
         deckId,
@@ -460,6 +467,23 @@ export default function TestScreen() {
 
   const overrideCorrect = (i: number) => {
     setGraded((prev) => prev.map((g, j) => (j === i ? { ...g, overridden: true } : g)));
+
+    // Die gespeicherte Prüfungsnote nachziehen: dieselbe Runde (roundKeyRef),
+    // eine Karte jetzt zusätzlich als richtig. Nur wenn diese Runde überhaupt
+    // eine Prüfungs-Zeile hat — nach einem Abbruch gibt es keine, und ein
+    // Override in dessen Durchsicht darf keine anlegen. Der Server nimmt per
+    // greatest() die höhere Trefferzahl, das Nachziehen kann also nur steigen.
+    if (userId && attemptRecordedRef.current) {
+      void recordTestAttempt(
+        userId,
+        deckId,
+        roundKeyRef.current,
+        questions.map((q, j) => ({
+          cardId: q.cardId,
+          correct: !!(graded[j]?.correct || graded[j]?.overridden || j === i),
+        }))
+      ).catch(() => {});
+    }
   };
 
   const screenHeader = (title: string) => (
