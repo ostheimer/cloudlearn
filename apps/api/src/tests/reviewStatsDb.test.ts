@@ -316,27 +316,59 @@ describe("getReviewStats – 7/30-day window + durationMsByDay", () => {
     expect(stats.reviewsTotal).toBe(200);
   });
 
-  it("counts test-mode reviews everywhere, the daily goal included", async () => {
-    // Laras Entscheidung 17.07.: „alles was ich gemacht habe soll zählen, auch
-    // Prüfungen." Sie kehrt damit ihre eigene frühere Regel um, die hier als
-    // Zitat stand: „Beim Test sollte man keine Lernpunkte bekommen oder etwas
-    // bei Tagesziel, da man ja im Prinzip nicht gelernt hat."
-    //
-    // Auslöser: reviewsToday speist den Tagesziel-Balken (reviewsToday /
-    // dailyGoal), das Balkendiagramm „Karten pro Tag" daneben zählte alles —
-    // zwei Zahlen, beide „Karten", beide „heute", verschieden. Auf der
-    // Web-Statistik standen sie in derselben Zeile.
-    //
-    // Kein Schlupfloch: Am Erreichen des Tagesziels hängt keine Prämie mehr,
-    // und der Streak folgt jeder Antwort statt dem Ziel. Prüfungen geben
-    // weiterhin keine LP und bewegen den Lernplan nicht — anderer Code.
+  it("zählt Prüfungen in den MENGEN mit, lässt sie aus den QUOTEN heraus", async () => {
+    // Verfeinerung von Laras 17.07.-Regel „alles was ich gemacht habe soll
+    // zählen": Das gilt für MENGEN (heute/Woche/gesamt/Karten pro Tag) — die
+    // filtern nach wie vor NICHT nach mode. QUOTEN dagegen (Trefferquote im
+    // Fenster) lassen Prüfungen aus, weil eine Prüfung unter Druck misst und
+    // die Lern-Trefferquote sonst drückte; sie bekommt ihre eigene Zahl. Ohne
+    // diese Trennung stünden auf einer Seite mehrere „wie gut"-Zahlen, die
+    // dieselbe Prüfung verschieden verrechnen.
     const { db, calls } = makeDbMock(statsResponses(DAILY_ROWS));
     mockedCreateDb.mockReturnValue(db);
 
     await getReviewStats(USER_ID, 30);
 
-    // Keine einzige Abfrage darf Prüfungen noch aussortieren.
-    expect(calls.filter((c) => c.method === "neq")).toEqual([]);
+    // Reihenfolge: today, week, total, windowTotal, windowGood, dann die vier
+    // accuracyByKind-Zählungen, dann die Tageszeilen.
+    const queries = queriesOf(calls);
+    const neqArgs = (q: RecordedCall[] | undefined) =>
+      (q ?? []).filter((c) => c.method === "neq").map((c) => c.args);
+
+    // Mengen — kein mode-Filter.
+    expect(neqArgs(queries[0])).toEqual([]); // heute (Tagesziel-Balken)
+    expect(neqArgs(queries[1])).toEqual([]); // diese Woche
+    expect(neqArgs(queries[2])).toEqual([]); // gesamt
+    // Quoten — Prüfungen ausgeschlossen.
+    expect(neqArgs(queries[3])).toEqual([["mode", "test"]]); // windowTotal (Nenner)
+    expect(neqArgs(queries[4])).toEqual([["mode", "test"]]); // windowGood (Zähler)
+  });
+
+  it("ein reiner Prüfungstag zählt als Karte, aber nicht in der Tages-Quote", async () => {
+    // Der Split lebt in EINER Zeilenabfrage: count/durationMs zählen alles,
+    // quotaCount/good lassen Prüfungen aus. Ein Tag mit nur einer Prüfung soll
+    // im Balken „Karten pro Tag" erscheinen (Menge), im Trefferquote-Verlauf
+    // aber NICHT — sonst stünde dort ein Prozent an einem Tag, an dem geprüft
+    // und nicht gelernt wurde.
+    const rows = [
+      // 2026-07-12: zwei echte Lernantworten (gut + Fehler)
+      { reviewed_at: "2026-07-12T08:00:00.000Z", rating: 4, review_duration_ms: 1000, mode: "flashcard" },
+      { reviewed_at: "2026-07-12T09:00:00.000Z", rating: 1, review_duration_ms: 1000, mode: "flashcard" },
+      // 2026-07-13: ausschließlich eine Prüfung
+      { reviewed_at: "2026-07-13T10:00:00.000Z", rating: 4, review_duration_ms: 5000, mode: "test" },
+    ];
+    const { db } = makeDbMock(statsResponses(rows));
+    mockedCreateDb.mockReturnValue(db);
+
+    const stats = await getReviewStats(USER_ID, 7);
+
+    // Menge: der Prüfungstag hat eine Karte, und die Lernzeit zählt.
+    expect(stats.reviewsByDay.find((d) => d.date === "2026-07-13")?.count).toBe(1);
+    expect(stats.durationMsByDay.find((d) => d.date === "2026-07-13")?.durationMs).toBe(5000);
+    // Quote: der reine Prüfungstag erscheint NICHT im Verlauf …
+    expect(stats.accuracyByDay.map((d) => d.date)).toEqual(["2026-07-12"]);
+    // … und der Lerntag rechnet nur seine zwei Lernantworten (1 von 2).
+    expect(stats.accuracyByDay[0]).toEqual({ date: "2026-07-12", count: 2, accuracy: 0.5 });
   });
 
   it("rechnet die getrennte Quote je Gruppe mit dem EIGENEN Nenner", async () => {

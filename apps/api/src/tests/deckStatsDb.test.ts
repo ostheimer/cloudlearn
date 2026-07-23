@@ -118,6 +118,14 @@ describe("getDeckReviewStats – totals + accuracy trend for one deck", () => {
       "reviewed_at",
       "2026-07-07T00:00:00.000Z",
     ]);
+    // Die Deck-Statistik ist eine QUOTE („X von Y richtig") und lässt Prüfungen
+    // aus, wie die Gesamt-Trefferquote. Ohne diesen Filter drückte eine Prüfung
+    // im Deck die Zahl, obwohl sie in der Gesamtquote fehlt — zwei „wie gut"-
+    // Zahlen, die dieselbe Prüfung verschieden verrechnen.
+    expect(calls.filter((c) => c.method === "neq").map((c) => c.args)).toContainEqual([
+      "mode",
+      "test",
+    ]);
   });
 
   it("returns zeros and an empty trend for a deck without answers", async () => {
@@ -253,6 +261,12 @@ describe("getDeckReviewSummaries – all decks in two queries", () => {
     expect(calls.find((c) => c.method === "gte")?.args).toEqual([
       "reviewed_at",
       "2026-06-14T00:00:00.000Z",
+    ]);
+    // Der Deck-Vergleich rankt nach Trefferquote — eine QUOTE, also ohne
+    // Prüfungen, wie alle „wie gut"-Zahlen.
+    expect(calls.filter((c) => c.method === "neq").map((c) => c.args)).toContainEqual([
+      "mode",
+      "test",
     ]);
   });
 });
