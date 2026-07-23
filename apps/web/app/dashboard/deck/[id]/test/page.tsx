@@ -5,7 +5,13 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
 import { Modal } from "@/components/app/modal";
-import { listCardsInDeck, reviewCard, isApiError, type Card } from "@/lib/api";
+import {
+  listCardsInDeck,
+  reviewCard,
+  recordTestAttempt,
+  isApiError,
+  type Card,
+} from "@/lib/api";
 import { useDisplayName } from "@/lib/use-display-name";
 import { isAnswerCorrect } from "@/lib/answerCheck";
 import {
@@ -123,6 +129,10 @@ export default function TestPage() {
    * Streak-Tag wäre zweimal gezählt.
    */
   const sentRef = useRef(false);
+  // Ein stabiler Schlüssel je Prüfungsrunde: Gibt man im Zeit-Modus doppelt ab
+  // (Uhr läuft ab, während man tippt) oder klickt schnell zweimal, soll daraus
+  // EINE test_attempts-Zeile werden, nicht zwei. Der Server entdoppelt darüber.
+  const roundKeyRef = useRef("");
 
   // Keine LP-Zustände mehr: die Prüfung rechnet nichts ab (Schritt 7). Die
   // Wiederholungen werden weiterhin gesendet — sie tragen Streak und Statistik
@@ -217,6 +227,7 @@ export default function TestPage() {
       // Eine neue Runde darf wieder melden — sonst bliebe „Nochmal" nach einem
       // vorzeitigen Beenden für immer stumm.
       sentRef.current = false;
+      roundKeyRef.current = `test-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
       setAborted(false);
       setLeavePrompt(false);
       // Zeitbudget aus den TATSÄCHLICH gebauten Fragen (nicht der angeforderten
@@ -264,9 +275,23 @@ export default function TestPage() {
       // dahinter weiter. Es wird nichts abgerechnet, worauf jemand warten müsste.
       if (toSend.length > 0 && userId) void flushReviews(userId, toSend);
 
+      // Die Prüfung als EINHEIT festhalten — aber nur, wenn sie ganz abgegeben
+      // wurde. Ein Abbruch (scope "answered") ist keine gültige Prüfungsnote:
+      // „12 von 30" bei Frage 12 hieße 60 %, obwohl 18 Fragen nie beantwortet
+      // wurden. Die beantworteten Karten zählen trotzdem einzeln (oben, über
+      // flushReviews) — nur die Prüfungs-Zeile entsteht nicht.
+      if (scope === "all" && userId && keptQuestions.length > 0) {
+        void recordTestAttempt(
+          userId,
+          deckId,
+          roundKeyRef.current,
+          keptQuestions.map((q, i) => ({ cardId: q.cardId, correct: result[i]!.correct }))
+        ).catch(() => {});
+      }
+
       setPhase("result");
     },
-    [questions, answers, strict, userId]
+    [questions, answers, strict, userId, deckId]
   );
 
   const submit = useCallback(() => finish("all"), [finish]);

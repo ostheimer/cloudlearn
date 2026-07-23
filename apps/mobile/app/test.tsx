@@ -30,7 +30,7 @@ import {
   Minus,
   Plus,
 } from "lucide-react-native";
-import { listCardsInDeck, type Card } from "../src/lib/api";
+import { listCardsInDeck, recordTestAttempt, type Card } from "../src/lib/api";
 import { sendReview } from "../src/features/sync/sendReview";
 import { setLastUsedDeck } from "../src/lib/lastUsedDeck";
 import { useDisplayName } from "../src/lib/useDisplayName";
@@ -165,6 +165,9 @@ export default function TestScreen() {
    * zusammenfallen und dieselbe Karte doppelt melden.
    */
   const sentRef = useRef(false);
+  // Ein stabiler Schlüssel je Prüfungsrunde, damit ein Doppel-Abgeben (Zeit-Modus
+  // feuert submit, während man noch tippt) EINE test_attempts-Zeile ergibt.
+  const roundKeyRef = useRef("");
 
   // All cards with both a question and an answer — the base pool for the test.
   const usableCards = useMemo(
@@ -263,6 +266,7 @@ export default function TestScreen() {
     // Eine neue Runde darf wieder melden — sonst bliebe „Nochmal" nach einem
     // vorzeitigen Beenden für immer stumm.
     sentRef.current = false;
+    roundKeyRef.current = `test-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     setAborted(false);
     setPhase("play");
   };
@@ -304,6 +308,19 @@ export default function TestScreen() {
     // Bewusst kein await: Das Ergebnis erscheint sofort, das Melden läuft
     // dahinter weiter. Es wird nichts abgerechnet, worauf jemand warten müsste.
     if (toSend.length > 0 && userId) void flushReviews(userId, toSend);
+
+    // Die Prüfung als EINHEIT festhalten — nur bei vollständiger Abgabe. Ein
+    // Abbruch (scope "answered") ist keine gültige Prüfungsnote; die
+    // beantworteten Karten zählen trotzdem einzeln (oben), nur die Prüfungs-Zeile
+    // entsteht nicht.
+    if (scope === "all" && userId && keptQuestions.length > 0) {
+      void recordTestAttempt(
+        userId,
+        deckId,
+        roundKeyRef.current,
+        keptQuestions.map((q, i) => ({ cardId: q.cardId, correct: result[i]!.correct }))
+      ).catch(() => {});
+    }
 
     setPhase("result");
   };
