@@ -49,7 +49,7 @@ export function LearnSession({
   const [earned, setEarned] = useState<number | null>(null);
   const [earnCapReached, setEarnCapReached] = useState(false);
   // Anzeigename fürs persönliche Lob am Ende — ohne ihn bleibt es beim
-  // schlichten "Session geschafft!".
+  // schlichten "Runde geschafft!".
   const displayName = useDisplayName();
   const awardStateRef = useRef<SessionAwardState>({ finalized: false, inFlight: null });
   const pendingReviewsRef = useRef<Promise<unknown>[]>([]);
@@ -139,7 +139,7 @@ export function LearnSession({
           <div className="big" aria-hidden style={{ color: "var(--amber)" }}>
             <Trophy size={56} />
           </div>
-          <h2 className="h2">Session geschafft{displayName ? `, ${displayName}` : ""}!</h2>
+          <h2 className="h2">Runde geschafft{displayName ? `, ${displayName}` : ""}!</h2>
           <p className="lead">
             Du hast {total} {total === 1 ? "Karte" : "Karten"} wiederholt — {correct} davon sicher
             gewusst.

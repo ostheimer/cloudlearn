@@ -248,7 +248,7 @@ export default function OcclusionLearnPage() {
           <div className="big" aria-hidden style={{ color: "var(--amber)" }}>
             <Trophy size={56} />
           </div>
-          <h2 className="h2">Session geschafft{displayName ? `, ${displayName}` : ""}!</h2>
+          <h2 className="h2">Runde geschafft{displayName ? `, ${displayName}` : ""}!</h2>
           <p className="lead">
             Du hast {total} {total === 1 ? "Bereich" : "Bereiche"} durchgegangen — {correct} davon
             sicher gewusst.

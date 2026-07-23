@@ -553,7 +553,7 @@ export default function TestPage() {
             </span>
             <b>{reverse ? "Vorderseite" : "Rückseite"}</b>
           </div>
-          <div className="cl-dir__hint">Tippen zum Tauschen</div>
+          <div className="cl-dir__hint">Richtung tauschen</div>
         </button>
 
         <div className="cl-optcard">
