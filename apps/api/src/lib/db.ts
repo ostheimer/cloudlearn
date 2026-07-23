@@ -829,27 +829,23 @@ export async function getReviewStats(
   }
   const windowStart = `${dayKeys[0]}T00:00:00.000Z`;
 
-  // Reviews today — SPEIST DEN TAGESZIEL-BALKEN (reviewsToday / dailyGoal auf
-  // Home, App und Web). Prüfungen zählen hier bewusst NICHT mit: „Beim Test
-  // sollte man keine Lernpunkte bekommen oder etwas bei Tagesziel, da man ja im
-  // Prinzip nicht gelernt hat."
+  // reviewsToday/Week/Total sind MENGEN („wie viel hast du getan"), keine
+  // Quoten. Sie zählen Prüfungen bewusst MIT — Laras Entscheidung vom 17.07.:
+  // „alles was ich gemacht habe soll zählen, auch Prüfungen." reviewsToday
+  // speist den Tagesziel-Balken (reviewsToday / dailyGoal); direkt daneben
+  // zeigt „Karten pro Tag" (reviewsByDay) dieselbe Menge — beide MÜSSEN gleich
+  // zählen, sonst stehen zwei „heute"-Zahlen verschieden nebeneinander.
   //
-  // Nur DIESE Zählung filtert. Die drei darunter (Woche, gesamt, Trefferquote)
-  // sind Statistik und sollen Prüfungen mitzählen — dort gilt „ein Topf".
-  // Zählt Prüfungen MIT — Laras Entscheidung vom 17.07.: „alles was ich
-  // gemacht habe soll zählen, auch Prüfungen."
+  // Die QUOTEN dagegen (accuracyRate, accuracyByDay, accuracyByKind) lassen
+  // Prüfungen aus (`.neq("mode","test")` unten): eine Prüfung misst unter Druck
+  // und würde die Lern-Trefferquote sonst drücken — sie bekommt ihre eigene
+  // Quote im Prüfungs-Bereich. Sonst stünden auf einer Seite mehrere „wie gut"-
+  // Zahlen, die dieselbe Prüfung verschieden verrechnen.
   //
-  // Das kehrt ihre frühere Regel um („keine Lernpunkte oder etwas bei
-  // Tagesziel, da man ja im Prinzip nicht gelernt hat"), die genau hier saß.
-  // Grund für die Kehrtwende: Diese Zahl speist den Tagesziel-Balken, während
-  // das Balkendiagramm „Karten pro Tag" direkt daneben alles zählte — zwei
-  // Zahlen, beide „Karten", beide „heute", verschieden.
-  //
-  // Ungefährlich, weil am Erreichen des Tagesziels nichts mehr hängt: die
-  // LP-Prämie dafür wurde entfernt, und der Streak folgt jeder einzelnen
-  // Antwort, nicht dem Ziel. Was Prüfungen weiterhin NICHT tun: Lernpunkte
-  // geben (earn_session_lp überspringt sie) und den Lernplan bewegen
-  // (reviewService, außer bei Fehlern).
+  // Ungefährlich fürs Tagesziel, weil daran keine Prämie mehr hängt (LP dafür
+  // entfernt) und der Streak jeder Antwort folgt, nicht dem Ziel. Was Prüfungen
+  // ausserdem NICHT tun: Lernpunkte geben (earn_session_lp überspringt sie) und
+  // den Lernplan bewegen (reviewService, außer bei Fehlern).
   const { count: todayCount } = await db
     .from("review_logs")
     .select("*", { count: "exact", head: true })
@@ -879,17 +875,25 @@ export async function getReviewStats(
   // Counted by the database (`count: "exact"`) instead of summed from
   // `dailyData`: that row fetch is subject to PostgREST's max-rows cap, so
   // summing it would quietly go wrong exactly for the heaviest users.
+  // `.neq("mode","test")`: die Trefferquote ist eine QUOTE und lässt Prüfungen
+  // aus (siehe der Menge-gegen-Quote-Absatz über todayCount). Sonst zeigte
+  // dieselbe Seite mehrere „wie gut"-Zahlen, die dieselbe Prüfung verschieden
+  // verrechnen. Der Nenner reviewsInWindow wandert mit — der Client beschriftet
+  // die Quote damit („X Antworten"), und Zähler und Nenner müssen dieselbe
+  // Menge meinen.
   const { count: windowTotalCount } = await db
     .from("review_logs")
     .select("*", { count: "exact", head: true })
     .eq("user_id", userId)
-    .gte("reviewed_at", windowStart);
+    .gte("reviewed_at", windowStart)
+    .neq("mode", "test");
 
   const { count: windowGoodCount } = await db
     .from("review_logs")
     .select("*", { count: "exact", head: true })
     .eq("user_id", userId)
     .gte("reviewed_at", windowStart)
+    .neq("mode", "test")
     .gte("rating", 3); // 3=good, 4=easy
 
   // Dieselbe Trefferquote, aufgeteilt nach der Art der Antwort. Die
@@ -935,11 +939,12 @@ export async function getReviewStats(
     reviewed_at: string;
     rating: number | null;
     review_duration_ms: number | null;
+    mode: string | null;
   }>(
     (from, to) =>
       db
         .from("review_logs")
-        .select("reviewed_at, rating, review_duration_ms")
+        .select("reviewed_at, rating, review_duration_ms, mode")
         .eq("user_id", userId)
         .gte("reviewed_at", windowStart)
         .order("reviewed_at", { ascending: true })
@@ -947,17 +952,28 @@ export async function getReviewStats(
     "getReviewStats"
   );
 
-  const dayStats: Record<string, { count: number; good: number; durationMs: number }> = {};
+  // Zwei Zähler je Tag, weil hier MENGE und QUOTE nebeneinander wohnen:
+  //  - count/durationMs zählen ALLES (auch Prüfungen) -> reviewsByDay „Karten
+  //    pro Tag" und die Lernzeit, dieselbe Menge wie reviewsToday.
+  //  - quotaCount/good zählen ohne Prüfung -> accuracyByDay, dieselbe Regel wie
+  //    die Fenster-Trefferquote oben. Liefen sie zusammen, drückte eine Prüfung
+  //    den Tagespunkt im Verlauf, obwohl sie in der Gesamt-Trefferquote fehlt.
+  const dayStats: Record<
+    string,
+    { count: number; quotaCount: number; good: number; durationMs: number }
+  > = {};
   for (const key of dayKeys) {
-    dayStats[key] = { count: 0, good: 0, durationMs: 0 };
+    dayStats[key] = { count: 0, quotaCount: 0, good: 0, durationMs: 0 };
   }
   dailyData.forEach((r) => {
     const day = r.reviewed_at.split("T")[0] ?? "";
     const bucket = dayStats[day];
     if (!bucket) return; // outside the scaffolded window (defensive)
     bucket.count += 1;
-    if ((r.rating ?? 0) >= 3) bucket.good += 1;
     bucket.durationMs += r.review_duration_ms ?? 0;
+    if (r.mode === "test") return; // Prüfungen aus der Quote heraus
+    bucket.quotaCount += 1;
+    if ((r.rating ?? 0) >= 3) bucket.good += 1;
   });
   const reviewsByDay = dayKeys.map((date) => ({
     date,
@@ -967,14 +983,18 @@ export async function getReviewStats(
     date,
     durationMs: dayStats[date]?.durationMs ?? 0,
   }));
+  // Ein Tag erscheint im Verlauf nur, wenn an ihm etwas ZÄHLENDES lief: ein
+  // Tag mit ausschließlich Prüfungen hat quotaCount 0 und bekommt keinen
+  // Punkt — sonst stünde dort ein 0-%-Punkt für einen Tag, an dem sehr wohl
+  // gelernt (geprüft) wurde.
   const accuracyByDay = dayKeys
-    .filter((date) => (dayStats[date]?.count ?? 0) > 0)
+    .filter((date) => (dayStats[date]?.quotaCount ?? 0) > 0)
     .map((date) => {
-      const s = dayStats[date] ?? { count: 0, good: 0, durationMs: 0 };
+      const s = dayStats[date] ?? { count: 0, quotaCount: 0, good: 0, durationMs: 0 };
       return {
         date,
-        count: s.count,
-        accuracy: s.count > 0 ? Math.round((s.good / s.count) * 100) / 100 : 0,
+        count: s.quotaCount,
+        accuracy: s.quotaCount > 0 ? Math.round((s.good / s.quotaCount) * 100) / 100 : 0,
       };
     });
 
@@ -1604,6 +1624,10 @@ export async function getDeckReviewStats(
         .eq("user_id", userId)
         .eq("cards.deck_id", deckId)
         .gte("reviewed_at", windowStart)
+        // QUOTE: „X von Y Antworten richtig" in der Deck-Statistik lässt
+        // Prüfungen aus, wie die Gesamt-Trefferquote. Die Prüfung misst unter
+        // Druck und bekommt ihre eigene Zahl.
+        .neq("mode", "test")
         .order("reviewed_at", { ascending: true })
         .range(from, to),
     "getDeckReviewStats"
@@ -1737,6 +1761,9 @@ export async function getDeckReviewSummaries(
         .select("rating, cards!inner(deck_id)")
         .eq("user_id", userId)
         .gte("reviewed_at", windowStart)
+        // QUOTE: der Deck-Vergleich (Pro) rankt Decks nach Trefferquote und
+        // lässt Prüfungen aus, wie alle „wie gut"-Zahlen.
+        .neq("mode", "test")
         .order("reviewed_at", { ascending: true })
         .range(from, to),
     "getDeckReviewSummaries"
