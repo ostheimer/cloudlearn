@@ -15,9 +15,10 @@
   --violet-600: #7c3aed;
   --amber: #f59e0b;
   --amber-50: #fffbeb;
-  /* Streak-Kalender: --amber-50 geht auf weißem Grund unter, deshalb eigene,
-     kräftigere Markierungsfarben (#496). */
-  --cal-mark-bg: rgba(245, 158, 11, 0.22);
+  /* Streak-Kalender: helle Füllung wie die Streak-Kachel der Startseite (Laras
+     Wunsch 23.07., „fröhlicher") — sichtbar bleibt die Markierung durch den
+     Amber-Rand; ohne Rand ginge --amber-50 auf Weiß unter (#496). */
+  --cal-mark-bg: var(--amber-50);
   --cal-mark-ink: #92400e;
   --cal-today-ring: #b45309;
   --green: #10b981;
