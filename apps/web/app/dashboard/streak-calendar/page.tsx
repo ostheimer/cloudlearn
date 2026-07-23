@@ -152,7 +152,7 @@ export default function StreakCalendarPage() {
         <div className="cal-chip cal-chip--streak">
           <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
             <Flame size={16} style={{ color: "var(--amber)" }} />
-            <b style={{ color: "var(--amber)" }}>{stats ? stats.currentStreak : "–"}</b>
+            <b style={{ color: "var(--cal-mark-ink)" }}>{stats ? stats.currentStreak : "–"}</b>
           </span>
           <span className="muted" style={{ fontSize: "0.75rem" }}>
             Aktuell
