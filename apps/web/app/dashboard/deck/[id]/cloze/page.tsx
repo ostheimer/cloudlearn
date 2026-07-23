@@ -300,7 +300,7 @@ export default function ClozePage() {
             </span>
             <b>{rightSide}</b>
           </div>
-          <div className="cl-dir__hint">Tippen zum Tauschen</div>
+          <div className="cl-dir__hint">Richtung tauschen</div>
         </button>
 
         <button
