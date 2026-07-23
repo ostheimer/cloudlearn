@@ -344,8 +344,13 @@ export default function QuizPage() {
               // wie ein Widerspruch, weil die geprüfte Zuordnung fehlte (#497).
               // Deshalb zeigt die Zeile die ganze Paarung, sagt im Klartext, ob
               // sie stimmt, und nennt bei einer falschen Paarung die echte Antwort.
+              // Farbe = wie DU geantwortet hast, Zeichen = was inhaltlich wahr
+              // ist: falsche Paarungen bekommen ≠, sonst würde eine grün
+              // abgehakte Falsch-Paarung wie ein wahrer Satz aussehen.
               const tf = qq.type === "trueFalse" ? qq.tfPairing : undefined;
-              const label = tf ? `${tf.front} = ${tf.back}` : qq.questionText;
+              const label = tf
+                ? `${tf.front} ${tf.isCorrect ? "=" : "≠"} ${tf.back}`
+                : qq.questionText;
               return (
                 <div key={i} className={`quiz-sum__row ${ok ? "ok" : "no"}`}>
                   <span
@@ -375,6 +380,16 @@ export default function QuizPage() {
                       ) : (
                         <div className="quiz-sum__fix">Richtig: {qq.correctAnswer}</div>
                       ))}
+                    {ok && tf && !tf.isCorrect && (
+                      <>
+                        <div className="quiz-sum__note">
+                          Richtig erkannt: das gehört nicht zusammen.
+                        </div>
+                        <div className="quiz-sum__fix">
+                          Tatsächlich gehört dazu: {tf.correctBack}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               );

@@ -692,7 +692,10 @@ export default function QuizScreen() {
                       {/* Wahr/Falsch: nur die Vorderseite plus „Richtig: Falsch"
                           las sich wie ein Widerspruch, weil die geprüfte
                           Zuordnung fehlte (#497) — Zeile zeigt die Paarung, den
-                          Klartext-Vermerk und ggf. die echte Antwort. */}
+                          Klartext-Vermerk und ggf. die echte Antwort. Farbe =
+                          wie DU geantwortet hast, Zeichen = was inhaltlich wahr
+                          ist: falsche Paarungen bekommen ≠, sonst sähe eine grün
+                          abgehakte Falsch-Paarung wie ein wahrer Satz aus. */}
                       <Text
                         style={{
                           fontSize: typography.sm,
@@ -702,7 +705,7 @@ export default function QuizScreen() {
                         numberOfLines={q.type === "trueFalse" ? 3 : 1}
                       >
                         {q.type === "trueFalse"
-                          ? `${q.tfPairing!.front} = ${q.tfPairing!.back}`
+                          ? `${q.tfPairing!.front} ${q.tfPairing!.isCorrect ? "=" : "≠"} ${q.tfPairing!.back}`
                           : q.questionText}
                       </Text>
                       {!wasCorrect &&
@@ -742,6 +745,31 @@ export default function QuizScreen() {
                             Richtig: {q.correctAnswer}
                           </Text>
                         ))}
+                      {wasCorrect &&
+                        q.type === "trueFalse" &&
+                        q.tfPairing &&
+                        !q.tfPairing.isCorrect && (
+                          <>
+                            <Text
+                              style={{
+                                fontSize: typography.xs,
+                                color: colors.textSecondary,
+                                marginTop: 2,
+                              }}
+                            >
+                              Richtig erkannt: das gehört nicht zusammen.
+                            </Text>
+                            <Text
+                              style={{
+                                fontSize: typography.xs,
+                                color: colors.success,
+                                marginTop: 2,
+                              }}
+                            >
+                              Tatsächlich gehört dazu: {q.tfPairing.correctBack}
+                            </Text>
+                          </>
+                        )}
                     </View>
                   </View>
                 );
