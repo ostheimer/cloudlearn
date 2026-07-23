@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { getReferralInfo, addFriendByCode, isApiError } from "@/lib/api";
+import { getReferralInfo, addFriendByCode, isApiError, type Gender } from "@/lib/api";
 import { ArrowLeft, Copy, Gift, Share, UserPlus, Zap, CheckCircle } from "@/components/icons";
 
 export default function FriendAddPage() {
@@ -15,6 +15,7 @@ export default function FriendAddPage() {
   const [copied, setCopied] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
   const [addedName, setAddedName] = useState<string | null>(null);
+  const [addedGender, setAddedGender] = useState<Gender | null>(null);
   const [addedLp, setAddedLp] = useState(0);
   const [errMsg, setErrMsg] = useState<string | null>(null);
   const [codeErr, setCodeErr] = useState(false);
@@ -78,11 +79,13 @@ export default function FriendAddPage() {
     setAdding(true);
     setErrMsg(null);
     setAddedName(null);
+    setAddedGender(null);
     setAddedLp(0);
     try {
       const res = await addFriendByCode(code);
       setInput("");
       setAddedName(res.friend.displayName);
+      setAddedGender(res.friend.gender ?? null);
       setAddedLp(res.lpGranted ?? 0);
       loadInfo();
     } catch (err) {
@@ -262,7 +265,13 @@ export default function FriendAddPage() {
               <CheckCircle size={20} style={{ color: "var(--green)", flex: "none" }} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 600 }}>
-                  {addedName} ist jetzt dein Freund
+                  {/* Laras Regel (#498): Wortform nach gespeichertem Geschlecht,
+                      bei Divers oder fehlender Angabe die neutrale Form. */}
+                  {addedGender === "female"
+                    ? `${addedName} ist jetzt deine Freundin`
+                    : addedGender === "male"
+                      ? `${addedName} ist jetzt dein Freund`
+                      : `${addedName} lernt jetzt mit dir`}
                   {addedLp > 0 && ` — ihr habt beide Lernpunkte bekommen (+${addedLp} für dich)`}
                 </div>
                 <Link

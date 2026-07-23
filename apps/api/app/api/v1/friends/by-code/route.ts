@@ -5,6 +5,7 @@ import { createRequestContext } from "@/lib/observability";
 import { getAuthUser } from "@/lib/auth";
 import { createSupabaseAdminClient } from "@/lib/supabase";
 import { LP_EARN_RULES, REFERRAL_SENDER_CAP } from "@/lib/featureGates";
+import { type Gender } from "@/services/genderService";
 
 const REFERRAL_FAILURES = ["already_referred", "code_not_found", "self", "claimer_not_found"];
 
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
 
     const { data: friend } = await db
       .from("profiles")
-      .select("id, display_name, avatar_url")
+      .select("id, display_name, avatar_url, gender")
       .eq("referral_code", body.data.code)
       .maybeSingle();
 
@@ -80,6 +81,9 @@ export async function POST(request: NextRequest) {
         userId: friend.id as string,
         displayName: (friend.display_name as string | null) ?? "Lernbuddy",
         avatarUrl: (friend.avatar_url as string | null) ?? null,
+        // Fürs Wording der Erfolgsmeldung („… ist jetzt deine Freundin/dein
+        // Freund"); null → neutrale Form.
+        gender: (friend.gender as Gender | null) ?? null,
       },
       lpGranted,
       newBalance,
