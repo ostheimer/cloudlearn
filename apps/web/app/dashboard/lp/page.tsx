@@ -116,8 +116,7 @@ export default function LpPage() {
             <div
               style={{ display: "flex", alignItems: "center", gap: 7, fontWeight: 700, marginBottom: 14 }}
             >
-              <TrendingUp size={18} style={{ color: "var(--green)" }} /> Was du heute noch verdienen
-              kannst
+              <TrendingUp size={18} style={{ color: "var(--green)" }} /> Täglicher Fortschritt
             </div>
 
             <div
