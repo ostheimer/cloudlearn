@@ -4346,10 +4346,6 @@ a.lp-way:hover {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 4px;
-  /* Ohne Deckel wachsen die 1fr-Spalten auf Desktop-Breite zu ~140px-Zellen —
-     die Markierungen wurden zu Riesen-Kreisen (#496). */
-  max-width: 420px;
-  margin: 0 auto;
 }
 .cal-wd {
   text-align: center;
@@ -4358,10 +4354,13 @@ a.lp-way:hover {
   padding: 2px 0 4px;
 }
 .cal-cell {
-  height: 40px;
+  aspect-ratio: 1;
   display: grid;
   place-items: center;
 }
+/* Der Marker ist bewusst ein FESTER Kreis hinter der Zahl: Die Zellen dürfen
+   mit der Desktop-Breite wachsen (Laras Wunsch), aber die Markierung nie —
+   sonst kämen die Riesen-Kreise aus #496 zurück. */
 .cal-day {
   width: 34px;
   height: 34px;
@@ -4371,6 +4370,13 @@ a.lp-way:hover {
   font-size: 0.8rem;
   color: var(--ink-2);
   border: 2px solid transparent;
+}
+@media (min-width: 640px) {
+  .cal-day {
+    width: 48px;
+    height: 48px;
+    font-size: 0.95rem;
+  }
 }
 .cal-day--future {
   color: var(--ink-4);
