@@ -1,6 +1,6 @@
 # ROADMAP
 
-Letzte Aktualisierung: 2026-07-21 (Endpunkte ohne Funktion entfernt/stillgelegt)
+Letzte Aktualisierung: 2026-07-22 (Mobile-LP-Race Occlusion)
 
 ## Gesamtstatus
 
