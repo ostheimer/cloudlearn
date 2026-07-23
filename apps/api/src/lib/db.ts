@@ -260,7 +260,23 @@ export async function softDeleteDeck(deckId: string, userId: string): Promise<bo
     .is("deleted_at", null)
     .select("id")
     .maybeSingle();
-  return !error && !!data;
+  if (error || !data) return false;
+
+  // Die Karten des Decks mit demselben Zeitstempel mitmarkieren (#495): sie
+  // zählen sonst in countUserCards ewig gegen das Karten-Limit. Reihenfolge
+  // Deck -> Karten, nicht andersherum: schlägt dieser zweite Schritt fehl,
+  // bleiben unsichtbare Karten übrig (die gehärteten Leser joinen auf lebende
+  // Decks); andersherum stünde ein sichtbar leergeräumtes, lebendes Deck da.
+  const { error: cardsError } = await db
+    .from("cards")
+    .update({ deleted_at: now })
+    .eq("deck_id", deckId)
+    .eq("user_id", userId)
+    .is("deleted_at", null);
+  if (cardsError) {
+    console.error("[softDeleteDeck] cards not marked:", cardsError.message);
+  }
+  return true;
 }
 
 // ─── Cards ──────────────────────────────────────────────────────────────────
@@ -500,9 +516,13 @@ export async function listDueCards(
   const db = getDb();
   const { data, error } = await db
     .from("cards")
-    .select()
+    // softDeleteDeck markiert historisch nur das Deck, nicht dessen Karten —
+    // ohne den inner join auf lebende Decks zählen Karten aus gelöschten
+    // Decks ewig weiter und die Fällig-Zahl lügt (#495).
+    .select("*, decks!inner(deleted_at)")
     .eq("user_id", userId)
     .is("deleted_at", null)
+    .is("decks.deleted_at", null)
     // "Due" means "due for a flashcard round" — that is what this list feeds
     // (/learn/due) and what the due counts on the home screen and the deck
     // badges promise. Occlusion cards are learned only in the Bild-Abdecken
@@ -528,9 +548,10 @@ export async function countDueCards(userId: string, nowIso: string): Promise<num
   const db = getDb();
   const { count, error } = await db
     .from("cards")
-    .select("*", { count: "exact", head: true })
+    .select("*, decks!inner(deleted_at)", { count: "exact", head: true })
     .eq("user_id", userId)
     .is("deleted_at", null)
+    .is("decks.deleted_at", null)
     .neq("card_type", "occlusion")
     .lte("fsrs_due", nowIso);
   if (error) throw new Error(`countDueCards: ${error.message}`);
@@ -562,9 +583,12 @@ export async function searchCardsForUser(
   const pattern = `%${term}%`;
   const { data, error } = await db
     .from("cards")
-    .select("id, deck_id, front, back, decks(title)")
+    // inner join auf lebende Decks: sonst findet die Suche Karten aus weich
+    // gelöschten Decks und zeigt sogar deren alten Titel an (#495).
+    .select("id, deck_id, front, back, decks!inner(title, deleted_at)")
     .eq("user_id", userId)
     .is("deleted_at", null)
+    .is("decks.deleted_at", null)
     .or(`front.ilike.${pattern},back.ilike.${pattern}`)
     .limit(limit);
   if (error) throw new Error(`searchCardsForUser: ${error.message}`);
