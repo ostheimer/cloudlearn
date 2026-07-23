@@ -110,7 +110,7 @@ export function TestAttemptsPanel({
             padding: "9px 11px",
           }}
         >
-          Prüfungen fallen meist etwas niedriger aus — das ist normal.
+          Prüfungen sind anspruchsvoller — solche Unterschiede sind ganz normal.
         </p>
       )}
 

@@ -132,7 +132,7 @@ export function TestAttemptsCard({
             padding: spacing.md,
           }}
         >
-          Prüfungen fallen meist etwas niedriger aus — das ist normal.
+          Prüfungen sind anspruchsvoller — solche Unterschiede sind ganz normal.
         </Text>
       )}
 
