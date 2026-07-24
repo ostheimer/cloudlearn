@@ -43,7 +43,7 @@ export const TIER_LIMITS: Record<SubscriptionTier, TierLimits> = {
     lpCostAiScan: 10,        // 10 LP per AI scan
     lpCostUrlImport: 15,     // 15 LP per URL import
     lpCostPdfImport: 20,     // 20 LP per PDF import
-    pdfImport: false,        // requires LP spend on free
+    pdfImport: true,         // #84: every tier may import PDFs — the gate is the LP price
     imageOcclusion: false,
     offlineDownload: false,
     advancedStats: false,

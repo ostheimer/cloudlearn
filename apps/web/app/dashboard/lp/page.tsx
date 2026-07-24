@@ -260,7 +260,7 @@ export default function LpPage() {
             <span className="lp-way__txt">
               <span className="lp-way__t">Mehr mit Pro</span>
               <span className="lp-way__s">
-                300 LP pro Monat inklusive · günstigere LP-Kosten · PDF-Import · und mehr
+                300 LP pro Monat inklusive · günstigere LP-Kosten · und mehr
               </span>
             </span>
             <span className="lp-pro__go">

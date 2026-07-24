@@ -834,7 +834,7 @@ clearn.ai verwendet ein **LP-System (Lernpunkte)** als universelle In-App-Währu
 | LP-Cost KI-Scan | 10 LP | 5 LP | 5 LP |
 | LP-Cost URL-Import | 15 LP | 8 LP | 8 LP |
 | LP-Cost PDF-Import | 20 LP | 12 LP | 12 LP |
-| PDF-Import | ❌ | ✅ | ✅ |
+| PDF-Import | ✅ (gegen LP) | ✅ | ✅ |
 | Image Occlusion | ❌ | ✅ | ✅ |
 | Offline-Download | ❌ | ✅ | ✅ |
 | Erweiterte Statistiken | ❌ | ✅ | ✅ |
