@@ -1563,9 +1563,14 @@ export async function countUserCards(userId: string): Promise<number> {
   const db = getDb();
   const { count } = await db
     .from("cards")
-    .select("*", { count: "exact", head: true })
+    // softDeleteDeck marks the deck first and its cards second. If that second
+    // write fails, the deck is already gone but its cards are still live rows.
+    // Count through live decks as the same safety net used by due/search reads,
+    // so an invisible deck can never keep consuming plan capacity (#495).
+    .select("*, decks!inner(deleted_at)", { count: "exact", head: true })
     .eq("user_id", userId)
-    .is("deleted_at", null);
+    .is("deleted_at", null)
+    .is("decks.deleted_at", null);
   return count ?? 0;
 }
 
