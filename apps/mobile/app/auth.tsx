@@ -25,9 +25,19 @@ import { Apple } from "lucide-react-native";
 import { useSessionStore } from "../src/store/sessionStore";
 import { spacing, radius, typography } from "../src/theme";
 import { getAuthProviderAvailability } from "../src/lib/supabase";
-import { rememberPendingDisplayName } from "../src/lib/displayNamePending";
+import {
+  rememberPendingDisplayName,
+  rememberPendingGender,
+} from "../src/lib/displayNamePending";
+import type { Gender } from "../src/lib/api";
 
 type AuthMode = "login" | "register" | "reset";
+
+const GENDER_OPTIONS: { value: Gender; label: string }[] = [
+  { value: "female", label: "Weiblich" },
+  { value: "male", label: "Männlich" },
+  { value: "diverse", label: "Divers" },
+];
 
 const webFormStyle = {
   display: "flex",
@@ -73,6 +83,7 @@ export default function AuthScreen() {
   const brandLink = "#E0E7FF";
   const [mode, setMode] = useState<AuthMode>("login");
   const [displayName, setDisplayName] = useState("");
+  const [gender, setGender] = useState<Gender | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -122,6 +133,23 @@ export default function AuthScreen() {
       return;
     }
 
+    // Google/Apple auf der Registrierungsseite dürfen die beiden Pflichtfelder
+    // nicht umgehen (wie im Web). Beim Login bleibt alles wie bisher.
+    if (mode === "register") {
+      if (displayName.trim().length < 2) {
+        Alert.alert("Fehler", "Bitte gib deinen Namen ein (mindestens 2 Zeichen).");
+        return;
+      }
+      if (!gender) {
+        Alert.alert("Fehler", "Bitte wähle aus, wie clearn dich nennen soll.");
+        return;
+      }
+      // Nach dem Provider-Redirect speichert die Namensabfrage beide Angaben
+      // über den geprüften Profil-Endpunkt. Das muss vor dem Redirect passieren.
+      await rememberPendingDisplayName(displayName.trim());
+      await rememberPendingGender(gender);
+    }
+
     setOauthLoading(provider);
     try {
       const { error, cancelled } = await signInWithOAuth(provider);
@@ -143,6 +171,11 @@ export default function AuthScreen() {
   const handleSubmit = async () => {
     if (mode === "register" && displayName.trim().length < 2) {
       Alert.alert("Fehler", "Bitte gib deinen Namen ein (mindestens 2 Zeichen).");
+      return;
+    }
+
+    if (mode === "register" && !gender) {
+      Alert.alert("Fehler", "Bitte wähle aus, wie clearn dich nennen soll.");
       return;
     }
 
@@ -178,9 +211,10 @@ export default function AuthScreen() {
         if (error) {
           Alert.alert("Registrierung fehlgeschlagen", error);
         } else {
-          // Wunschname zwischenlagern — gespeichert (und geprüft) wird er nach
-          // der ersten Anmeldung von der Namensabfrage auf dem Home-Tab.
+          // Wunschname und Geschlecht zwischenlagern — gespeichert (und geprüft)
+          // wird beides nach der ersten Anmeldung von der Abfrage auf dem Home-Tab.
           await rememberPendingDisplayName(displayName.trim());
+          if (gender) await rememberPendingGender(gender);
           if (requiresEmailConfirmation) {
             Alert.alert(
               "Bestätigung gesendet",
@@ -490,6 +524,62 @@ export default function AuthScreen() {
                     }}
                     style={inputStyle}
                   />
+                </View>
+              ) : null}
+
+              {mode === "register" ? (
+                <View style={{ marginBottom: inputGroupSpacing }}>
+                  <Text
+                    style={{
+                      fontSize: typography.sm,
+                      color: brandTextSecondary,
+                      marginBottom: fieldLabelMarginBottom,
+                      fontWeight: typography.semibold,
+                    }}
+                  >
+                    Geschlecht
+                  </Text>
+                  <View style={{ flexDirection: "row", gap: spacing.sm }}>
+                    {GENDER_OPTIONS.map((opt) => {
+                      const selected = gender === opt.value;
+                      return (
+                        <TouchableOpacity
+                          key={opt.value}
+                          onPress={() => setGender(opt.value)}
+                          disabled={isBusy}
+                          activeOpacity={0.8}
+                          style={{
+                            flex: 1,
+                            backgroundColor: selected ? brandButtonBackground : brandSurface,
+                            borderWidth: 1,
+                            borderColor: selected ? brandButtonBackground : brandBorder,
+                            borderRadius: radius.md,
+                            paddingVertical: inputPaddingVertical,
+                            alignItems: "center",
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontSize: typography.sm,
+                              fontWeight: typography.semibold,
+                              color: selected ? brandButtonText : brandText,
+                            }}
+                          >
+                            {opt.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                  <Text
+                    style={{
+                      fontSize: typography.xs,
+                      color: brandTextTertiary,
+                      marginTop: spacing.xs,
+                    }}
+                  >
+                    Damit dich clearn bei Freunden richtig nennt.
+                  </Text>
                 </View>
               ) : null}
 

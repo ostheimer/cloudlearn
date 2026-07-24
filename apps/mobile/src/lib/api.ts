@@ -661,12 +661,16 @@ export async function deleteAccount(): Promise<DeleteAccountResponse> {
   });
 }
 
-// ─── Anzeigename ──────────────────────────────────────────────────────────────
-// Geprüft wird auf dem Server (Länge, Zeichen, Sperrliste — displayNameService
-// in der API); der Client übersetzt nur die Fehler-Codes in i18n-Texte.
+// ─── Anzeigename + Geschlecht ─────────────────────────────────────────────────
+// Geprüft wird auf dem Server (Name: Länge, Zeichen, Sperrliste; Geschlecht:
+// nur die drei bekannten Werte); der Client übersetzt nur die Fehler-Codes.
+// gender null = keine Angabe (Bestandskonto) → Texte nutzen die neutrale Form.
+
+export type Gender = "female" | "male" | "diverse";
 
 export interface ProfileResponse {
   displayName: string | null;
+  gender: Gender | null;
 }
 
 export async function getProfile(): Promise<ProfileResponse> {
@@ -677,6 +681,13 @@ export async function updateDisplayName(displayName: string): Promise<ProfileRes
   return requestAuthenticated<ProfileResponse>("/api/v1/account/profile", {
     method: "PATCH",
     body: JSON.stringify({ displayName }),
+  });
+}
+
+export async function updateGender(gender: Gender): Promise<ProfileResponse> {
+  return requestAuthenticated<ProfileResponse>("/api/v1/account/profile", {
+    method: "PATCH",
+    body: JSON.stringify({ gender }),
   });
 }
 
@@ -1018,7 +1029,8 @@ export async function removeFriend(friendId: string): Promise<{ removed: boolean
 
 export interface AddFriendByCodeResponse {
   added: boolean;
-  friend: { userId: string; displayName: string; avatarUrl: string | null };
+  // gender steuert die Wortform der Erfolgsmeldung; null → neutrale Form.
+  friend: { userId: string; displayName: string; avatarUrl: string | null; gender: Gender | null };
   // One-time referral LP bonus granted by the same action (0 if already used).
   lpGranted: number;
   newBalance?: number;

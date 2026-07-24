@@ -404,7 +404,7 @@ export const resources = {
       "referral.profileButton": "Freunde einladen",
       "referral.profileButtonSubtitle": "Freunde hinzufügen, gemeinsam lernen, LP verdienen",
       "referral.bonusTitle": "Gegenseitig belohnen",
-      "referral.bonusDesc": "Du erhältst {{sender}} LP, dein Freund {{receiver}} LP – für jede erfolgreiche Einladung.",
+      "referral.bonusDesc": "Du erhältst {{sender}} LP, dein Freund oder deine Freundin {{receiver}} LP – für jede erfolgreiche Einladung.",
       "referral.statUsers": "Eingeladene\nFreunde",
       "referral.statLp": "LP aus\nEinladungen",
       "referral.yourCode": "Dein Einladungscode",
@@ -439,6 +439,13 @@ export const resources = {
       "displayName.errorNotAllowed": "Dieser Name ist nicht erlaubt.",
       "displayName.errorRateLimited": "Zu viele Änderungen — versuch es in einer Minute noch einmal.",
       "displayName.errorGeneric": "Der Name konnte nicht gespeichert werden. Versuch es noch einmal.",
+      "gender.profileRow": "Geschlecht",
+      "gender.profileRowSubtitle": "So nennt dich clearn bei deinen Freunden",
+      "gender.female": "Weiblich",
+      "gender.male": "Männlich",
+      "gender.diverse": "Divers",
+      "gender.errorTitle": "Nicht gespeichert",
+      "gender.errorGeneric": "Konnte nicht gespeichert werden — versuch es noch einmal.",
 
       // Leaderboard
       "leaderboard.title": "Rangliste",
@@ -894,6 +901,13 @@ export const resources = {
       "displayName.errorNotAllowed": "This name is not allowed.",
       "displayName.errorRateLimited": "Too many changes — try again in a minute.",
       "displayName.errorGeneric": "The name could not be saved. Please try again.",
+      "gender.profileRow": "Gender",
+      "gender.profileRowSubtitle": "How clearn refers to you to your friends",
+      "gender.female": "Female",
+      "gender.male": "Male",
+      "gender.diverse": "Diverse",
+      "gender.errorTitle": "Not saved",
+      "gender.errorGeneric": "Could not save — please try again.",
 
       // Leaderboard
       "leaderboard.title": "Leaderboard",

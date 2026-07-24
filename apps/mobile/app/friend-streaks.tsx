@@ -135,7 +135,7 @@ export default function FriendStreaksScreen() {
         >
           <UserPlus size={18} color={colors.textInverse} />
           <Text style={{ fontSize: typography.base, fontWeight: typography.bold, color: colors.textInverse }}>
-            Freund hinzufügen
+            Freund oder Freundin hinzufügen
           </Text>
         </TouchableOpacity>
 
@@ -330,7 +330,7 @@ export default function FriendStreaksScreen() {
                   Noch keine Freunde
                 </Text>
                 <Text style={{ fontSize: typography.sm, color: colors.textSecondary, textAlign: "center", maxWidth: 260 }}>
-                  Tippe oben auf „Freund hinzufügen", teile deinen Code oder gib den einer Freundin ein — dann könnt ihr gemeinsam einen Streak halten.
+                  Tippe oben auf „Freund oder Freundin hinzufügen", teile deinen Code oder gib den Code eines Freundes oder einer Freundin ein — dann könnt ihr gemeinsam einen Streak halten.
                 </Text>
               </View>
             ) : null}
