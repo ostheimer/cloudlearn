@@ -123,7 +123,7 @@ export default function FriendAddPage() {
             <ArrowLeft size={22} />
           </button>
           <div>
-            <h1>Freund hinzufügen</h1>
+            <h1>Freund oder Freundin hinzufügen</h1>
             <p className="muted" style={{ marginTop: 4 }}>
               Über euren Einladungs-Code
             </p>
@@ -146,8 +146,8 @@ export default function FriendAddPage() {
           <div>
             <div style={{ fontWeight: 600 }}>Zusammen lernen lohnt sich</div>
             <p className="muted" style={{ margin: "2px 0 0", fontSize: "0.88rem", lineHeight: 1.5 }}>
-              Fügst du eine Freundin per Code hinzu, bekommt ihr beim ersten Mal beide Lernpunkte — und
-              ihr könnt sofort einen gemeinsamen Streak starten.
+              Fügst du einen Freund oder eine Freundin per Code hinzu, bekommt ihr beim ersten Mal
+              beide Lernpunkte — und ihr könnt sofort einen gemeinsamen Streak starten.
             </p>
           </div>
         </div>
@@ -210,10 +210,10 @@ export default function FriendAddPage() {
           <span style={{ flex: 1, height: 1, background: "var(--line)" }} />
         </div>
 
-        {/* Code einer Freundin eingeben */}
+        {/* Code eines Freundes oder einer Freundin eingeben */}
         <div style={{ display: "grid", gap: 8 }}>
           <label htmlFor="friend-code" className="muted" style={{ fontSize: "0.85rem" }}>
-            Code einer Freundin eingeben
+            Code eines Freundes oder einer Freundin eingeben
           </label>
           <input
             id="friend-code"

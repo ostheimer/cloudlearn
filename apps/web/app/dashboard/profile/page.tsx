@@ -275,7 +275,7 @@ export default function ProfilePage() {
                   </button>
                 </div>
                 <p className="pf-card__sub" style={{ margin: "12px 0 0" }}>
-                  +50 Lernpunkte, wenn deine Freundin 7 Tage lernt.
+                  +50 Lernpunkte, wenn dein Freund oder deine Freundin 7 Tage lernt.
                   {referral.referredCount > 0 &&
                     ` Bisher geworben: ${referral.referredCount} · verdient: ${referral.lpEarnedFromReferrals} LP.`}
                 </p>
@@ -292,7 +292,7 @@ export default function ProfilePage() {
               className="btn btn-primary btn-block"
               style={{ marginTop: 14, gap: 8, textDecoration: "none" }}
             >
-              <UserPlus size={16} /> Freund hinzufügen
+              <UserPlus size={16} /> Freund oder Freundin hinzufügen
             </Link>
           </div>
 
