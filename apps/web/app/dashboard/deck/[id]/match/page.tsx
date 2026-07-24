@@ -6,6 +6,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
 import { earnLp, listCardsInDeck, reviewCard, isApiError, type Card } from "@/lib/api";
 import { useDisplayName } from "@/lib/use-display-name";
+import { useWobblyIds } from "@/lib/use-wobbly-ids";
+import { filterBySource, type CardSource } from "@/lib/card-source";
+import { CardSourcePicker } from "@/components/app/card-source-picker";
 import {
   ArrowLeft,
   X,
@@ -58,6 +61,8 @@ export default function MatchPage() {
   const [timed, setTimed] = useState(false);
   const [bestTime, setBestTime] = useState<number | null>(null);
   const [isNewBest, setIsNewBest] = useState(false);
+  const [source, setSource] = useState<CardSource>("all");
+  const wobblyIds = useWobblyIds(deckId);
 
   const [phase, setPhase] = useState<"setup" | "playing" | "finished">("setup");
   const [tiles, setTiles] = useState<Tile[]>([]);
@@ -96,7 +101,9 @@ export default function MatchPage() {
     load();
   }, [load]);
 
-  const pairCount = Math.min(MAX_PAIRS, cards.length);
+  // Die gewählte Kartenquelle (Alle / Nur markierte / Nur Wackelkandidaten).
+  const sourced = filterBySource(cards, source, wobblyIds);
+  const pairCount = Math.min(MAX_PAIRS, sourced.length);
   const gamePairs = tiles.length / 2;
 
   const startGameWith = useCallback(
@@ -137,8 +144,8 @@ export default function MatchPage() {
   );
 
   const startGame = useCallback(
-    (withTimer: boolean) => startGameWith(cards, withTimer),
-    [cards, startGameWith]
+    (withTimer: boolean) => startGameWith(filterBySource(cards, source, wobblyIds), withTimer),
+    [cards, source, wobblyIds, startGameWith]
   );
 
   // Stoppuhr — läuft nur im Zeit-Modus während des Spiels.
@@ -281,6 +288,14 @@ export default function MatchPage() {
           <h1 className="h2">Zuordnen</h1>
           <p className="muted">{pairCount} Paare zuordnen</p>
         </div>
+
+        <CardSourcePicker
+          value={source}
+          onChange={setSource}
+          allCount={cards.length}
+          starredCount={cards.filter((c) => c.starred).length}
+          wobblyCount={cards.filter((c) => wobblyIds.has(c.id)).length}
+        />
 
         <div className="cl-optcard">
           <div className="cl-row">

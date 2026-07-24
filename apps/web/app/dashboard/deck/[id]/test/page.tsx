@@ -13,6 +13,9 @@ import {
   type Card,
 } from "@/lib/api";
 import { useDisplayName } from "@/lib/use-display-name";
+import { useWobblyIds } from "@/lib/use-wobbly-ids";
+import { filterBySource, type CardSource } from "@/lib/card-source";
+import { CardSourcePicker } from "@/components/app/card-source-picker";
 import { isAnswerCorrect } from "@/lib/answerCheck";
 import {
   answeredIndices,
@@ -103,6 +106,8 @@ export default function TestPage() {
   const [strict, setStrict] = useState(true);
   const [reverse, setReverse] = useState(false);
   const [timed, setTimed] = useState(false);
+  const [source, setSource] = useState<CardSource>("all");
+  const wobblyIds = useWobblyIds(deckId);
 
   const [phase, setPhase] = useState<"setup" | "play" | "result">("setup");
   const [questions, setQuestions] = useState<TestQuestion[]>([]);
@@ -169,9 +174,15 @@ export default function TestPage() {
     load();
   }, [load]);
 
+  // Die gewählte Kartenquelle (Alle / Nur markierte / Nur Wackelkandidaten).
+  const sourced = useMemo(
+    () => filterBySource(cards, source, wobblyIds),
+    [cards, source, wobblyIds]
+  );
+
   const usableCount = useMemo(
-    () => cards.filter((c) => (c.front || "").trim() && (c.back || "").trim()).length,
-    [cards]
+    () => sourced.filter((c) => (c.front || "").trim() && (c.back || "").trim()).length,
+    [sourced]
   );
 
   // Fragenanzahl standardmäßig auf das Maximum, sobald Karten geladen sind.
@@ -245,7 +256,7 @@ export default function TestPage() {
     [count, usableCount, typeTF, typeMC, typeWritten, reverse, timed]
   );
 
-  const startTest = useCallback(() => buildAndStart(cards), [buildAndStart, cards]);
+  const startTest = useCallback(() => buildAndStart(sourced), [buildAndStart, sourced]);
 
   /**
    * Schließt die Runde ab: bewerten, melden, Ergebnis zeigen.
@@ -506,6 +517,14 @@ export default function TestPage() {
             </p>
           )}
         </div>
+
+        <CardSourcePicker
+          value={source}
+          onChange={setSource}
+          allCount={cards.length}
+          starredCount={cards.filter((c) => c.starred).length}
+          wobblyCount={cards.filter((c) => wobblyIds.has(c.id)).length}
+        />
 
         <button type="button" className="cl-optcard test-tap" onClick={cycleCount}>
           <span className="cl-row__t">Anzahl Fragen</span>

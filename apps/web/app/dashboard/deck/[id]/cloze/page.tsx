@@ -7,6 +7,9 @@ import { useAuth } from "@/components/app/auth-context";
 import { listCardsInDeck, reviewCard, earnLp, isApiError, type Card } from "@/lib/api";
 import { isAnswerCorrect } from "@/lib/answerCheck";
 import { useDisplayName } from "@/lib/use-display-name";
+import { useWobblyIds } from "@/lib/use-wobbly-ids";
+import { filterBySource, type CardSource } from "@/lib/card-source";
+import { CardSourcePicker } from "@/components/app/card-source-picker";
 import {
   beginSessionAward,
   getSessionReviewedCount,
@@ -70,6 +73,8 @@ export default function ClozePage() {
   // Im Setup-Menü gewählte Einstellungen
   const [strict, setStrict] = useState(true);
   const [reverse, setReverse] = useState(false);
+  const [source, setSource] = useState<CardSource>("all");
+  const wobblyIds = useWobblyIds(deckId);
 
   const [phase, setPhase] = useState<"setup" | "play" | "summary">("setup");
   const [round, setRound] = useState<Card[]>([]);
@@ -303,10 +308,18 @@ export default function ClozePage() {
           <div className="cl-dir__hint">Richtung tauschen</div>
         </button>
 
+        <CardSourcePicker
+          value={source}
+          onChange={setSource}
+          allCount={allCards.length}
+          starredCount={allCards.filter((c) => c.starred).length}
+          wobblyCount={allCards.filter((c) => wobblyIds.has(c.id)).length}
+        />
+
         <button
           type="button"
           className="btn btn-primary btn-lg btn-block"
-          onClick={() => startRound(allCards)}
+          onClick={() => startRound(filterBySource(allCards, source, wobblyIds))}
         >
           Starten
         </button>
@@ -372,7 +385,7 @@ export default function ClozePage() {
             <button
               type="button"
               className={`btn btn-block ${allRight ? "btn-primary" : "btn-ghost"}`}
-              onClick={() => startRound(allCards)}
+              onClick={() => startRound(filterBySource(allCards, source, wobblyIds))}
             >
               Alle nochmal
             </button>

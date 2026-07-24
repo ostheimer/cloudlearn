@@ -2325,6 +2325,80 @@ a.mode-card:hover {
   padding: 16px;
   box-shadow: var(--shadow-sm);
 }
+/* Kartenquelle-Auswahl (#523) — Radio-Reihen wie die App-Version. */
+.src-pick {
+  display: grid;
+  gap: 8px;
+}
+.src-opt {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface);
+  border: 2px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.src-opt.on {
+  border-color: var(--brand);
+  background: var(--brand-50);
+}
+.src-opt:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.src-opt__radio {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--line-2);
+  flex: none;
+  display: grid;
+  place-items: center;
+}
+.src-opt.on .src-opt__radio {
+  border-color: var(--brand);
+}
+.src-opt__radio i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--brand);
+  opacity: 0;
+}
+.src-opt.on .src-opt__radio i {
+  opacity: 1;
+}
+.src-opt__lbl {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.src-opt.on .src-opt__lbl {
+  color: var(--brand);
+}
+.src-opt__star {
+  color: var(--amber);
+  flex: none;
+}
+.src-opt__cnt {
+  margin-left: auto;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ink-3);
+  flex: none;
+}
+.src-opt.on .src-opt__cnt {
+  color: var(--brand);
+}
 .cl-row {
   display: flex;
   align-items: center;
