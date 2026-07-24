@@ -1,5 +1,8 @@
+import type { Metadata } from "next";
 import { ContentPage, PageLink, PageSection } from "../../src/components/content-page";
 import { siteConfig } from "../../src/lib/site";
+
+export const metadata: Metadata = { title: "Datenschutz" };
 
 export default function PrivacyPage() {
   return (
