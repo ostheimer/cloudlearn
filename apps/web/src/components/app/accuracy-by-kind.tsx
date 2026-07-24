@@ -48,7 +48,10 @@ const ROWS = [
   {
     key: "recall" as const,
     label: "Aus dem Kopf gewusst",
-    modes: "Karteikarten · Üben · Lückentext · Bild-Abdecken",
+    // „Üben" (der Wackelkandidaten-Knopf der App-Deck-Statistik, mode "practice")
+    // zählt in dieser Quote mit, steht aber bewusst nicht dabei: als Kachel gibt
+    // es den Modus nirgends, und im Web existiert er gar nicht (#498, Punkt 5).
+    modes: "Karteikarten · Lückentext · Occlusion",
   },
   {
     key: "recognition" as const,
