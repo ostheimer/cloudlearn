@@ -76,9 +76,17 @@ export default function FriendAddScreen() {
         setUsage({ lpBalance: res.newBalance });
       }
       const lpNote = res.lpGranted > 0 ? ` Ihr habt beide LP bekommen (+${res.lpGranted} für dich).` : "";
+      // Laras Regel (#498): Wortform nach gespeichertem Geschlecht, bei Divers
+      // oder fehlender Angabe die neutrale Form.
+      const friendLine =
+        res.friend.gender === "female"
+          ? `${res.friend.displayName} ist jetzt deine Freundin.`
+          : res.friend.gender === "male"
+            ? `${res.friend.displayName} ist jetzt dein Freund.`
+            : `${res.friend.displayName} lernt jetzt mit dir.`;
       Alert.alert(
-        "Freund hinzugefügt",
-        `${res.friend.displayName} ist jetzt dein Freund.${lpNote} Ihr könnt einen gemeinsamen Streak starten!`,
+        "Hinzugefügt",
+        `${friendLine}${lpNote} Ihr könnt einen gemeinsamen Streak starten!`,
         [{ text: "Super", onPress: () => router.back() }]
       );
       loadInfo();
@@ -91,7 +99,7 @@ export default function FriendAddScreen() {
             : isApiError(err) && err.code === "INVALID_CODE"
               ? "Bitte gib einen gültigen Code ein."
               : "Hinzufügen fehlgeschlagen. Versuch es später noch einmal.";
-      Alert.alert("Freund hinzufügen", message);
+      Alert.alert("Freund oder Freundin hinzufügen", message);
     } finally {
       setAdding(false);
     }
@@ -108,7 +116,7 @@ export default function FriendAddScreen() {
             <ArrowLeft size={22} color={colors.text} />
           </TouchableOpacity>
           <Text style={{ fontSize: typography.xxl, fontWeight: typography.bold, color: colors.text }}>
-            Freund hinzufügen
+            Freund oder Freundin hinzufügen
           </Text>
         </View>
 
@@ -128,7 +136,7 @@ export default function FriendAddScreen() {
               Zusammen lernen lohnt sich
             </Text>
             <Text style={{ fontSize: typography.sm, color: colors.textSecondary, marginTop: 2, lineHeight: 20 }}>
-              Fügst du eine Freundin per Code hinzu, bekommt ihr beim ersten Mal LP: du 25, deine Freundin 50 — und ihr könnt sofort einen Streak starten.
+              Fügst du einen Freund oder eine Freundin per Code hinzu, bekommt ihr beim ersten Mal LP: du 25, dein Freund oder deine Freundin 50 — und ihr könnt sofort einen Streak starten.
             </Text>
           </View>
         </View>
@@ -205,7 +213,7 @@ export default function FriendAddScreen() {
         {/* Enter a friend's code */}
         <View style={{ gap: spacing.sm }}>
           <Text style={{ fontSize: typography.sm, color: colors.textSecondary }}>
-            Code einer Freundin eingeben
+            Code eines Freundes oder einer Freundin eingeben
           </Text>
           <TextInput
             value={input}

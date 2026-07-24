@@ -27,7 +27,9 @@ import {
   getProfile,
   getSubscriptionStatus,
   updateDisplayName,
+  updateGender,
   displayNameErrorKey,
+  type Gender,
 } from "../../src/lib/api";
 import TextPromptModal from "../../src/components/TextPromptModal";
 import { APP_PROFILE_LABEL } from "../../src/lib/appInfo";
@@ -70,6 +72,8 @@ export default function ProfileScreen() {
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [nameEditVisible, setNameEditVisible] = useState(false);
+  const [gender, setGender] = useState<Gender | null>(null);
+  const [genderBusy, setGenderBusy] = useState(false);
   const isGuest = !userId;
   const biometricEnabled = useBiometricLockStore((state) => state.enabled);
   const biometricCanUse = useBiometricLockStore((state) => state.canUse);
@@ -90,7 +94,10 @@ export default function ProfileScreen() {
       .then((res) => setTier(res.status.tier))
       .catch(() => setTier("unbekannt"));
     getProfile()
-      .then((p) => setDisplayName(p.displayName))
+      .then((p) => {
+        setDisplayName(p.displayName);
+        setGender(p.gender ?? null);
+      })
       .catch(() => {
         /* Zeile zeigt dann den Platzhalter; Ändern geht trotzdem. */
       });
@@ -104,6 +111,21 @@ export default function ProfileScreen() {
     } catch (error) {
       // Blatt bleibt offen, der Wert steht noch im Feld — nur erklären, warum.
       Alert.alert(t("displayName.errorTitle"), t(displayNameErrorKey(error)));
+    }
+  };
+
+  const handleGenderSelect = async (value: Gender) => {
+    if (genderBusy || value === gender) return;
+    const previous = gender;
+    setGender(value);
+    setGenderBusy(true);
+    try {
+      await updateGender(value);
+    } catch {
+      setGender(previous);
+      Alert.alert(t("gender.errorTitle"), t("gender.errorGeneric"));
+    } finally {
+      setGenderBusy(false);
     }
   };
 
@@ -453,6 +475,54 @@ export default function ProfileScreen() {
           </View>
           <ChevronRight size={18} color={c.primary} />
         </TouchableOpacity>
+
+        {/* Geschlecht — steuert die Wortform bei Freunden (#498) */}
+        <View style={{
+          backgroundColor: c.surface, borderRadius: radius.lg, padding: spacing.lg,
+          borderWidth: 1, borderColor: c.border, gap: spacing.md, ...shadows.sm,
+        }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.md }}>
+            <View style={{
+              width: 40, height: 40, borderRadius: radius.md,
+              backgroundColor: c.primaryLight,
+              justifyContent: "center", alignItems: "center",
+            }}>
+              <UserRound size={18} color={c.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: typography.base, fontWeight: typography.semibold, color: c.text }}>
+                {t("gender.profileRow")}
+              </Text>
+              <Text style={{ fontSize: typography.xs, color: c.textTertiary, marginTop: 2 }}>
+                {t("gender.profileRowSubtitle")}
+              </Text>
+            </View>
+          </View>
+          <View style={{ flexDirection: "row", gap: spacing.sm }}>
+            {(["female", "male", "diverse"] as const).map((value) => {
+              const selected = gender === value;
+              return (
+                <TouchableOpacity
+                  key={value}
+                  onPress={() => (userId ? void handleGenderSelect(value) : router.push("/auth"))}
+                  disabled={genderBusy}
+                  activeOpacity={0.8}
+                  style={{
+                    flex: 1,
+                    backgroundColor: selected ? c.primary : c.surfaceSecondary,
+                    borderRadius: radius.md,
+                    paddingVertical: 10,
+                    alignItems: "center",
+                  }}
+                >
+                  <Text style={{ color: selected ? c.textInverse : c.textSecondary, fontWeight: typography.semibold }}>
+                    {t(`gender.${value}`)}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
 
         {/* Leaderboard */}
         <TouchableOpacity

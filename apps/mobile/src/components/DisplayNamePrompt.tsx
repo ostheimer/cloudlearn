@@ -13,10 +13,12 @@ import { Alert } from "react-native";
 import { UserRound } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import TextPromptModal from "./TextPromptModal";
-import { getProfile, updateDisplayName, displayNameErrorKey } from "../lib/api";
+import { getProfile, updateDisplayName, updateGender, displayNameErrorKey } from "../lib/api";
 import {
   readPendingDisplayName,
   clearPendingDisplayName,
+  readPendingGender,
+  clearPendingGender,
 } from "../lib/displayNamePending";
 import { useSessionStore } from "../store/sessionStore";
 
@@ -32,7 +34,30 @@ export function DisplayNamePrompt() {
     (async () => {
       try {
         const profile = await getProfile();
-        if (!active || profile.displayName) return;
+        if (!active) return;
+
+        // Geschlecht aus der Registrierung still nachreichen — kein eigener
+        // Dialog: Bestandskonten tragen es einfach im Profil nach.
+        if (!profile.gender) {
+          const pendingGender = await readPendingGender();
+          if (
+            pendingGender === "female" ||
+            pendingGender === "male" ||
+            pendingGender === "diverse"
+          ) {
+            try {
+              await updateGender(pendingGender);
+              await clearPendingGender();
+            } catch {
+              // Später im Profil nachtragbar — nicht blockieren.
+            }
+          } else if (pendingGender) {
+            await clearPendingGender();
+          }
+          if (!active) return;
+        }
+
+        if (profile.displayName) return;
 
         const pending = await readPendingDisplayName();
         if (pending) {
