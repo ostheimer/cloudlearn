@@ -693,11 +693,14 @@ export function deleteAccount(): Promise<DeleteAccountResponse> {
   return authed<DeleteAccountResponse>("/api/v1/account", { method: "DELETE" });
 }
 
-// ─── Anzeigename ───────────────────────────────────────────────────────────
-// Geprüft wird auf dem Server (Länge, Zeichen, Sperrliste) — der Client
-// übersetzt nur die Fehler-Codes in deutsche Meldungen.
+// ─── Anzeigename + Geschlecht ──────────────────────────────────────────────
+// Geprüft wird auf dem Server (Name: Länge, Zeichen, Sperrliste; Geschlecht:
+// nur die drei bekannten Werte) — der Client übersetzt die Fehler-Codes.
+// gender null = keine Angabe (Bestandskonto) → Texte nutzen die neutrale Form.
+export type Gender = "female" | "male" | "diverse";
 export interface ProfileResponse {
   displayName: string | null;
+  gender: Gender | null;
 }
 export function getProfile(): Promise<ProfileResponse> {
   return authed<ProfileResponse>("/api/v1/account/profile");
@@ -706,6 +709,12 @@ export function updateDisplayName(displayName: string): Promise<ProfileResponse>
   return authed<ProfileResponse>("/api/v1/account/profile", {
     method: "PATCH",
     body: JSON.stringify({ displayName }),
+  });
+}
+export function updateGender(gender: Gender): Promise<ProfileResponse> {
+  return authed<ProfileResponse>("/api/v1/account/profile", {
+    method: "PATCH",
+    body: JSON.stringify({ gender }),
   });
 }
 export function displayNameErrorMessage(error: unknown): string {
@@ -769,7 +778,7 @@ export function getFriends(): Promise<{ friends: FriendProfile[] }> {
 // Freundschaft beidseitig an und schaltet einmalig den Referral-LP-Bonus frei.
 export interface AddFriendByCodeResponse {
   added: boolean;
-  friend: { userId: string; displayName: string; avatarUrl: string | null };
+  friend: { userId: string; displayName: string; avatarUrl: string | null; gender: Gender | null };
   lpGranted: number;
   newBalance?: number;
 }

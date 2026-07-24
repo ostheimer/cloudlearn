@@ -10,9 +10,11 @@ import {
   getLeaderboard,
   getProfile,
   updateDisplayName,
+  updateGender,
   displayNameErrorMessage,
   deleteAccount,
   isApiError,
+  type Gender,
   type LeaderboardResponse,
   type ReferralInfoResponse,
 } from "@/lib/api";
@@ -41,6 +43,11 @@ const THEME_OPTIONS: { value: ThemeChoice; label: string }[] = [
   { value: "dark", label: "Dunkel" },
   { value: "system", label: "System" },
 ];
+const GENDER_OPTIONS: { value: Gender; label: string }[] = [
+  { value: "female", label: "Weiblich" },
+  { value: "male", label: "Männlich" },
+  { value: "diverse", label: "Divers" },
+];
 
 export default function ProfilePage() {
   const { email, signOut, resetPassword } = useAuth();
@@ -66,12 +73,21 @@ export default function ProfilePage() {
   const [nameBusy, setNameBusy] = useState(false);
   const [nameErr, setNameErr] = useState<string | null>(null);
 
+  const [gender, setGender] = useState<Gender | null>(null);
+  const [genderBusy, setGenderBusy] = useState(false);
+  const [genderErr, setGenderErr] = useState<string | null>(null);
+
   useEffect(() => {
     setTheme(getStoredTheme());
     getLpBalance().then((u) => setTier(u.tier)).catch(() => {});
     getReferralInfo().then(setReferral).catch(() => setReferralErr(true));
     getLeaderboard().then(setBoard).catch(() => setBoardErr(true));
-    getProfile().then((p) => setDisplayName(p.displayName)).catch(() => {});
+    getProfile()
+      .then((p) => {
+        setDisplayName(p.displayName);
+        setGender(p.gender ?? null);
+      })
+      .catch(() => {});
   }, []);
 
   async function handleNameSave(e: React.FormEvent) {
@@ -92,6 +108,22 @@ export default function ProfilePage() {
   function chooseTheme(choice: ThemeChoice) {
     applyTheme(choice);
     setTheme(choice);
+  }
+
+  async function chooseGender(value: Gender) {
+    if (genderBusy || value === gender) return;
+    setGenderErr(null);
+    setGenderBusy(true);
+    const previous = gender;
+    setGender(value);
+    try {
+      await updateGender(value);
+    } catch {
+      setGender(previous);
+      setGenderErr("Konnte nicht gespeichert werden — versuch es noch einmal.");
+    } finally {
+      setGenderBusy(false);
+    }
   }
 
   async function handleSignOut() {
@@ -212,6 +244,29 @@ export default function ProfilePage() {
                 </button>
               </div>
             )}
+          </div>
+
+          <div className="pf-row">
+            <div className="pf-row__t">
+              <b>Geschlecht</b>
+              <span style={genderErr ? { color: "#dc2626" } : undefined}>
+                {genderErr ?? "So nennt dich clearn bei deinen Freunden"}
+              </span>
+            </div>
+            <div className="seg" role="group" aria-label="Geschlecht">
+              {GENDER_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  className={`seg__btn${gender === opt.value ? " is-on" : ""}`}
+                  aria-pressed={gender === opt.value}
+                  onClick={() => chooseGender(opt.value)}
+                  disabled={genderBusy}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="pf-row">
