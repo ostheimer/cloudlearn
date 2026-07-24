@@ -1483,6 +1483,26 @@ export async function setDeckShareToken(deckId: string, userId: string, shareTok
   return mapDeckRow(data);
 }
 
+/**
+ * Clears a deck's share token, killing any previously shared link (#519).
+ * Scoped by user_id + deleted_at so only the owner can revoke, and a
+ * non-existent/foreign deck matches nothing. Idempotent: a deck that
+ * already has no token still returns its row.
+ */
+export async function clearDeckShareToken(deckId: string, userId: string): Promise<DeckRecord | null> {
+  const db = getDb();
+  const { data, error } = await db
+    .from("decks")
+    .update({ share_token: null, updated_at: new Date().toISOString() })
+    .eq("id", deckId)
+    .eq("user_id", userId)
+    .is("deleted_at", null)
+    .select()
+    .maybeSingle();
+  if (error || !data) return null;
+  return mapDeckRow(data);
+}
+
 export async function getDeckByShareToken(shareToken: string): Promise<DeckRecord | null> {
   const db = getDb();
   const { data, error } = await db

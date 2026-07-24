@@ -203,6 +203,14 @@ export function shareDeck(
   });
 }
 
+// Deactivates a deck's share link (#519): the old URL stops working; a later
+// shareDeck() creates a brand-new link.
+export function revokeDeckShare(deckId: string): Promise<{ revoked: boolean }> {
+  return authed<{ revoked: boolean }>(`/api/v1/decks/${deckId}/share`, {
+    method: "DELETE",
+  });
+}
+
 export interface DeckDetails {
   id: string;
   title: string;

@@ -100,6 +100,30 @@ describe.skipIf(!HAS_DB)("deck menu services — integration tests (Supabase)", 
     expect(again.shareToken).toBe(result.shareToken);
   });
 
+  // Revoke share link (#519): the old token must stop resolving, and a later
+  // share must mint a brand-new token (not resurrect the revoked one).
+  it("revokes a share link and can re-share with a fresh token", async () => {
+    const { generateShareToken, revokeShareToken, getDeckByShareToken } =
+      await import("@/services/deckService");
+
+    const first = await generateShareToken(userId, testDeckId);
+    expect(first.shareToken).toBeTruthy();
+    expect(await getDeckByShareToken(first.shareToken)).toBeTruthy();
+
+    // Deactivate — the previously shared link must no longer resolve
+    await revokeShareToken(userId, testDeckId);
+    expect(await getDeckByShareToken(first.shareToken)).toBeNull();
+
+    // Revoking again is a harmless no-op (idempotent)
+    await expect(revokeShareToken(userId, testDeckId)).resolves.toBeTruthy();
+
+    // Re-sharing creates a new token that differs from the revoked one
+    const second = await generateShareToken(userId, testDeckId);
+    expect(second.shareToken).toBeTruthy();
+    expect(second.shareToken).not.toBe(first.shareToken);
+    expect(await getDeckByShareToken(second.shareToken)).toBeTruthy();
+  });
+
   // Details
   it("gets deck details with card count and associations", async () => {
     const { getDeckDetails } = await import("@/services/deckService");
@@ -122,7 +146,7 @@ describe.skipIf(!HAS_DB)("deck menu services — integration tests (Supabase)", 
 
   // Ownership enforcement (issue #94): a second user must not touch this deck
   it("blocks cross-user access to decks and cards", async () => {
-    const { updateDeckForUser, deleteDeckForUser, generateShareToken, getDeckDetails } =
+    const { updateDeckForUser, deleteDeckForUser, generateShareToken, revokeShareToken, getDeckDetails } =
       await import("@/services/deckService");
     const { createCardForUser } = await import("@/services/cardService");
     const { storeReview } = await import("@/services/reviewService");
@@ -134,6 +158,8 @@ describe.skipIf(!HAS_DB)("deck menu services — integration tests (Supabase)", 
     expect(await updateDeckForUser({ userId: attacker, deckId: testDeckId, title: "Hacked" })).toBeNull();
     expect(await deleteDeckForUser(attacker, testDeckId)).toBe(false);
     await expect(generateShareToken(attacker, testDeckId)).rejects.toThrow();
+    // A stranger must not be able to deactivate someone else's share link (#519)
+    await expect(revokeShareToken(attacker, testDeckId)).rejects.toThrow();
 
     // Inserting a card into a foreign deck must fail
     await expect(

@@ -11,6 +11,7 @@ import {
   deleteDeck,
   duplicateDeck,
   shareDeck,
+  revokeDeckShare,
   listFolders,
   createFolder,
   updateFolder,
@@ -36,6 +37,9 @@ import {
   Trash,
   AlertTriangle,
   Sparkles,
+  Link as LinkIcon,
+  RefreshSync,
+  CheckCircle,
 } from "@/components/icons";
 
 type TabKey = "decks" | "folders";
@@ -369,7 +373,7 @@ export default function LibraryPage() {
       )}
 
       {modal?.type === "share" && (
-        <ShareModal url={modal.url} title={modal.deck.title} onClose={() => setModal(null)} />
+        <ShareModal deck={modal.deck} initialUrl={modal.url} onClose={() => setModal(null)} />
       )}
 
       {modal?.type === "createFolder" && (
@@ -887,43 +891,157 @@ function CreateOrRenameModal({
 }
 
 function ShareModal({
-  url,
-  title,
+  deck,
+  initialUrl,
   onClose,
 }: {
-  url: string;
-  title: string;
+  deck: Deck;
+  initialUrl: string;
   onClose: () => void;
 }) {
+  // url === null means the link was just deactivated (#519); the dialog then
+  // offers to mint a fresh one. `confirming` gates the deactivation behind a
+  // safety prompt so a stray click can't kill a shared link.
+  const [url, setUrl] = useState<string | null>(initialUrl);
+  const [confirming, setConfirming] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   return (
     <Modal title="Deck teilen" onClose={onClose}>
-      <p className="muted">
-        Jeder mit diesem Link kann „{title}" ansehen und als eigene Kopie übernehmen.
-      </p>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <input className="input" readOnly value={url} onFocus={(e) => e.target.select()} />
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={async () => {
-            try {
-              await navigator.clipboard.writeText(url);
-              setCopied(true);
-              window.setTimeout(() => setCopied(false), 1800);
-            } catch {
-              /* clipboard unavailable — user can still copy manually */
-            }
-          }}
-        >
-          {copied ? "Kopiert" : "Kopieren"}
-        </button>
-      </div>
-      <div className="modal__actions">
-        <button type="button" className="btn btn-ghost" onClick={onClose}>
-          Schließen
-        </button>
-      </div>
+      {url ? (
+        <>
+          <p className="muted">
+            Jeder mit diesem Link kann „{deck.title}" ansehen und als eigene Kopie übernehmen.
+          </p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <input className="input" readOnly value={url} onFocus={(e) => e.target.select()} />
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(url);
+                  setCopied(true);
+                  window.setTimeout(() => setCopied(false), 1800);
+                } catch {
+                  /* clipboard unavailable — user can still copy manually */
+                }
+              }}
+            >
+              {copied ? "Kopiert" : "Kopieren"}
+            </button>
+          </div>
+
+          {confirming ? (
+            <div style={{ borderTop: "1px solid var(--line)", marginTop: 14, paddingTop: 14 }}>
+              <p className="muted" style={{ margin: 0 }}>
+                Link wirklich deaktivieren? Der bisher geteilte Link funktioniert danach nicht
+                mehr — wer ihn schon hat, kommt nicht mehr an das Deck. Beim nächsten Teilen
+                entsteht ein neuer Link.
+              </p>
+              {error && (
+                <p style={{ color: "#dc2626", margin: "8px 0 0" }}>{error}</p>
+              )}
+              <div className="modal__actions">
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  disabled={busy}
+                  onClick={() => {
+                    setConfirming(false);
+                    setError(null);
+                  }}
+                >
+                  Abbrechen
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ background: "#dc2626", boxShadow: "none" }}
+                  disabled={busy}
+                  onClick={async () => {
+                    setBusy(true);
+                    setError(null);
+                    try {
+                      await revokeDeckShare(deck.id);
+                      setUrl(null);
+                      setConfirming(false);
+                    } catch {
+                      setError("Deaktivieren fehlgeschlagen. Bitte erneut versuchen.");
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  {busy ? "Wird deaktiviert…" : "Ja, deaktivieren"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div style={{ borderTop: "1px solid var(--line)", marginTop: 14, paddingTop: 12 }}>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  style={{ color: "#dc2626" }}
+                  onClick={() => setConfirming(true)}
+                >
+                  <LinkIcon size={15} /> Link deaktivieren
+                </button>
+                <p className="muted" style={{ margin: "8px 0 0", fontSize: "0.85rem" }}>
+                  Der bisherige Link funktioniert danach nicht mehr.
+                </p>
+              </div>
+              <div className="modal__actions">
+                <button type="button" className="btn btn-ghost" onClick={onClose}>
+                  Schließen
+                </button>
+              </div>
+            </>
+          )}
+        </>
+      ) : (
+        <>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              color: "var(--green)",
+              margin: "4px 0 14px",
+            }}
+          >
+            <CheckCircle size={18} /> Link deaktiviert. Der alte Link funktioniert nicht mehr.
+          </div>
+          {error && <p style={{ color: "#dc2626", marginTop: 0 }}>{error}</p>}
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              setError(null);
+              try {
+                const { shareUrl } = await shareDeck(deck.id);
+                setUrl(shareUrl);
+              } catch {
+                setError("Neuer Link fehlgeschlagen. Bitte erneut versuchen.");
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            <RefreshSync size={15} /> {busy ? "Wird erstellt…" : "Neuen Link erstellen"}
+          </button>
+          <div className="modal__actions">
+            <button type="button" className="btn btn-ghost" onClick={onClose}>
+              Schließen
+            </button>
+          </div>
+        </>
+      )}
     </Modal>
   );
 }

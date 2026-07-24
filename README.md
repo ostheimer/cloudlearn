@@ -589,7 +589,8 @@ Die initiale Migration oben ist nur das Basisschema. Die vollständige, maßgebl
 │   ├── GET    /:id/details  # Detail-Metadaten (Kartenanzahl, Kurse, Ordner)
 │   ├── POST   /:id/duplicate # Deck duplizieren
 │   ├── GET    /:id/export   # Offline-Export (Deck + Karten)
-│   ├── POST   /:id/share    # Share-Link/Deep-Link generieren
+│   ├── POST   /:id/share    # Share-Link/Deep-Link generieren (bestehenden Token wiederverwenden)
+│   ├── DELETE /:id/share    # Share-Link deaktivieren (#519); danach mintet POST einen neuen Token
 │   ├── POST   /:id/tests    # Abgegebene Prüfung protokollieren (test_attempts; keine LP)
 │   └── GET    /share/:token # Geteiltes Deck samt Karten abrufen
 ├── /cards

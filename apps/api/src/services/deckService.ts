@@ -9,6 +9,7 @@ import {
   duplicateDeck as dbDuplicateDeck,
   setDeckShareToken,
   getDeckShareToken,
+  clearDeckShareToken,
   getDeckByShareToken as dbGetDeckByShareToken,
   getDeckWithCardCount,
   listFoldersForDeck,
@@ -81,6 +82,20 @@ export async function generateShareToken(userId: string, deckId: string) {
   const updated = await setDeckShareToken(deckId, userId, shareToken);
   if (!updated) throw new Error("Could not generate share token");
   return { shareToken, deck: updated };
+}
+
+/**
+ * Revokes a deck's share link (#519). Only the owner may do this for their
+ * own deck; a foreign or missing deck is a 404 (never reveals existence).
+ * After this, the old link resolves to "not found" and a later share()
+ * mints a fresh token. Idempotent — revoking an unshared deck is a no-op.
+ */
+export async function revokeShareToken(userId: string, deckId: string) {
+  const deck = await getDeck(deckId, userId);
+  if (!deck) throw new HttpError("Deck not found", 404, "DECK_NOT_FOUND");
+  const updated = await clearDeckShareToken(deckId, userId);
+  if (!updated) throw new HttpError("Deck not found", 404, "DECK_NOT_FOUND");
+  return { deck: updated };
 }
 
 export async function getDeckByShareToken(shareToken: string) {
