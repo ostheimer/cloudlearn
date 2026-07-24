@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useCoarsePointer } from "@/lib/use-coarse-pointer";
 
 interface DemoCard {
   label: string;
@@ -29,6 +30,7 @@ const CARDS: DemoCard[] = [
 export function FlashcardDemo() {
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
+  const coarsePointer = useCoarsePointer();
 
   const card = CARDS[index] ?? CARDS[0]!;
 
@@ -57,7 +59,9 @@ export function FlashcardDemo() {
           <div className="flip__face flip__face--front">
             <span className="flip__label">{card.label} · Frage</span>
             <span className="flip__q">{card.front}</span>
-            <span className="flip__hint">Tippen zum Umdrehen</span>
+            <span className="flip__hint">
+              {coarsePointer ? "Tippen zum Umdrehen" : "Klicken zum Umdrehen"}
+            </span>
           </div>
           <div className="flip__face flip__face--back">
             <span className="flip__label">Antwort</span>

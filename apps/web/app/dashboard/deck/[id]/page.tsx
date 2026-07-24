@@ -8,6 +8,7 @@ import { Modal } from "@/components/app/modal";
 import { OcclusionShot } from "@/components/app/occlusion-shot";
 import { getCardImages, occlusionTarget, type CardImage } from "@/lib/card-images";
 import { deckCountLabel } from "@/lib/deck-count-label";
+import { useCoarsePointer } from "@/lib/use-coarse-pointer";
 import {
   getDeckDetails,
   listCardsInDeck,
@@ -80,6 +81,7 @@ export default function DeckDetailPage() {
   const [modal, setModal] = useState<CardModal>(null);
   const [cardImages, setCardImages] = useState<Record<string, CardImage | null>>({});
   const fetchedPaths = useRef<Set<string>>(new Set());
+  const coarsePointer = useCoarsePointer();
 
   const load = useCallback(async () => {
     if (!deckId) return;
@@ -419,7 +421,7 @@ export default function DeckDetailPage() {
                   Bild-Karten (Occlusion)
                 </h2>
                 <span className="muted" style={{ fontSize: "0.78rem" }}>
-                  zum Vergrößern antippen
+                  {coarsePointer ? "zum Vergrößern antippen" : "zum Vergrößern anklicken"}
                 </span>
               </div>
               <div className="card-list">
