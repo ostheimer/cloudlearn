@@ -154,9 +154,12 @@ export default function LibraryPage() {
         <div>
           <h1>Meine Bibliothek</h1>
           <p className="muted" style={{ marginTop: 4 }}>
-            {tab === "decks"
-              ? `${decks.length} ${decks.length === 1 ? "Deck" : "Decks"}`
-              : `${folders.length} ${folders.length === 1 ? "Ordner" : "Ordner"}`}
+            {/* Solange die Liste lädt, keine falsche „0 Decks" zeigen (#499) */}
+            {loading
+              ? "Lädt…"
+              : tab === "decks"
+                ? `${decks.length} ${decks.length === 1 ? "Deck" : "Decks"}`
+                : `${folders.length} ${folders.length === 1 ? "Ordner" : "Ordner"}`}
           </p>
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>

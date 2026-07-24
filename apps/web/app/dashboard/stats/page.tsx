@@ -32,7 +32,8 @@ export default function StatsPage() {
   const [attempts, setAttempts] = useState<TestAttemptSummary[] | null>(null);
   // Deck-Vergleich ist Pro-only; der Server meldet das mit 403/PRO_REQUIRED.
   const [proLocked, setProLocked] = useState(false);
-  const [tier, setTier] = useState<"free" | "pro" | "lifetime" | null>(null);
+  // "unknown" = Tarif-Abfrage gescheitert; dann entscheidet beim Deck-Vergleich der Server.
+  const [tier, setTier] = useState<"free" | "pro" | "lifetime" | "unknown" | null>(null);
   const [proHint, setProHint] = useState(false);
   const coarsePointer = useCoarsePointer();
 
@@ -79,14 +80,22 @@ export default function StatsPage() {
         if (active) setTier(u.tier);
       })
       .catch(() => {
-        /* Tarif unbekannt — beim Deck-Vergleich entscheidet ohnehin der Server */
+        if (active) setTier("unknown");
       });
     return () => {
       active = false;
     };
   }, []);
 
+  // Deck-Vergleich ist Pro-only: erst die Tarif-Antwort abwarten und als Free
+  // gar nicht anfragen — der sichere 403 stand sonst als Fehler in der
+  // Konsole (#499). Nur bei unbekanntem Tarif entscheidet weiter der Server.
   useEffect(() => {
+    if (tier === null) return;
+    if (tier === "free") {
+      setProLocked(true);
+      return;
+    }
     let active = true;
     getDeckSummaries()
       .then(({ decks }) => active && setDecks(decks))
@@ -95,7 +104,10 @@ export default function StatsPage() {
         if (isApiError(e) && (e.code === "PRO_REQUIRED" || e.status === 403)) setProLocked(true);
         else setDecksErr(true);
       });
-  }, []);
+    return () => {
+      active = false;
+    };
+  }, [tier]);
 
   useEffect(() => {
     let active = true;
