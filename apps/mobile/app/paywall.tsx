@@ -53,7 +53,7 @@ async function waitForBackendSubscriptionSync(
 const PRO_FEATURES = [
   "paywall.feature.scans",
   "paywall.feature.url",
-  "paywall.feature.pdf",
+  "paywall.feature.adfree",
   "paywall.feature.occlusion",
   "paywall.feature.offline",
   "paywall.feature.decks",

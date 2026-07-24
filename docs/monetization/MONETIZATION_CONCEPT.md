@@ -2,7 +2,7 @@
 
 > **Kanonische Quelle:** Numerische LP-Werte, Tier-Limits und LP-Pack-Preise werden in `packages/contracts/src/featureGates.ts` gepflegt. `apps/api/src/lib/featureGates.ts` und `apps/mobile/src/features/paywall/lpPackOffers.ts` spiegeln diese Werte für API bzw. Mobile.
 
-Letzte Aktualisierung: 2026-07-03
+Letzte Aktualisierung: 2026-07-24
 
 ---
 
@@ -45,7 +45,7 @@ Produkt-IDs (RevenueCat):
 Free-User: 10 LP Startguthaben = 1 Scan ODER anteilig URL-/PDF-Import.
 Pro-User: 300 LP Monatsgrant = 60 Scans oder 37 URL-Importe.
 
-> **Hinweis:** Die PDF-API-Route ist nicht hart auf Pro beschränkt. Free-Nutzer zahlen 20 LP; der Mobile-UI-Einstieg ist über das Feature-Flag `pdfImport: false` ausgeblendet.
+> **Entschieden (Issue #84, 24.07.2026):** Der PDF-Import ist bewusst für **alle Tarife** per LP nutzbar (Free 20 LP, Pro/Lifetime 12 LP). Es gibt kein Pro-Gating — weder serverseitig (`assertEntitlement` wird für `pdfImport` absichtlich nicht verwendet) noch in den Clients. Pro-Werbetexte dürfen den PDF-Import nicht als exklusiv nennen, nur den günstigeren LP-Preis.
 
 ### 3.2 LP verdienen durch Lernen (Gamification)
 
@@ -100,14 +100,14 @@ Monatliches Abo-Kontingent wird am 1. des Monats auf `lp_balance` aufaddiert (ni
 
 | Limit | Free | Pro | Lifetime |
 |-------|------|-----|----------|
-| Max. Decks | 10 | 500 | 500 |
-| Max. Karten/Deck | 100 | 2.000 | 2.000 |
+| Max. Decks | 20 | 500 | 500 |
+| Max. Karten/Deck | 150 | 2.000 | 2.000 |
 | LP-Grant/Monat | 0 | 300 LP | 300 LP |
 | LP-Verdienst-Cap/Tag | 30 LP | 100 LP | 100 LP |
 | LP-Cost KI-Scan | 10 LP | 5 LP | 5 LP |
 | LP-Cost URL-Import | 15 LP | 8 LP | 8 LP |
 | LP-Cost PDF-Import | 20 LP | 12 LP | 12 LP |
-| PDF-Import | ❌ | ✅ | ✅ |
+| PDF-Import | ✅ (gegen LP) | ✅ | ✅ |
 | Image Occlusion | ❌ | ✅ | ✅ |
 | Offline-Download | ❌ | ✅ | ✅ |
 | Erweiterte Statistiken | ❌ | ✅ | ✅ |

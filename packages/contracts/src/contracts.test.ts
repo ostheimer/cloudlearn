@@ -115,10 +115,16 @@ describe("featureGates", () => {
 
   it("free tier blocks premium features", () => {
     const limits = getLimitsForTier("free");
-    expect(limits.pdfImport).toBe(false);
     expect(limits.imageOcclusion).toBe(false);
     expect(limits.offlineDownload).toBe(false);
     expect(limits.adFree).toBe(false);
+  });
+
+  it("pdf import is available on every tier, priced in LP (#84)", () => {
+    expect(TIER_LIMITS.free.pdfImport).toBe(true);
+    expect(TIER_LIMITS.pro.pdfImport).toBe(true);
+    expect(TIER_LIMITS.lifetime.pdfImport).toBe(true);
+    expect(TIER_LIMITS.free.lpCostPdfImport).toBeGreaterThan(TIER_LIMITS.pro.lpCostPdfImport);
   });
 
   it("pro tier has higher deck and card limits", () => {

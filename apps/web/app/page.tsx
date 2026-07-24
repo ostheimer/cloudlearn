@@ -109,7 +109,7 @@ const faqs = [
   },
   {
     q: "Was kostet clearn? Was ist gratis, was Pro?",
-    a: "Starten ist kostenlos: Konto anlegen, Decks & Karten erstellen und lernen — inklusive Spaced Repetition, allen Lernmodi, Ordner, Teilen und Statistik. Das KI-Erstellen läuft über Lernpunkte, die du dir durchs Lernen verdienst. Mit Pro gibt es mehr: mehr Decks & Karten, PDF-Import, Bild-Occlusion, Offline-Download, günstigere KI-Kosten und monatliche Lernpunkte.",
+    a: "Starten ist kostenlos: Konto anlegen, Decks & Karten erstellen und lernen — inklusive Spaced Repetition, allen Lernmodi, Ordner, Teilen und Statistik. Das KI-Erstellen läuft über Lernpunkte, die du dir durchs Lernen verdienst. Mit Pro gibt es mehr: mehr Decks & Karten, Bild-Occlusion, Offline-Download, günstigere KI-Kosten und monatliche Lernpunkte.",
   },
   {
     q: "Woraus kann ich Karten erstellen?",

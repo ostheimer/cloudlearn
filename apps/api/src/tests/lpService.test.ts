@@ -118,8 +118,12 @@ describe("featureGates – LP economy", () => {
   });
 
   it("free tier has premium features disabled", () => {
-    expect(TIER_LIMITS.free.pdfImport).toBe(false);
     expect(TIER_LIMITS.free.adFree).toBe(false);
+  });
+
+  it("pdf import is available on every tier, priced in LP (#84)", () => {
+    expect(TIER_LIMITS.free.pdfImport).toBe(true);
+    expect(TIER_LIMITS.free.lpCostPdfImport).toBeGreaterThan(0);
   });
 });
 
