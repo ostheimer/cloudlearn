@@ -295,6 +295,7 @@ export default function MatchPage() {
           allCount={cards.length}
           starredCount={cards.filter((c) => c.starred).length}
           wobblyCount={cards.filter((c) => wobblyIds.has(c.id)).length}
+          minCount={2}
         />
 
         <div className="cl-optcard">
