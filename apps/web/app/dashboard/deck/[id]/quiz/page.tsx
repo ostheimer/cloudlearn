@@ -6,6 +6,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
 import { listCardsInDeck, reviewCard, earnLp, isApiError, type Card } from "@/lib/api";
 import { useDisplayName } from "@/lib/use-display-name";
+import { useWobblyIds } from "@/lib/use-wobbly-ids";
+import { filterBySource, type CardSource } from "@/lib/card-source";
+import { CardSourcePicker } from "@/components/app/card-source-picker";
 import { generateQuestions, type QuizQuestion } from "@/lib/quizQuestions";
 import {
   beginSessionAward,
@@ -39,6 +42,8 @@ export default function QuizPage() {
   const [reverse, setReverse] = useState(false);
   const [allowMc, setAllowMc] = useState(true);
   const [allowTrueFalse, setAllowTrueFalse] = useState(true);
+  const [source, setSource] = useState<CardSource>("all");
+  const wobblyIds = useWobblyIds(deckId);
 
   const [phase, setPhase] = useState<"setup" | "play" | "result">("setup");
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
@@ -122,7 +127,11 @@ export default function QuizPage() {
     setPhase("play");
   }, [reverse, allowMc, allowTrueFalse, awardSession, total]);
 
-  const startQuiz = useCallback(() => startQuizWith(cards), [startQuizWith, cards]);
+  // „Alle nochmal" wie der Start: immer die gewählte Kartenquelle.
+  const startQuiz = useCallback(
+    () => startQuizWith(filterBySource(cards, source, wobblyIds)),
+    [startQuizWith, cards, source, wobblyIds]
+  );
 
   function pick(i: number) {
     if (picked !== null || !q) return;
@@ -208,6 +217,8 @@ export default function QuizPage() {
   if (phase === "setup") {
     const leftSide = reverse ? "Rückseite" : "Vorderseite";
     const rightSide = reverse ? "Vorderseite" : "Rückseite";
+    const starredCount = cards.filter((c) => c.starred).length;
+    const wobblyCount = cards.filter((c) => wobblyIds.has(c.id)).length;
     return (
       <div className="study-wrap">
         <Link href={`/dashboard/deck/${deckId}`} className="crumb">
@@ -225,6 +236,14 @@ export default function QuizPage() {
           <h1 className="h2">Multiple Choice</h1>
           <p className="muted">Antwort aus Optionen wählen</p>
         </div>
+
+        <CardSourcePicker
+          value={source}
+          onChange={setSource}
+          allCount={cards.length}
+          starredCount={starredCount}
+          wobblyCount={wobblyCount}
+        />
 
         <button type="button" className="cl-dir" onClick={() => setReverse((r) => !r)}>
           <div className="cl-dir__lbl">Abgefragte Richtung</div>
