@@ -395,7 +395,7 @@ export default function QuizPage() {
                 className="btn btn-primary btn-block"
                 onClick={() => startQuizWith(wrongCards)}
               >
-                Nur nicht gewusste ({wrongCards.length})
+                Nur die nicht gewussten ({wrongCards.length})
               </button>
             )}
             <button
@@ -403,7 +403,7 @@ export default function QuizPage() {
               className={canRetryWrong ? "btn btn-ghost btn-block" : "btn btn-primary btn-block"}
               onClick={startQuiz}
             >
-              {canRetryWrong ? "Nochmal alle" : "Nochmal"}
+              Alle nochmal
             </button>
             <button
               type="button"
