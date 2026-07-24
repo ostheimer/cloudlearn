@@ -12,7 +12,7 @@ export default function LearnPage() {
   const deckId = params.id;
 
   // Die volle Runde. Wird nach dem Laden einmal gesetzt, damit ihre Identität
-  // für LearnSession stabil bleibt — „Nochmal alle" stellt genau sie wieder her.
+  // für LearnSession stabil bleibt — „Alle nochmal" stellt genau sie wieder her.
   const [pool, setPool] = useState<Card[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

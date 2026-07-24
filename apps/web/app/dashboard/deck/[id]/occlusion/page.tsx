@@ -82,7 +82,7 @@ export default function OcclusionLearnPage() {
   const [earnCapReached, setEarnCapReached] = useState(false);
   const awardStateRef = useRef<SessionAwardState>({ finalized: false, inFlight: null });
   const pendingReviewsRef = useRef<Promise<unknown>[]>([]);
-  // Volle geladene Liste, damit „Nochmal alle" nach einer Teil-Runde wieder alles nimmt.
+  // Volle geladene Liste, damit „Alle nochmal" nach einer Teil-Runde wieder alles nimmt.
   const allItemsRef = useRef<OccItem[]>([]);
 
   const load = useCallback(async () => {
@@ -266,7 +266,7 @@ export default function OcclusionLearnPage() {
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
             {wrong.length > 0 && (
               <button type="button" className="btn btn-primary" onClick={() => void restartWrong()}>
-                Nur nicht gewusste ({wrong.length})
+                Nur die nicht gewussten ({wrong.length})
               </button>
             )}
             <button
@@ -274,7 +274,7 @@ export default function OcclusionLearnPage() {
               className={`btn ${wrong.length > 0 ? "btn-ghost" : "btn-primary"}`}
               onClick={() => void restart()}
             >
-              {wrong.length > 0 ? "Nochmal alle" : "Nochmal lernen"}
+              Alle nochmal
             </button>
             <Link href={`/dashboard/deck/${deckId}`} className="btn btn-ghost">
               Zurück zum Deck

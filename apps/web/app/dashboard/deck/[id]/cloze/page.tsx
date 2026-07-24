@@ -366,7 +366,7 @@ export default function ClozePage() {
                 className="btn btn-primary btn-block"
                 onClick={() => startRound(wrong)}
               >
-                Falsche wiederholen ({wrong.length})
+                Nur die nicht gewussten ({wrong.length})
               </button>
             )}
             <button
@@ -374,7 +374,7 @@ export default function ClozePage() {
               className={`btn btn-block ${allRight ? "btn-primary" : "btn-ghost"}`}
               onClick={() => startRound(allCards)}
             >
-              Von vorne (alle {allCards.length})
+              Alle nochmal
             </button>
             <button
               type="button"

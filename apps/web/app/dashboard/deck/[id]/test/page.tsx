@@ -199,7 +199,7 @@ export default function TestPage() {
   const percent = questions.length > 0 ? Math.round((scoredCount / questions.length) * 100) : 0;
 
   // Baut den Test aus den übergebenen Karten und geht direkt ins Spiel — die
-  // gemeinsame Basis für „Nochmal" (alle Karten) und „Nur nicht gewusste"
+  // gemeinsame Basis für „Alle nochmal" und „Nur die nicht gewussten"
   // (Teilmenge, überspringt das Setup).
   const buildAndStart = useCallback(
     async (sourceCards: Card[]) => {
@@ -209,7 +209,7 @@ export default function TestPage() {
       if (typeWritten) types.push("written");
       let qs = buildTestQuestions(sourceCards, { count: count || usableCount, types, reverse });
       // Wahr/Falsch und Multiple Choice brauchen ≥ 2 Karten (für eine falsche
-      // Gegen-Zuordnung). Bei zu wenigen offenen Karten (z. B. „Nur nicht gewusste"
+      // Gegen-Zuordnung). Bei zu wenigen offenen Karten (z. B. „Nur die nicht gewussten"
       // mit 1 Karte) lässt sich damit keine Frage bilden → dann fällt die Runde auf
       // „Schriftlich" zurück, das schon mit einer einzigen Karte funktioniert.
       let fellBack = false;
@@ -706,10 +706,10 @@ export default function TestPage() {
               className="btn btn-primary btn-block"
               onClick={() => void buildAndStart(wrongCards)}
             >
-              Nur nicht gewusste ({wrongCards.length})
+              Nur die nicht gewussten ({wrongCards.length})
             </button>
             <button type="button" className="btn btn-ghost btn-block" onClick={() => void startTest()}>
-              <RotateCw size={18} /> Nochmal alle
+              <RotateCw size={18} /> Alle nochmal
             </button>
           </>
         ) : (

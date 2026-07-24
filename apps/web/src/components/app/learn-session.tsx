@@ -25,7 +25,7 @@ const RATINGS: { key: ReviewRating; label: string; cls: string }[] = [
  * The caller decides WHICH cards are studied and where "back" leads; everything
  * from here on — rating, LP, restart, „nur nicht gewusste" — is the same either
  * way. `pool` is the full round: it must already be filtered (no occlusion
- * cards) and stay referentially stable, since „Nochmal alle" restores it.
+ * cards) and stay referentially stable, since „Alle nochmal" restores it.
  */
 export function LearnSession({
   pool,
@@ -40,7 +40,7 @@ export function LearnSession({
   const { userId } = useAuth();
 
   // `cards` is the queue actually being studied — possibly a subset of `pool`
-  // after „Nur nicht gewusste".
+  // after „Nur die nicht gewussten".
   const [cards, setCards] = useState<Card[]>(pool);
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
@@ -161,7 +161,7 @@ export function LearnSession({
                 className="btn btn-primary"
                 onClick={() => startRound(notKnown)}
               >
-                Nur nicht gewusste ({notKnown.length})
+                Nur die nicht gewussten ({notKnown.length})
               </button>
             )}
             <button
@@ -169,7 +169,7 @@ export function LearnSession({
               className={notKnown.length > 0 ? "btn btn-ghost" : "btn btn-primary"}
               onClick={() => startRound(pool)}
             >
-              {notKnown.length > 0 ? "Nochmal alle" : "Nochmal lernen"}
+              Alle nochmal
             </button>
             <button type="button" className="btn btn-ghost" onClick={quit}>
               {backLabel}

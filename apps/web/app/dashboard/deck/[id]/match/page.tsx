@@ -396,7 +396,7 @@ export default function MatchPage() {
                 className="btn btn-primary btn-block"
                 onClick={() => startGameWith(notKnownCards, timed)}
               >
-                <RotateCw size={18} /> Nur nicht gewusste ({notKnownCards.length})
+                <RotateCw size={18} /> Nur die nicht gewussten ({notKnownCards.length})
               </button>
             )}
             <button
@@ -404,7 +404,7 @@ export default function MatchPage() {
               className={`btn btn-block ${showSubset ? "btn-ghost" : "btn-primary"}`}
               onClick={() => startGame(timed)}
             >
-              <RotateCw size={18} /> {showSubset ? "Nochmal alle" : "Nochmal"}
+              <RotateCw size={18} /> Alle nochmal
             </button>
             <button
               type="button"
