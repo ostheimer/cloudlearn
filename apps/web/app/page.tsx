@@ -100,7 +100,7 @@ const features: { Icon: IconType; tint: string; title: string; body: string }[] 
 const modes: { Icon: IconType; tint: string; title: string; desc: string }[] = [
   { Icon: Layers, tint: "g-indigo", title: "Karteikarten", desc: "Klassisch umdrehen & bewerten" },
   { Icon: ListChecks, tint: "g-violet", title: "Multiple Choice", desc: "Antwort aus Optionen wählen" },
-  { Icon: Match, tint: "g-pink", title: "Zuordnen", desc: "Begriffe & Definitionen paaren" },
+  { Icon: Match, tint: "g-blue", title: "Zuordnen", desc: "Begriffe & Definitionen paaren" },
   { Icon: Pencil, tint: "g-amber", title: "Lückentext", desc: "Fehlendes aktiv ergänzen" },
   { Icon: FileText, tint: "g-red", title: "Test", desc: "Klausur mit Prozent-Ergebnis" },
   { Icon: ImageIcon, tint: "g-green", title: "Occlusion", desc: "Bildteile verdecken & abfragen" },
