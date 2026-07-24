@@ -2,7 +2,7 @@
 
 > **Kanonische Quelle:** Numerische LP-Werte, Tier-Limits und LP-Pack-Preise werden in `packages/contracts/src/featureGates.ts` gepflegt. `apps/api/src/lib/featureGates.ts` und `apps/mobile/src/features/paywall/lpPackOffers.ts` spiegeln diese Werte für API bzw. Mobile.
 
-Letzte Aktualisierung: 2026-07-03
+Letzte Aktualisierung: 2026-07-24
 
 ---
 
@@ -92,7 +92,7 @@ Gekaufte LP verfallen **nicht** (kein Ablaufdatum).
 **Ein einziger Topf** (`lp_balance`). Kein Unterschied ob verdient, gekauft oder Abo-Kontingent.
 Monatliches Abo-Kontingent wird am 1. des Monats auf `lp_balance` aufaddiert (nicht ersetzt).
 
-**Balance-Cap:** Ein LP-Balance-Cap ist aktuell nicht implementiert; große LP-Packs werden vollständig gutgeschrieben.
+**Balance-Cap:** Bewusste Entscheidung (Issue #84, 24.07.2026): Es gibt **keinen** LP-Balance-Cap — weder für verdiente noch für gekaufte LP. Das Ansparen wird ausschließlich über die Tagescaps (`lpEarnCapPerDay`, `lpAdCapPerDay`) begrenzt; große LP-Packs werden vollständig gutgeschrieben. Bitte nicht erneut als Lücke melden.
 
 ---
 
