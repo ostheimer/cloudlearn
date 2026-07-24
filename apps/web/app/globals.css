@@ -3236,9 +3236,8 @@ a.lp-pill:hover {
   flex: none;
   opacity: 0.65;
 }
-/* Exakte App-Scan-Farben (fix, damit sie in beiden Modi gleich bleiben):
-   Text = Amber (warning), URL = Blau (info). Foto/Galerie/PDF folgen in Runde 2
-   in Indigo/Grün/Dunkel — wie im App-Scan. */
+/* Exakte App-Scan-Farben (fix in beiden Modi, wie im App-Scan):
+   Text = Amber (warning), URL = Blau (info), Foto = Indigo, Galerie = Grün. */
 .source-card--text {
   background: #f59e0b;
 }
@@ -3251,8 +3250,39 @@ a.lp-pill:hover {
 .source-card--gallery {
   background: #10b981;
 }
+/* PDF macht es wie die App: dort trägt die Kachel die "Textfarbe" des Modus —
+   dunkel im Hellen, hell im Dunklen. Das feste #0f172a war im Dunkel-Modus vor
+   dem fast gleichfarbigen Hintergrund unsichtbar und wirkte deaktiviert (#520). */
 .source-card--pdf {
   background: #0f172a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .source-card--pdf {
+    background: #f1f5f9;
+    color: #0f172a;
+  }
+  :root:not([data-theme="light"]) .source-card--pdf .source-card__ic {
+    background: rgba(15, 23, 42, 0.08);
+  }
+  :root:not([data-theme="light"]) .source-card--pdf .source-card__hint {
+    color: rgba(15, 23, 42, 0.72);
+  }
+  :root:not([data-theme="light"]) .source-card--pdf .source-card__cost {
+    background: rgba(15, 23, 42, 0.1);
+  }
+}
+:root[data-theme="dark"] .source-card--pdf {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+:root[data-theme="dark"] .source-card--pdf .source-card__ic {
+  background: rgba(15, 23, 42, 0.08);
+}
+:root[data-theme="dark"] .source-card--pdf .source-card__hint {
+  color: rgba(15, 23, 42, 0.72);
+}
+:root[data-theme="dark"] .source-card--pdf .source-card__cost {
+  background: rgba(15, 23, 42, 0.1);
 }
 .source-card__ic {
   width: 44px;
