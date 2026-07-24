@@ -404,7 +404,13 @@ export async function listCardsForDeck(
     .eq("user_id", userId)
     .eq("deck_id", deckId)
     .is("deleted_at", null)
-    .order("created_at", { ascending: true });
+    // Stabiler Zweitschlüssel: Scan-/Import-Karten teilen sich denselben
+    // created_at (ein Batch-Insert). Ohne zweite Sortierspalte darf Postgres
+    // sie bei jedem Aufruf anders anordnen — nach dem Lernen sprang so die
+    // Karten-Reihenfolge auf der Deck-Seite (#499). id ist eindeutig und macht
+    // die Reihenfolge deterministisch, ohne die Erstellungs-Ordnung zu ändern.
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true });
   if (error) throw new Error(`listCardsForDeck: ${error.message}`);
   return (data ?? []).map(mapCardRow);
 }
