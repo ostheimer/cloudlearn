@@ -73,7 +73,7 @@ const features: { Icon: IconType; tint: string; title: string; body: string }[] 
     Icon: Target,
     tint: "g-pink",
     title: "Mehrere Lernmodi",
-    body: "Karteikarten, Multiple Choice, Zuordnen und Lückentext — dasselbe Deck aus verschiedenen Blickwinkeln.",
+    body: "Karteikarten, Multiple Choice, Zuordnen, Lückentext, Test und Bild-Occlusion — dasselbe Deck aus verschiedenen Blickwinkeln.",
   },
   {
     Icon: Folder,
@@ -95,11 +95,15 @@ const features: { Icon: IconType; tint: string; title: string; body: string }[] 
   },
 ];
 
+// Titel, Untertitel und Farben wie auf der Deck-Seite (MODES dort) — die
+// Startseite verspricht genau das, was eingeloggt dasteht (#521).
 const modes: { Icon: IconType; tint: string; title: string; desc: string }[] = [
   { Icon: Layers, tint: "g-indigo", title: "Karteikarten", desc: "Klassisch umdrehen & bewerten" },
   { Icon: ListChecks, tint: "g-violet", title: "Multiple Choice", desc: "Antwort aus Optionen wählen" },
   { Icon: Match, tint: "g-pink", title: "Zuordnen", desc: "Begriffe & Definitionen paaren" },
-  { Icon: Pencil, tint: "g-green", title: "Lückentext", desc: "Fehlendes aktiv ergänzen" },
+  { Icon: Pencil, tint: "g-amber", title: "Lückentext", desc: "Fehlendes aktiv ergänzen" },
+  { Icon: FileText, tint: "g-red", title: "Test", desc: "Klausur mit Prozent-Ergebnis" },
+  { Icon: ImageIcon, tint: "g-green", title: "Occlusion", desc: "Bildteile verdecken & abfragen" },
 ];
 
 const faqs = [
@@ -231,7 +235,9 @@ export default function LandingPage() {
                   <div className="mini-card">
                     <small>Frage</small>
                     <strong>Was ist die Funktion der Mitochondrien?</strong>
-                    <span>Tippen zum Umdrehen</span>
+                    {/* Die Attrappe ist nicht bedienbar — eine Geste („Tippen")
+                        zu versprechen wäre falsch, erst recht am PC (#521). */}
+                    <span>Antwort auf der Rückseite</span>
                   </div>
                 </div>
               </div>
@@ -492,7 +498,7 @@ export default function LandingPage() {
                 <span>Modernes Spaced-Repetition-Verfahren</span>
               </div>
               <div className="stat">
-                <b>4</b>
+                <b>6</b>
                 <span>Lernmodi</span>
               </div>
               <div className="stat">

@@ -845,6 +845,9 @@ p {
 .g-blue {
   background: linear-gradient(135deg, #3b82f6, #2563eb);
 }
+.g-red {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+}
 
 /* ---------- How it works ---------- */
 .steps {

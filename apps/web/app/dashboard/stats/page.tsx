@@ -13,6 +13,7 @@ import {
   type TestAttemptSummary,
 } from "@/lib/api";
 import { BarChart, ChevronRight, Flame, Lock } from "@/components/icons";
+import { useCoarsePointer } from "@/lib/use-coarse-pointer";
 import { AccuracyRing, AccuracyTrendChart, ActivityBars } from "@/components/app/stats-charts";
 import { AccuracyByKindPanel, accColor } from "@/components/app/accuracy-by-kind";
 import { TestAttemptsPanel } from "@/components/app/test-attempts-panel";
@@ -33,6 +34,7 @@ export default function StatsPage() {
   const [proLocked, setProLocked] = useState(false);
   const [tier, setTier] = useState<"free" | "pro" | "lifetime" | null>(null);
   const [proHint, setProHint] = useState(false);
+  const coarsePointer = useCoarsePointer();
 
   // Genau EINE Stats-Anfrage, deren Antwort auch den Umschalter stellt: Der
   // Server klemmt Free auf 7 Tage und meldet das gelieferte Fenster zurück
@@ -316,7 +318,7 @@ export default function StatsPage() {
             </h3>
             {reviewsByDay.some((d) => d.count > 0) && (
               <span className="muted" style={{ fontSize: "0.78rem" }}>
-                für Details drüberfahren oder antippen
+                {coarsePointer ? "für Details antippen" : "für Details drüberfahren"}
               </span>
             )}
           </div>
@@ -380,7 +382,7 @@ export default function StatsPage() {
           </div>
           {!proLocked && sortedDecks && sortedDecks.length > 0 && (
             <span className="muted" style={{ fontSize: "0.78rem" }}>
-              für Details antippen
+              {coarsePointer ? "für Details antippen" : "für Details anklicken"}
             </span>
           )}
         </div>

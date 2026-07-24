@@ -19,6 +19,7 @@ import {
   type ScanResponse,
 } from "@/lib/api";
 import { compressImageToJpeg, fileToBase64 } from "@/lib/files";
+import { useCoarsePointer } from "@/lib/use-coarse-pointer";
 import {
   DECK_LIMIT_LABEL,
   deckLimitNotice,
@@ -106,7 +107,7 @@ export default function ImportPage() {
   // Desktop erkennt man am „feinen" Zeiger (Maus). „Foto aufnehmen" (Kamera)
   // ist nur am Handy sinnvoll — am Desktop wird das capture-Attribut ignoriert
   // und es öffnet nur der Datei-Dialog (dann identisch zu „Bild wählen").
-  const [coarsePointer, setCoarsePointer] = useState(false);
+  const coarsePointer = useCoarsePointer();
 
   const photoInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
@@ -128,12 +129,6 @@ export default function ImportPage() {
     return () => {
       active = false;
     };
-  }, []);
-
-  useEffect(() => {
-    if (typeof window !== "undefined" && window.matchMedia) {
-      setCoarsePointer(window.matchMedia("(pointer: coarse)").matches);
-    }
   }, []);
 
   // #411: Deckliste für die Grenz-Prüfung. Schlägt sie fehl, bleibt deckCount
@@ -380,6 +375,20 @@ export default function ImportPage() {
     // Erzeugung durch (Lernpunkte verbraucht), gespeichert ist noch nichts.
     // Ein erneuter Klick soll nicht ein zweites Mal abbuchen.
     attemptRef.current = null; // erfolgreich → nächster Import bekommt neuen Schlüssel
+
+    // #521: Der Scan hat Lernpunkte abgebucht und der Server schickt den neuen
+    // Stand gleich mit — die Pille oben soll ihn sofort zeigen, nicht erst nach
+    // einem Seitenwechsel. Fehlt er (älterer Server), einmal frisch nachfragen.
+    const newBalance = result?.usage?.lpBalance;
+    if (typeof newBalance === "number") {
+      setUsage((u) => (u ? { ...u, lpBalance: newBalance } : u));
+    } else {
+      getLpBalance()
+        .then((u) => setUsage(u))
+        .catch(() => {
+          /* Anzeige bleibt dann alt — der Server prüft ohnehin */
+        });
+    }
 
     // #427: Ab hier übernimmt die Vorschau. Der Titelvorschlag der KI steht im
     // Feld für ein neues Deck und lässt sich überschreiben.

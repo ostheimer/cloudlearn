@@ -70,24 +70,30 @@ export async function getCardImages(
   const unique = Array.from(new Set(paths.filter(Boolean)));
   if (unique.length === 0) return {};
   const supabase = getSupabase();
-  const entries = await Promise.all(
-    unique.map(async (path) => {
-      try {
-        // Das Feld heißt sourceImageUrl, enthält aber einen Storage-Pfad.
-        // Fremde http-Werte werden bewusst NICHT geladen: das Feld ist nur
-        // `string` (kein Format erzwungen), auch KI-erzeugte Karten schreiben
-        // hinein — eine externe URL würde beim Öffnen des Decks den fremden
-        // Server anpingen. Nicht-Pfade ergeben den Platzhalter.
-        const { data } = await supabase.storage
-          .from(CARD_IMAGE_BUCKET)
-          .createSignedUrl(path, expiresInSeconds);
-        const url = data?.signedUrl ?? null;
+  try {
+    // Das Feld heißt sourceImageUrl, enthält aber einen Storage-Pfad.
+    // Fremde http-Werte werden bewusst NICHT geladen: das Feld ist nur
+    // `string` (kein Format erzwungen), auch KI-erzeugte Karten schreiben
+    // hinein — eine externe URL würde beim Öffnen des Decks den fremden
+    // Server anpingen. Nicht-Pfade ergeben den Platzhalter.
+    //
+    // EINE Sammelanfrage statt einer Anfrage pro Bild: ein fehlendes Bild
+    // (kaputte Altdaten) kommt so als Vermerk in einer normalen Antwort
+    // zurück statt als eigener 400-Konsolenfehler bei jedem Seitenaufruf
+    // (#521, Randnotiz) — und Decks mit vielen Bildern sparen Anfragen.
+    const { data } = await supabase.storage
+      .from(CARD_IMAGE_BUCKET)
+      .createSignedUrls(unique, expiresInSeconds);
+    const byPath = new Map((data ?? []).map((entry) => [entry.path, entry.signedUrl]));
+    const entries = await Promise.all(
+      unique.map(async (path) => {
+        const url = byPath.get(path) ?? null;
         if (!url) return [path, null] as const;
         return [path, { url, aspect: await measureAspect(url) }] as const;
-      } catch {
-        return [path, null] as const;
-      }
-    })
-  );
-  return Object.fromEntries(entries);
+      })
+    );
+    return Object.fromEntries(entries);
+  } catch {
+    return Object.fromEntries(unique.map((path) => [path, null] as const));
+  }
 }
