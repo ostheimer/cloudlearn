@@ -103,6 +103,22 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
 
   async function handleOAuth(provider: OAuthProvider) {
     setError(null);
+    // Google/Apple auf der Registrierungsseite dürfen die beiden Pflichtfelder
+    // nicht umgehen. Beim Login bleiben sie wie bisher ohne Profilabfrage.
+    if (!isLogin && name.trim().length < 2) {
+      setError("Bitte gib deinen Namen ein (mindestens 2 Zeichen).");
+      return;
+    }
+    if (!isLogin && !gender) {
+      setError("Bitte wähle aus, wie clearn dich nennen soll.");
+      return;
+    }
+    if (!isLogin) {
+      // Nach dem Provider-Redirect speichert DisplayNamePrompt beide Angaben
+      // über den geprüften Profil-Endpunkt. Das muss vor dem Redirect passieren.
+      rememberPendingDisplayName(name.trim());
+      rememberPendingGender(gender!);
+    }
     setBusy(true);
     const { error } = await signInWithOAuth(provider);
     if (error) {
