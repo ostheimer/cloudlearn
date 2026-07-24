@@ -2,7 +2,7 @@ import { type NextRequest } from "next/server";
 import { jsonError, jsonOk, normalizeError } from "@/lib/http";
 import { createRequestContext } from "@/lib/observability";
 import { getAuthUser } from "@/lib/auth";
-import { generateShareToken } from "@/services/deckService";
+import { generateShareToken, revokeShareToken } from "@/services/deckService";
 import { buildShareUrl } from "@/lib/shareLink";
 
 interface Params {
@@ -22,6 +22,23 @@ export async function POST(request: NextRequest, { params }: Params) {
       shareToken: result.shareToken,
       shareUrl: buildShareUrl(result.shareToken),
     }, 201);
+  } catch (error) {
+    const normalized = normalizeError(error);
+    return jsonError(requestId, normalized.code, normalized.message, normalized.status);
+  }
+}
+
+// Deactivates a previously shared link (#519): clears the deck's share token
+// so the old URL stops resolving. A later POST mints a fresh token/link.
+export async function DELETE(request: NextRequest, { params }: Params) {
+  const { requestId } = createRequestContext(request.headers);
+  try {
+    const auth = await getAuthUser(request);
+    if (!auth) return jsonError(requestId, "UNAUTHORIZED", "Authentication required", 401);
+
+    const { id } = await params;
+    await revokeShareToken(auth.userId, id);
+    return jsonOk(requestId, { requestId, revoked: true }, 200);
   } catch (error) {
     const normalized = normalizeError(error);
     return jsonError(requestId, normalized.code, normalized.message, normalized.status);
