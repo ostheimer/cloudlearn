@@ -432,6 +432,14 @@ export default function QuizPage() {
             >
               Einstellungen
             </button>
+            {/* Weg zurück zum Deck wie beim Karteikarten-Ergebnis (#499) */}
+            <Link
+              href={`/dashboard/deck/${deckId}`}
+              className="btn btn-ghost btn-block"
+              style={{ border: "none", boxShadow: "none" }}
+            >
+              Zurück zum Deck
+            </Link>
           </div>
         </div>
       </div>
