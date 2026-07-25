@@ -69,46 +69,46 @@ describe("llm URL quality gate", () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
   });
 
-  it("regenerates once when component-focused image questions are below threshold", async () => {
-    mockedGenerateFromWeb
-      .mockResolvedValueOnce({
-        title: "Primary Result",
-        cards: [
-          makeCard(
-            "Welches Design-System ist zu sehen? ![Preview](https://img.example.com/1.webp)",
-            "Ariakit"
-          ),
-          makeCard("Was ist ein Accordion?", "Ein aufklappbarer Bereich."),
-        ],
-      })
-      .mockResolvedValueOnce({
-        title: "Regenerated Result",
-        cards: [
-          makeCard(
-            "Welche UI-Komponente ist dargestellt? ![Preview](https://img.example.com/1.webp)",
-            "Pagination"
-          ),
-          makeCard(
-            "Wofür wird dieses Element verwendet? ![Preview](https://img.example.com/2.webp)",
-            "Dialog zur Bestaetigung."
-          ),
-          makeCard("Was ist ein Accordion?", "Ein aufklappbarer Bereich."),
-        ],
-      });
+  it("drops image-dependent markdown cards instead of returning raw image code (#534)", async () => {
+    mockedGenerateFromWeb.mockResolvedValueOnce({
+      title: "Mitochondrium",
+      cards: [
+        makeCard(
+          "Welche UI-Komponente ist im Bild dargestellt? ![Mitochondrium Diagramm](https://img.example.com/1.webp)",
+          "Ein schematisches Diagramm eines tierischen Mitochondriums."
+        ),
+        makeCard(
+          "Wofür wird das in der Abbildung gezeigte ringförmige Element verwendet? ![Mitochondriale DNA](https://img.example.com/2.webp)",
+          "Es trägt einen Teil der Erbinformation."
+        ),
+        makeCard("Welche Aufgabe haben Mitochondrien?", "Sie stellen Energie für die Zelle bereit."),
+      ],
+    });
+
+    const result = await generateFlashcardsFromUrlContentAsync(baseInput, "de");
+
+    expect(result.cards.map((card) => card.front)).toEqual([
+      "Welche Aufgabe haben Mitochondrien?",
+    ]);
+    expect(result.cards.every((card) => !`${card.front} ${card.back}`.includes("!["))).toBe(true);
+  });
+
+  it("does not force image questions when normal text cards are returned", async () => {
+    mockedGenerateFromWeb.mockResolvedValueOnce({
+      title: "Primary Result",
+      cards: [makeCard("Was ist ein Accordion?", "Ein aufklappbarer Bereich.")],
+    });
 
     const result = await generateFlashcardsFromUrlContentAsync(baseInput, "de");
 
     expect(result.fallbackUsed).toBe(false);
-    expect(result.title).toBe("Regenerated Result");
-    expect(mockedGenerateFromWeb).toHaveBeenCalledTimes(2);
-    expect(mockedGenerateFromWeb.mock.calls[1]?.[0]).toMatchObject({
-      qualityDirective: expect.stringContaining("Quality gate"),
-    });
+    expect(result.title).toBe("Primary Result");
+    expect(mockedGenerateFromWeb).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps primary result when quality gate is already satisfied", async () => {
+  it("uses the text fallback when every generated card depends on an image", async () => {
     mockedGenerateFromWeb.mockResolvedValueOnce({
-      title: "Primary Good Result",
+      title: "Image-only Result",
       cards: [
         makeCard(
           "Welche UI-Komponente ist dargestellt? ![Preview](https://img.example.com/1.webp)",
@@ -118,14 +118,15 @@ describe("llm URL quality gate", () => {
           "Welches Pattern ist das? ![Preview](https://img.example.com/2.webp)",
           "Ein Dialog."
         ),
-        makeCard("Was ist ein Carousel?", "Ein Content-Slider."),
       ],
     });
 
     const result = await generateFlashcardsFromUrlContentAsync(baseInput, "de");
 
-    expect(result.fallbackUsed).toBe(false);
-    expect(result.title).toBe("Primary Good Result");
+    expect(result.fallbackUsed).toBe(true);
+    expect(result.model).toBe("heuristic-fallback");
+    expect(result.cards.length).toBeGreaterThan(0);
+    expect(result.cards.every((card) => !`${card.front} ${card.back}`.includes("!["))).toBe(true);
     expect(mockedGenerateFromWeb).toHaveBeenCalledTimes(1);
   });
 
@@ -140,25 +141,18 @@ describe("llm URL quality gate", () => {
     expect(mockedGenerateFromWeb).toHaveBeenCalledTimes(2);
   });
 
-  it("keeps primary result when regeneration fails", async () => {
+  it("retries once when initial generation fails and keeps the successful result", async () => {
     mockedGenerateFromWeb
+      .mockRejectedValueOnce(new Error("rate limit"))
       .mockResolvedValueOnce({
         title: "Primary Result",
-        cards: [
-          makeCard(
-            "Welches Design-System ist zu sehen? ![Preview](https://img.example.com/1.webp)",
-            "Ariakit"
-          ),
-          makeCard("Was ist ein Accordion?", "Ein aufklappbarer Bereich."),
-        ],
-      })
-      .mockRejectedValueOnce(new Error("rate limit"))
-      .mockRejectedValueOnce(new Error("rate limit"));
+        cards: [makeCard("Was ist ein Accordion?", "Ein aufklappbarer Bereich.")],
+      });
 
     const result = await generateFlashcardsFromUrlContentAsync(baseInput, "de");
 
     expect(result.fallbackUsed).toBe(false);
     expect(result.title).toBe("Primary Result");
-    expect(mockedGenerateFromWeb).toHaveBeenCalledTimes(3);
+    expect(mockedGenerateFromWeb).toHaveBeenCalledTimes(2);
   });
 });

@@ -51,16 +51,11 @@ Rules:
 - Generate a concise deck title (2-5 words) in the same language as the source
 - Each card has: front, back, type (basic/cloze), difficulty, tags
 - Use high-value concepts, definitions, and relationships
-- If images are provided, prioritize component-identification questions over branding questions
-- Create at least 2 image-based cards when possible
-- At least 2 image-based cards should ask what UI component/pattern is shown and what it does
-- Avoid "Which design system is this?" questions unless component details are truly unavailable
-- Do not put vendor or design-system names in the question stem of image cards when a component question is possible
-- Prefer stems like: "Welche UI-Komponente ist im Bild dargestellt?" or "Wofür wird dieses Element verwendet?"
-- Use component_hint and nearby_text as primary clues for image-based cards
-- For image-based cards, include exactly one markdown image reference in the front or back:
-  ![short alt text](https://absolute-image-url)
-- Keep markdown image URL exactly as provided in metadata; do not invent URLs
+- Images may be used as additional source material, but every card must be fully answerable from its front and back text alone
+- Never ask what is shown in an image/figure and never refer to "the image", "the figure", or similar visual context
+- Never include Markdown images, image URLs, or other image markup in front or back
+- Use alt_text, component_hint, and nearby_text only as contextual evidence for subject-specific factual questions
+- Do not call a subject a UI component unless the source itself is about user-interface components
 - Keep front <= 500 chars and back <= 1000 chars
 - Keep answers concise and factual
 - frontLang/backLang: ISO 639-1 two-letter code of the language on each side ("de", "fr", "en"). For non-translation cards both are the same code.
@@ -200,7 +195,6 @@ export async function generateFlashcardsFromWebContent(input: {
   textContent: string;
   language: string;
   images: UrlImageInput[];
-  qualityDirective?: string;
 }): Promise<FlashcardGenerationResult> {
   const env = getEnv();
   const apiKey = env.GEMINI_API_KEY;
@@ -238,9 +232,6 @@ Page title: ${input.pageTitle}
 Extracted study material:
 ${pageText}`,
       },
-      ...(input.qualityDirective
-        ? [{ text: `Quality directive:\n${input.qualityDirective}` } as const]
-        : []),
       ...imageParts,
     ],
   };
