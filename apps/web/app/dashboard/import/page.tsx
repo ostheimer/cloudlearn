@@ -450,6 +450,16 @@ export default function ImportPage() {
     setDraft((cards) => (cards ? cards.filter((_card, i) => i !== index) : cards));
   }
 
+  function handleDiscard() {
+    const confirmed = window.confirm(
+      "Vorschau wirklich verwerfen? Die verwendeten Lernpunkte werden nicht zurückgebucht."
+    );
+    if (!confirmed) return;
+    setDraft(null);
+    setError(null);
+    setMode("choose");
+  }
+
   /** #427: Eine leere Karte anhängen, die man selbst ausfüllt. */
   function addDraftCard() {
     setDraft((cards) => [
@@ -747,11 +757,7 @@ export default function ImportPage() {
                   type="button"
                   className="btn btn-ghost btn-block"
                   style={{ marginTop: 8 }}
-                  onClick={() => {
-                    setDraft(null);
-                    setError(null);
-                    setMode("choose");
-                  }}
+                  onClick={handleDiscard}
                   disabled={saving}
                 >
                   Verwerfen

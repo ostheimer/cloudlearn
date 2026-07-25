@@ -95,4 +95,15 @@ describe("Web-Import-Seite – Plan-Grenzen (#411)", () => {
     // Der Normalfall darf keinen Klick dazubekommen.
     expect(source).toContain("router.push(target);");
   });
+
+  it("fragt vor dem Verwerfen einer bezahlten Vorschau nach (#534)", () => {
+    const handler = source.indexOf("function handleDiscard");
+    const confirmation = source.indexOf("window.confirm", handler);
+    const discard = source.indexOf("setDraft(null)", handler);
+
+    expect(handler).toBeGreaterThan(-1);
+    expect(confirmation).toBeGreaterThan(handler);
+    expect(discard).toBeGreaterThan(confirmation);
+    expect(source).toContain("onClick={handleDiscard}");
+  });
 });
