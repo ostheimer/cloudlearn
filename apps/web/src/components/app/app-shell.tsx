@@ -18,6 +18,7 @@ type NavItem = {
   label: string;
   tabLabel?: string; // kürzeres Label für die untere Handy-Leiste
   hideInTabbar?: boolean; // am Handy nicht in der unteren Leiste — nur über die LP-Pille oben (wie die App)
+  hideInTopbar?: boolean; // am Desktop nicht in der Kopfzeile — dito
   Icon: typeof Home;
   exact: boolean;
 };
@@ -29,11 +30,24 @@ type NavItem = {
 // (apps/mobile/app/(tabs)/_layout.tsx): Home, Scan, Bibliothek, Statistik,
 // Profil — Scan steht also VOR Bibliothek, und Bibliothek trägt die Bücherreihe
 // statt der Ebenen-Symbole.
+//
+// Lernpunkte ist in BEIDEN Navigationen ausgeblendet: Die App hat dafür keinen
+// Tab, sondern die LP-Pille auf der Startseite (dort und auf der Scan-Seite
+// führt je ein Link zu /dashboard/lp). Profil steht dadurch am Desktop als
+// fünfter Punkt in der Zeile — genau wie unten am Handy; das frühere runde
+// Personen-Symbol rechts entfällt (Laras Wahl 27.07.).
 const NAV: NavItem[] = [
   { href: "/dashboard/home", label: "Home", Icon: Home, exact: true },
   { href: "/dashboard/import", label: "Scan", Icon: ScanLine, exact: false },
   { href: "/dashboard", label: "Bibliothek", Icon: Library, exact: true },
-  { href: "/dashboard/lp", label: "Lernpunkte", Icon: Zap, exact: false, hideInTabbar: true },
+  {
+    href: "/dashboard/lp",
+    label: "Lernpunkte",
+    Icon: Zap,
+    exact: false,
+    hideInTabbar: true,
+    hideInTopbar: true,
+  },
   { href: "/dashboard/stats", label: "Statistik", Icon: BarChart, exact: false },
   { href: "/dashboard/profile", label: "Profil", Icon: User, exact: false },
 ];
@@ -92,8 +106,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   const isActive = (item: NavItem) =>
     item.exact ? pathname === item.href : pathname.startsWith(item.href);
 
-  const profile = NAV[NAV.length - 1]!;
-
   return (
     <div className="app-shell">
       <DisplayNamePrompt />
@@ -106,23 +118,15 @@ export function AppShell({ children }: { children: ReactNode }) {
             clearn.ai
           </Link>
 
-          {/* Obere Navigation — nur am Desktop */}
+          {/* Obere Navigation — nur am Desktop. Enthält jetzt auch Profil, das
+              früher als rundes Personen-Symbol rechts stand. */}
           <nav className="app-nav" aria-label="Navigation">
-            {NAV.slice(0, -1).map((item) => (
+            {NAV.filter((item) => !item.hideInTopbar).map((item) => (
               <Link key={item.href} href={item.href} className={isActive(item) ? "active" : ""}>
                 <item.Icon size={17} /> {item.label}
               </Link>
             ))}
           </nav>
-
-          {/* Konto — am Desktop das Personen-Symbol oben rechts */}
-          <Link
-            href={profile.href}
-            className={`avatar${isActive(profile) ? " active" : ""}`}
-            aria-label="Profil"
-          >
-            <User size={20} />
-          </Link>
         </div>
       </header>
 
