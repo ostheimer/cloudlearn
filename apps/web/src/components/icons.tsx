@@ -525,3 +525,25 @@ export const Gift = (p: IconProps) => (
     <path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5" />
   </Icon>
 );
+
+// Scan-Rahmen und Bücherreihe — die App benutzt in der Tab-Leiste und auf der
+// Startseite lucide's "scan-line" bzw. "library"; hier in derselben Bildsprache
+// nachgezeichnet, damit Web und App dasselbe Symbol zeigen.
+export const ScanLine = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+    <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+    <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+    <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+    <path d="M7 12h10" />
+  </Icon>
+);
+
+export const Library = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m16 6 4 14" />
+    <path d="M12 6v14" />
+    <path d="M8 8v12" />
+    <path d="M4 4v16" />
+  </Icon>
+);

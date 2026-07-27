@@ -18,14 +18,15 @@ import { useAuth } from "@/components/app/auth-context";
 import {
   Flame,
   Target,
-  Trophy,
+  TrendingUp,
   Layers,
   Users,
   BookOpen,
   ChevronRight,
   Shield,
   Zap,
-  Camera,
+  ScanLine,
+  Award,
   HeartCrack,
   HeartHandshake,
 } from "@/components/icons";
@@ -155,34 +156,67 @@ export default function HomePage() {
     }
   };
 
+  // Kacheln wie die App (apps/mobile/app/(tabs)/index.tsx): Symbol in einem
+  // gerundeten Kästchen OBEN, darunter die große Zahl, darunter die
+  // Bezeichnung, unten die Pille. Alle drei stehen nebeneinander — deshalb
+  // flex mit minWidth 0 statt eines Rasters mit Mindestbreite, sonst bricht
+  // die dritte Kachel am Handy um.
   const tileStyle: CSSProperties = {
+    flex: 1,
+    minWidth: 0,
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    gap: 2,
     background: "var(--surface)",
     border: "1px solid var(--line)",
     borderRadius: 12,
-    padding: "13px",
+    padding: "12px 6px",
     textDecoration: "none",
     color: "inherit",
+    boxShadow: "var(--shadow-sm)",
+  };
+  const tileIconBox = (tone: "brand" | "good" | "muted"): CSSProperties => ({
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    display: "grid",
+    placeItems: "center",
+    marginBottom: 8,
+    flex: "none",
+    background:
+      tone === "good"
+        ? "rgba(16,185,129,0.14)"
+        : tone === "brand"
+          ? "rgba(99,102,241,0.12)"
+          : "var(--bg-soft)",
+    color: tone === "good" ? "#059669" : tone === "brand" ? "var(--brand)" : "var(--ink-4)",
+  });
+  const tileNum: CSSProperties = {
+    fontSize: "1.375rem",
+    fontWeight: 800,
+    color: "var(--ink)",
+    lineHeight: 1.15,
   };
   const tileLabel: CSSProperties = {
-    fontSize: "0.78rem",
-    color: "var(--ink-3)",
-    display: "flex",
-    alignItems: "center",
-    gap: 5,
-  };
-  const tileNum: CSSProperties = { fontSize: "1.5rem", fontWeight: 800, color: "var(--ink)" };
-  const badge = (amber: boolean): CSSProperties => ({
-    marginTop: 4,
     fontSize: "0.72rem",
+    color: "var(--ink-3)",
+    marginTop: 2,
+    textAlign: "center",
+  };
+  const tileHint: CSSProperties = {
+    fontSize: "0.68rem",
+    color: "var(--ink-4)",
+    textAlign: "center",
+  };
+  const badge = (amber: boolean): CSSProperties => ({
+    marginTop: 6,
+    fontSize: "0.68rem",
     fontWeight: 700,
+    whiteSpace: "nowrap",
     color: amber ? "var(--amber)" : "var(--brand)",
-    background: amber ? "var(--amber-50)" : "transparent",
+    background: amber ? "var(--amber-50)" : "var(--bg-soft)",
     borderRadius: 999,
-    padding: amber ? "1px 8px" : 0,
+    padding: "2px 8px",
   });
 
   return (
@@ -200,18 +234,30 @@ export default function HomePage() {
         gap: 14,
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-        <div>
-          <h1 className="h2" style={{ margin: 0 }}>
-            {freshWelcome ? "Willkommen" : "Willkommen zurück"}
-            {displayName ? `, ${displayName}` : ""}
+      {/* Kopf wie die App-Startseite: großer Wortmarken-Titel, darunter eine
+          Unterzeile, rechts die LP-Pille. Die App schreibt dort ihren Claim;
+          der persönliche Gruß aus PR #539 bleibt erhalten und übernimmt die
+          Unterzeile, sobald ein Anzeigename da ist. */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: 12,
+        }}
+      >
+        <div style={{ minWidth: 0 }}>
+          <h1 style={{ margin: 0, fontSize: "1.875rem", fontWeight: 800, letterSpacing: "-0.5px" }}>
+            clearn
           </h1>
           <p className="muted" style={{ margin: "2px 0 0" }}>
-            Bereit für heute?
+            {displayName
+              ? `${freshWelcome ? "Willkommen" : "Willkommen zurück"}, ${displayName}`
+              : "Foto — Karte — Wissen"}
           </p>
         </div>
         <Link href="/dashboard/lp" className="lp-pill" style={{ textDecoration: "none", flex: "none" }}>
-          <Zap size={15} /> {lp !== null ? lp : error ? "–" : "…"}
+          <Zap size={15} /> {lp !== null ? `${lp} LP` : error ? "–" : "…"}
         </Link>
       </div>
 
@@ -320,14 +366,20 @@ export default function HomePage() {
           >
             <Flame size={24} />
           </span>
+          {/* Große Tageszahl + Zuruf wie in der App: dort steht die Zahl groß
+              („1 Tag") und darunter je nach Lage „Weiter so!", eine Erinnerung
+              oder die Einladung zum Start. Der Bestwert sitzt rechts als
+              eigene Spalte mit Auszeichnungs-Symbol, nicht in der Unterzeile. */}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: "1.05rem", fontWeight: 700, color: "var(--amber)" }}>
-              {streak > 0 ? `${streak} ${streak === 1 ? "Tag" : "Tage"} Streak` : "Starte deinen Streak"}
+            <div style={{ fontSize: "1.75rem", fontWeight: 800, color: "var(--amber)", lineHeight: 1.1 }}>
+              {streak} {streak === 1 ? "Tag" : "Tage"}
             </div>
-            <div style={{ fontSize: "0.8rem", color: "var(--ink-3)" }}>
-              {streak > 0
-                ? `Bestwert: ${best} ${best === 1 ? "Tag" : "Tage"}`
-                : "Lerne heute eine Karte, um zu beginnen"}
+            <div style={{ fontSize: "0.85rem", color: "var(--ink-3)", marginTop: 2 }}>
+              {streak === 0
+                ? "Starte deinen Streak!"
+                : today === 0
+                  ? "Lerne heute, um deinen Streak zu halten!"
+                  : "Weiter so!"}
             </div>
           </div>
           {streakFreezes > 0 && (
@@ -349,6 +401,21 @@ export default function HomePage() {
               <Shield size={14} style={{ color: "var(--amber)" }} /> {streakFreezes}
             </span>
           )}
+          {best > 0 && (
+            <span
+              style={{
+                display: "grid",
+                justifyItems: "center",
+                gap: 2,
+                flex: "none",
+                fontSize: "0.7rem",
+                color: "var(--ink-4)",
+              }}
+            >
+              <Award size={16} />
+              Best: {best}
+            </span>
+          )}
         </Link>
 
         {/* Tagesziel — anklickbar wie in der App: führt zum Ziel-Editor */}
@@ -368,8 +435,9 @@ export default function HomePage() {
               <Target size={15} style={{ color: "var(--ink-3)" }} /> Tagesziel
             </div>
             <div className="muted" style={{ fontSize: "0.9rem", display: "inline-flex", alignItems: "center", gap: 4 }}>
+              {/* Schreibweise wie die App: „2/50 Karten", ohne Leerzeichen */}
               <span>
-                <b style={{ color: "var(--ink)" }}>{today}</b> / {goal || "—"} Karten
+                <b style={{ color: "var(--ink)" }}>{today}</b>/{goal || "—"} Karten
               </span>
               <ChevronRight size={16} style={{ color: "var(--ink-4)" }} />
             </div>
@@ -409,14 +477,11 @@ export default function HomePage() {
         </Link>
       )}
 
-      {/* Kennzahlen — wie in der App: Freunde / Decks (mit fällig) / Genauigkeit */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 150px), 1fr))",
-          gap: 10,
-        }}
-      >
+      {/* Kennzahlen wie in der App: Freunde / Decks (mit fällig) / Genauigkeit —
+          drei Kacheln in einer Reihe, Symbol im Kästchen über der Zahl. Flex
+          statt Raster, damit sie am Handy nicht umbrechen (die App zeigt dort
+          ebenfalls alle drei nebeneinander). */}
+      <div style={{ display: "flex", gap: 8 }}>
         <Link
           href="/dashboard/friends"
           style={{
@@ -424,30 +489,35 @@ export default function HomePage() {
             borderColor: waitingPartner ? "var(--amber)" : "var(--line)",
           }}
         >
-          <span style={tileLabel}>
-            <Users size={14} /> Freunde
+          <span style={tileIconBox("brand")} aria-hidden>
+            <Users size={18} />
           </span>
-          <span style={{ ...tileNum, display: "inline-flex", alignItems: "center", gap: 4 }}>
-            {bestFriendStreak > 0 && <Flame size={16} style={{ color: "var(--amber)" }} />}
+          <span style={{ ...tileNum, display: "inline-flex", alignItems: "center", gap: 3 }}>
+            {bestFriendStreak > 0 && <Flame size={15} style={{ color: "var(--amber)" }} />}
             {bestFriendStreak}
           </span>
+          <span style={tileLabel}>Freunde</span>
           <span style={badge(false)}>Öffnen ›</span>
         </Link>
 
         <Link href="/dashboard" style={tileStyle}>
-          <span style={tileLabel}>
-            <Layers size={14} /> Decks
+          <span style={tileIconBox("brand")} aria-hidden>
+            <Layers size={18} />
           </span>
           <span style={tileNum}>{decks}</span>
+          <span style={tileLabel}>Decks</span>
           <span style={badge(due > 0)}>{due > 0 ? `${due} fällig ›` : "Bibliothek ›"}</span>
         </Link>
 
         <Link href="/dashboard/stats" style={tileStyle}>
-          <span style={tileLabel}>
-            <Trophy size={14} /> Genauigkeit
+          {/* Grünes Kästchen ab 70 %, sonst grau — wie die App */}
+          <span style={tileIconBox(hasAccuracyData && accuracy >= 70 ? "good" : "muted")} aria-hidden>
+            <TrendingUp size={18} />
           </span>
-          <span style={tileNum}>{hasAccuracyData ? `${accuracy} %` : "—"}</span>
-          <span style={badge(false)}>letzte {accuracyWindowDays} Tage ›</span>
+          <span style={tileNum}>{hasAccuracyData ? `${accuracy}%` : "—"}</span>
+          <span style={tileLabel}>Genauigkeit</span>
+          <span style={tileHint}>letzte {accuracyWindowDays} Tage</span>
+          <span style={badge(false)}>Statistik ›</span>
         </Link>
       </div>
 
@@ -483,7 +553,12 @@ export default function HomePage() {
             <BookOpen size={18} />
           </span>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: "0.72rem", color: "var(--ink-4)" }}>Zuletzt genutzt</div>
+            {/* Beschriftung wie die App: „gelernt", wenn der Server das zuletzt
+                gelernte Deck liefert — sonst stammt die Zeile aus der nach
+                Änderung sortierten Deck-Liste, und dann wäre „gelernt" gelogen. */}
+            <div style={{ fontSize: "0.72rem", color: "var(--ink-4)" }}>
+              {stats?.lastStudiedDeck ? "Zuletzt gelernt" : "Zuletzt geändert"}
+            </div>
             <div
               style={{
                 fontWeight: 600,
@@ -512,7 +587,7 @@ export default function HomePage() {
           marginRight: "auto",
         }}
       >
-        <Camera size={18} /> Text scannen
+        <ScanLine size={18} /> Neuen Text scannen
       </Link>
     </div>
   );
