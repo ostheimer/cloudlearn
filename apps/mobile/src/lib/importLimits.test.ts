@@ -22,10 +22,15 @@ describe("Deck-Grenze in der App (#411)", () => {
     expect(isDeckLimitReached(21, 20)).toBe(true);
   });
 
-  it("benennt die Sperre so, wie sie an der Schaltfläche steht", () => {
+  it("benennt die Grenze so, wie sie im Hinweis steht — wortgleich mit dem Web", () => {
     expect(DECK_LIMIT_LABEL).toBe("Deck-Grenze erreicht");
-    expect(deckLimitMessage(20, 20)).toContain("20 von 20 Decks");
-    expect(deckLimitMessage(20, 20)).toContain("bestehendes Deck");
+    expect(deckLimitMessage(20, 20)).toBe(
+      "20 von 20 Decks sind belegt. Neue Decks gehen erst wieder nach dem " +
+        "Löschen — speichere die Karten so lange in ein bestehendes Deck."
+    );
+    // Seit #453 legt ein Scan nicht mehr zwangsläufig ein neues Deck an —
+    // dieser alte Satz darf nicht zurückkommen.
+    expect(deckLimitMessage(20, 20)).not.toContain("Jeder Scan");
   });
 
   it("zählt Bild-Karten bei den freien Plätzen mit", () => {

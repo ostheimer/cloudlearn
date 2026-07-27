@@ -245,16 +245,11 @@ export default function ScanScreen() {
     );
   }
 
-  // #411: Jeder Scan und Import legt serverseitig ein neues Deck an. Ist die
-  // Deck-Grenze erreicht, lehnt der Server ab — also gar nicht erst anfangen und
-  // keine Lernpunkte ausgeben (Laras Regel: verhindern statt schimpfen).
+  // Seit #453 speichert der Server nichts mehr von selbst — gespeichert wird
+  // erst im Dialog danach, wahlweise in ein bestehendes Deck. Die Deck-Grenze
+  // ist deshalb keine Sackgasse mehr und sperrt das Scannen nicht (wie im Web
+  // seit #445): Nur der Weg „Neues Deck" ist zu, der Hinweis oben sagt das an.
   const deckLimitReached = decksLoaded && isDeckLimitReached(decks.length, maxDecks);
-
-  const blockedByDeckLimit = (): boolean => {
-    if (!deckLimitReached) return false;
-    Alert.alert(DECK_LIMIT_LABEL, deckLimitMessage(decks.length, maxDecks));
-    return true;
-  };
 
   const isHttpUrl = (value: string): boolean => {
     try {
@@ -268,7 +263,6 @@ export default function ScanScreen() {
   // --- Image Handling ---
 
   const handlePickFromGallery = async () => {
-    if (blockedByDeckLimit()) return;
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.8,
@@ -308,7 +302,6 @@ export default function ScanScreen() {
   };
 
   const openCamera = async () => {
-    if (blockedByDeckLimit()) return;
     if (!cameraPermission?.granted) {
       const result = await requestCameraPermission();
       if (!result.granted) {
@@ -373,7 +366,6 @@ export default function ScanScreen() {
   };
 
   const handlePickPdf = async () => {
-    if (blockedByDeckLimit()) return;
     const result = await DocumentPicker.getDocumentAsync({
       type: "application/pdf",
       multiple: false,
@@ -486,7 +478,6 @@ export default function ScanScreen() {
 
   const handleGenerateFromText = async () => {
     if (!editedText.trim() || !userId) return;
-    if (blockedByDeckLimit()) return;
     setLoading(true);
     setCards([]);
     setSaved(false);
@@ -531,7 +522,6 @@ export default function ScanScreen() {
       Alert.alert("Ungültige URL", "Bitte gib eine gültige http(s)-URL ein.");
       return;
     }
-    if (blockedByDeckLimit()) return;
 
     setLoading(true);
     setCards([]);
@@ -649,7 +639,13 @@ export default function ScanScreen() {
 
   const handleSaveNewDeck = async () => {
     if (!userId || cards.length === 0) return;
-    if (blockedByDeckLimit()) return;
+    // Hier — und nur hier — sperrt die Deck-Grenze noch: Genau diese Aktion
+    // legt ein NEUES Deck an. Der Dialog fängt das schon ab; dies ist das Netz
+    // für eine veraltete Deck-Liste.
+    if (deckLimitReached) {
+      Alert.alert(DECK_LIMIT_LABEL, deckLimitMessage(decks.length, maxDecks));
+      return;
+    }
     const title =
       deckTitle || `Scan ${new Date().toLocaleDateString("de")}`;
     // Retry after a partial save: a deck was already created for this scan, so
@@ -1125,7 +1121,8 @@ export default function ScanScreen() {
           </TouchableOpacity>
         )}
 
-        {/* #411: Deck-Grenze — vorher sperren statt hinterher scheitern */}
+        {/* #411/#427: Deck-Grenze — informieren statt sperren. Scannen bleibt
+            möglich; zu ist nur „Neues Deck" im Speichern-Dialog. */}
         {deckLimitReached && cards.length === 0 && !loading && (
           <View
             style={{
@@ -1231,10 +1228,9 @@ export default function ScanScreen() {
             {/* Camera button */}
             <TouchableOpacity
               onPress={openCamera}
-              disabled={deckLimitReached}
               activeOpacity={0.8}
               style={{
-                backgroundColor: deckLimitReached ? colors.textTertiary : colors.primary,
+                backgroundColor: colors.primary,
                 borderRadius: radius.lg,
                 padding: spacing.xl,
                 flexDirection: "row",
@@ -1281,10 +1277,9 @@ export default function ScanScreen() {
             {/* Gallery button */}
             <TouchableOpacity
               onPress={handlePickFromGallery}
-              disabled={deckLimitReached}
               activeOpacity={0.8}
               style={{
-                backgroundColor: deckLimitReached ? colors.textTertiary : colors.success,
+                backgroundColor: colors.success,
                 borderRadius: radius.lg,
                 padding: spacing.xl,
                 flexDirection: "row",
@@ -1331,10 +1326,9 @@ export default function ScanScreen() {
             {/* Text input button */}
             <TouchableOpacity
               onPress={() => setMode("text")}
-              disabled={deckLimitReached}
               activeOpacity={0.8}
               style={{
-                backgroundColor: deckLimitReached ? colors.textTertiary : colors.warning,
+                backgroundColor: colors.warning,
                 borderRadius: radius.lg,
                 padding: spacing.xl,
                 flexDirection: "row",
@@ -1381,10 +1375,9 @@ export default function ScanScreen() {
             {/* URL import button */}
             <TouchableOpacity
               onPress={() => setMode("url")}
-              disabled={deckLimitReached}
               activeOpacity={0.8}
               style={{
-                backgroundColor: deckLimitReached ? colors.textTertiary : colors.info,
+                backgroundColor: colors.info,
                 borderRadius: radius.lg,
                 padding: spacing.xl,
                 flexDirection: "row",
@@ -1431,10 +1424,9 @@ export default function ScanScreen() {
             {/* PDF import button */}
             <TouchableOpacity
               onPress={handlePickPdf}
-              disabled={deckLimitReached}
               activeOpacity={0.8}
               style={{
-                backgroundColor: deckLimitReached ? colors.textTertiary : colors.text,
+                backgroundColor: colors.text,
                 borderRadius: radius.lg,
                 padding: spacing.xl,
                 flexDirection: "row",
