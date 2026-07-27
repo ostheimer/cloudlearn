@@ -15,9 +15,19 @@ export interface OnboardingState {
   loadCompletedFromStorage: () => Promise<boolean>;
 }
 
+/**
+ * Nur Konten ohne ein einziges Deck gelten als neu — wie im Web (Laras
+ * Entscheidung 27.07.). Bestandskonten bekommen den Haken still gesetzt,
+ * statt nach jeder Neuinstallation die Einführung samt zweitem
+ * Beispiel-Deck durchklicken zu müssen.
+ */
+export function shouldShowOnboardingForDeckCount(deckCount: number): boolean {
+  return deckCount === 0;
+}
+
 export const useOnboardingState = create<OnboardingState>((set, get) => ({
   step: 1,
-  totalSteps: 3,
+  totalSteps: 4,
   completed: false,
   nextStep: () => {
     const state = get();
