@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  consumeFreshWelcome,
   decideOnboarding,
   isOnboardingCompleted,
   markOnboardingCompleted,
+  rememberFreshWelcome,
 } from "./onboarding";
 
 function stubLocalStorage(initial: Record<string, string> = {}) {
@@ -57,5 +59,33 @@ describe("completed flag in localStorage", () => {
 
   it("reports completed during server-side rendering (no window)", () => {
     expect(isOnboardingCompleted()).toBe(true);
+  });
+});
+
+describe("fresh-welcome marker in sessionStorage", () => {
+  function stubSessionStorage() {
+    const store = new Map<string, string>();
+    vi.stubGlobal("window", {
+      sessionStorage: {
+        getItem: (key: string) => store.get(key) ?? null,
+        setItem: (key: string, value: string) => void store.set(key, value),
+        removeItem: (key: string) => void store.delete(key),
+      },
+    });
+    return store;
+  }
+
+  it("greets freshly only once — consuming clears the marker", () => {
+    stubSessionStorage();
+    rememberFreshWelcome();
+    expect(consumeFreshWelcome()).toBe(true);
+    expect(consumeFreshWelcome()).toBe(false);
+  });
+
+  it("defaults to the usual greeting without a marker or without storage", () => {
+    stubSessionStorage();
+    expect(consumeFreshWelcome()).toBe(false);
+    vi.unstubAllGlobals();
+    expect(consumeFreshWelcome()).toBe(false);
   });
 });
