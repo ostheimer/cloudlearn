@@ -15,8 +15,16 @@ import {
   initializeRevenueCatForUser,
   logoutRevenueCatUser,
 } from "../src/features/paywall/revenuecat";
-import { useOnboardingState } from "../src/features/onboarding/onboardingState";
-import { registerPaywallTrigger, unregisterPaywallTrigger, registerPushToken } from "../src/lib/api";
+import {
+  shouldShowOnboardingForDeckCount,
+  useOnboardingState,
+} from "../src/features/onboarding/onboardingState";
+import {
+  listDecks,
+  registerPaywallTrigger,
+  unregisterPaywallTrigger,
+  registerPushToken,
+} from "../src/lib/api";
 import { getAuthRedirectRouteFromUrl } from "../src/lib/authRedirects";
 import {
   consumePendingPasswordRecovery,
@@ -63,6 +71,10 @@ export default function RootLayout() {
   const onboardingCompleted = useOnboardingState((state) => state.completed);
   const loadCompletedFromStorage = useOnboardingState(
     (state) => state.loadCompletedFromStorage
+  );
+  const completeOnboarding = useOnboardingState((state) => state.complete);
+  const completeAndPersistOnboarding = useOnboardingState(
+    (state) => state.completeAndPersist
   );
   const [onboardingLoaded, setOnboardingLoaded] = useState(false);
   const [minimumSplashElapsed, setMinimumSplashElapsed] = useState(false);
@@ -168,7 +180,11 @@ export default function RootLayout() {
     };
   }, [router]);
 
-  // Load onboarding completed from storage when user is authenticated
+  // Load onboarding completed from storage when user is authenticated.
+  // Fehlt der Geräte-Haken, entscheidet die Deck-Zahl (wie im Web, Laras
+  // Entscheidung 27.07.): Bestandskonten bekommen ihn still gesetzt, statt
+  // nach jeder Neuinstallation die Einführung samt zweitem Beispiel-Deck
+  // durchklicken zu müssen.
   useEffect(() => {
     if (!isAuthenticated) {
       setOnboardingLoaded(false);
@@ -176,7 +192,22 @@ export default function RootLayout() {
     }
     let cancelled = false;
 
-    loadCompletedFromStorage().finally(() => {
+    (async () => {
+      const completed = await loadCompletedFromStorage();
+      if (completed || !userId) return;
+      try {
+        const { decks } = await listDecks(userId);
+        if (cancelled) return;
+        if (!shouldShowOnboardingForDeckCount(decks.length)) {
+          await completeAndPersistOnboarding();
+        }
+      } catch {
+        // Offline/Fehler: Einführung nicht erzwingen — nur für diese
+        // Sitzung überspringen (nicht persistiert), der nächste Start
+        // prüft erneut.
+        if (!cancelled) completeOnboarding();
+      }
+    })().finally(() => {
       if (!cancelled) {
         setOnboardingLoaded(true);
       }
@@ -185,7 +216,13 @@ export default function RootLayout() {
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, loadCompletedFromStorage]);
+  }, [
+    isAuthenticated,
+    userId,
+    loadCompletedFromStorage,
+    completeAndPersistOnboarding,
+    completeOnboarding,
+  ]);
 
   // Redirect based on auth state and onboarding
   useEffect(() => {

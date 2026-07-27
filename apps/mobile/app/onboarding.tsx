@@ -144,6 +144,29 @@ export default function OnboardingScreen() {
                   marginBottom: spacing.lg,
                 }}
               >
+                {t("onboarding.scanTitle")}
+              </Text>
+              <Text
+                style={{
+                  fontSize: typography.lg,
+                  color: colors.textSecondary,
+                  lineHeight: 28,
+                }}
+              >
+                {t("onboarding.scanSubtitle")}
+              </Text>
+            </>
+          )}
+          {step === 4 && (
+            <>
+              <Text
+                style={{
+                  fontSize: typography.xxxl,
+                  fontWeight: typography.extrabold,
+                  color: colors.text,
+                  marginBottom: spacing.lg,
+                }}
+              >
                 {t("onboarding.startTitle")}
               </Text>
               <Text
