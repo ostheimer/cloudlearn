@@ -371,6 +371,30 @@ export function getStats(days?: 7 | 30): Promise<{ stats: StatsResponse }> {
 }
 
 /** Eine abgegebene Prüfung in der „letzte Prüfungen"-Liste. */
+/**
+ * Ein Karten-Treffer der Bibliothek-Suche. Der Server (GET /cards/search)
+ * durchsucht Frage und Antwort der EIGENEN Karten, filtert weich gelöschte
+ * Karten und Decks heraus und liefert höchstens 20 Treffer.
+ */
+export interface CardSearchResult {
+  cardId: string;
+  deckId: string;
+  deckTitle: string;
+  front: string;
+  back: string;
+}
+
+/**
+ * Karten-Suche für die Bibliothek — dasselbe, was die App ab zwei Zeichen tut
+ * (apps/mobile: searchCards). Unter zwei Zeichen antwortet der Server mit einer
+ * leeren Liste; wir fragen dann gar nicht erst.
+ */
+export function searchCards(query: string): Promise<{ results: CardSearchResult[] }> {
+  return authed<{ results: CardSearchResult[] }>(
+    `/api/v1/cards/search?q=${encodeURIComponent(query)}`
+  );
+}
+
 export interface TestAttemptSummary {
   id: string;
   deckId: string;
