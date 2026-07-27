@@ -13,6 +13,7 @@ import {
   type FriendStreak,
 } from "@/lib/api";
 import { useDisplayName } from "@/lib/use-display-name";
+import { consumeFreshWelcome } from "@/lib/onboarding";
 import { useAuth } from "@/components/app/auth-context";
 import {
   Flame,
@@ -41,6 +42,14 @@ export default function HomePage() {
   // Anzeigename für die persönliche Begrüßung — ohne ihn bleibt es beim
   // schlichten "Willkommen zurück".
   const displayName = useDisplayName();
+  // Direkt nach der Einführung wäre „zurück" gelogen — die Einmal-Notiz
+  // aus dem Onboarding macht daraus beim allerersten Besuch „Willkommen".
+  // Im Effekt statt im Initial-State, weil der Server-HTML-Stand sonst
+  // nicht zum ersten Client-Render passt (Hydration).
+  const [freshWelcome, setFreshWelcome] = useState(false);
+  useEffect(() => {
+    if (consumeFreshWelcome()) setFreshWelcome(true);
+  }, []);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [repairing, setRepairing] = useState(false);
@@ -181,7 +190,8 @@ export default function HomePage() {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
         <div>
           <h1 className="h2" style={{ margin: 0 }}>
-            Willkommen zurück{displayName ? `, ${displayName}` : ""}
+            {freshWelcome ? "Willkommen" : "Willkommen zurück"}
+            {displayName ? `, ${displayName}` : ""}
           </h1>
           <p className="muted" style={{ margin: "2px 0 0" }}>
             Bereit für heute?

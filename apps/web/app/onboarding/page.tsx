@@ -4,8 +4,12 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/app/auth-context";
 import { createCard, createDeck } from "@/lib/api";
-import { isOnboardingCompleted, markOnboardingCompleted } from "@/lib/onboarding";
-import { GraduationCap, RotateCw, Layers } from "@/components/icons";
+import {
+  isOnboardingCompleted,
+  markOnboardingCompleted,
+  rememberFreshWelcome,
+} from "@/lib/onboarding";
+import { GraduationCap, RotateCw, Sparkles, Layers } from "@/components/icons";
 
 // Gleiches Starter-Deck wie die App beim ersten Start anlegt.
 const SAMPLE_DECK_TITLE = "Erste Karten";
@@ -28,6 +32,14 @@ const STEPS: { Icon: typeof Layers; title: string; subtitle: string }[] = [
     title: "So funktioniert's",
     subtitle:
       "Klicke auf die Karte, um sie umzudrehen, und bewerte dann ehrlich: „Nochmal“, „Schwer“, „Gut“ oder „Leicht“.",
+  },
+  {
+    // Gleiches Funken-Symbol wie der Scan-Menüpunkt, damit der Wiedererkennungs-
+    // Effekt trägt. Dieser Schritt existiert nur im Web (Laras Wunsch 27.07.).
+    Icon: Sparkles,
+    title: "Karten aus Fotos",
+    subtitle:
+      "Fotografiere deine Notizen oder lade ein PDF hoch — die KI macht daraus fertige Karteikarten. Du findest das jederzeit unter „Scan“.",
   },
   {
     Icon: Layers,
@@ -62,6 +74,7 @@ export default function OnboardingPage() {
         await createCard(userId, deck.id, { front: card.front, back: card.back });
       }
       markOnboardingCompleted();
+      rememberFreshWelcome();
       router.replace("/dashboard/home");
     } catch {
       setError("Starter-Deck konnte nicht erstellt werden. Bitte später erneut versuchen.");

@@ -41,3 +41,31 @@ export type OnboardingDecision = "show" | "markCompleted";
 export function decideOnboarding(deckCount: number): OnboardingDecision {
   return deckCount === 0 ? "show" : "markCompleted";
 }
+
+/**
+ * Einmal-Notiz für die Startseiten-Begrüßung: Direkt nach der Einführung
+ * sagt Home „Willkommen" statt „Willkommen zurück". sessionStorage, damit
+ * die Notiz den Tab nicht überlebt — und consume löscht sie beim Lesen,
+ * damit es wirklich nur den einen ersten Gruß betrifft.
+ */
+const WELCOME_MARKER_KEY = "clearn_onboarding_welcome";
+
+export function rememberFreshWelcome(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(WELCOME_MARKER_KEY, "1");
+  } catch {
+    // Ohne Speicher bleibt es beim gewohnten „Willkommen zurück".
+  }
+}
+
+export function consumeFreshWelcome(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const fresh = window.sessionStorage.getItem(WELCOME_MARKER_KEY) === "1";
+    if (fresh) window.sessionStorage.removeItem(WELCOME_MARKER_KEY);
+    return fresh;
+  } catch {
+    return false;
+  }
+}
