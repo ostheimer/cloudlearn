@@ -644,7 +644,7 @@ function AuthenticatedLearnScreen({
 
   useEffect(() => {
     if (!autoPlaying || !current) return;
-    const text = revealed ? displayBack : frontParsed?.display ?? normalizedFront;
+    const text = revealed ? displayBack : speechFront;
     if (text) Speech.speak(text, { language: "de-DE" });
     return () => { Speech.stop(); };
   }, [autoPlaying, revealed, index]);
@@ -743,6 +743,9 @@ function AuthenticatedLearnScreen({
   const normalizedBack = cleanTerm(mediaSummary.plainBack || effectiveBack);
   const frontParsed = formatCloze(normalizedFront);
   const displayBack = frontParsed.clozeAnswer ?? normalizedBack;
+  // Fürs Vorlesen der Vorderseite: die Lücke wird zur Sprech-Pause ("…") statt
+  // zur Lösung — Parität zum Web (speechTexts in apps/web/src/lib/speech-text.ts).
+  const speechFront = normalizedFront.replace(/\{\{c\d+::.+?\}\}/g, "…");
   const frontImage = mediaSummary.frontImages[0] ?? mediaSummary.primaryImage;
   const backImage = mediaSummary.backImages[0] ?? mediaSummary.primaryImage;
   const isStarred = current ? !!starredMap[current.id] : false;
@@ -1192,7 +1195,7 @@ function AuthenticatedLearnScreen({
 
                 <View style={{ flexDirection: "row", gap: spacing.lg, alignItems: "center" }}>
                   <TouchableOpacity
-                    onPress={() => speakText(revealed ? displayBack : normalizedFront)}
+                    onPress={() => speakText(revealed ? displayBack : speechFront)}
                     activeOpacity={0.6}
                     hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
                     style={{ width: 44, height: 44, justifyContent: "center", alignItems: "center" }}
