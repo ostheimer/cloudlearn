@@ -38,6 +38,7 @@ import {
   Trash,
   AlertTriangle,
   Sparkles,
+  ScanLine,
   Link as LinkIcon,
   RefreshSync,
   CheckCircle,
@@ -170,7 +171,8 @@ export default function LibraryPage() {
     <>
       <div className="lib-head">
         <div>
-          <h1>Meine Bibliothek</h1>
+          {/* „Bibliothek" wie der App-Bildschirm (library.title), nicht „Meine …" */}
+          <h1>Bibliothek</h1>
           <p className="muted" style={{ marginTop: 4 }}>
             {/* Solange die Liste lädt, keine falsche „0 Decks" zeigen (#499) */}
             {loading
@@ -182,7 +184,7 @@ export default function LibraryPage() {
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <Link href="/dashboard/import" className="btn btn-ghost">
-            <Sparkles size={16} /> Scan
+            <ScanLine size={16} /> Scan
           </Link>
           {tab === "decks" ? (
             <button
@@ -225,13 +227,14 @@ export default function LibraryPage() {
             Ordner
           </button>
         </div>
+        {/* Ein Suchtext für beide Reiter, wie die App (library.searchPlaceholder) */}
         <div className="input-icon">
           <span aria-hidden>
             <Search size={16} />
           </span>
           <input
             className="input"
-            placeholder={tab === "decks" ? "Decks durchsuchen…" : "Ordner durchsuchen…"}
+            placeholder="Suchen..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -583,12 +586,10 @@ function FolderEmptyState({
       <div className="ic" aria-hidden>
         <FolderIcon size={30} />
       </div>
-      <h3>{hasFolders ? "Keine Treffer" : "Noch keine Ordner"}</h3>
-      <p>
-        {hasFolders
-          ? "Für deine Suche gibt es keinen passenden Ordner."
-          : "Sortiere deine Decks in Ordner — zum Beispiel einen pro Fach."}
-      </p>
+      {/* Wie bei den Decks: ohne Treffer nur die kurze Zeile (library.noMatchFolders).
+          Der erklärende Satz bleibt für die wirklich leere Ordner-Liste. */}
+      <h3>{hasFolders ? "Kein Ordner gefunden." : "Noch keine Ordner"}</h3>
+      {!hasFolders && <p>Sortiere deine Decks in Ordner — zum Beispiel einen pro Fach.</p>}
       {!hasFolders && (
         <button type="button" className="btn btn-primary" onClick={onCreate}>
           + Neuer Ordner
@@ -693,16 +694,16 @@ function EmptyState({
       <div className="ic" aria-hidden>
         <Layers size={30} />
       </div>
-      <h3>{hasDecks ? "Keine Treffer" : "Noch keine Decks"}</h3>
-      <p>
-        {hasDecks
-          ? "Für deine Suche gibt es kein passendes Deck."
-          : "Lass die KI aus Text oder einer Webseite fertige Karten erstellen — oder leg ein leeres Deck an."}
-      </p>
+      {/* Wortlaut der App (library.noMatchDecks / library.emptyDecks): bei einer
+          Suche ohne Treffer nur die kurze Zeile ohne Zusatztext, bei leerer
+          Bibliothek der Hinweis aufs Scannen. Die Knöpfe darunter bleiben —
+          auch der für ein leeres Deck, den es im Web weiterhin gibt. */}
+      <h3>{hasDecks ? "Kein Deck gefunden." : "Noch keine Decks."}</h3>
+      {!hasDecks && <p>Scanne einen Text, um dein erstes Deck zu erstellen.</p>}
       {!hasDecks && (
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
           <Link href="/dashboard/import" className="btn btn-primary">
-            <Sparkles size={16} /> Scan
+            <ScanLine size={16} /> Scan
           </Link>
           <button type="button" className="btn btn-ghost" onClick={onCreate}>
             + Leeres Deck anlegen

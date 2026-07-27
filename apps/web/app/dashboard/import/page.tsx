@@ -833,7 +833,8 @@ export default function ImportPage() {
                 </span>
                 <span className="source-card__body">
                   <span className="source-card__title">Bild wählen</span>
-                  <span className="source-card__hint">Foto, Screenshot oder Buchseite</span>
+                  {/* Wortlaut der App (scan.cameraHint) */}
+                  <span className="source-card__hint">Lehrbuch, Tafel, Notizen</span>
                 </span>
                 {usage && (
                   <span className="source-card__cost">
@@ -1088,7 +1089,8 @@ export default function ImportPage() {
               }
             >
               {busy ? (
-                "KI erstellt deine Karten…"
+                // Wortlaut der App während der Verarbeitung („Flashcards werden generiert...")
+                "Flashcards werden generiert…"
               ) : (
                 <>
                   <Sparkles size={18} /> Karten erstellen
