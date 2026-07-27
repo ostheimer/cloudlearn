@@ -19,9 +19,11 @@ import {
   listDecksInFolder,
   addDeckToFolder,
   getDueCards,
+  searchCards,
   isApiError,
   type Deck,
   type Folder,
+  type CardSearchResult,
 } from "@/lib/api";
 import { descendantFolders, folderPath } from "@/lib/folders";
 import { FolderCard, DeleteFolderModal } from "@/components/app/folder-ui";
@@ -76,6 +78,11 @@ export default function LibraryPage() {
   const [pageError, setPageError] = useState<string | null>(null);
   // Fällige Karten je Deck ("N fällig"-Abzeichen, wie in der App).
   const [dueByDeck, setDueByDeck] = useState<Record<string, number>>({});
+  // Karten-Treffer der Suche: Die Suche im Suchfeld findet nicht nur Deck-Titel,
+  // sondern ab zwei Zeichen auch Karten mit dem Wort in Frage oder Antwort —
+  // genau wie der Deck-Tab der App.
+  const [cardHits, setCardHits] = useState<CardSearchResult[]>([]);
+  const [cardsSearching, setCardsSearching] = useState(false);
 
   const loadDecks = useCallback(async () => {
     if (!userId) return;
@@ -137,6 +144,37 @@ export default function LibraryPage() {
     return () => document.removeEventListener("click", close);
   }, [openMenu]);
 
+  // Karten-Suche: entprellt (300 ms), damit nicht jeder Tastendruck eine
+  // Anfrage auslöst; unter zwei Zeichen fragen wir gar nicht, weil der Server
+  // dann ohnehin leer antwortet. Ein Fehler bleibt still — die Deck-Liste
+  // darf an einer scheiternden Zusatzsuche nicht hängen (wie in der App).
+  useEffect(() => {
+    const term = query.trim();
+    if (tab !== "decks" || term.length < 2) {
+      setCardHits([]);
+      setCardsSearching(false);
+      return;
+    }
+    let cancelled = false;
+    setCardsSearching(true);
+    const timer = setTimeout(() => {
+      searchCards(term)
+        .then(({ results }) => {
+          if (!cancelled) setCardHits(results);
+        })
+        .catch(() => {
+          if (!cancelled) setCardHits([]);
+        })
+        .finally(() => {
+          if (!cancelled) setCardsSearching(false);
+        });
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [query, tab]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return decks;
@@ -166,6 +204,80 @@ export default function LibraryPage() {
     if (!q) return sorted.filter((f) => !f.parentId);
     return sorted.filter((f) => f.title.toLowerCase().includes(q));
   }, [folders, query]);
+
+  // Karten-Treffer über der Deck-Liste, wie im Deck-Tab der App: Überschrift
+  // („Karten werden durchsucht…" bzw. „Karten · N Treffer"), darunter je Treffer
+  // Frage, Antwort und das Deck. Ein Klick öffnet das Deck.
+  const searchTerm = query.trim();
+  const cardSection =
+    tab === "decks" && searchTerm.length >= 2 && (cardsSearching || cardHits.length > 0) ? (
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 8 }}>
+        <span
+          className="muted"
+          style={{
+            fontSize: "0.72rem",
+            fontWeight: 700,
+            textTransform: "uppercase",
+            letterSpacing: "0.5px",
+          }}
+        >
+          {cardsSearching
+            ? "Karten werden durchsucht…"
+            : `Karten · ${cardHits.length} ${cardHits.length === 1 ? "Treffer" : "Treffer"}`}
+        </span>
+        {cardHits.map((hit) => (
+          <Link
+            key={hit.cardId}
+            href={`/dashboard/deck/${hit.deckId}`}
+            style={{
+              display: "grid",
+              gap: 2,
+              minWidth: 0,
+              background: "var(--surface)",
+              border: "1px solid var(--line)",
+              borderRadius: 12,
+              padding: "10px 12px",
+              textDecoration: "none",
+              color: "inherit",
+            }}
+          >
+            <span
+              style={{
+                fontWeight: 600,
+                fontSize: "0.9rem",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {hit.front}
+            </span>
+            <span
+              style={{
+                fontSize: "0.85rem",
+                color: "var(--ink-3)",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {hit.back}
+            </span>
+            <span
+              style={{
+                fontSize: "0.72rem",
+                color: "var(--brand)",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              in: {hit.deckTitle}
+            </span>
+          </Link>
+        ))}
+      </div>
+    ) : null;
 
   return (
     <>
@@ -283,9 +395,12 @@ export default function LibraryPage() {
             ))}
           </div>
         )
-      ) : filtered.length === 0 ? (
+      ) : filtered.length === 0 && !cardSection ? (
         <EmptyState hasDecks={decks.length > 0} onCreate={() => setModal({ type: "create" })} />
       ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 16 }}>
+          {cardSection}
+          {filtered.length > 0 && (
         <div className="deck-grid">
           {filtered.map((deck) => (
             <DeckCard
@@ -330,6 +445,8 @@ export default function LibraryPage() {
               }}
             />
           ))}
+        </div>
+          )}
         </div>
       )}
 
