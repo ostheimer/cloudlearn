@@ -40,11 +40,19 @@ export function isDeckLimitReached(deckCount: number, maxDecks: number): boolean
 /** Kurzer Hinweis für ausgegraute Schaltflächen. */
 export const DECK_LIMIT_LABEL = "Deck-Grenze erreicht";
 
+/**
+ * Wortgleich mit `deckLimitMessage` in apps/web/src/lib/import-limits.ts.
+ *
+ * Der frühere Satz „Jeder Scan legt ein neues Deck an" stimmt seit #453 nicht
+ * mehr: Der Server speichert im Vorschau-Modus nichts, und beim Speichern kann
+ * ein bestehendes Deck gewählt werden. An der Deck-Grenze ist nur der Weg
+ * „Neues Deck" zu — der Hinweis nennt deshalb beide Auswege.
+ */
 export function deckLimitMessage(deckCount: number, maxDecks: number): string {
   return (
-    `Du hast ${deckCount} von ${maxDecks} Decks. ` +
-    "Jeder Scan legt ein neues Deck an — lösche zuerst ein Deck oder speichere " +
-    "die Karten in ein bestehendes Deck."
+    `${deckCount} von ${maxDecks} Decks sind belegt. ` +
+    "Neue Decks gehen erst wieder nach dem Löschen — " +
+    "speichere die Karten so lange in ein bestehendes Deck."
   );
 }
 
