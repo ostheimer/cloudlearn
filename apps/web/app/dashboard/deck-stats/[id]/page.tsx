@@ -212,7 +212,10 @@ export default function DeckStatsPage() {
           Deine Wackelkandidaten
         </h3>
         {wobbly.length > 0 ? (
-          <div style={{ display: "grid", gap: 8 }}>
+          // minmax(0, 1fr): Kartentexte stehen auf nowrap und melden trotz
+          // overflow:hidden ihre volle Breite — ohne die Klammer bläst eine
+          // lange Karte die Spalte und damit die Seite am Handy auf.
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 8 }}>
             {wobbly.map((card) => (
               <div
                 key={card.cardId}

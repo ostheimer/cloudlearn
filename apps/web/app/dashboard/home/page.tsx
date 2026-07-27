@@ -186,7 +186,20 @@ export default function HomePage() {
   });
 
   return (
-    <div style={{ maxWidth: 960, margin: "0 auto", display: "grid", gap: 14 }}>
+    // minmax(0, 1fr) statt der voreingestellten auto-Spalte: Sonst richtet sich
+    // die Spaltenbreite nach dem sperrigsten Kind. Der Deck-Titel in „Zuletzt
+    // genutzt" steht auf nowrap und meldet trotz overflow:hidden seine volle
+    // Textbreite — damit blies ein langer Titel die Seite am Handy auf 520px
+    // (Bildschirm 390px) und schob Karten und Tab-Leiste über den Rand.
+    <div
+      style={{
+        maxWidth: 960,
+        margin: "0 auto",
+        display: "grid",
+        gridTemplateColumns: "minmax(0, 1fr)",
+        gap: 14,
+      }}
+    >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
         <div>
           <h1 className="h2" style={{ margin: 0 }}>
@@ -270,7 +283,9 @@ export default function HomePage() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+          // min(100%, …) statt 300px: Ohne die Klammer ist das Spalten-Minimum
+          // hart und schiebt die Seite am Handy über den Bildschirmrand.
+          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))",
           gap: 12,
         }}
       >
@@ -395,7 +410,13 @@ export default function HomePage() {
       )}
 
       {/* Kennzahlen — wie in der App: Freunde / Decks (mit fällig) / Genauigkeit */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10 }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 150px), 1fr))",
+          gap: 10,
+        }}
+      >
         <Link
           href="/dashboard/friends"
           style={{
