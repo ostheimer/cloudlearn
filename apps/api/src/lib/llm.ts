@@ -16,14 +16,7 @@ export interface LLMGenerationResult {
   fallbackUsed: boolean;
 }
 
-const MIN_COMPONENT_IMAGE_QUESTIONS = 2;
-const COMPONENT_IMAGE_QUESTION_REGEX =
-  /(welche(?:s|r)?\s+(ui-)?komponente|welches\s+element|welches\s+pattern|wof(?:ü|u)r\s+wird.*(komponente|element)|which\s+(ui-)?component|what\s+(ui\s+)?component|what\s+element|what\s+ui\s+pattern)/i;
-const MARKDOWN_IMAGE_REGEX = /!\[[^\]]*\]\(https?:\/\/[^\s)]+\)/i;
-const QUALITY_REGENERATION_DIRECTIVE = `Quality gate for this regeneration:
-- Ensure at least 2 image-based cards that are component-focused (or as many as available images when fewer than 2)
-- Component-focused means the stem asks to identify a UI component/pattern or its purpose
-- Avoid stems that only ask for design-system/vendor names`;
+const UNSUPPORTED_MARKDOWN_IMAGE_REGEX = /!\[[^\]]*\]\([^)]*\)/i;
 
 /**
  * Generate flashcards from text with model fallback (sync)
@@ -84,50 +77,29 @@ export async function generateFlashcardsFromUrlContentAsync(
   language: string
 ): Promise<LLMGenerationResult> {
   const model = input.images.length > 0 ? "gemini-3-flash-vision" : "gemini-3-flash";
-  const requiredComponentImageCards = Math.min(
-    MIN_COMPONENT_IMAGE_QUESTIONS,
-    input.images.length
-  );
-
   try {
     const primary = await generateUrlCardsWithRetry(input, language);
-    const primaryCards = flashcardListSchema.parse(primary.cards);
-    const primaryQualityCount = countComponentImageQuestions(primaryCards);
+    const parsedCards = flashcardListSchema.parse(primary.cards);
+    const cards = dropUnsupportedImageCards(parsedCards);
 
-    if (requiredComponentImageCards > 0 && primaryQualityCount < requiredComponentImageCards) {
-      try {
-        const regenerated = await generateUrlCardsWithRetry(
-          input,
-          language,
-          QUALITY_REGENERATION_DIRECTIVE
-        );
-        const regeneratedCards = flashcardListSchema.parse(regenerated.cards);
-        const regeneratedQualityCount = countComponentImageQuestions(regeneratedCards);
-        if (regeneratedQualityCount < requiredComponentImageCards) {
-          console.warn(
-            `[llm] URL import quality gate unmet after regeneration (${regeneratedQualityCount}/${requiredComponentImageCards})`
-          );
-        }
-        return {
-          title: regenerated.title,
-          cards: regeneratedCards,
-          model,
-          fallbackUsed: false,
-        };
-      } catch (regenerationError) {
-        if (regenerationError instanceof Error) {
-          console.warn(
-            `[llm] URL import regeneration failed, using primary result: ${regenerationError.message}`
-          );
-        } else {
-          console.warn("[llm] URL import regeneration failed, using primary result");
-        }
-      }
+    // Front and back are rendered as plain text. A Markdown image therefore
+    // becomes raw code, while the associated question cannot be answered
+    // without the missing visual (#534). If every generated card has this
+    // problem, the extracted webpage text is safer than an empty preview.
+    if (parsedCards.length > 0 && cards.length === 0) {
+      console.warn("[llm] URL import returned only unsupported image-dependent cards");
+      const fallback = generateFlashcardsFromTextSync(input.extractedText, language);
+      return {
+        title: fallback.title,
+        cards: flashcardListSchema.parse(fallback.cards),
+        model: "heuristic-fallback",
+        fallbackUsed: true,
+      };
     }
 
     return {
       title: primary.title,
-      cards: primaryCards,
+      cards,
       model,
       fallbackUsed: false,
     };
@@ -151,8 +123,7 @@ async function generateUrlCardsWithRetry(
     extractedText: string;
     images: UrlImageInput[];
   },
-  language: string,
-  qualityDirective?: string
+  language: string
 ): Promise<FlashcardGenerationResult> {
   let lastError: unknown;
   for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -163,9 +134,6 @@ async function generateUrlCardsWithRetry(
         textContent: input.extractedText,
         language,
         images: input.images,
-        ...(qualityDirective !== undefined && qualityDirective !== ""
-          ? { qualityDirective }
-          : {}),
       });
     } catch (error) {
       lastError = error;
@@ -178,13 +146,11 @@ async function generateUrlCardsWithRetry(
   throw new Error("URL import generation failed");
 }
 
-function countComponentImageQuestions(cards: Flashcard[]): number {
-  return cards.filter((card) => {
-    const front = card.front ?? "";
-    const back = card.back ?? "";
-    const fullText = `${front} ${back}`;
-    return MARKDOWN_IMAGE_REGEX.test(fullText) && COMPONENT_IMAGE_QUESTION_REGEX.test(fullText);
-  }).length;
+function dropUnsupportedImageCards(cards: Flashcard[]): Flashcard[] {
+  return cards.filter(
+    (card) =>
+      !UNSUPPORTED_MARKDOWN_IMAGE_REGEX.test(`${card.front ?? ""} ${card.back ?? ""}`)
+  );
 }
 
 /**
