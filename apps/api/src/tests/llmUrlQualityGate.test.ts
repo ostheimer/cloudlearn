@@ -130,6 +130,10 @@ describe("llm URL quality gate", () => {
           "Welches Museum zeigt das Bild „Sternennacht“?",
           "Das Museum of Modern Art in New York."
         ),
+        makeCard(
+          "Was für ein Museum zeigt das Bild „Sternennacht“?",
+          "Das Museum of Modern Art in New York."
+        ),
       ],
     });
 
@@ -138,6 +142,7 @@ describe("llm URL quality gate", () => {
     expect(result.fallbackUsed).toBe(false);
     expect(result.cards.map((card) => card.front)).toEqual([
       "Welches Museum zeigt das Bild „Sternennacht“?",
+      "Was für ein Museum zeigt das Bild „Sternennacht“?",
     ]);
   });
 
@@ -148,6 +153,9 @@ describe("llm URL quality gate", () => {
         makeCard("Welches Organ ist dargestellt?", "Das Herz."),
         makeCard("Welches Tier ist abgebildet?", "Ein Rotfuchs."),
         makeCard("Welche Person wird hier gezeigt?", "Marie Curie."),
+        makeCard("Wer ist hier dargestellt?", "Ada Lovelace."),
+        makeCard("Wer wird hier abgebildet?", "Alan Turing."),
+        makeCard("Welche Personen werden hier gezeigt?", "Ada Lovelace und Alan Turing."),
         makeCard("Welche Aufgabe hat das Herz?", "Es pumpt Blut durch den Körper."),
       ],
     });
