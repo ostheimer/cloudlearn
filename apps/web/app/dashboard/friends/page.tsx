@@ -174,7 +174,10 @@ export default function FriendsPage() {
       {loading ? (
         <div className="spinner" />
       ) : (
-        <div style={{ display: "grid", gap: 14 }}>
+        // minmax(0, 1fr): Sonst richtet sich die Spalte nach dem sperrigsten
+        // Kind — abgeschnittene Anzeigenamen melden trotz overflow:hidden ihre
+        // volle Breite und würden die Seite am Handy aufblasen.
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 14 }}>
           {/* Aktive gemeinsame Streaks */}
           {active.map((s) => (
             <div key={s.friendId} style={cardStyle}>

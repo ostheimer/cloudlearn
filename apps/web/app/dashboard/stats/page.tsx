@@ -210,7 +210,9 @@ export default function StatsPage() {
   );
 
   return (
-    <div style={{ display: "grid", gap: 14 }}>
+    // minmax(0, 1fr): Sonst richtet sich die Spalte nach dem sperrigsten Kind —
+    // abgeschnittene Deck-Titel melden trotz overflow:hidden ihre volle Breite.
+    <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 14 }}>
       {/* Kopf + Zeitraum */}
       <div className="lib-head" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 0 }}>
         <div>
