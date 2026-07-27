@@ -93,6 +93,30 @@ describe("llm URL quality gate", () => {
     expect(result.cards.every((card) => !`${card.front} ${card.back}`.includes("!["))).toBe(true);
   });
 
+  it("drops visual-reference cards even when image markup is missing (#534)", async () => {
+    mockedGenerateFromWeb.mockResolvedValueOnce({
+      title: "Mitochondrium",
+      cards: [
+        makeCard(
+          "Welche Struktur ist in der Abbildung zu sehen?",
+          "Ein schematisches Diagramm eines Mitochondriums."
+        ),
+        makeCard("What is shown in the image?", "A mitochondrial membrane."),
+        makeCard("Welche Struktur ist das? <img src=\"https://img.example.com/1.webp\">", "ATP-Synthase."),
+        makeCard("Welche Struktur ist das? https://img.example.com/2.png", "Mitochondriale DNA."),
+        makeCard("Was ist ein UML-Diagramm?", "Das Diagramm zeigt Strukturen und Beziehungen."),
+        makeCard("Welche Aufgabe haben Mitochondrien?", "Sie stellen Energie bereit."),
+      ],
+    });
+
+    const result = await generateFlashcardsFromUrlContentAsync(baseInput, "de");
+
+    expect(result.cards.map((card) => card.front)).toEqual([
+      "Was ist ein UML-Diagramm?",
+      "Welche Aufgabe haben Mitochondrien?",
+    ]);
+  });
+
   it("does not force image questions when normal text cards are returned", async () => {
     mockedGenerateFromWeb.mockResolvedValueOnce({
       title: "Primary Result",
@@ -128,6 +152,28 @@ describe("llm URL quality gate", () => {
     expect(result.cards.length).toBeGreaterThan(0);
     expect(result.cards.every((card) => !`${card.front} ${card.back}`.includes("!["))).toBe(true);
     expect(mockedGenerateFromWeb).toHaveBeenCalledTimes(1);
+  });
+
+  it("clamps long text fallback cards to the schema limit (#534)", async () => {
+    mockedGenerateFromWeb.mockResolvedValueOnce({
+      title: "Image-only Result",
+      cards: [
+        makeCard(
+          "Welche Struktur ist dargestellt? ![Preview](https://img.example.com/1.webp)",
+          "Ein Diagramm."
+        ),
+      ],
+    });
+
+    const result = await generateFlashcardsFromUrlContentAsync(
+      { ...baseInput, extractedText: "A".repeat(1_200) },
+      "de"
+    );
+
+    expect(result.fallbackUsed).toBe(true);
+    expect(result.title.length).toBeLessThanOrEqual(100);
+    expect(result.cards).toHaveLength(1);
+    expect(result.cards[0]?.back).toHaveLength(1_000);
   });
 
   it("uses heuristic fallback when primary generation fails after retries", async () => {
