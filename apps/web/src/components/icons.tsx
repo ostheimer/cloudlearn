@@ -237,6 +237,29 @@ export const Play = (p: IconProps) => (
   </Icon>
 );
 
+export const Pause = (p: IconProps) => (
+  <Icon fill="currentColor" stroke="none" {...p}>
+    <rect x="6" y="4.5" width="4" height="15" rx="1" />
+    <rect x="14" y="4.5" width="4" height="15" rx="1" />
+  </Icon>
+);
+
+export const Volume2 = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M11 5L6 9H2v6h4l5 4z" />
+    <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+    <path d="M18.8 5.2a10 10 0 0 1 0 13.6" />
+  </Icon>
+);
+
+export const Timer = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M10 2h4" />
+    <circle cx="12" cy="14" r="8" />
+    <path d="M12 14l3-3" />
+  </Icon>
+);
+
 export const Copy = (p: IconProps) => (
   <Icon {...p}>
     <rect x="9" y="9" width="12" height="12" rx="2" />

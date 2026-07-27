@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/app/auth-context";
 import { reviewCard, earnLp, type Card, type ReviewRating } from "@/lib/api";
 import { useDisplayName } from "@/lib/use-display-name";
-import { X, Trophy, Zap } from "@/components/icons";
+import { speechTexts } from "@/lib/speech-text";
+import { useSpeech } from "@/lib/use-speech";
+import { X, Trophy, Zap, Play, Pause, Timer, Volume2 } from "@/components/icons";
 import {
   beginSessionAward,
   getSessionReviewedCount,
@@ -19,6 +21,10 @@ const RATINGS: { key: ReviewRating; label: string; cls: string }[] = [
   { key: "good", label: "Gut", cls: "rating--good" },
   { key: "easy", label: "Leicht", cls: "rating--easy" },
 ];
+
+// Wartezeit des Auto-Abspielens zwischen zwei Schritten — dieselbe Auswahl
+// wie in der App, per Tipp auf die Anzeige durchgeschaltet.
+const AUTO_PLAY_SPEEDS = [1, 3, 5, 10];
 
 /**
  * The flip-and-rate session, shared by the deck and the folder learn pages.
@@ -58,6 +64,12 @@ export function LearnSession({
   const current = cards[index];
   const done = total > 0 && index >= total;
 
+  // ─── Vorlesen + Auto-Abspielen (wie der App-Lernmodus) ───────────────────
+  const { supported, speaking, speak, stop } = useSpeech();
+  const [autoPlaying, setAutoPlaying] = useState(false);
+  const [autoPlaySpeed, setAutoPlaySpeed] = useState(3);
+  const spoken = current ? speechTexts(current.front, current.back) : null;
+
   // LP fürs Lernen gutschreiben — wie die App. Der Server zählt review_logs;
   // wir warten auf laufende Review-Requests, bevor earnLp aufgerufen wird.
   const awardSession = useCallback((count: number) => {
@@ -95,21 +107,88 @@ export function LearnSession({
     if (done) void awardSession(total);
   }, [done, total, awardSession]);
 
-  function rate(rating: ReviewRating) {
+  // useCallback statt schlichter Funktion, weil der Auto-Abspielen-Timer sie
+  // aus einem Effekt heraus aufruft.
+  const rate = useCallback(
+    (rating: ReviewRating) => {
+      const card = cards[index];
+      if (!card || !userId) return;
+      if (rating === "good" || rating === "easy") setCorrect((n) => n + 1);
+      else setNotKnown((prev) => [...prev, card]);
+      // Ausdrücklich, obwohl "flashcard" ohnehin der Server-Default ist: Jeder
+      // Modus soll sagen, wer er ist. Sonst hängt die Richtigkeit dieser Zeile
+      // daran, dass der Default nie geändert wird — und dieser Ablauf trägt
+      // sowohl die Deck- als auch die Ordner-Lernseite.
+      const reviewPromise = reviewCard(userId, card.id, rating, { mode: "flashcard" }).catch(
+        () => {
+          /* review sync best-effort; scheduling will catch up on next load */
+        }
+      );
+      pendingReviewsRef.current.push(reviewPromise);
+      setFlipped(false);
+      window.setTimeout(() => setIndex((i) => i + 1), 160);
+    },
+    [cards, index, userId]
+  );
+
+  // Beim Kartenwechsel verstummen — wie die App. Läuft Auto-Abspielen, spricht
+  // der Effekt darunter gleich danach die neue Karte.
+  useEffect(() => {
+    stop();
+  }, [index, stop]);
+
+  // Runde fertig → Auto-Abspielen beenden.
+  useEffect(() => {
+    if (done && autoPlaying) {
+      setAutoPlaying(false);
+      stop();
+    }
+  }, [done, autoPlaying, stop]);
+
+  // Der Takt des Auto-Abspielens: nach der Wartezeit erst umdrehen, dann mit
+  // „Gut" bewerten und weiterblättern — exakt der App-Ablauf.
+  useEffect(() => {
+    if (!autoPlaying || done || total === 0) return;
+    const timer = window.setTimeout(() => {
+      if (!flipped) setFlipped(true);
+      else rate("good");
+    }, autoPlaySpeed * 1000);
+    return () => window.clearTimeout(timer);
+  }, [autoPlaying, flipped, index, autoPlaySpeed, done, total, rate]);
+
+  // Beim Auto-Abspielen jede neu sichtbare Seite vorlesen.
+  useEffect(() => {
+    if (!autoPlaying) return;
     const card = cards[index];
-    if (!card || !userId) return;
-    if (rating === "good" || rating === "easy") setCorrect((n) => n + 1);
-    else setNotKnown((prev) => [...prev, card]);
-    // Ausdrücklich, obwohl "flashcard" ohnehin der Server-Default ist: Jeder
-    // Modus soll sagen, wer er ist. Sonst hängt die Richtigkeit dieser Zeile
-    // daran, dass der Default nie geändert wird — und dieser Ablauf trägt
-    // sowohl die Deck- als auch die Ordner-Lernseite.
-    const reviewPromise = reviewCard(userId, card.id, rating, { mode: "flashcard" }).catch(() => {
-      /* review sync best-effort; scheduling will catch up on next load */
+    if (!card) return;
+    const texts = speechTexts(card.front, card.back);
+    speak(flipped ? texts.back : texts.front);
+    return () => stop();
+  }, [autoPlaying, flipped, index, cards, speak, stop]);
+
+  function toggleSpeak() {
+    if (!spoken) return;
+    if (speaking) {
+      stop();
+      return;
+    }
+    speak(flipped ? spoken.back : spoken.front);
+  }
+
+  function toggleAutoPlay() {
+    if (autoPlaying) {
+      setAutoPlaying(false);
+      stop();
+    } else {
+      setAutoPlaying(true);
+    }
+  }
+
+  function cycleSpeed() {
+    setAutoPlaySpeed((s) => {
+      const idx = AUTO_PLAY_SPEEDS.indexOf(s);
+      return AUTO_PLAY_SPEEDS[(idx + 1) % AUTO_PLAY_SPEEDS.length] ?? 3;
     });
-    pendingReviewsRef.current.push(reviewPromise);
-    setFlipped(false);
-    window.setTimeout(() => setIndex((i) => i + 1), 160);
   }
 
   async function startRound(next: Card[]) {
@@ -126,6 +205,10 @@ export function LearnSession({
   }
 
   async function quit() {
+    // Sofort verstummen — die LP-Sicherung darunter darf einen Moment dauern,
+    // die Stimme soll aber nicht so lange weiterreden.
+    setAutoPlaying(false);
+    stop();
     // Beim frühen Beenden noch die LP der bisher gelernten Karten sichern.
     const reviewedCount = getSessionReviewedCount(index, pendingReviewsRef.current.length);
     await awardSession(reviewedCount);
@@ -199,6 +282,34 @@ export function LearnSession({
         </span>
       </div>
 
+      {supported && (
+        <div className="autoplay-row">
+          <button
+            type="button"
+            className={`autoplay-pill${autoPlaying ? " is-on" : ""}`}
+            onClick={toggleAutoPlay}
+            aria-pressed={autoPlaying}
+            aria-label={
+              autoPlaying ? "Automatisches Abspielen anhalten" : "Automatisch abspielen"
+            }
+          >
+            {autoPlaying ? <Pause size={13} /> : <Play size={13} />}
+            Auto
+          </button>
+          {autoPlaying && (
+            <button
+              type="button"
+              className="autoplay-pill"
+              onClick={cycleSpeed}
+              aria-label={`Wartezeit ${autoPlaySpeed} Sekunden — tippen zum Wechseln`}
+            >
+              <Timer size={13} />
+              {autoPlaySpeed}s
+            </button>
+          )}
+        </div>
+      )}
+
       <div
         className={`flip study-card${flipped ? " is-flipped" : ""}`}
         role="button"
@@ -224,6 +335,20 @@ export function LearnSession({
             <span className="flip__hint">Wie gut wusstest du es?</span>
           </div>
         </div>
+        {supported && (
+          <button
+            type="button"
+            className={`speak-btn${speaking ? " is-speaking" : ""}`}
+            aria-label={speaking ? "Vorlesen stoppen" : "Vorlesen"}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleSpeak();
+            }}
+            onKeyDown={(e) => e.stopPropagation()}
+          >
+            <Volume2 size={18} />
+          </button>
+        )}
       </div>
 
       {flipped ? (
