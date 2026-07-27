@@ -3132,6 +3132,62 @@ a.mode-card:hover {
 
 .study-card {
   min-height: 300px;
+  position: relative;
+}
+
+/* Vorlesen: runder Lautsprecher-Knopf in der Kartenecke. Er liegt bewusst
+   NEBEN .flip__inner statt darin — so rotiert er beim Umdrehen nicht mit
+   und erscheint nie spiegelverkehrt. */
+.speak-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-3);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.speak-btn.is-speaking {
+  border-color: var(--brand);
+  background: var(--brand-50);
+  color: var(--brand);
+}
+
+/* Auto-Abspielen: Pillen rechts über der Karte. Der negative Abstand rückt
+   sie näher an die Fortschrittszeile, als es das Raster von .study-wrap
+   vorsieht — sie gehören optisch zur Kopfzeile, nicht zur Karte. */
+.autoplay-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: -12px;
+}
+
+.autoplay-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-3);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.autoplay-pill.is-on {
+  border-color: var(--brand);
+  background: var(--brand-50);
+  color: var(--brand);
 }
 
 .study-done {
