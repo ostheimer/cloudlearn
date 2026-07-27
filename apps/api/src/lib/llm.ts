@@ -24,8 +24,8 @@ const UNSUPPORTED_IMAGE_MARKUP_PATTERNS = [
 
 const UNSUPPORTED_VISUAL_QUESTION_PATTERNS = [
   /\b(?:im|in der|auf dem|auf der)\s+(?:bild|abbildung|grafik|diagramm|foto|screenshot)\b/i,
-  /\b(?:was|wer|welche(?:r|s|n)?)\b[^?!.]{0,60}\b(?:zeigt|zeigen)\s+(?:das|dieses|die|diese)\s+(?:bild|abbildung|grafik|diagramm|foto|screenshot)\b/i,
-  /\b(?:welche(?:r|s|n)?\s+(?:struktur|komponente|element|objekt)|was)\s+(?:ist|wird)\s+(?:hier\s+)?(?:dargestellt|abgebildet|gezeigt)\s*\?/i,
+  /\bwas\b[^?!.]{0,60}\b(?:zeigt|zeigen)\s+(?:das|dieses|die|diese)\s+(?:bild|abbildung|grafik|diagramm|foto|screenshot)\b/i,
+  /\b(?:was|welche(?:r|s|n)?\s+[^?!.]{1,60})\s+(?:ist|wird)\s+(?:hier\s+)?(?:dargestellt|abgebildet|gezeigt)\s*\?/i,
   /\b(?:das|dieses)\s+(?:bild|diagramm|foto|screenshot)\s+(?:zeigt|stellt)\b/i,
   /\b(?:die|diese)\s+(?:abbildung|grafik)\s+(?:zeigt|stellt)\b/i,
   /\b(?:in|on)\s+(?:the|this|that)\s+(?:image|figure|diagram|photo|screenshot)\b/i,
@@ -210,5 +210,10 @@ function generateFlashcardsFromTextSync(text: string, language: string): Flashca
 }
 
 function clampDeckTitle(title: string): string {
-  return title.slice(0, DECK_TITLE_MAX_LENGTH);
+  const truncated = title.slice(0, DECK_TITLE_MAX_LENGTH);
+  const lastCodeUnit = truncated.charCodeAt(truncated.length - 1);
+
+  return lastCodeUnit >= 0xd800 && lastCodeUnit <= 0xdbff
+    ? truncated.slice(0, -1)
+    : truncated;
 }

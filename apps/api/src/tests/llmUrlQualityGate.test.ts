@@ -122,6 +122,43 @@ describe("llm URL quality gate", () => {
     ]);
   });
 
+  it("keeps text-grounded questions about who displays an image", async () => {
+    mockedGenerateFromWeb.mockResolvedValueOnce({
+      title: "Sternennacht",
+      cards: [
+        makeCard(
+          "Welches Museum zeigt das Bild „Sternennacht“?",
+          "Das Museum of Modern Art in New York."
+        ),
+      ],
+    });
+
+    const result = await generateFlashcardsFromUrlContentAsync(baseInput, "de");
+
+    expect(result.fallbackUsed).toBe(false);
+    expect(result.cards.map((card) => card.front)).toEqual([
+      "Welches Museum zeigt das Bild „Sternennacht“?",
+    ]);
+  });
+
+  it("drops context-free visual questions regardless of their noun", async () => {
+    mockedGenerateFromWeb.mockResolvedValueOnce({
+      title: "Bildfragen",
+      cards: [
+        makeCard("Welches Organ ist dargestellt?", "Das Herz."),
+        makeCard("Welches Tier ist abgebildet?", "Ein Rotfuchs."),
+        makeCard("Welche Person wird hier gezeigt?", "Marie Curie."),
+        makeCard("Welche Aufgabe hat das Herz?", "Es pumpt Blut durch den Körper."),
+      ],
+    });
+
+    const result = await generateFlashcardsFromUrlContentAsync(baseInput, "de");
+
+    expect(result.cards.map((card) => card.front)).toEqual([
+      "Welche Aufgabe hat das Herz?",
+    ]);
+  });
+
   it("does not force image questions when normal text cards are returned", async () => {
     mockedGenerateFromWeb.mockResolvedValueOnce({
       title: "Primary Result",
@@ -145,6 +182,17 @@ describe("llm URL quality gate", () => {
 
     expect(result.fallbackUsed).toBe(false);
     expect(result.title).toHaveLength(100);
+  });
+
+  it("clamps a title without splitting a non-BMP Unicode character", async () => {
+    mockedGenerateFromWeb.mockResolvedValueOnce({
+      title: `${"A".repeat(99)}😀`,
+      cards: [makeCard("Was ist ein Accordion?", "Ein aufklappbarer Bereich.")],
+    });
+
+    const result = await generateFlashcardsFromUrlContentAsync(baseInput, "de");
+
+    expect(result.title).toBe("A".repeat(99));
   });
 
   it("uses the text fallback when every generated card depends on an image", async () => {
