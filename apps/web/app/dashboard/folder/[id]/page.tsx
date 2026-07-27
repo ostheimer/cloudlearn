@@ -12,13 +12,16 @@ import {
   addDeckToFolder,
   removeDeckFromFolder,
   setFolderDeckOrder,
+  createFolder,
   updateFolder,
+  deleteFolder,
   getDueCards,
   isApiError,
   type Deck,
   type Folder,
 } from "@/lib/api";
-import { folderPath } from "@/lib/folders";
+import { descendantFolders, folderPath } from "@/lib/folders";
+import { FolderCard, DeleteFolderModal, FolderNameModal } from "@/components/app/folder-ui";
 import { deckCountLabel } from "@/lib/deck-count-label";
 import {
   ArrowLeft,
@@ -30,6 +33,21 @@ import {
   Pencil,
   GripVertical,
 } from "@/components/icons";
+
+type SubfolderModal =
+  | { type: "create" }
+  | { type: "rename"; folder: Folder }
+  | { type: "delete"; folder: Folder }
+  | null;
+
+// Kleine Abschnitts-Überschrift ("Unterordner" / "Decks"), wie die App-Sektionen.
+const sectionLabelStyle: React.CSSProperties = {
+  textTransform: "uppercase",
+  letterSpacing: "0.05em",
+  fontSize: "0.72rem",
+  fontWeight: 700,
+  margin: "0 0 10px",
+};
 
 export default function FolderDetailPage() {
   const params = useParams<{ id: string }>();
@@ -50,6 +68,13 @@ export default function FolderDetailPage() {
   const [dueCount, setDueCount] = useState<number | undefined>(undefined);
   // Fällige Karten je Deck ("N fällig"-Abzeichen auf den Kacheln).
   const [dueByDeck, setDueByDeck] = useState<Record<string, number>>({});
+  // Deck-Zahl je Unterordner (für den „N Decks"-Text auf der Unterordner-Kachel).
+  const [subCounts, setSubCounts] = useState<Record<string, number>>({});
+  // Welches Unterordner-Menü offen ist; steuert dasselbe Öffnen/Umbenennen/Löschen
+  // wie in der Bibliothek. Ohne diese Seite wären Unterordner sonst unverwaltbar,
+  // weil die Bibliothek nur noch die oberste Ebene zeigt.
+  const [openSubMenu, setOpenSubMenu] = useState<string | null>(null);
+  const [subModal, setSubModal] = useState<SubfolderModal>(null);
 
   // Welcher Karten-Index gerade am Griff gezogen wird; null = kein Ziehen.
   // Die Liste wird schon WÄHREND des Ziehens umsortiert (sichtbares Feedback),
@@ -71,6 +96,26 @@ export default function FolderDetailPage() {
       setDecks(inFolder);
       setAllDecks(mine);
       setPageError(null);
+
+      // Deck counts for this folder's subfolders — same best-effort pattern as
+      // the library tab. A failed count shows as "Anzahl unbekannt" rather than
+      // breaking the page.
+      try {
+        const kids = fetchedFolders.filter((f) => f.parentId === folderId);
+        const counts = await Promise.all(
+          kids.map(async (f) => {
+            try {
+              const { decks: inSub } = await listDecksInFolder(f.id);
+              return [f.id, inSub.length] as const;
+            } catch {
+              return [f.id, -1] as const;
+            }
+          })
+        );
+        setSubCounts(Object.fromEntries(counts));
+      } catch {
+        setSubCounts({});
+      }
 
       // How many of this folder's cards are due today. getDueCards is global,
       // so filter by the folder's decks — same source the learn page uses, so
@@ -105,8 +150,33 @@ export default function FolderDetailPage() {
     load();
   }, [load]);
 
+  // Klick irgendwo schließt ein offenes Unterordner-Menü (wie in der Bibliothek).
+  useEffect(() => {
+    if (!openSubMenu) return;
+    const close = () => setOpenSubMenu(null);
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [openSubMenu]);
+
   const folder = useMemo(() => folders.find((f) => f.id === folderId), [folders, folderId]);
   const path = useMemo(() => (folder ? folderPath(folder, folders) : []), [folder, folders]);
+  // The folders directly inside this one, alphabetically — the "Unterordner"
+  // section. Clicking one opens it, so you walk the tree the same way as in the app.
+  const subfolders = useMemo(
+    () =>
+      folders
+        .filter((f) => f.parentId === folderId)
+        .sort((a, b) => a.title.localeCompare(b.title, "de")),
+    [folders, folderId]
+  );
+  // How many folders sit inside each subfolder — the "N Unterordner" hint on its card.
+  const childCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const f of folders) {
+      if (f.parentId) counts[f.parentId] = (counts[f.parentId] ?? 0) + 1;
+    }
+    return counts;
+  }, [folders]);
   const addable = useMemo(() => {
     const inFolder = new Set(decks.map((d) => d.id));
     return allDecks
@@ -210,6 +280,8 @@ export default function FolderDetailPage() {
             {folder?.title ?? "Ordner"}
           </h1>
           <p className="muted" style={{ marginTop: 4 }}>
+            {subfolders.length > 0 &&
+              `${subfolders.length} ${subfolders.length === 1 ? "Unterordner" : "Unterordner"} · `}
             {decks.length} {decks.length === 1 ? "Deck" : "Decks"}
             {totalCards > 0 && ` · ${totalCards} ${totalCards === 1 ? "Karte" : "Karten"}`}
           </p>
@@ -239,14 +311,24 @@ export default function FolderDetailPage() {
               </button>
             ))}
         </div>
-        <button
-          type="button"
-          className="btn btn-ghost"
-          onClick={() => setPicking(true)}
-          disabled={loading}
-        >
-          + Decks hinzufügen
-        </button>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => setSubModal({ type: "create" })}
+            disabled={loading}
+          >
+            + Neuer Unterordner
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => setPicking(true)}
+            disabled={loading}
+          >
+            + Decks hinzufügen
+          </button>
+        </div>
       </div>
 
       {!loading && totalCards > 0 && (
@@ -281,20 +363,83 @@ export default function FolderDetailPage() {
 
       {loading ? (
         <div className="spinner" />
-      ) : decks.length === 0 ? (
-        <div className="empty-state">
-          <div className="ic" aria-hidden>
-            <Layers size={30} />
-          </div>
-          <h3>Noch keine Decks in diesem Ordner</h3>
-          <p>Leg Decks hier ab, um sie zusammen zu halten.</p>
-          <button type="button" className="btn btn-primary" onClick={() => setPicking(true)}>
-            + Decks hinzufügen
-          </button>
-        </div>
       ) : (
-        <div className="deck-grid">
-          {decks.map((deck, index) => (
+        <>
+          {subfolders.length > 0 && (
+            <>
+              <div className="muted" style={sectionLabelStyle}>
+                Unterordner
+              </div>
+              <div className="deck-grid" style={{ marginBottom: 24 }}>
+                {subfolders.map((sub) => (
+                  <FolderCard
+                    key={sub.id}
+                    folder={sub}
+                    count={subCounts[sub.id]}
+                    childCount={childCounts[sub.id] ?? 0}
+                    menuOpen={openSubMenu === sub.id}
+                    onToggleMenu={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setOpenSubMenu((cur) => (cur === sub.id ? null : sub.id));
+                    }}
+                    onRename={() => {
+                      setOpenSubMenu(null);
+                      setSubModal({ type: "rename", folder: sub });
+                    }}
+                    onDelete={() => {
+                      setOpenSubMenu(null);
+                      setSubModal({ type: "delete", folder: sub });
+                    }}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+
+          {subfolders.length > 0 && decks.length > 0 && (
+            <div className="muted" style={sectionLabelStyle}>
+              Decks
+            </div>
+          )}
+
+          {decks.length === 0 ? (
+            subfolders.length > 0 ? (
+              // Es gibt schon Unterordner — dann ist ein leerer Deck-Bereich kein
+              // leerer Ordner. Ein schlichter Hinweis statt der großen leeren Fläche.
+              <div
+                className="muted"
+                style={{
+                  border: "1px dashed var(--line)",
+                  borderRadius: 12,
+                  padding: 18,
+                  display: "flex",
+                  gap: 10,
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <span>Noch keine Decks in diesem Ordner.</span>
+                <button type="button" className="btn btn-ghost" onClick={() => setPicking(true)}>
+                  + Decks hinzufügen
+                </button>
+              </div>
+            ) : (
+              <div className="empty-state">
+                <div className="ic" aria-hidden>
+                  <Layers size={30} />
+                </div>
+                <h3>Noch keine Decks in diesem Ordner</h3>
+                <p>Leg Decks hier ab, um sie zusammen zu halten.</p>
+                <button type="button" className="btn btn-primary" onClick={() => setPicking(true)}>
+                  + Decks hinzufügen
+                </button>
+              </div>
+            )
+          ) : (
+            <div className="deck-grid">
+              {decks.map((deck, index) => (
             <div
               key={deck.id}
               data-deck-index={index}
@@ -370,7 +515,9 @@ export default function FolderDetailPage() {
               </button>
             </div>
           ))}
-        </div>
+            </div>
+          )}
+        </>
       )}
 
       {picking && (
@@ -395,6 +542,60 @@ export default function FolderDetailPage() {
             // Deck-Zähler erneut anfragen, obwohl sich an Decks nichts ändert.
             setFolders((prev) => prev.map((f) => (f.id === updated.id ? updated : f)));
             setEditingDescription(false);
+          }}
+        />
+      )}
+
+      {subModal?.type === "create" && (
+        <FolderNameModal
+          title="Neuer Unterordner"
+          confirmLabel="Erstellen"
+          onClose={() => setSubModal(null)}
+          onSubmit={async (value) => {
+            if (!userId) return;
+            const { folder: created } = await createFolder(userId, value, folderId);
+            // A fresh subfolder holds nothing yet — append it and seed its count
+            // instead of a full reload.
+            setFolders((prev) => [...prev, created]);
+            setSubCounts((prev) => ({ ...prev, [created.id]: 0 }));
+            setSubModal(null);
+          }}
+        />
+      )}
+
+      {subModal?.type === "rename" && (
+        <FolderNameModal
+          title="Unterordner umbenennen"
+          confirmLabel="Speichern"
+          initial={subModal.folder.title}
+          onClose={() => setSubModal(null)}
+          onSubmit={async (value) => {
+            const { folder: updated } = await updateFolder(subModal.folder.id, { title: value });
+            setFolders((prev) => prev.map((f) => (f.id === updated.id ? updated : f)));
+            setSubModal(null);
+          }}
+        />
+      )}
+
+      {subModal?.type === "delete" && (
+        <DeleteFolderModal
+          folder={subModal.folder}
+          folders={folders}
+          onClose={() => setSubModal(null)}
+          onConfirm={async () => {
+            const id = subModal.folder.id;
+            // parent_id cascades in the database, so the subfolders the dialog
+            // just named go too — drop the whole branch at once and only reload
+            // if the server disagrees.
+            const gone = new Set([id, ...descendantFolders(id, folders).map((f) => f.id)]);
+            setSubModal(null);
+            setFolders((prev) => prev.filter((f) => !gone.has(f.id)));
+            try {
+              await deleteFolder(id);
+            } catch {
+              setPageError("Ordner konnte nicht gelöscht werden.");
+              await load();
+            }
           }}
         />
       )}

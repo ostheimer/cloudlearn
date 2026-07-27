@@ -23,7 +23,8 @@ import {
   type Deck,
   type Folder,
 } from "@/lib/api";
-import { descendantFolders, folderPath, joinTitles } from "@/lib/folders";
+import { descendantFolders, folderPath } from "@/lib/folders";
+import { FolderCard, DeleteFolderModal } from "@/components/app/folder-ui";
 import { deckCountLabel } from "@/lib/deck-count-label";
 import {
   Search,
@@ -145,10 +146,23 @@ export default function LibraryPage() {
     );
   }, [decks, query]);
 
+  // How many folders sit directly inside each folder — the "N Unterordner" hint
+  // on a top-level card so people know the tree continues below it.
+  const childCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const f of folders) {
+      if (f.parentId) counts[f.parentId] = (counts[f.parentId] ?? 0) + 1;
+    }
+    return counts;
+  }, [folders]);
+
   const filteredFolders = useMemo(() => {
     const q = query.trim().toLowerCase();
     const sorted = [...folders].sort((a, b) => a.title.localeCompare(b.title, "de"));
-    if (!q) return sorted;
+    // Default view is a tree: show only the top level, you click into a folder
+    // to see its subfolders. Searching lifts that — it reaches every folder at
+    // any depth (with its path shown) so nothing nested becomes unfindable.
+    if (!q) return sorted.filter((f) => !f.parentId);
     return sorted.filter((f) => f.title.toLowerCase().includes(q));
   }, [folders, query]);
 
@@ -247,6 +261,7 @@ export default function LibraryPage() {
                 folder={folder}
                 path={folderPath(folder, folders)}
                 count={folderCounts[folder.id]}
+                childCount={childCounts[folder.id] ?? 0}
                 menuOpen={openMenu === folder.id}
                 onToggleMenu={(e) => {
                   e.preventDefault();
@@ -556,80 +571,6 @@ function DeckCard({
   );
 }
 
-function FolderCard({
-  folder,
-  path,
-  count,
-  menuOpen,
-  onToggleMenu,
-  onRename,
-  onDelete,
-}: {
-  folder: Folder;
-  path: string[];
-  count: number | undefined;
-  menuOpen: boolean;
-  onToggleMenu: (e: React.MouseEvent) => void;
-  onRename: () => void;
-  onDelete: () => void;
-}) {
-  return (
-    <div style={{ position: "relative" }}>
-      <Link href={`/dashboard/folder/${folder.id}`} className="deck-card">
-        <div className="deck-card__top">
-          <span className="deck-card__badge" aria-hidden>
-            <FolderIcon size={18} />
-          </span>
-        </div>
-        {path.length > 0 && (
-          <div
-            className="muted"
-            style={{ fontSize: "0.78rem", marginBottom: 2 }}
-            title={`Liegt in ${path.join(" / ")}`}
-          >
-            {path.join(" / ")}
-          </div>
-        )}
-        <div className="deck-card__title">{folder.title}</div>
-        <div className="deck-card__meta">
-          <span>
-            {count === undefined
-              ? "Wird geladen…"
-              : count < 0
-                ? "Anzahl unbekannt"
-                : `${count} ${count === 1 ? "Deck" : "Decks"}`}
-          </span>
-        </div>
-      </Link>
-
-      <div className="pop" style={{ position: "absolute", top: 12, right: 12 }}>
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label="Ordner-Optionen"
-          aria-expanded={menuOpen}
-          onClick={onToggleMenu}
-        >
-          <MoreHorizontal size={18} />
-        </button>
-        {menuOpen && (
-          <div className="menu" role="menu" onClick={(e) => e.stopPropagation()}>
-            <Link href={`/dashboard/folder/${folder.id}`} role="menuitem">
-              <FolderIcon size={15} /> Öffnen
-            </Link>
-            <button type="button" onClick={onRename}>
-              <Pencil size={15} /> Umbenennen
-            </button>
-            <button type="button" className="danger" onClick={onDelete}>
-              <Trash size={15} /> Löschen
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 function FolderEmptyState({
   hasFolders,
   onCreate,
@@ -654,50 +595,6 @@ function FolderEmptyState({
         </button>
       )}
     </div>
-  );
-}
-
-function DeleteFolderModal({
-  folder,
-  folders,
-  onClose,
-  onConfirm,
-}: {
-  folder: Folder;
-  folders: Folder[];
-  onClose: () => void;
-  onConfirm: () => Promise<void>;
-}) {
-  // parent_id cascades in the database, so subfolders go with it. Name them —
-  // the flat list gives no other clue that they belong together.
-  const doomed = descendantFolders(folder.id, folders);
-  return (
-    <Modal title="Ordner löschen" onClose={onClose}>
-      <p className="muted">
-        Soll „{folder.title}" wirklich gelöscht werden?
-        {doomed.length > 0 && (
-          <>
-            {" "}
-            {joinTitles(doomed.map((f) => f.title))}{" "}
-            {doomed.length === 1 ? "wird" : "werden"} mitgelöscht.
-          </>
-        )}{" "}
-        Deine Decks und Karten bleiben erhalten.
-      </p>
-      <div className="modal__actions">
-        <button type="button" className="btn btn-ghost" onClick={onClose}>
-          Abbrechen
-        </button>
-        <button
-          type="button"
-          className="btn btn-primary"
-          style={{ background: "#dc2626", boxShadow: "none" }}
-          onClick={onConfirm}
-        >
-          Löschen
-        </button>
-      </div>
-    </Modal>
   );
 }
 
