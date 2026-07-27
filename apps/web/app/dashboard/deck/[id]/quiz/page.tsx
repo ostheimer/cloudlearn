@@ -243,6 +243,7 @@ export default function QuizPage() {
           allCount={cards.length}
           starredCount={starredCount}
           wobblyCount={wobblyCount}
+          minCount={2}
         />
 
         <button type="button" className="cl-dir" onClick={() => setReverse((r) => !r)}>

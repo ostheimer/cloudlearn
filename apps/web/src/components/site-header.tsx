@@ -1,12 +1,40 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { getSupabase } from "@/lib/supabase-browser";
 import { siteConfig, marketingNavLinks } from "@/lib/site";
 import { GraduationCap, Menu, X } from "@/components/icons";
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
+  // Die öffentliche Kopfzeile liegt auf Seiten ohne AuthProvider (Landing,
+  // Impressum, Datenschutz, Support, 404) — useAuth würde dort werfen. Darum
+  // die Sitzung direkt bei Supabase erfragen. Standard bleibt „ausgeloggt", weil
+  // die meisten Besucher der Marketing-Seiten das sind; eingeloggte Nutzer
+  // schalten nach der (lokalen, schnellen) Prüfung auf „Zum Dashboard" um, statt
+  // fälschlich die Anmelde-Knöpfe zu sehen (#533 Punkt 3).
+  const [authed, setAuthed] = useState(false);
+
+  useEffect(() => {
+    const supabase = getSupabase();
+    let active = true;
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (active) setAuthed(!!data.session);
+      })
+      .catch(() => {});
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuthed(!!session);
+    });
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, []);
 
   return (
     <header className="site-header">
@@ -27,12 +55,20 @@ export function SiteHeader() {
         </nav>
 
         <div className="header-actions">
-          <Link href="/login" className="nav-link">
-            Anmelden
-          </Link>
-          <Link href="/signup" className="btn btn-primary">
-            Kostenlos starten
-          </Link>
+          {authed ? (
+            <Link href="/dashboard" className="btn btn-primary">
+              Zum Dashboard
+            </Link>
+          ) : (
+            <>
+              <Link href="/login" className="nav-link">
+                Anmelden
+              </Link>
+              <Link href="/signup" className="btn btn-primary">
+                Kostenlos starten
+              </Link>
+            </>
+          )}
         </div>
 
         <button
@@ -62,17 +98,30 @@ export function SiteHeader() {
           <Link href={siteConfig.supportPath} className="nav-link" onClick={() => setOpen(false)}>
             Support
           </Link>
-          <Link href="/login" className="nav-link" onClick={() => setOpen(false)}>
-            Anmelden
-          </Link>
-          <Link
-            href="/signup"
-            className="btn btn-primary btn-block"
-            style={{ marginTop: 8 }}
-            onClick={() => setOpen(false)}
-          >
-            Kostenlos starten
-          </Link>
+          {authed ? (
+            <Link
+              href="/dashboard"
+              className="btn btn-primary btn-block"
+              style={{ marginTop: 8 }}
+              onClick={() => setOpen(false)}
+            >
+              Zum Dashboard
+            </Link>
+          ) : (
+            <>
+              <Link href="/login" className="nav-link" onClick={() => setOpen(false)}>
+                Anmelden
+              </Link>
+              <Link
+                href="/signup"
+                className="btn btn-primary btn-block"
+                style={{ marginTop: 8 }}
+                onClick={() => setOpen(false)}
+              >
+                Kostenlos starten
+              </Link>
+            </>
+          )}
         </nav>
       )}
     </header>

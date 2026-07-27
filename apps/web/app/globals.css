@@ -2375,6 +2375,12 @@ a.mode-card:hover {
 .src-opt.on .src-opt__radio i {
   opacity: 1;
 }
+.src-opt__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
 .src-opt__lbl {
   display: inline-flex;
   align-items: center;
@@ -2384,6 +2390,11 @@ a.mode-card:hover {
 }
 .src-opt.on .src-opt__lbl {
   color: var(--brand);
+}
+.src-opt__hint {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--ink-3);
 }
 .src-opt__star {
   color: var(--amber);
