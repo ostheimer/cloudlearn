@@ -11,24 +11,28 @@ import {
   isOnboardingCompleted,
   markOnboardingCompleted,
 } from "@/lib/onboarding";
-import { GraduationCap, Home, Layers, Sparkles, Zap, BarChart, User } from "@/components/icons";
+import { GraduationCap, Home, Library, ScanLine, Zap, BarChart, User } from "@/components/icons";
 
 type NavItem = {
   href: string;
   label: string;
   tabLabel?: string; // kürzeres Label für die untere Handy-Leiste
   hideInTabbar?: boolean; // am Handy nicht in der unteren Leiste — nur über die LP-Pille oben (wie die App)
-  Icon: typeof Layers;
+  Icon: typeof Home;
   exact: boolean;
 };
 
 // App-artige Reihenfolge: „Home" ist die Landeseite. Am Desktop stehen alle
 // außer Profil oben; am Handy erscheinen sie als untere Tab-Leiste — außer
 // Lernpunkte, die dort (wie in der App) nur über die Pille oben erreichbar sind.
+// Reihenfolge und Symbole wie in der App-Tab-Leiste
+// (apps/mobile/app/(tabs)/_layout.tsx): Home, Scan, Bibliothek, Statistik,
+// Profil — Scan steht also VOR Bibliothek, und Bibliothek trägt die Bücherreihe
+// statt der Ebenen-Symbole.
 const NAV: NavItem[] = [
   { href: "/dashboard/home", label: "Home", Icon: Home, exact: true },
-  { href: "/dashboard", label: "Bibliothek", Icon: Layers, exact: true },
-  { href: "/dashboard/import", label: "Scan", Icon: Sparkles, exact: false },
+  { href: "/dashboard/import", label: "Scan", Icon: ScanLine, exact: false },
+  { href: "/dashboard", label: "Bibliothek", Icon: Library, exact: true },
   { href: "/dashboard/lp", label: "Lernpunkte", Icon: Zap, exact: false, hideInTabbar: true },
   { href: "/dashboard/stats", label: "Statistik", Icon: BarChart, exact: false },
   { href: "/dashboard/profile", label: "Profil", Icon: User, exact: false },
