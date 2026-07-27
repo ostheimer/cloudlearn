@@ -101,10 +101,14 @@ describe("llm URL quality gate", () => {
           "Welche Struktur ist in der Abbildung zu sehen?",
           "Ein schematisches Diagramm eines Mitochondriums."
         ),
+        makeCard("Was zeigt die Abbildung?", "Eine mitochondriale Membran."),
+        makeCard("Welche Struktur ist dargestellt?", "Eine ATP-Synthase."),
         makeCard("What is shown in the image?", "A mitochondrial membrane."),
+        makeCard("What does the figure show?", "A mitochondrion."),
         makeCard("Welche Struktur ist das? <img src=\"https://img.example.com/1.webp\">", "ATP-Synthase."),
         makeCard("Welche Struktur ist das? https://img.example.com/2.png", "Mitochondriale DNA."),
         makeCard("Was ist ein UML-Diagramm?", "Das Diagramm zeigt Strukturen und Beziehungen."),
+        makeCard("Was ist dargestellt durch x + y?", "Eine Summe."),
         makeCard("Welche Aufgabe haben Mitochondrien?", "Sie stellen Energie bereit."),
       ],
     });
@@ -113,7 +117,53 @@ describe("llm URL quality gate", () => {
 
     expect(result.cards.map((card) => card.front)).toEqual([
       "Was ist ein UML-Diagramm?",
+      "Was ist dargestellt durch x + y?",
       "Welche Aufgabe haben Mitochondrien?",
+    ]);
+  });
+
+  it("keeps text-grounded questions about who displays an image", async () => {
+    mockedGenerateFromWeb.mockResolvedValueOnce({
+      title: "Sternennacht",
+      cards: [
+        makeCard(
+          "Welches Museum zeigt das Bild „Sternennacht“?",
+          "Das Museum of Modern Art in New York."
+        ),
+        makeCard(
+          "Was für ein Museum zeigt das Bild „Sternennacht“?",
+          "Das Museum of Modern Art in New York."
+        ),
+      ],
+    });
+
+    const result = await generateFlashcardsFromUrlContentAsync(baseInput, "de");
+
+    expect(result.fallbackUsed).toBe(false);
+    expect(result.cards.map((card) => card.front)).toEqual([
+      "Welches Museum zeigt das Bild „Sternennacht“?",
+      "Was für ein Museum zeigt das Bild „Sternennacht“?",
+    ]);
+  });
+
+  it("drops context-free visual questions regardless of their noun", async () => {
+    mockedGenerateFromWeb.mockResolvedValueOnce({
+      title: "Bildfragen",
+      cards: [
+        makeCard("Welches Organ ist dargestellt?", "Das Herz."),
+        makeCard("Welches Tier ist abgebildet?", "Ein Rotfuchs."),
+        makeCard("Welche Person wird hier gezeigt?", "Marie Curie."),
+        makeCard("Wer ist hier dargestellt?", "Ada Lovelace."),
+        makeCard("Wer wird hier abgebildet?", "Alan Turing."),
+        makeCard("Welche Personen werden hier gezeigt?", "Ada Lovelace und Alan Turing."),
+        makeCard("Welche Aufgabe hat das Herz?", "Es pumpt Blut durch den Körper."),
+      ],
+    });
+
+    const result = await generateFlashcardsFromUrlContentAsync(baseInput, "de");
+
+    expect(result.cards.map((card) => card.front)).toEqual([
+      "Welche Aufgabe hat das Herz?",
     ]);
   });
 
@@ -128,6 +178,29 @@ describe("llm URL quality gate", () => {
     expect(result.fallbackUsed).toBe(false);
     expect(result.title).toBe("Primary Result");
     expect(mockedGenerateFromWeb).toHaveBeenCalledTimes(1);
+  });
+
+  it("clamps a successful URL-generation title to the API contract", async () => {
+    mockedGenerateFromWeb.mockResolvedValueOnce({
+      title: "A".repeat(120),
+      cards: [makeCard("Was ist ein Accordion?", "Ein aufklappbarer Bereich.")],
+    });
+
+    const result = await generateFlashcardsFromUrlContentAsync(baseInput, "de");
+
+    expect(result.fallbackUsed).toBe(false);
+    expect(result.title).toHaveLength(100);
+  });
+
+  it("clamps a title without splitting a non-BMP Unicode character", async () => {
+    mockedGenerateFromWeb.mockResolvedValueOnce({
+      title: `${"A".repeat(99)}😀`,
+      cards: [makeCard("Was ist ein Accordion?", "Ein aufklappbarer Bereich.")],
+    });
+
+    const result = await generateFlashcardsFromUrlContentAsync(baseInput, "de");
+
+    expect(result.title).toBe("A".repeat(99));
   });
 
   it("uses the text fallback when every generated card depends on an image", async () => {
