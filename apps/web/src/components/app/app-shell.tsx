@@ -2,9 +2,15 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useAuth } from "./auth-context";
 import { DisplayNamePrompt } from "./display-name-prompt";
+import { listDecks } from "@/lib/api";
+import {
+  decideOnboarding,
+  isOnboardingCompleted,
+  markOnboardingCompleted,
+} from "@/lib/onboarding";
 import { GraduationCap, Home, Layers, Sparkles, Zap, BarChart, User } from "@/components/icons";
 
 type NavItem = {
@@ -29,9 +35,10 @@ const NAV: NavItem[] = [
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { status } = useAuth();
+  const { status, userId } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
 
   // Guard: bounce unauthenticated visitors to the login page.
   useEffect(() => {
@@ -40,7 +47,37 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
   }, [status, router]);
 
-  if (status !== "authenticated") {
+  // Erst-Start-Weiche: Fehlt der Browser-Haken, entscheidet die Deck-Zahl —
+  // nur Konten ohne Decks sehen die Einführung, alle anderen bekommen den
+  // Haken still gesetzt (siehe lib/onboarding.ts). Ist der Haken einmal da,
+  // kostet das keinen API-Aufruf mehr.
+  useEffect(() => {
+    if (status !== "authenticated" || !userId) return;
+    if (isOnboardingCompleted()) {
+      setOnboardingChecked(true);
+      return;
+    }
+    let cancelled = false;
+    listDecks(userId)
+      .then(({ decks }) => {
+        if (cancelled) return;
+        if (decideOnboarding(decks.length) === "show") {
+          router.replace("/onboarding");
+          return;
+        }
+        markOnboardingCompleted();
+        setOnboardingChecked(true);
+      })
+      .catch(() => {
+        // Im Zweifel das Dashboard nicht blockieren.
+        if (!cancelled) setOnboardingChecked(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [status, userId, router]);
+
+  if (status !== "authenticated" || !onboardingChecked) {
     return (
       <div className="center-screen">
         <div className="spinner" />
