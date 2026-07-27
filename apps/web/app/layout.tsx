@@ -41,7 +41,9 @@ export const metadata: Metadata = {
   icons: {
     icon: "/favicon.png",
     shortcut: "/favicon.png",
-    apple: "/favicon.png",
+    // Safari nutzt für „Zum Home-Bildschirm" nicht das Manifest, sondern dieses
+    // Symbol — in der von Apple erwarteten Größe (180x180, ohne Transparenz).
+    apple: { url: "/apple-touch-icon.png", sizes: "180x180" },
   },
 };
 
