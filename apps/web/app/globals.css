@@ -4618,3 +4618,91 @@ a.lp-way:hover {
 }
 .st-deck-row:last-child { border-bottom: none; }
 .st-deck-row:hover { background: var(--bg-soft); }
+
+/* ---------- Erst-Start-Einführung (Onboarding) ---------- */
+/* Vollbild ohne App-Navigation, wie der App-Bildschirm: Punkte oben,
+   Inhalt mittig, Knopf unten. Läuft außerhalb von .app-shell, deshalb
+   bekommt der Primär-Knopf hier dieselbe flache App-Optik explizit. */
+.onboarding {
+  min-height: 100dvh;
+  max-width: 560px;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 28px 24px;
+  background: var(--bg);
+}
+.onboarding__dots {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+.onboarding__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--line);
+}
+.onboarding__dot.is-on {
+  background: var(--brand);
+}
+.onboarding__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.onboarding__icon {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--r-md);
+  background: var(--brand-50);
+  color: var(--brand-600);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 22px;
+}
+:root[data-theme="dark"] .onboarding__icon {
+  color: #a5b4fc;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .onboarding__icon {
+    color: #a5b4fc;
+  }
+}
+.onboarding__title {
+  font-size: clamp(1.8rem, 6vw, 2.2rem);
+  font-weight: 800;
+  color: var(--ink);
+  line-height: 1.2;
+  margin: 0 0 14px;
+}
+.onboarding__text {
+  font-size: 1.1rem;
+  line-height: 1.65;
+  color: var(--ink-3);
+  margin: 0;
+}
+.onboarding__footer {
+  padding: 20px 0 8px;
+}
+.onboarding .btn-primary {
+  background: var(--brand);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+}
+.onboarding .btn-primary:hover {
+  background: var(--brand-600);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1);
+}
+.onboarding__creating {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  color: var(--ink-3);
+}
+.onboarding__creating p {
+  margin: 0;
+}
