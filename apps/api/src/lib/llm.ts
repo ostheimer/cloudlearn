@@ -16,7 +16,22 @@ export interface LLMGenerationResult {
   fallbackUsed: boolean;
 }
 
-const UNSUPPORTED_MARKDOWN_IMAGE_REGEX = /!\[[^\]]*\]\([^)]*\)/i;
+const UNSUPPORTED_IMAGE_MARKUP_PATTERNS = [
+  /!\[[^\]]*\]\([^)]*\)/i,
+  /<img\b[^>]*>/i,
+  /https?:\/\/[^\s)]+\.(?:avif|gif|jpe?g|png|svg|webp)(?:\?[^\s)]*)?/i,
+] as const;
+
+const UNSUPPORTED_VISUAL_QUESTION_PATTERNS = [
+  /\b(?:im|in der|auf dem|auf der)\s+(?:bild|abbildung|grafik|diagramm|foto|screenshot)\b/i,
+  /\b(?:das|dieses)\s+(?:bild|diagramm|foto|screenshot)\s+(?:zeigt|stellt)\b/i,
+  /\b(?:die|diese)\s+(?:abbildung|grafik)\s+(?:zeigt|stellt)\b/i,
+  /\b(?:in|on)\s+(?:the|this|that)\s+(?:image|figure|diagram|photo|screenshot)\b/i,
+  /\b(?:the|this|that)\s+(?:image|figure|diagram|photo|screenshot)\s+(?:shows?|depicts?)\b/i,
+] as const;
+
+const FALLBACK_BACK_MAX_LENGTH = 1_000;
+const FALLBACK_TITLE_MAX_LENGTH = 100;
 
 /**
  * Generate flashcards from text with model fallback (sync)
@@ -147,10 +162,16 @@ async function generateUrlCardsWithRetry(
 }
 
 function dropUnsupportedImageCards(cards: Flashcard[]): Flashcard[] {
-  return cards.filter(
-    (card) =>
-      !UNSUPPORTED_MARKDOWN_IMAGE_REGEX.test(`${card.front ?? ""} ${card.back ?? ""}`)
-  );
+  return cards.filter((card) => {
+    const fullText = `${card.front ?? ""} ${card.back ?? ""}`;
+    const hasImageMarkup = UNSUPPORTED_IMAGE_MARKUP_PATTERNS.some((pattern) =>
+      pattern.test(fullText)
+    );
+    const hasVisualQuestion = UNSUPPORTED_VISUAL_QUESTION_PATTERNS.some((pattern) =>
+      pattern.test(card.front ?? "")
+    );
+    return !hasImageMarkup && !hasVisualQuestion;
+  });
 }
 
 /**
@@ -171,7 +192,7 @@ function generateFlashcardsFromTextSync(text: string, language: string): Flashca
       : "What is the key point in statement";
     return {
       front: `${prefix} ${index + 1}?`,
-      back: line,
+      back: line.slice(0, FALLBACK_BACK_MAX_LENGTH),
       type: (index % 3 === 0 ? "cloze" : "basic") as "basic" | "cloze",
       difficulty: "medium" as const,
       tags: ["auto-generated", language],
@@ -179,7 +200,9 @@ function generateFlashcardsFromTextSync(text: string, language: string): Flashca
   });
 
   const titleWords = text.split(/\s+/).filter((w) => w.length > 3).slice(0, 3);
-  const title = titleWords.length > 0 ? titleWords.join(" ") : "Lernkarten";
+  const title = (
+    titleWords.length > 0 ? titleWords.join(" ") : "Lernkarten"
+  ).slice(0, FALLBACK_TITLE_MAX_LENGTH);
 
   return { title, cards };
 }
