@@ -118,33 +118,24 @@ describe("urlImportService", () => {
     expect(mockedGenerateFromUrl).not.toHaveBeenCalled();
   });
 
-  it("extracts URL content, generates cards and stores response", async () => {
+  it("extracts URL text, generates cards and stores response — without loading images (#534)", async () => {
     mockedExtractUrlContent.mockResolvedValue({
-      sourceUrl: "https://example.com",
-      pageTitle: "Component Gallery",
-      extractedText: "A page with UI components and labels.",
-      images: [
-        {
-          url: "https://example.com/image.png",
-          altText: "Button group",
-          contextText: "UI component labels",
-          componentHint: "Button group",
-          mimeType: "image/png",
-          dataBase64: "AQIDBA==",
-        },
-      ],
+      sourceUrl: "https://de.wikipedia.org/wiki/Mitochondrium",
+      pageTitle: "Mitochondrium",
+      extractedText: "Mitochondrien sind die Kraftwerke der Zelle.",
+      images: [],
     });
     mockedGenerateFromUrl.mockResolvedValue({
-      title: "Component Gallery",
-      model: "gemini-3-flash-vision",
+      title: "Mitochondrium",
+      model: "gemini-3-flash",
       fallbackUsed: false,
       cards: [
         {
-          front: "![Button group](https://example.com/image.png)\nWelches Element ist markiert?",
-          back: "Primary Button",
+          front: "Welche Aufgabe haben Mitochondrien?",
+          back: "Sie erzeugen Energie in Form von ATP.",
           type: "basic",
           difficulty: "medium",
-          tags: ["ui"],
+          tags: ["biologie"],
         },
       ],
     });
@@ -152,7 +143,7 @@ describe("urlImportService", () => {
     const response = await processUrlImport(
       {
         userId: "6e5db9e4-7e48-4e11-8d8c-6ca90c18d42a",
-        sourceUrl: "https://example.com",
+        sourceUrl: "https://de.wikipedia.org/wiki/Mitochondrium",
         idempotencyKey: "import-002-key",
         sourceLanguage: "de",
         maxImages: 4,
@@ -161,51 +152,43 @@ describe("urlImportService", () => {
       "6e5db9e4-7e48-4e11-8d8c-6ca90c18d42a"
     );
 
+    // No images are loaded, regardless of the client's maxImages.
     expect(mockedExtractUrlContent).toHaveBeenCalledWith({
-      sourceUrl: "https://example.com",
-      maxImages: 4,
+      sourceUrl: "https://de.wikipedia.org/wiki/Mitochondrium",
+      maxImages: 0,
     });
     expect(mockedGenerateFromUrl).toHaveBeenCalledTimes(1);
     expect(mockedGenerateFromUrl).toHaveBeenCalledWith(
       {
-        sourceUrl: "https://example.com",
-        pageTitle: "Component Gallery",
-        extractedText: "A page with UI components and labels.",
-        images: [
-          {
-            sourceUrl: "https://example.com/image.png",
-            altText: "Button group",
-            contextText: "UI component labels",
-            componentHint: "Button group",
-            mimeType: "image/png",
-            dataBase64: "AQIDBA==",
-          },
-        ],
+        sourceUrl: "https://de.wikipedia.org/wiki/Mitochondrium",
+        pageTitle: "Mitochondrium",
+        extractedText: "Mitochondrien sind die Kraftwerke der Zelle.",
+        images: [],
       },
       "de"
     );
     expect(mockedCreateDeck).toHaveBeenCalledWith(
       "6e5db9e4-7e48-4e11-8d8c-6ca90c18d42a",
-      "Component Gallery",
+      "Mitochondrium",
       ["url-import"]
     );
     expect(mockedInsertCards).toHaveBeenCalledTimes(1);
     expect(mockedInsertCards.mock.calls[0]?.[2]).toHaveLength(1);
     expect(mockedRecordScan).toHaveBeenCalledWith(
       "6e5db9e4-7e48-4e11-8d8c-6ca90c18d42a",
-      "gemini-3-flash-vision",
+      "gemini-3-flash",
       1,
-      "https://example.com",
-      "A page with UI components and labels."
+      "https://de.wikipedia.org/wiki/Mitochondrium",
+      "Mitochondrien sind die Kraftwerke der Zelle."
     );
     expect(mockedStoreIdempotentResult).toHaveBeenCalledTimes(1);
 
     expect(response).toMatchObject({
       requestId: "req-2",
-      model: "gemini-3-flash-vision",
-      sourceUrl: "https://example.com",
-      imagesUsed: 1,
-      deckTitle: "Component Gallery",
+      model: "gemini-3-flash",
+      sourceUrl: "https://de.wikipedia.org/wiki/Mitochondrium",
+      imagesUsed: 0,
+      deckTitle: "Mitochondrium",
     });
     expect(response.cards).toHaveLength(1);
   });

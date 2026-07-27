@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
+import { Modal } from "@/components/app/modal";
 import {
   scanText,
   importFromUrl,
@@ -97,6 +98,8 @@ export default function ImportPage() {
   // #427: Die erzeugten, noch NICHT gespeicherten Karten. Solange das gesetzt
   // ist, zeigt die Seite die Vorschau: bearbeiten, einzeln löschen, Ziel wählen.
   const [draft, setDraft] = useState<Flashcard[] | null>(null);
+  // #534: Zeigt den Verwerfen-Bestätigungsdialog, statt sofort zu löschen.
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [newDeckTitle, setNewDeckTitle] = useState("");
   const [saving, setSaving] = useState(false);
   // #427: Welche Karte gerade am Ziehgriff gezogen wird (null = keine).
@@ -450,11 +453,16 @@ export default function ImportPage() {
     setDraft((cards) => (cards ? cards.filter((_card, i) => i !== index) : cards));
   }
 
+  // #534: Nicht mehr sofort verwerfen. Erst der App-eigene Dialog fragt nach —
+  // wie bei anderen destruktiven Aktionen im Web (z. B. Karte löschen) — damit
+  // ein Fehlklick nicht Karten und die dafür ausgegebenen Lernpunkte kostet.
+  // Der schlichte window.confirm wich diesem, passend zum App-Look.
   function handleDiscard() {
-    const confirmed = window.confirm(
-      "Vorschau wirklich verwerfen? Die verwendeten Lernpunkte werden nicht zurückgebucht."
-    );
-    if (!confirmed) return;
+    setConfirmDiscard(true);
+  }
+
+  function discardDraft() {
+    setConfirmDiscard(false);
     setDraft(null);
     setError(null);
     setMode("choose");
@@ -1101,6 +1109,32 @@ export default function ImportPage() {
           </>
         )}
       </div>
+
+      {confirmDiscard && draft && (
+        <Modal title="Karten verwerfen?" onClose={() => setConfirmDiscard(false)}>
+          <p className="muted">
+            Alle {draft.length} erzeugten {draft.length === 1 ? "Karte wird" : "Karten werden"}{" "}
+            gelöscht. Die dafür ausgegebenen Lernpunkte kommen nicht zurück.
+          </p>
+          <div className="modal__actions">
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setConfirmDiscard(false)}
+            >
+              Abbrechen
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ background: "#dc2626", boxShadow: "none" }}
+              onClick={discardDraft}
+            >
+              Verwerfen
+            </button>
+          </div>
+        </Modal>
+      )}
     </>
   );
 }

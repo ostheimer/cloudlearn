@@ -97,13 +97,25 @@ describe("Web-Import-Seite – Plan-Grenzen (#411)", () => {
   });
 
   it("fragt vor dem Verwerfen einer bezahlten Vorschau nach (#534)", () => {
+    // Der Verwerfen-Knopf öffnet erst den App-eigenen Bestätigungsdialog; das
+    // eigentliche Löschen (setDraft(null)) sitzt in discardDraft und läuft nur
+    // nach Bestätigung im Dialog. So kostet ein Fehlklick weder Karten noch die
+    // dafür ausgegebenen Lernpunkte.
     const handler = source.indexOf("function handleDiscard");
-    const confirmation = source.indexOf("window.confirm", handler);
-    const discard = source.indexOf("setDraft(null)", handler);
+    const discardFn = source.indexOf("function discardDraft");
+    const opensDialog = source.indexOf("setConfirmDiscard(true)", handler);
+    const actualDiscard = source.indexOf("setDraft(null)", handler);
 
     expect(handler).toBeGreaterThan(-1);
-    expect(confirmation).toBeGreaterThan(handler);
-    expect(discard).toBeGreaterThan(confirmation);
+    expect(discardFn).toBeGreaterThan(handler);
+    // handleDiscard öffnet den Dialog, bevor irgendetwas gelöscht wird.
+    expect(opensDialog).toBeGreaterThan(handler);
+    expect(opensDialog).toBeLessThan(actualDiscard);
+    // Gelöscht wird erst in discardDraft, nicht schon in handleDiscard.
+    expect(actualDiscard).toBeGreaterThan(discardFn);
+    // Knopf, Dialog und Bestätigungsaktion sind verdrahtet.
     expect(source).toContain("onClick={handleDiscard}");
+    expect(source).toContain("confirmDiscard && draft");
+    expect(source).toContain("onClick={discardDraft}");
   });
 });

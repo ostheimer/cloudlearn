@@ -36,9 +36,15 @@ export async function processUrlImport(
       : await reserveImportTarget({ userId, tier, deckId: parsed.deckId });
   const target = parsed.preview ? null : checked;
 
+  // #534: Bilder werden nicht importiert — auf einer Karte lässt sich ein Bild
+  // nicht anzeigen (Vorder- und Rückseite sind überall reiner Text). Der bereits
+  // gemergte Fix (#536) filtert Bild-Karten heraus; hier wird zusätzlich gar
+  // kein Bild mehr geladen (maxImages: 0). Das spart Datenverbrauch und das
+  // teurere Bild-Modell — extracted.images bleibt leer (imagesUsed 0, kein
+  // Vision-Modell).
   const extracted = await extractUrlContent({
     sourceUrl: parsed.sourceUrl,
-    maxImages: parsed.maxImages,
+    maxImages: 0,
   });
 
   let generated: LLMGenerationResult;
