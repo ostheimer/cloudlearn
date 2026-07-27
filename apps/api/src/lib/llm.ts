@@ -24,6 +24,8 @@ const UNSUPPORTED_IMAGE_MARKUP_PATTERNS = [
 
 const UNSUPPORTED_VISUAL_QUESTION_PATTERNS = [
   /\b(?:im|in der|auf dem|auf der)\s+(?:bild|abbildung|grafik|diagramm|foto|screenshot)\b/i,
+  /\b(?:was|wer|welche(?:r|s|n)?)\b[^?!.]{0,60}\b(?:zeigt|zeigen)\s+(?:das|dieses|die|diese)\s+(?:bild|abbildung|grafik|diagramm|foto|screenshot)\b/i,
+  /\b(?:welche(?:r|s|n)?\s+(?:struktur|komponente|element|objekt)|was)\s+(?:ist|wird)\s+(?:hier\s+)?(?:dargestellt|abgebildet|gezeigt)\s*\?/i,
   /\b(?:das|dieses)\s+(?:bild|diagramm|foto|screenshot)\s+(?:zeigt|stellt)\b/i,
   /\b(?:die|diese)\s+(?:abbildung|grafik)\s+(?:zeigt|stellt)\b/i,
   /\b(?:in|on)\s+(?:the|this|that)\s+(?:image|figure|diagram|photo|screenshot)\b/i,
@@ -31,7 +33,7 @@ const UNSUPPORTED_VISUAL_QUESTION_PATTERNS = [
 ] as const;
 
 const FALLBACK_BACK_MAX_LENGTH = 1_000;
-const FALLBACK_TITLE_MAX_LENGTH = 100;
+const DECK_TITLE_MAX_LENGTH = 100;
 
 /**
  * Generate flashcards from text with model fallback (sync)
@@ -113,7 +115,7 @@ export async function generateFlashcardsFromUrlContentAsync(
     }
 
     return {
-      title: primary.title,
+      title: clampDeckTitle(primary.title),
       cards,
       model,
       fallbackUsed: false,
@@ -200,9 +202,13 @@ function generateFlashcardsFromTextSync(text: string, language: string): Flashca
   });
 
   const titleWords = text.split(/\s+/).filter((w) => w.length > 3).slice(0, 3);
-  const title = (
+  const title = clampDeckTitle(
     titleWords.length > 0 ? titleWords.join(" ") : "Lernkarten"
-  ).slice(0, FALLBACK_TITLE_MAX_LENGTH);
+  );
 
   return { title, cards };
+}
+
+function clampDeckTitle(title: string): string {
+  return title.slice(0, DECK_TITLE_MAX_LENGTH);
 }

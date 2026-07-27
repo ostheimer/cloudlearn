@@ -101,10 +101,14 @@ describe("llm URL quality gate", () => {
           "Welche Struktur ist in der Abbildung zu sehen?",
           "Ein schematisches Diagramm eines Mitochondriums."
         ),
+        makeCard("Was zeigt die Abbildung?", "Eine mitochondriale Membran."),
+        makeCard("Welche Struktur ist dargestellt?", "Eine ATP-Synthase."),
         makeCard("What is shown in the image?", "A mitochondrial membrane."),
+        makeCard("What does the figure show?", "A mitochondrion."),
         makeCard("Welche Struktur ist das? <img src=\"https://img.example.com/1.webp\">", "ATP-Synthase."),
         makeCard("Welche Struktur ist das? https://img.example.com/2.png", "Mitochondriale DNA."),
         makeCard("Was ist ein UML-Diagramm?", "Das Diagramm zeigt Strukturen und Beziehungen."),
+        makeCard("Was ist dargestellt durch x + y?", "Eine Summe."),
         makeCard("Welche Aufgabe haben Mitochondrien?", "Sie stellen Energie bereit."),
       ],
     });
@@ -113,6 +117,7 @@ describe("llm URL quality gate", () => {
 
     expect(result.cards.map((card) => card.front)).toEqual([
       "Was ist ein UML-Diagramm?",
+      "Was ist dargestellt durch x + y?",
       "Welche Aufgabe haben Mitochondrien?",
     ]);
   });
@@ -128,6 +133,18 @@ describe("llm URL quality gate", () => {
     expect(result.fallbackUsed).toBe(false);
     expect(result.title).toBe("Primary Result");
     expect(mockedGenerateFromWeb).toHaveBeenCalledTimes(1);
+  });
+
+  it("clamps a successful URL-generation title to the API contract", async () => {
+    mockedGenerateFromWeb.mockResolvedValueOnce({
+      title: "A".repeat(120),
+      cards: [makeCard("Was ist ein Accordion?", "Ein aufklappbarer Bereich.")],
+    });
+
+    const result = await generateFlashcardsFromUrlContentAsync(baseInput, "de");
+
+    expect(result.fallbackUsed).toBe(false);
+    expect(result.title).toHaveLength(100);
   });
 
   it("uses the text fallback when every generated card depends on an image", async () => {
