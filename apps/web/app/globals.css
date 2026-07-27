@@ -1497,6 +1497,10 @@ ul.reset {
   display: flex;
   align-items: center;
   gap: 2px;
+  /* Seit Profil in der Zeile steht, ist die Kopfzeile nur noch Marke + Navigation.
+     Ohne diese Klammer schiebt space-between die Navigation an den rechten Rand;
+     margin-inline: auto hält sie dort, wo sie mit dem alten Personen-Symbol saß. */
+  margin-inline: auto;
 }
 
 .app-nav a {
