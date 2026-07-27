@@ -12,7 +12,7 @@ import {
   type DeckSummary,
   type TestAttemptSummary,
 } from "@/lib/api";
-import { BarChart, ChevronRight, Flame, Lock } from "@/components/icons";
+import { BarChart, ChevronRight, Flame, Lock, TrendingUp } from "@/components/icons";
 import { useCoarsePointer } from "@/lib/use-coarse-pointer";
 import { AccuracyRing, AccuracyTrendChart, ActivityBars } from "@/components/app/stats-charts";
 import { AccuracyByKindPanel, accColor } from "@/components/app/accuracy-by-kind";
@@ -242,128 +242,91 @@ export default function StatsPage() {
         </p>
       )}
 
-      {/* KPI-Reihe */}
-      <div className="st-kpi">
-        <div className="st-kpi-tile">
-          <span className="muted" style={{ fontSize: "0.78rem" }}>
-            Trefferquote
-          </span>
-          <b>{hasWindowReviews ? `${accPct} %` : "—"}</b>
-          {/* Zähler und Nenner müssen aus demselben Zeitraum stammen: hier stand
-              die Quote der letzten 30 Tage über der Zahl ALLER Antworten seit
-              jeher — zwei Zeiträume in einer Kachel. */}
-          <span className="muted" style={{ fontSize: "0.75rem" }}>
-            {windowCount.toLocaleString("de-DE")} Antworten · {rangeDays} Tage
-          </span>
+      {/* Reihenfolge wie die App-Statistik (apps/mobile/app/(tabs)/stats.tsx) —
+          Laras Vorgabe 27.07.: „zuerst mit der Genauigkeit und Karten pro Tag
+          wie auf dem einen Bild und danach der Rest wie die Trefferquote
+          genauer." Ring, Verlauf und Balken gab es hier schon, sie standen nur
+          hinter den Kennzahl-Kästchen und waren am Handy nicht zu sehen. */}
+
+      {/* Genauigkeit: Ring plus Satz, darunter der Verlauf im selben Block —
+          wie die App, die beides in einer Karte zeigt. */}
+      <div className="panel">
+        <h3
+          className="h3"
+          style={{ margin: "0 0 12px", display: "inline-flex", alignItems: "center", gap: 8 }}
+        >
+          <TrendingUp size={18} style={{ color: "var(--brand)" }} /> Genauigkeit
+        </h3>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <AccuracyRing accuracy={accRate} hasData={hasWindowReviews} size={112} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {hasWindowReviews ? (
+              <>
+                <div style={{ fontWeight: 700, fontSize: "1.05rem" }}>richtig beantwortet</div>
+                <p className="muted" style={{ margin: "2px 0 0", fontSize: "0.9rem" }}>
+                  bei {windowCount.toLocaleString("de-DE")} Antworten in den letzten {rangeDays}{" "}
+                  Tagen
+                </p>
+              </>
+            ) : (
+              <p className="muted" style={{ margin: 0, fontSize: "0.9rem" }}>
+                keine Antworten in den letzten {rangeDays} Tagen
+              </p>
+            )}
+          </div>
         </div>
-        <div className="st-kpi-tile">
-          <span className="muted" style={{ fontSize: "0.78rem" }}>
-            Diese Woche
-          </span>
-          <b>{stats?.reviewsThisWeek ?? 0}</b>
-          <span className="muted" style={{ fontSize: "0.75rem" }}>
-            heute: {stats?.reviewsToday ?? 0}
-          </span>
-        </div>
-        <div className="st-kpi-tile">
-          <span className="muted" style={{ fontSize: "0.78rem" }}>
-            Insgesamt
-          </span>
-          <b>{stats?.reviewsTotal ?? 0}</b>
-          <span className="muted" style={{ fontSize: "0.75rem" }}>
-            {stats?.totalDecks ?? 0} Decks
-          </span>
-        </div>
-        <div className="st-kpi-tile">
-          <span className="muted" style={{ fontSize: "0.78rem", display: "inline-flex", alignItems: "center", gap: 4 }}>
-            <Flame size={13} /> Tage-Streak
-          </span>
-          <b>{stats?.currentStreak ?? 0}</b>
-          <span className="muted" style={{ fontSize: "0.75rem" }}>
-            Rekord: {stats?.longestStreak ?? 0}
-          </span>
+        <div style={{ borderTop: "1px solid var(--line)", marginTop: 16, paddingTop: 12 }}>
+          <div className="muted" style={{ fontSize: "0.85rem", marginBottom: 4 }}>
+            Verlauf — letzte {rangeDays} Tage
+            {learningDays >= 2 &&
+              (coarsePointer ? " · Punkt antippen für Details" : " · Punkt drüberfahren für Details")}
+          </div>
+          {learningDays >= 2 ? (
+            <AccuracyTrendChart data={accuracyByDay} showAllDates={rangeDays === 7} height={220} />
+          ) : (
+            <p className="muted" style={{ padding: "30px 0", textAlign: "center" }}>
+              {hasReviews
+                ? "Verlauf erscheint ab 2 Lern-Tagen."
+                : "Noch keine Antworten. Lerne los, dann füllt sich der Verlauf."}
+            </p>
+          )}
         </div>
       </div>
 
-      {/* Aufgeschlüsselt: die Kachel oben mischt Abrufen und Wiedererkennen.
-          Nur zeigen, wenn die API das Feld liefert — ältere Stände sollen keine
-          leere Karte hinterlassen. */}
+      {/* Karten pro Tag — direkt nach der Genauigkeit, über die volle Breite */}
+      <div className="panel">
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 6 }}>
+          <h3 className="h3" style={{ margin: 0 }}>
+            Karten pro Tag
+          </h3>
+          {reviewsByDay.some((d) => d.count > 0) && (
+            <span className="muted" style={{ fontSize: "0.78rem" }}>
+              {coarsePointer ? "für Details antippen" : "für Details drüberfahren"}
+            </span>
+          )}
+        </div>
+        {reviewsByDay.some((d) => d.count > 0) ? (
+          <ActivityBars data={reviewsByDay} showAllDates={rangeDays === 7} height={210} />
+        ) : (
+          <p className="muted" style={{ padding: "30px 0", textAlign: "center" }}>
+            {hasReviews
+              ? `Keine Wiederholungen in den letzten ${rangeDays} Tagen.`
+              : "Noch keine Wiederholungen."}
+          </p>
+        )}
+      </div>
+
+      {/* Danach der Rest — „Trefferquote genauer" (trennt Abrufen von
+          Wiedererkennen), dann die letzten Prüfungen. Nur zeigen, wenn die API
+          die Felder liefert bzw. geladen ist, sonst blitzt ein Leerzustand auf. */}
       {stats?.accuracyByKind && <AccuracyByKindPanel data={stats.accuracyByKind} />}
 
-      {/* Prüfungs-Bereich — direkt unter „Trefferquote genauer". Erst zeigen,
-          wenn geladen (attempts !== null): sonst blitzte der Leerzustand kurz
-          auf, bevor die Prüfungen da sind. Die selbst vergebene Vergleichszahl
-          ist die „Aus dem Kopf gewusst"-Quote. */}
       {attempts !== null && (
         <TestAttemptsPanel
           attempts={attempts}
           selfGradedRate={stats?.accuracyByKind?.recall.rate ?? null}
         />
       )}
-
-      {/* Hero: Trefferquote-Verlauf, volle Breite */}
-      <div className="panel">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
-          <h3 className="h3" style={{ margin: 0 }}>
-            Trefferquote-Verlauf
-          </h3>
-          <span className="muted" style={{ fontSize: "0.8rem" }}>
-            letzte {rangeDays} Tage
-            {learningDays >= 2 && " · Punkt drüberfahren für Details"}
-          </span>
-        </div>
-        {learningDays >= 2 ? (
-          <AccuracyTrendChart data={accuracyByDay} showAllDates={rangeDays === 7} height={240} />
-        ) : (
-          <p className="muted" style={{ padding: "40px 0", textAlign: "center" }}>
-            {hasReviews
-              ? "Verlauf erscheint ab 2 Lern-Tagen."
-              : "Noch keine Antworten. Lerne los, dann füllt sich der Verlauf."}
-          </p>
-        )}
-      </div>
-
-      {/* Karten pro Tag | Genauigkeit-Ring */}
-      <div className="st-row2">
-        <div className="panel">
-          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 6 }}>
-            <h3 className="h3" style={{ margin: 0 }}>
-              Karten pro Tag
-            </h3>
-            {reviewsByDay.some((d) => d.count > 0) && (
-              <span className="muted" style={{ fontSize: "0.78rem" }}>
-                {coarsePointer ? "für Details antippen" : "für Details drüberfahren"}
-              </span>
-            )}
-          </div>
-          {reviewsByDay.some((d) => d.count > 0) ? (
-            <ActivityBars data={reviewsByDay} showAllDates={rangeDays === 7} height={210} />
-          ) : (
-            <p className="muted" style={{ padding: "30px 0", textAlign: "center" }}>
-              {hasReviews
-                ? `Keine Wiederholungen in den letzten ${rangeDays} Tagen.`
-                : "Noch keine Wiederholungen."}
-            </p>
-          )}
-        </div>
-        <div className="panel" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-          <h3 className="h3" style={{ alignSelf: "flex-start", margin: 0 }}>
-            Genauigkeit
-          </h3>
-          <AccuracyRing accuracy={accRate} hasData={hasWindowReviews} size={128} />
-          <div className="muted" style={{ fontSize: "0.78rem", textAlign: "center" }}>
-            {hasWindowReviews
-              ? `richtig beantwortet bei ${windowCount.toLocaleString("de-DE")} Antworten in den letzten ${rangeDays} Tagen`
-              : `keine Antworten in den letzten ${rangeDays} Tagen`}
-          </div>
-          <div style={{ alignSelf: "stretch", display: "grid", gap: 8, marginTop: 2 }}>
-            {ctxRow("Bester Streak", `${stats?.longestStreak ?? 0} Tage`)}
-            {ctxRow("Decks", stats?.totalDecks ?? 0)}
-            {ctxRow("Jetzt fällig", stats?.dueCards ?? 0)}
-            {ctxRow("Tagesziel", `${stats?.reviewsToday ?? 0} / ${goal || "—"}`)}
-          </div>
-        </div>
-      </div>
 
       {/* Deck-Vergleich — Pro-only; Free sieht einen gesperrten Teaser */}
       <div className="panel">
@@ -466,6 +429,61 @@ export default function StatsPage() {
             })}
           </div>
         )}
+      </div>
+
+      {/* Kennzahlen ganz unten. Die App hat diese Kästchen nicht — „Insgesamt"
+          und „Diese Woche" stehen aber nirgends sonst, deshalb bleiben sie
+          erhalten und rutschen nur unter die Diagramme (Laras Wahl 27.07.). */}
+      <div className="st-kpi">
+        <div className="st-kpi-tile">
+          <span className="muted" style={{ fontSize: "0.78rem" }}>
+            Trefferquote
+          </span>
+          <b>{hasWindowReviews ? `${accPct} %` : "—"}</b>
+          {/* Zähler und Nenner müssen aus demselben Zeitraum stammen: hier stand
+              die Quote der letzten 30 Tage über der Zahl ALLER Antworten seit
+              jeher — zwei Zeiträume in einer Kachel. */}
+          <span className="muted" style={{ fontSize: "0.75rem" }}>
+            {windowCount.toLocaleString("de-DE")} Antworten · {rangeDays} Tage
+          </span>
+        </div>
+        <div className="st-kpi-tile">
+          <span className="muted" style={{ fontSize: "0.78rem" }}>
+            Diese Woche
+          </span>
+          <b>{stats?.reviewsThisWeek ?? 0}</b>
+          <span className="muted" style={{ fontSize: "0.75rem" }}>
+            heute: {stats?.reviewsToday ?? 0}
+          </span>
+        </div>
+        <div className="st-kpi-tile">
+          <span className="muted" style={{ fontSize: "0.78rem" }}>
+            Insgesamt
+          </span>
+          <b>{stats?.reviewsTotal ?? 0}</b>
+          <span className="muted" style={{ fontSize: "0.75rem" }}>
+            {stats?.totalDecks ?? 0} Decks
+          </span>
+        </div>
+        <div className="st-kpi-tile">
+          <span className="muted" style={{ fontSize: "0.78rem", display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <Flame size={13} /> Tage-Streak
+          </span>
+          <b>{stats?.currentStreak ?? 0}</b>
+          <span className="muted" style={{ fontSize: "0.75rem" }}>
+            Rekord: {stats?.longestStreak ?? 0}
+          </span>
+        </div>
+      </div>
+
+      {/* Die vier Zeilen standen bisher unter dem Genauigkeits-Ring. „Jetzt
+          fällig" und „Tagesziel" gibt es nur hier, deshalb bleiben sie — jetzt
+          bei den übrigen Kennzahlen. */}
+      <div className="panel" style={{ display: "grid", gap: 8 }}>
+        {ctxRow("Bester Streak", `${stats?.longestStreak ?? 0} Tage`)}
+        {ctxRow("Decks", stats?.totalDecks ?? 0)}
+        {ctxRow("Jetzt fällig", stats?.dueCards ?? 0)}
+        {ctxRow("Tagesziel", `${stats?.reviewsToday ?? 0} / ${goal || "—"}`)}
       </div>
     </div>
   );
