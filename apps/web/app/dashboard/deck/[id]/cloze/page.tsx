@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
 import { listCardsInDeck, reviewCard, earnLp, isApiError, type Card } from "@/lib/api";
 import { isAnswerCorrect } from "@/lib/answerCheck";
+import { createReviewSendBuffer } from "@/lib/review-send-buffer";
 import { useDisplayName } from "@/lib/use-display-name";
 import { useWobblyIds } from "@/lib/use-wobbly-ids";
 import { filterBySource, type CardSource } from "@/lib/card-source";
@@ -103,6 +104,9 @@ export default function ClozePage() {
   const [earnCapReached, setEarnCapReached] = useState(false);
   const awardStateRef = useRef<SessionAwardState>({ finalized: false, inFlight: null });
   const pendingReviewsRef = useRef<Promise<unknown>[]>([]);
+  // Ein-Schritt-Puffer (#567): hält die jüngste Bewertung zurück, damit
+  // „Trotzdem als richtig zählen" sie ersetzen kann statt doppelt zu melden.
+  const reviewBufferRef = useRef(createReviewSendBuffer());
   const inputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -186,6 +190,9 @@ export default function ClozePage() {
     startAt = 0,
     storedResults?: Record<string, StoredCardResult>,
   ) => {
+    // Eine neue Runde darf keine Bewertung der alten mitschleppen: Die Karte
+    // ist vorbei, ihre Bewertung gehört noch zur vorigen Abrechnung.
+    flushReview();
     await awardSession(round.length);
     awardStateRef.current = { finalized: false, inFlight: null };
     pendingReviewsRef.current = [];
@@ -220,10 +227,28 @@ export default function ClozePage() {
   const setResultAt = (i: number, v: Result | null) =>
     setResults((prev) => prev.map((r, j) => (j === i ? v : r)));
 
-  function review(cardId: string, rating: "good" | "again") {
+  function sendReview(cardId: string, rating: "good" | "again") {
     if (!userId) return;
     const reviewPromise = reviewCard(userId, cardId, rating, { mode: "cloze" }).catch(() => {});
     pendingReviewsRef.current.push(reviewPromise);
+  }
+
+  // Bewertungen einen Schritt zurückhalten statt sofort schicken (#567,
+  // App-Muster): Nur so kann „Trotzdem als richtig zählen" die Bewertung der
+  // Karte auf dem Schirm noch ERSETZEN. Ging sie sofort raus, bliebe der
+  // Fehlversuch stehen und das „gut" käme obendrauf — die Karte gälte als
+  // gescheitert UND bestanden und fiele im Lernplan zurück.
+  function review(cardId: string, rating: "good" | "again") {
+    if (!userId) return;
+    // Die vorige Karte ist endgültig hinter uns — ihre Bewertung darf raus.
+    const previous = reviewBufferRef.current.rate({ cardId, rating });
+    if (previous) sendReview(previous.cardId, previous.rating as "good" | "again");
+  }
+
+  /** Zurückgehaltene Bewertung abschicken: Runde vorbei oder Seite verlassen. */
+  function flushReview() {
+    const last = reviewBufferRef.current.flush();
+    if (last) sendReview(last.cardId, last.rating as "good" | "again");
   }
 
   function check() {
@@ -244,11 +269,20 @@ export default function ClozePage() {
   function override() {
     if (!result || wasCorrect || !current) return;
     setResultAt(idx, { ...result, overridden: true });
-    review(current.id, "good");
+    // Solange die Bewertung dieser Karte noch bei uns liegt, wird sie ersetzt —
+    // die Karte bekommt dann genau ein „gut" und keinen Rückfall. Nur beim
+    // rückwirkenden Übersteuern (zurückgeblättert, Bewertung längst beim
+    // Server) bleibt eine korrigierende zweite Bewertung als einziger Weg.
+    if (!reviewBufferRef.current.amend(current.id, "good")) {
+      sendReview(current.id, "good");
+    }
   }
 
   function next() {
     if (idx + 1 >= round.length) {
+      // Die letzte Karte hat kein „danach", das den Puffer freigäbe — und die
+      // Abrechnung zählt gleich, also muss sie vorher raus.
+      flushReview();
       // Lernpunkte gibt es nur für DIESE Sitzung: Die Slots unterhalb der
       // Untergrenze sind wiederhergestellte Ergebnisse der letzten Sitzung —
       // deren Punkte wurden damals schon abgerechnet.
@@ -305,6 +339,8 @@ export default function ClozePage() {
   }, [deckId, phase, round, idx, source, reverse, results]);
 
   async function quit() {
+    // Auch die zurückgehaltene Bewertung gehört noch zu dieser Sitzung.
+    flushReview();
     // Wie in next(): wiederhergestellte Ergebnisse zählen nicht als neue Reviews.
     const answered = results.slice(floor).filter(Boolean).length;
     const reviewedCount = getSessionReviewedCount(
