@@ -696,7 +696,7 @@ export default function ClozeScreen() {
                     marginTop: spacing.md,
                   }}
                 >
-                  Tippen zum Tauschen
+                  Richtung tauschen
                 </Text>
               </TouchableOpacity>
 
@@ -818,21 +818,21 @@ export default function ClozeScreen() {
               headline={`${correct} von ${total}`}
               subtitle={
                 allRight
-                  ? `alles richtig — stark${displayName ? `, ${displayName}` : ""}!`
-                  : `${wrongCount} ${wrongCount === 1 ? "Karte" : "Karten"} noch offen`
+                  ? `Alles richtig — stark${displayName ? `, ${displayName}` : ""}!`
+                  : `${wrongCount} ${wrongCount === 1 ? "Karte" : "Karten"} noch offen.`
               }
               actions={[
                 ...(allRight
                   ? []
                   : [
                       {
-                        label: `Nur die falschen (${wrongCount})`,
+                        label: `Nur die nicht gewussten (${wrongCount})`,
                         onPress: () => void startRound(wrong),
                         variant: "primary" as const,
                       },
                     ]),
                 {
-                  label: `Alle nochmal (${studyPool.length})`,
+                  label: "Alle nochmal",
                   onPress: () => void startRound(studyPool),
                   variant: allRight ? ("primary" as const) : ("secondary" as const),
                   reload: true,
@@ -875,7 +875,7 @@ export default function ClozeScreen() {
                   textAlign: "center",
                 }}
               >
-                {idx + 1} / {round.length}
+                Karte {idx + 1} von {round.length}
               </Text>
               <View
                 style={{

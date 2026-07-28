@@ -303,7 +303,7 @@ export default function DeckReviewScreen() {
                 marginTop: spacing.md,
               }}
             >
-              Tippen zum Tauschen
+              Richtung tauschen
             </Text>
           </TouchableOpacity>
 

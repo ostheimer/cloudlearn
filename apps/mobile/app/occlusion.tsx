@@ -461,7 +461,7 @@ export default function OcclusionStudyScreen() {
         <View style={{ flex: 1, height: 5, backgroundColor: colors.surfaceSecondary, borderRadius: 4, overflow: "hidden" }}>
           <View style={{ width: `${(index / total) * 100}%`, height: "100%", backgroundColor: colors.primary }} />
         </View>
-        <Text style={{ color: colors.textSecondary, fontWeight: typography.semibold, fontSize: typography.sm }}>{index + 1} / {total}</Text>
+        <Text style={{ color: colors.textSecondary, fontWeight: typography.semibold, fontSize: typography.sm }}>Karte {index + 1} von {total}</Text>
       </View>
 
       {current && (

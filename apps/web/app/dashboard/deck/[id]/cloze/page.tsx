@@ -513,7 +513,7 @@ export default function ClozePage() {
           <i style={{ width: `${Math.max(progress * 100, 2)}%` }} />
         </div>
         <span className="muted" style={{ fontWeight: 700, fontSize: "0.9rem" }}>
-          {idx + 1} / {round.length}
+          Karte {idx + 1} von {round.length}
         </span>
       </div>
 
@@ -573,7 +573,7 @@ export default function ClozePage() {
         </button>
         {revealed ? (
           <button type="button" className="btn btn-primary" onClick={next}>
-            {idx + 1 >= round.length ? "Auswertung" : "Weiter"}
+            {idx + 1 >= round.length ? "Zur Auswertung" : "Weiter"}
           </button>
         ) : (
           <>

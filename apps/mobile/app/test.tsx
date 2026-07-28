@@ -697,7 +697,7 @@ export default function TestScreen() {
                 </View>
                 <Text style={{ flex: 1, textAlign: "left", fontSize: typography.base, fontWeight: typography.semibold, color: colors.text }}>{reverse ? "Vorderseite" : "Rückseite"}</Text>
               </View>
-              <Text style={{ fontSize: typography.xs, color: colors.textTertiary, textAlign: "center", marginTop: spacing.sm }}>Tippen zum Tauschen</Text>
+              <Text style={{ fontSize: typography.xs, color: colors.textTertiary, textAlign: "center", marginTop: spacing.sm }}>Richtung tauschen</Text>
             </TouchableOpacity>
 
             {/* Genau prüfen */}
@@ -805,7 +805,7 @@ export default function TestScreen() {
             <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
               <TouchableOpacity onPress={startTest} activeOpacity={0.85} style={{ backgroundColor: colors.primary, paddingVertical: 14, borderRadius: radius.md, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm }}>
                 <RotateCcw size={18} color={colors.textInverse} />
-                <Text style={{ color: colors.textInverse, fontWeight: typography.bold }}>Neuer Test</Text>
+                <Text style={{ color: colors.textInverse, fontWeight: typography.bold }}>Alle nochmal</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => setPhase("setup")} activeOpacity={0.85} style={{ paddingVertical: 12, borderRadius: radius.md, alignItems: "center" }}>
                 <Text style={{ color: colors.textSecondary, fontWeight: typography.semibold, fontSize: typography.base }}>Einstellungen</Text>
@@ -839,7 +839,7 @@ export default function TestScreen() {
             {/* Progress + timer */}
             <View style={{ gap: spacing.xs }}>
               <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                <Text style={{ fontSize: typography.sm, color: colors.textSecondary, fontWeight: typography.medium }}>{idx + 1} / {questions.length}</Text>
+                <Text style={{ fontSize: typography.sm, color: colors.textSecondary, fontWeight: typography.medium }}>Frage {idx + 1} von {questions.length}</Text>
                 {timed && (
                   <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.xs }}>
                     <Timer size={14} color={remaining <= 30 ? colors.error : colors.textSecondary} />

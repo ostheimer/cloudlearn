@@ -369,7 +369,7 @@ export default function OcclusionLearnPage() {
           <i style={{ width: `${(index / total) * 100}%` }} />
         </div>
         <span className="muted" style={{ fontWeight: 700, fontSize: "0.9rem" }}>
-          {index + 1} / {total}
+          Karte {index + 1} von {total}
         </span>
       </div>
 

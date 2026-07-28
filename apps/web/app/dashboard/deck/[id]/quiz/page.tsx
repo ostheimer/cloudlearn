@@ -478,7 +478,7 @@ export default function QuizPage() {
           <i style={{ width: `${((index + (answered ? 1 : 0)) / total) * 100}%` }} />
         </div>
         <span className="muted" style={{ fontWeight: 700, fontSize: "0.9rem" }}>
-          {index + 1} / {total}
+          Frage {index + 1} von {total}
         </span>
       </div>
 
