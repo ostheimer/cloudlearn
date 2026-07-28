@@ -1,0 +1,81 @@
+name: E2E Live
+
+# Live end-to-end suite (playwright.config.ts) against the production Vercel
+# deployments (clearn-web / clearn-api). Kept separate from ci.yml so it never
+# blocks normal PR development. See docs/runbooks/e2e-live-ci.md (#85, part 3).
+
+on:
+  # Once a day, 05:00 UTC (~07:00 Europe/Berlin in summer).
+  schedule:
+    - cron: "0 5 * * *"
+  # Manual "Run workflow" button in the Actions tab.
+  workflow_dispatch:
+
+# Never run two live suites at once against production.
+concurrency:
+  group: e2e-live
+  cancel-in-progress: false
+
+jobs:
+  # Gate the suite on the credentials being configured. Until Andreas adds the
+  # secrets (see the runbook) this reports a friendly notice and stays green,
+  # instead of failing red every night.
+  guard:
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.check.outputs.run }}
+    steps:
+      - name: Check for E2E credentials
+        id: check
+        env:
+          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+        run: |
+          if [ -n "$TEST_USER_PASSWORD" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Live E2E secrets not configured yet — skipping. See docs/runbooks/e2e-live-ci.md"
+          fi
+
+  e2e:
+    needs: guard
+    if: needs.guard.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.29.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run live E2E suite
+        run: pnpm exec playwright test
+        env:
+          CI: "true"
+          # All values come from the repo secrets — never hard-coded here.
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
+          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
