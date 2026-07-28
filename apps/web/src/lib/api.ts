@@ -493,7 +493,7 @@ export interface PdfImportResponse extends ScanResponse {
   extractedCharacters: number;
 }
 
-export interface AiUsageResponse {
+export interface LpBalanceResponse {
   tier: "free" | "pro" | "lifetime";
   lpBalance: number;
   lpEarnedToday: number;
@@ -652,8 +652,8 @@ export function saveImportedCards(params: {
 }
 
 /** Aktueller Lernpunkte-Stand + Kosten pro KI-Aktion. */
-export function getLpBalance(): Promise<AiUsageResponse> {
-  return authed<AiUsageResponse>("/api/v1/usage");
+export function getLpBalance(): Promise<LpBalanceResponse> {
+  return authed<LpBalanceResponse>("/api/v1/usage");
 }
 
 export interface LpEarnResponse {
