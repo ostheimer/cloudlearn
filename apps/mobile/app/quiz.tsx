@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useLocalSearchParams, useRouter, Stack } from "expo-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocalSearchParams, useRouter, Stack, useFocusEffect } from "expo-router";
 import {
   ActivityIndicator,
   Image,
@@ -26,7 +26,12 @@ import { earnLp, listCardsInDeck, type Card } from "../src/lib/api";
 import { sendReview } from "../src/features/sync/sendReview";
 import { setLastUsedDeck } from "../src/lib/lastUsedDeck";
 import { useDisplayName } from "../src/lib/useDisplayName";
-import { finishRateModeRound } from "../src/lib/rateModeRound";
+import {
+  beginSessionAward,
+  getSessionReviewedCount,
+  isSessionEarnFinalized,
+  type SessionAwardState,
+} from "../src/lib/learn-session-lp";
 import { useSessionStore } from "../src/store/sessionStore";
 import { useUsageStore } from "../src/store/usageStore";
 import { excludeOcclusionCards } from "../src/lib/occlusion";
@@ -88,6 +93,14 @@ export default function QuizScreen() {
   // Schritt 8); eine eigene Rechnung würde bei der zweiten Runde lügen.
   const [earnedLp, setEarnedLp] = useState(0);
 
+  // LP-Abrechnung nach dem #397-Muster (wie Lernen/Lückentext): Antworten
+  // werden sofort gemeldet, die eine Gutschrift je Runde wartet erst alle
+  // offenen Meldungen ab. So verliert ein Abbruch mitten in der Runde weder
+  // Streak noch Statistik noch Punkte (#566).
+  const awardStateRef = useRef<SessionAwardState>({ finalized: false, inFlight: null });
+  const pendingReviewsRef = useRef<Promise<unknown>[]>([]);
+  const sessionReviewsRef = useRef(0);
+
   // Setup choices (picked before the quiz starts)
   const [inSetup, setInSetup] = useState(true);
   const [reverse, setReverse] = useState(false);
@@ -146,6 +159,88 @@ export default function QuizScreen() {
     loadCards();
   }, [loadCards]);
 
+  /**
+   * Die EINE Gutschrift der Runde. `beginSessionAward` sorgt dafür, dass sie
+   * trotz mehrerer Aufrufer (Rundenende, Blur-Cleanup, Folgerunden-Start) nur
+   * einmal läuft. Schlägt sie fehl, sind die Wiederholungen trotzdem schon
+   * draußen — Streak und Statistik hängen daran und sind wichtiger als die
+   * Punkte; die Oberfläche zeigt dann einfach keine an.
+   */
+  const awardSession = useCallback(
+    (reviewedCount: number) => {
+      const state = awardStateRef.current;
+      return beginSessionAward(state, reviewedCount, async () => {
+        const maxAttempts = 3;
+        const retryDelayMs = 250;
+
+        for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+          if (attempt > 0) {
+            await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+          }
+
+          const pendingReviews = pendingReviewsRef.current;
+          pendingReviewsRef.current = [];
+          await Promise.allSettled(pendingReviews);
+
+          try {
+            const result = await earnLp("session", reviewedCount);
+            if (result.granted > 0) {
+              setUsage({ lpBalance: result.newBalance });
+              setEarnedLp(result.granted);
+            }
+            if (isSessionEarnFinalized(result, reviewedCount)) {
+              state.finalized = true;
+              break;
+            }
+          } catch {
+            // LP-Gutschrift best-effort
+          }
+        }
+      });
+    },
+    [setUsage],
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      awardStateRef.current = { finalized: false, inFlight: null };
+      pendingReviewsRef.current = [];
+      sessionReviewsRef.current = 0;
+
+      return () => {
+        // „Abbrechen" im Header ist ein normales Zurück ohne eigenen Handler —
+        // nur dieses Blur-Cleanup sieht den Abbruch mitten in der Runde noch
+        // und rechnet die bis dahin beantworteten Fragen ab (#566).
+        const reviewedCount = getSessionReviewedCount(
+          sessionReviewsRef.current,
+          pendingReviewsRef.current.length,
+        );
+        void awardSession(reviewedCount);
+      };
+    }, [awardSession]),
+  );
+
+  // Jede Runde ist eine eigene Abrechnung. Weil `handleNext` am Rundenende
+  // sofort gutschreibt (state.finalized = true), liefen „Alle nochmal" und
+  // „Nur die nicht gewussten" sonst dauerhaft ohne Lernpunkte. Reihenfolge
+  // wie cloze.startRound: erst die vorige Gutschrift zu Ende laufen lassen,
+  // DANN wieder scharf machen — sonst setzt der noch laufende Lauf
+  // `finalized` wieder auf true, nachdem es hier zurückgesetzt wurde.
+  const beginRound = async (qs: QuizQuestion[]) => {
+    await awardSession(
+      getSessionReviewedCount(sessionReviewsRef.current, pendingReviewsRef.current.length),
+    );
+    awardStateRef.current.finalized = false;
+    pendingReviewsRef.current = [];
+    sessionReviewsRef.current = 0;
+    setEarnedLp(0);
+    setQuestions(qs);
+    setCurrentIdx(0);
+    setSelections(new Array<number | null>(qs.length).fill(null));
+    setFinished(false);
+    setInSetup(false);
+  };
+
   const startQuiz = () => {
     if (!canStart) return;
     const q = generateQuestions(pool, count, quizCopy, Math.random, {
@@ -154,11 +249,7 @@ export default function QuizScreen() {
       allowTrueFalse: typeTF,
     });
     if (q.length === 0) return;
-    setQuestions(q);
-    setCurrentIdx(0);
-    setSelections(new Array<number | null>(q.length).fill(null));
-    setFinished(false);
-    setInSetup(false);
+    void beginRound(q);
   };
 
   // Selection of the question currently on screen (derived, not own state,
@@ -169,66 +260,51 @@ export default function QuizScreen() {
   const progress =
     questions.length > 0 ? (currentIdx + 1) / questions.length : 0;
 
+  /**
+   * Antwort antippen: sofort als Wiederholung melden, nicht erst am Rundenende
+   * sammeln — ein Abbruch mitten in der Runde verlor sonst alles (#566).
+   *
+   * Bis Issue #406 meldete Multiple Choice in der App gar nichts. Der Modus
+   * "quiz" sorgt dafür, dass der Lernplan NUR bei Fehlern angefasst wird:
+   * richtig Geratenes beweist nichts.
+   *
+   * Kein Rückhalte-Puffer wie im Lückentext (#283) nötig: Eine angetippte
+   * Antwort ist endgültig — der Zurück-Pfeil zeigt alte Fragen nur gesperrt
+   * an, es gibt kein „zählt trotzdem". Nichts kann sich nachträglich ändern,
+   * also kann nichts doppelt gemeldet werden.
+   */
   const handleSelect = (optionIdx: number) => {
     if (selected !== null) return; // Already answered
     setSelections((s) => s.map((v, i) => (i === currentIdx ? optionIdx : v)));
+    if (userId && question) {
+      sessionReviewsRef.current += 1;
+      const reviewPromise = sendReview({
+        userId,
+        cardId: question.cardId,
+        rating: optionIdx === question.correctIndex ? "good" : "again",
+        mode: "quiz",
+      });
+      pendingReviewsRef.current.push(reviewPromise);
+    }
   };
 
   const handleNext = () => {
     if (currentIdx + 1 >= questions.length) {
       setFinished(true);
-      void reportRound();
+      // Ohne await: Das Ergebnis erscheint sofort, die Abrechnung läuft
+      // dahinter. Nur die Punkte-Zahl kommt nach.
+      const reviewedCount = getSessionReviewedCount(
+        sessionReviewsRef.current,
+        pendingReviewsRef.current.length,
+      );
+      void awardSession(reviewedCount);
     } else {
       setCurrentIdx((i) => i + 1);
     }
   };
 
-  /**
-   * Runde melden: Antworten als Wiederholungen, danach die Lernpunkte.
-   *
-   * Bis Issue #406 meldete Multiple Choice in der App gar nichts — kein
-   * Streak, keine Statistik, keine Punkte, obwohl gelernt wurde. Der Modus
-   * "quiz" sorgt dafür, dass der Lernplan NUR bei Fehlern angefasst wird:
-   * richtig Geratenes beweist nichts.
-   *
-   * Ohne await hinter setFinished: Das Ergebnis erscheint sofort, das Melden
-   * läuft dahinter. Nur die Punkte-Zahl kommt nach.
-   */
-  const reportRound = async () => {
-    if (!userId) return;
-    const answered = questions
-      .map((q, i) => ({ q, sel: selections[i] }))
-      .filter((x) => x.sel !== null && x.sel !== undefined);
-    if (answered.length === 0) return;
-
-    const result = await finishRateModeRound(
-      answered.map(({ q, sel }) => ({
-        cardId: q.cardId,
-        correct: sel === q.correctIndex,
-      })),
-      {
-        reportReview: (cardId, rating) =>
-          sendReview({ userId, cardId, rating, mode: "quiz" }),
-        earn: async (count) => {
-          const res = await earnLp("session", count);
-          if (res.granted > 0) setUsage({ lpBalance: res.newBalance });
-          return { granted: res.granted, capReached: res.capReached };
-        },
-      }
-    );
-    setEarnedLp(result.granted);
-  };
-
   const handleBack = () => {
     setCurrentIdx((i) => Math.max(0, i - 1));
-  };
-
-  const handleRestart = () => {
-    // Zurücksetzen, sonst steht bei der zweiten Runde die Punktzahl der ersten
-    // — und die stimmt dann nie, weil der Server dieselbe Karte am selben Tag
-    // nur einmal vergütet.
-    setEarnedLp(0);
-    startQuiz();
   };
 
   // Grading derived from the per-question selections.
@@ -254,11 +330,7 @@ export default function QuizScreen() {
       allowTrueFalse: typeTF,
     });
     if (q.length === 0) return;
-    setQuestions(q);
-    setCurrentIdx(0);
-    setSelections(new Array<number | null>(q.length).fill(null));
-    setFinished(false);
-    setInSetup(false);
+    void beginRound(q);
   };
 
   if (loading) {
@@ -812,7 +884,7 @@ export default function QuizScreen() {
                 </TouchableOpacity>
               )}
               <TouchableOpacity
-                onPress={handleRestart}
+                onPress={startQuiz}
                 style={{
                   backgroundColor: wrongCards.length > 0 ? colors.surface : colors.primary,
                   borderWidth: wrongCards.length > 0 ? 1 : 0,
