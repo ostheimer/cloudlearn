@@ -1,0 +1,44 @@
+/**
+ * Antwort-Prüfung des Lückentexts — die Fälle, an denen #564 hing: Das
+ * Tippfehler-Budget richtet sich nach der ERWARTETEN Antwort und ist unter
+ * 8 Buchstaben null (App-Regel, Laras Entscheidung). Web und App müssen
+ * dieselbe getippte Antwort gleich bewerten.
+ */
+
+import { describe, expect, it } from "vitest";
+import { isAnswerCorrect, normalizeAnswer } from "./answerCheck";
+
+describe("nachsichtiger Modus", () => {
+  it("verlangt unter 8 Buchstaben die exakte Schreibung — maus zählt nicht für haus (#564)", () => {
+    expect(isAnswerCorrect("maus", "Haus")).toBe(false);
+    expect(isAnswerCorrect("haus", "Haus")).toBe(true);
+  });
+
+  it("erlaubt ab 8 Buchstaben einen Tippfehler — diagram zählt für diagramm", () => {
+    expect(isAnswerCorrect("diagram", "Diagramm")).toBe(true);
+    expect(isAnswerCorrect("diagrom", "Diagramm")).toBe(false);
+  });
+
+  it("ignoriert Groß/klein, Akzente und Satzzeichen", () => {
+    expect(isAnswerCorrect("  CAFE ", "Café.")).toBe(true);
+  });
+
+  it("akzeptiert jede aufgelistete Alternative", () => {
+    expect(isAnswerCorrect("ohnegleichen", "beispiellos, ohnegleichen")).toBe(true);
+  });
+});
+
+describe("strenger Modus", () => {
+  it("verlangt die exakte Schreibung, akzeptiert aber Alternativen", () => {
+    expect(isAnswerCorrect("cafe", "Café", { strict: true })).toBe(false);
+    expect(isAnswerCorrect("ohnegleichen", "beispiellos/ohnegleichen", { strict: true })).toBe(
+      true
+    );
+  });
+});
+
+describe("normalizeAnswer", () => {
+  it("entfernt Akzente, Satzzeichen und Mehrfach-Leerzeichen", () => {
+    expect(normalizeAnswer("  Crème   brûlée! ")).toBe("creme brulee");
+  });
+});

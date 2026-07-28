@@ -72,7 +72,12 @@ export function isAnswerCorrect(
   }
 
   // Nachsichtig: Groß/klein, Akzente und Satzzeichen ignorieren, kleine
-  // Tippfehler tolerieren. Die erlaubte Tippfehlerzahl wächst mit der Länge.
+  // Tippfehler tolerieren. Das Tippfehler-Budget wächst mit der Länge der
+  // ERWARTETEN Antwort (candidate), nie mit der Eingabe — eine lange falsche
+  // Antwort erkauft sich also keine Extra-Toleranz: unter 8 Buchstaben muss es
+  // exakt stimmen, 8–15 erlaubt einen Tippfehler, ab 16 zwei. So zählt
+  // „diagram" für „diagramm", aber „maus" nicht mehr für „haus" (#564,
+  // dieselbe Regel wie die App — Laras Entscheidung: die strenge gilt).
   const answer = normalizeAnswer(input);
   if (!answer) return false;
   return candidates
@@ -81,7 +86,6 @@ export function isAnswerCorrect(
     .some(
       (candidate) =>
         candidate === answer ||
-        (candidate.length >= 4 &&
-          levenshtein(answer, candidate) <= Math.max(1, Math.floor(candidate.length / 8)))
+        levenshtein(answer, candidate) <= Math.floor(candidate.length / 8)
     );
 }
