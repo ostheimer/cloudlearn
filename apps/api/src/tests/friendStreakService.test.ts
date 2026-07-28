@@ -9,6 +9,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   clampDisplayName,
   inviteFriendStreak,
+  leaveFriendStreak,
   remindFriendStreak,
 } from "@/services/friendStreakService";
 import { createSupabaseAdminClient } from "@/lib/supabase";
@@ -28,47 +29,59 @@ function chain(result: unknown) {
 }
 
 /**
- * friend_streaks serves two different queries, so a canned result won't do:
- *  - `.select().eq().eq().maybeSingle()` → the streak row.
- *  - `.update().eq().eq().or().select()` → the push brake's conditional claim.
+ * friend_push_log backs the push brake (#342): one row per (sender, recipient,
+ * local day). The service claims a slot with an INSERT … ON CONFLICT DO NOTHING
+ * (`.upsert(..., { ignoreDuplicates: true }).select()` → the inserted row, or []
+ * on conflict) and then best-effort prunes older days of that direction with
+ * `.delete().eq().eq().lt()`.
  *
- * The claim is the thing under test, so the mock simulates it for real against
- * an in-memory stamp per direction: the update only "matches" when the stamp is
- * unset or older than the day start in the `.or()` filter — exactly what the
- * single atomic UPDATE does in Postgres. Stamps persist across calls on one
- * mockDb(), so a test can nudge twice and observe the brake.
+ * The mock simulates both against an in-memory Set of "sender|recipient|day"
+ * keys, shared across calls on one mockDb(), so a test can nudge twice and watch
+ * the brake bite. Unlike the old brake this table stands on its own, so leaving
+ * a streak (which deletes the friend_streaks row) never resets it.
  */
-function friendStreaksTable(
-  streakRow: { status: string; invited_by: string } | null,
-  stamps: Record<string, string | null>
-) {
+function friendPushLogTable(log: Set<string>) {
   const obj: Record<string, unknown> = {};
-  let updatePayload: Record<string, string> | null = null;
-  let orFilter: string | null = null;
+  let mode: "upsert" | "delete" | null = null;
+  let payload: { sender_id: string; recipient_id: string; local_day: string } | null = null;
+  const filters: { sender_id?: string; recipient_id?: string; ltDay?: string } = {};
 
-  for (const m of ["select", "eq", "delete"]) obj[m] = () => obj;
-  obj.update = (payload: Record<string, string>) => {
-    updatePayload = payload;
+  obj.upsert = (p: { sender_id: string; recipient_id: string; local_day: string }) => {
+    mode = "upsert";
+    payload = p;
     return obj;
   };
-  obj.or = (filter: string) => {
-    orFilter = filter;
+  obj.delete = () => {
+    mode = "delete";
     return obj;
   };
-  obj.maybeSingle = () => Promise.resolve({ data: streakRow });
+  obj.select = () => obj;
+  obj.eq = (col: string, val: string) => {
+    (filters as Record<string, string>)[col] = val;
+    return obj;
+  };
+  obj.lt = (_col: string, val: string) => {
+    filters.ltDay = val;
+    return obj;
+  };
 
   function resolve() {
-    if (!updatePayload || !orFilter) return { data: streakRow };
-    // Filter shape: `<col>.is.null,<col>.lt.<iso>`
-    const [nullPart, ltPart] = (orFilter as string).split(",");
-    const column = nullPart!.replace(".is.null", "");
-    const dayStart = ltPart!.slice(ltPart!.indexOf(".lt.") + 4);
-    const current = stamps[column] ?? null;
-    // ISO-8601 UTC strings sort chronologically, so a string compare matches
-    // what Postgres does with timestamptz.
-    if (current !== null && current >= dayStart) return { data: [] };
-    stamps[column] = updatePayload[column]!;
-    return { data: [{ user_low: "low" }] };
+    if (mode === "upsert" && payload) {
+      const key = `${payload.sender_id}|${payload.recipient_id}|${payload.local_day}`;
+      if (log.has(key)) return { data: [] }; // conflict → nothing inserted
+      log.add(key);
+      return { data: [{ local_day: payload.local_day }] };
+    }
+    if (mode === "delete") {
+      for (const key of [...log]) {
+        const [s, r, d] = key.split("|");
+        if (s === filters.sender_id && r === filters.recipient_id && filters.ltDay && d! < filters.ltDay) {
+          log.delete(key);
+        }
+      }
+      return { data: null };
+    }
+    return { data: null };
   }
   obj.then = (onF: (v: unknown) => unknown) => Promise.resolve(resolve()).then(onF);
   return obj;
@@ -79,18 +92,19 @@ function mockDb(opts: {
   streakRow?: { status: string; invited_by: string } | null;
   tokens?: string[];
   name?: string | null;
-  stamps?: Record<string, string | null>;
+  log?: Set<string>;
 }) {
-  const stamps: Record<string, string | null> = opts.stamps ?? {};
+  const log: Set<string> = opts.log ?? new Set<string>();
   const rpc = vi.fn().mockResolvedValue({ data: opts.rpcResult ?? null, error: null });
   const from = vi.fn((table: string) => {
     if (table === "push_tokens") return chain({ data: (opts.tokens ?? []).map((t) => ({ token: t })) });
     if (table === "profiles") return chain({ data: { display_name: opts.name ?? null } });
-    if (table === "friend_streaks") return friendStreaksTable(opts.streakRow ?? null, stamps);
+    if (table === "friend_streaks") return chain({ data: opts.streakRow ?? null });
+    if (table === "friend_push_log") return friendPushLogTable(log);
     return chain({ data: null });
   });
   vi.mocked(createSupabaseAdminClient).mockReturnValue({ rpc, from } as never);
-  return { rpc, from, stamps };
+  return { rpc, from, log };
 }
 
 function pushBodies(): string[] {
@@ -253,7 +267,21 @@ describe("push brake — max one push per pair per local day", () => {
     const blocked = await remindFriendStreak(A, B);
 
     expect(blocked.sent).toBe(false);
-    expect(db.stamps).toEqual({}); // …and nothing was stamped
+    expect(db.log.size).toBe(0); // …and nothing was logged
+  });
+
+  it("leaving and re-inviting the same day does not hand out a fresh slot (#342)", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-16T09:00:00Z"));
+    mockDb({ rpcResult: "invited", tokens: ["ExpoTok[B]"], name: "Lara" });
+
+    await inviteFriendStreak(A, B); // claims today's slot and pushes once
+    await leaveFriendStreak(A, B); // deletes the friend_streaks row — brake must NOT reset
+    await inviteFriendStreak(A, B); // same Berlin day, fresh streak row
+
+    // The brake lives in friend_push_log, not on the deleted streak row, so the
+    // re-invite finds today's slot already taken and stays silent.
+    expect(sendExpoPushNotification).toHaveBeenCalledTimes(1);
   });
 });
 

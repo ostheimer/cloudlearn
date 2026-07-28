@@ -1,5 +1,5 @@
 import { createSupabaseAdminClient } from "@/lib/supabase";
-import { startOfTodayLocalIso, todayLocal } from "@/lib/localDay";
+import { todayLocal } from "@/lib/localDay";
 import { sendExpoPushNotification } from "@/services/notificationService";
 
 function getDb() {
@@ -128,33 +128,49 @@ async function displayName(db: ReturnType<typeof getDb>, userId: string, fallbac
  * Claim today's single push slot for sender → recipient, atomically.
  *
  * Without a brake every call fires a push, so a friend can spam arbitrary text
- * at will. One conditional UPDATE both tests and stamps the slot, so two
- * concurrent calls cannot both win: PostgREST returns the updated row only when
- * the stamp was still unset or older than the start of the local day (Berlin,
- * #211 — not UTC). Returns false when this direction already pushed today.
+ * at will. The brake lives in its own table (friend_push_log), keyed by
+ * (sender, recipient, local day — Berlin, #211, not UTC). One INSERT … ON
+ * CONFLICT DO NOTHING both tests and stamps the slot: two concurrent calls
+ * cannot both win because only the first insert of that key succeeds, the rest
+ * conflict and return no row. Returns true when this call claimed the slot
+ * (→ send the push), false when this direction already pushed today.
  *
- * The stamp lives per direction (low/high) because the row covers the unordered
- * pair — A nudging B must not consume B's nudge back to A.
+ * The slot is per direction because A nudging B must not consume B's nudge back
+ * to A. Crucially the log does NOT hang off friend_streaks, so leaving and then
+ * re-inviting no longer hands out a fresh slot (#342) — the previous brake kept
+ * the stamp on the streak row, which leaveFriendStreak deletes.
  */
 async function claimDailyPush(
   db: ReturnType<typeof getDb>,
   senderId: string,
   recipientId: string
 ): Promise<boolean> {
-  const low = senderId < recipientId ? senderId : recipientId;
-  const high = senderId < recipientId ? recipientId : senderId;
-  const column = senderId === low ? "last_reminded_at_low" : "last_reminded_at_high";
-  const dayStart = startOfTodayLocalIso();
+  const today = todayLocal();
 
   const { data } = await db
-    .from("friend_streaks")
-    .update({ [column]: new Date().toISOString() })
-    .eq("user_low", low)
-    .eq("user_high", high)
-    .or(`${column}.is.null,${column}.lt.${dayStart}`)
-    .select("user_low");
+    .from("friend_push_log")
+    .upsert(
+      { sender_id: senderId, recipient_id: recipientId, local_day: today },
+      { onConflict: "sender_id,recipient_id,local_day", ignoreDuplicates: true }
+    )
+    .select("local_day");
 
-  return (data ?? []).length > 0;
+  const claimed = (data ?? []).length > 0;
+
+  // Best-effort prune: once a new day is claimed, this direction's older rows
+  // are dead weight (we only ever read today), so drop them to keep the table
+  // at ~one row per direction. A failed prune must never block the push, so its
+  // outcome is intentionally ignored.
+  if (claimed) {
+    await db
+      .from("friend_push_log")
+      .delete()
+      .eq("sender_id", senderId)
+      .eq("recipient_id", recipientId)
+      .lt("local_day", today);
+  }
+
+  return claimed;
 }
 
 export async function inviteFriendStreak(
