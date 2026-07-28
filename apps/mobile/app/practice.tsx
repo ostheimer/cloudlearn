@@ -86,7 +86,7 @@ export default function PracticeScreen() {
           await Promise.allSettled(pendingReviews);
 
           try {
-            const result = await earnLp("session");
+            const result = await earnLp("session", reviewedCount);
             if (result.granted > 0) {
               setUsage({ lpBalance: result.newBalance });
             }

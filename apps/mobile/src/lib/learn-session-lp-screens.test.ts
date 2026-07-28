@@ -35,7 +35,7 @@ for (const { name, rel } of SCREENS) {
 
     it("wartet die offenen Reviews ab, BEVOR earnLp läuft", () => {
       const waited = source.indexOf("await Promise.allSettled(pendingReviews);");
-      const earned = source.indexOf('earnLp("session")');
+      const earned = source.indexOf('earnLp("session", reviewedCount)');
       expect(waited).toBeGreaterThan(-1);
       expect(earned).toBeGreaterThan(-1);
       expect(waited).toBeLessThan(earned);

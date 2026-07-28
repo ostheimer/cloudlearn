@@ -286,7 +286,7 @@ export default function ClozeScreen() {
           await Promise.allSettled(pendingReviews);
 
           try {
-            const result = await earnLp("session");
+            const result = await earnLp("session", reviewedCount);
             if (result.granted > 0) setUsage({ lpBalance: result.newBalance });
             if (isSessionEarnFinalized(result, reviewedCount)) {
               state.finalized = true;
