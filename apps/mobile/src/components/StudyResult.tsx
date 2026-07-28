@@ -6,9 +6,10 @@ import { useColors, spacing, radius, typography } from "../theme";
 // Shared result screen for the "learning" study modes (Karteikarten, Üben,
 // Lücken, Zuordnen, Occlusion, Quiz). One frame, so every mode's end screen
 // looks the same: a green trophy (a finished round is never a fail — the
-// red/yellow/green grade belongs to the Test), a big "X von Y" headline, an
-// optional subtitle, an optional accessory (LP pill, stars), and a stack of
-// actions. Only the numbers and the middle change per mode.
+// red/yellow/green grade belongs to the Test), a big headline („Runde
+// geschafft, {Name}!" in den Lern-Modi, „80%" in den Mess-Modi — Laras
+// Aufteilung aus #571 Teil A), an optional subtitle, an optional accessory
+// (LP pill, status line), and a stack of actions.
 export type StudyResultAction = {
   label: string;
   onPress: () => void;

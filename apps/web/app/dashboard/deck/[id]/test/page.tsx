@@ -651,7 +651,7 @@ export default function TestPage() {
             <Trophy size={48} />
           </div>
           <div style={{ fontSize: "2.4rem", fontWeight: 800, letterSpacing: "-0.02em" }}>
-            {percent} %
+            {percent}%
           </div>
           <p className="muted" style={{ margin: 0 }}>
             {scoredCount} von {questions.length} richtig

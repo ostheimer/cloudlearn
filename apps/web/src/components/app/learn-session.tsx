@@ -384,7 +384,7 @@ export function LearnSession({
           <div className="flip__face flip__face--front">
             <span className="flip__label">Frage</span>
             <span className="flip__q">{current?.front}</span>
-            <span className="flip__hint">Zum Umdrehen klicken</span>
+            <span className="flip__hint">Klicken zum Umdrehen</span>
           </div>
           <div className="flip__face flip__face--back">
             <span className="flip__label">Antwort</span>

@@ -259,12 +259,10 @@ export default function PracticeScreen() {
             </View>
           ) : completed ? (
             <StudyResult
-              headline={`${knownCount} von ${cards.length}`}
-              subtitle={
-                missedCards.length > 0
-                  ? `gewusst · ${missedCards.length} noch üben`
-                  : `alles gewusst — stark${displayName ? `, ${displayName}` : ""}!`
-              }
+              headline={`Runde geschafft${displayName ? `, ${displayName}` : ""}!`}
+              subtitle={`Du hast ${cards.length} ${
+                cards.length === 1 ? "Karte" : "Karten"
+              } wiederholt — ${knownCount} davon sicher gewusst.`}
               actions={[
                 ...(missedCards.length > 0
                   ? [

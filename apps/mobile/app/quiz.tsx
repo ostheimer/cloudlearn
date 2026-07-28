@@ -346,12 +346,23 @@ export default function QuizScreen() {
           <Text
             style={{
               marginTop: spacing.lg,
-              fontSize: typography.lg,
+              fontSize: typography.xl,
+              fontWeight: typography.bold,
+              color: colors.text,
+              textAlign: "center",
+            }}
+          >
+            Zu wenige Karten
+          </Text>
+          <Text
+            style={{
+              marginTop: spacing.sm,
+              fontSize: typography.base,
               color: colors.textSecondary,
               textAlign: "center",
             }}
           >
-            Mindestens 2 Karten nötig für Multiple Choice.
+            Für Multiple Choice braucht das Deck mindestens 2 Karten.
           </Text>
         </SafeAreaView>
       </>
@@ -616,7 +627,16 @@ export default function QuizScreen() {
                 color: colors.text,
               }}
             >
-              {correctCount} von {answers.length}
+              {scorePercent}%
+            </Text>
+
+            <Text
+              style={{
+                fontSize: typography.base,
+                color: colors.text,
+              }}
+            >
+              {correctCount} von {answers.length} richtig
             </Text>
 
             <Text

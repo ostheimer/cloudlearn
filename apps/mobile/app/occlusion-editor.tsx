@@ -396,7 +396,7 @@ export default function OcclusionEditorScreen() {
   const pct = (n: number) => `${n * 100}%` as const;
 
   const screenOptions = {
-    title: "Bild-Abdecken",
+    title: "Occlusion",
     headerBackTitle: "Zurück",
     headerTintColor: colors.primary,
     headerStyle: { backgroundColor: colors.background },
@@ -424,7 +424,7 @@ export default function OcclusionEditorScreen() {
               <Sparkles size={26} color={colors.accent} />
             </View>
             <Text style={{ fontSize: typography.lg, fontWeight: typography.semibold, color: colors.text, textAlign: "center" }}>
-              Bild-Abdecken ist eine Pro-Funktion
+              Occlusion ist eine Pro-Funktion
             </Text>
             <Text style={{ fontSize: typography.sm, color: colors.textSecondary, textAlign: "center", lineHeight: 20 }}>
               Mit Pro verdeckst du Teile eines Bildes und fragst sie ab — ideal für Diagramme,

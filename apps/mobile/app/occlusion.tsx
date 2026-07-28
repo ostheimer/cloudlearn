@@ -257,7 +257,7 @@ export default function OcclusionStudyScreen() {
   const screenHeader = (
     <Stack.Screen
       options={{
-        title: "Bild-Abdecken",
+        title: "Occlusion",
         headerBackTitle: "Zurück",
         headerTintColor: colors.primary,
         headerStyle: { backgroundColor: colors.background },
@@ -327,12 +327,10 @@ export default function OcclusionStudyScreen() {
       ) : null;
     return wrap(
       <StudyResult
-        headline={`${correct} von ${total}`}
-        subtitle={
-          wrong.length > 0
-            ? `gewusst · ${wrong.length} noch üben`
-            : `alles gewusst — stark${displayName ? `, ${displayName}` : ""}!`
-        }
+        headline={`Runde geschafft${displayName ? `, ${displayName}` : ""}!`}
+        subtitle={`Du hast ${total} ${
+          total === 1 ? "Karte" : "Karten"
+        } wiederholt — ${correct} davon sicher gewusst.`}
         accessory={lpAccessory}
         actions={[
           ...(wrong.length > 0

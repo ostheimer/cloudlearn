@@ -918,14 +918,14 @@ function AuthenticatedLearnScreen({
                   <Trophy size={34} color={c.success} />
                 </View>
                 <Text style={{ fontSize: typography.xxxl, fontWeight: typography.extrabold, textAlign: "center", color: c.text }}>
-                  {t("review.resultKnown", { known: knownCount, total: cards.length })}
+                  {displayName
+                    ? t("review.resultTitleNamed", { name: displayName })
+                    : t("review.resultTitle")}
                 </Text>
                 <Text style={{ color: c.textSecondary, textAlign: "center", fontSize: typography.base }}>
-                  {missedCards.length > 0
-                    ? t("review.resultSubPractice", { count: missedCards.length })
-                    : displayName
-                      ? t("review.resultSubAllNamed", { name: displayName })
-                      : t("review.resultSubAll")}
+                  {cards.length === 1
+                    ? t("review.resultBodyOne", { known: knownCount })
+                    : t("review.resultBody", { total: cards.length, known: knownCount })}
                 </Text>
                 <View style={{ width: "100%", maxWidth: 340, gap: spacing.sm, marginTop: spacing.sm }}>
                   {missedCards.length > 0 && (
