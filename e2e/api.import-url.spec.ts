@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { apiRequest } from "./helpers";
 
-test.describe("API URL Import", () => {
+test.describe("@paid API URL Import", () => {
   let deckId: string;
 
   test("imports URL content and stores generated cards", async () => {

@@ -11,6 +11,11 @@ Er läuft **täglich um 05:00 UTC** und zusätzlich per Hand über den
 **„Run workflow"**-Knopf im Actions-Tab. Er ist von `ci.yml` getrennt und
 blockiert normale Pull Requests nicht.
 
+Der produktive URL-Import verbraucht LP und externe LLM-Quota. Deshalb ist
+dieser Test als `@paid` markiert und in geplanten Läufen ausgeschlossen. Er
+läuft nur, wenn beim manuellen Start **„Kostenpflichtigen URL-Import ausführen"**
+bewusst aktiviert wird.
+
 ## Einmalige Einrichtung (nur Andreas)
 
 Die Tests melden sich mit dem Test-Konto `apitest@clearn.test` an. Bis die
@@ -27,7 +32,7 @@ Zum Scharfschalten in GitHub anlegen unter
 | `SUPABASE_URL`       | Projekt-URL von Supabase (`clearn`)               |
 | `SUPABASE_ANON_KEY`  | Öffentlicher Anon-Key von Supabase (`clearn`)     |
 
-Sobald mindestens `TEST_USER_PASSWORD` gesetzt ist, läuft die Suite beim
+Sobald alle vier Secrets gesetzt sind, läuft die kostenlose Suite beim
 nächsten Zeitplan-Lauf (oder sofort per „Run workflow") echt durch.
 
 ## Wichtig
