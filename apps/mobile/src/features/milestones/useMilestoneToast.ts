@@ -28,8 +28,7 @@ export interface UseMilestoneToastReturn {
 export function useMilestoneToast(): UseMilestoneToastReturn {
   const [toast, setToast] = useState<MilestoneToast | null>(null);
   const [celebration, setCelebration] = useState<MilestoneToast | null>(null);
-  const lpBalance = useUsageStore((s) => s.lpBalance);
-  const setUsage = useUsageStore((s) => s.setUsage);
+  const addLp = useUsageStore((s) => s.addLp);
 
   const showToast = useCallback((key: string, lpGranted: number) => {
     setToast({ key, lpGranted, label: key });
@@ -42,21 +41,21 @@ export function useMilestoneToast(): UseMilestoneToastReturn {
       if (currentStreak === streak) {
         const result = await claimMilestone(key).catch(() => null);
         if (result && !result.alreadyClaimed && result.granted > 0) {
-          setUsage({ lpBalance: lpBalance + result.granted });
+          addLp(result.granted);
           // Streak milestones earn the big moment; smaller ones stay a toast.
           setCelebration({ key, lpGranted: result.granted, label: key });
         }
       }
     }
-  }, [lpBalance, setUsage]);
+  }, [addLp]);
 
   const claimOnceMilestone = useCallback(async (key: "first_deck" | "first_review") => {
     const result = await claimMilestone(key).catch(() => null);
     if (result && !result.alreadyClaimed && result.granted > 0) {
-      setUsage({ lpBalance: lpBalance + result.granted });
+      addLp(result.granted);
       showToast(key, result.granted);
     }
-  }, [lpBalance, setUsage, showToast]);
+  }, [addLp, showToast]);
 
   const dismissToast = useCallback(() => setToast(null), []);
   const dismissCelebration = useCallback(() => setCelebration(null), []);
