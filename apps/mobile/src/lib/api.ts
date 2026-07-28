@@ -710,11 +710,6 @@ export function displayNameErrorKey(error: unknown): string {
   return "displayName.errorGeneric";
 }
 
-/** @deprecated Use getLpBalance() instead */
-export async function getAiUsage(): Promise<AiUsageResponse> {
-  return getLpBalance();
-}
-
 // --- Stats ---
 
 export async function getStats(): Promise<{ stats: StatsResponse }> {

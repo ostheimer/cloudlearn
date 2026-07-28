@@ -20,7 +20,7 @@ import {
 } from "../src/features/paywall/revenuecat";
 import { filterSubscriptionOffers } from "../src/features/paywall/subscriptionOffers";
 import { type SubscriptionTier } from "../src/features/paywall/subscriptionMapping";
-import { getSubscriptionStatus, getAiUsage } from "../src/lib/api";
+import { getSubscriptionStatus, getLpBalance } from "../src/lib/api";
 import { useSessionStore } from "../src/store/sessionStore";
 import { useUsageStore } from "../src/store/usageStore";
 import { radius, shadows, spacing, typography, useColors } from "../src/theme";
@@ -89,7 +89,7 @@ export default function PaywallScreen() {
       try {
         const [status, usageData] = await Promise.all([
           getSubscriptionStatus(userId),
-          getAiUsage().catch(() => null),
+          getLpBalance().catch(() => null),
         ]);
         if (isMounted) {
           setTier(status.status.tier);
