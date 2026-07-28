@@ -827,6 +827,7 @@ export default function ClozeScreen() {
     const correct = correctCount;
     const wrongCount = wrong.length;
     const allRight = wrongCount === 0;
+    const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
 
     return (
       <>
@@ -846,11 +847,21 @@ export default function ClozeScreen() {
             showsVerticalScrollIndicator={false}
           >
             <StudyResult
-              headline={`${correct} von ${total}`}
-              subtitle={
-                allRight
-                  ? `Alles richtig — stark${displayName ? `, ${displayName}` : ""}!`
-                  : `${wrongCount} ${wrongCount === 1 ? "Karte" : "Karten"} noch offen.`
+              headline={`${pct}%`}
+              subtitle={`${correct} von ${total} richtig`}
+              accessory={
+                <Text
+                  style={{
+                    textAlign: "center",
+                    fontSize: typography.base,
+                    color: allRight ? colors.success : colors.textSecondary,
+                    fontWeight: allRight ? typography.bold : typography.medium,
+                  }}
+                >
+                  {allRight
+                    ? `Alles richtig — stark${displayName ? `, ${displayName}` : ""}!`
+                    : `${wrongCount} ${wrongCount === 1 ? "Karte" : "Karten"} noch offen.`}
+                </Text>
               }
               actions={[
                 ...(allRight

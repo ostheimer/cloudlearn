@@ -400,12 +400,23 @@ export default function MatchScreen() {
           <Text
             style={{
               marginTop: spacing.lg,
-              fontSize: typography.lg,
+              fontSize: typography.xl,
+              fontWeight: typography.bold,
+              color: colors.text,
+              textAlign: "center",
+            }}
+          >
+            Zu wenige Karten
+          </Text>
+          <Text
+            style={{
+              marginTop: spacing.sm,
+              fontSize: typography.base,
               color: colors.textSecondary,
               textAlign: "center",
             }}
           >
-            Mindestens 2 Karten nötig zum Zuordnen.
+            Zum Zuordnen braucht das Deck mindestens 2 Karten.
           </Text>
         </SafeAreaView>
       </>
