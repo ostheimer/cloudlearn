@@ -25,8 +25,10 @@ import {
   DECK_LIMIT_LABEL,
   deckLimitNotice,
   deckOptionLabel,
+  deckOverflowWarning,
   deckSpaceNotice,
   freeSlots,
+  OVERFLOW_CONFIRM_TITLE,
   planLimitMessage,
   savedSummary,
 } from "@/lib/import-limits";
@@ -100,6 +102,8 @@ export default function ImportPage() {
   const [draft, setDraft] = useState<Flashcard[] | null>(null);
   // #534: Zeigt den Verwerfen-Bestätigungsdialog, statt sofort zu löschen.
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  // #570: Rückfrage, wenn nicht alle Karten ins Ziel-Deck passen.
+  const [confirmOverflow, setConfirmOverflow] = useState(false);
   const [newDeckTitle, setNewDeckTitle] = useState("");
   const [saving, setSaving] = useState(false);
   // #427: Welche Karte gerade am Ziehgriff gezogen wird (null = keine).
@@ -172,19 +176,21 @@ export default function ImportPage() {
   const deckLimitHint = deckLimitNotice(deckCount, usage?.limits?.maxDecks);
   const deckLimitReached = deckLimitHint !== null;
 
-  // #427: Ziel-Deck und wie viel dort noch hineinpasst.
+  // #427: Karten mit Inhalt — selbst hinzugefügte, leere zählen nicht mit.
+  const savableCount = (draft ?? []).filter((c) => c.front.trim() || c.back.trim()).length;
+  // #427: Ziel-Deck und wie viel dort noch hineinpasst (#570: inkl. Bild-Karten).
   const targetDeck = targetDeckId ? (decks?.find((d) => d.id === targetDeckId) ?? null) : null;
   const targetFreeSlots = targetDeck
-    ? freeSlots(targetDeck.cardCount, usage?.limits?.maxCardsPerDeck)
+    ? freeSlots(targetDeck.cardCount, targetDeck.imageCardCount, usage?.limits?.maxCardsPerDeck)
     : null;
-  const spaceHint = deckSpaceNotice(targetFreeSlots);
+  const spaceHint = deckSpaceNotice(targetFreeSlots, savableCount);
+  // #570 (Laras Variante 3): Rückfrage-Text, wenn nicht alle Karten passen.
+  const overflowWarning = deckOverflowWarning(targetFreeSlots, savableCount);
   const hasDecks = (decks?.length ?? 0) > 0;
   // „Neues Deck" gewählt, obwohl keines mehr erlaubt ist → Absenden sperren.
   const newDeckBlocked = deckLimitReached && targetDeckId === null;
   // Volles Ziel-Deck: der Server würde alles abweisen, also gar nicht erst los.
   const targetDeckFull = targetFreeSlots === 0;
-  // #427: Karten mit Inhalt — selbst hinzugefügte, leere zählen nicht mit.
-  const savableCount = (draft ?? []).filter((c) => c.front.trim() || c.back.trim()).length;
 
   const hasInput =
     mode === "text"
@@ -402,15 +408,27 @@ export default function ImportPage() {
   }
 
   /** #427: Die durchgesehenen Karten ablegen — neues Deck oder bestehendes. */
-  async function handleSave() {
+  function handleSave() {
+    if (!draft) return;
+    if (savableCount === 0) {
+      setError("Bitte fülle mindestens eine Karte aus.");
+      return;
+    }
+    // #570 (Laras Variante 3): Passt nicht alles ins Ziel-Deck, entscheidet die
+    // Nutzerin per Rückfrage — wie in der App, statt still auszudünnen.
+    if (overflowWarning) {
+      setConfirmOverflow(true);
+      return;
+    }
+    void doSave();
+  }
+
+  async function doSave() {
     if (!draft) return;
     // #427: Selbst hinzugefügte, leer gelassene Karten überspringen — sonst
     // legt der Server ein leeres Kärtchen an bzw. weist den Import ab.
     const cards = draft.filter((c) => c.front.trim() || c.back.trim());
-    if (cards.length === 0) {
-      setError("Bitte fülle mindestens eine Karte aus.");
-      return;
-    }
+    if (cards.length === 0) return;
     setError(null);
     setSaving(true);
     try {
@@ -727,7 +745,11 @@ export default function ImportPage() {
                         <option key={deck.id} value={deck.id}>
                           {deckOptionLabel(
                             deck.title,
-                            freeSlots(deck.cardCount, usage?.limits?.maxCardsPerDeck)
+                            freeSlots(
+                              deck.cardCount,
+                              deck.imageCardCount,
+                              usage?.limits?.maxCardsPerDeck
+                            )
                           )}
                         </option>
                       ))}
@@ -1111,6 +1133,31 @@ export default function ImportPage() {
           </>
         )}
       </div>
+
+      {confirmOverflow && overflowWarning && (
+        <Modal title={OVERFLOW_CONFIRM_TITLE} onClose={() => setConfirmOverflow(false)}>
+          <p className="muted">{overflowWarning}</p>
+          <div className="modal__actions">
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setConfirmOverflow(false)}
+            >
+              Abbrechen
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => {
+                setConfirmOverflow(false);
+                void doSave();
+              }}
+            >
+              Trotzdem speichern
+            </button>
+          </div>
+        </Modal>
+      )}
 
       {confirmDiscard && draft && (
         <Modal title="Karten verwerfen?" onClose={() => setConfirmDiscard(false)}>

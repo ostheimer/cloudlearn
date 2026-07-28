@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   DECK_LIMIT_LABEL,
-  DECK_SPACE_WARN_BELOW,
+  OVERFLOW_CONFIRM_TITLE,
   deckLimitMessage,
   deckLimitNotice,
   deckOptionLabel,
+  deckOverflowWarning,
   deckSpaceNotice,
   freeSlots,
   isDeckLimitReached,
@@ -60,18 +61,24 @@ describe("Deck-Grenze im Browser (#411)", () => {
 
 describe("Platz im Ziel-Deck (#427)", () => {
   it("rechnet die freien Plätze aus", () => {
-    expect(freeSlots(107, 150)).toBe(43);
-    expect(freeSlots(0, 150)).toBe(150);
+    expect(freeSlots(107, 0, 150)).toBe(43);
+    expect(freeSlots(0, 0, 150)).toBe(150);
+  });
+
+  it("zählt Bild-Karten mit — der Server zählt jede lebende Karte (#570)", () => {
+    expect(freeSlots(120, 18, 150)).toBe(12);
+    // Fehlt die Bild-Zahl (ältere Deck-Antwort), gilt sie als 0 statt unbekannt.
+    expect(freeSlots(107, undefined, 150)).toBe(43);
   });
 
   it("wird nie negativ, wenn ein Deck über der Grenze liegt", () => {
     // Kann vorkommen, wenn ein Konto von Pro (2.000) auf Gratis (150) fällt.
-    expect(freeSlots(400, 150)).toBe(0);
+    expect(freeSlots(400, 0, 150)).toBe(0);
   });
 
-  it("behauptet nichts, wenn eine der beiden Zahlen fehlt", () => {
-    expect(freeSlots(undefined, 150)).toBeNull();
-    expect(freeSlots(107, undefined)).toBeNull();
+  it("behauptet nichts, wenn Kartenzahl oder Grenze fehlt", () => {
+    expect(freeSlots(undefined, 0, 150)).toBeNull();
+    expect(freeSlots(107, 0, undefined)).toBeNull();
   });
 
   it("schreibt den freien Platz an das Deck in der Auswahl", () => {
@@ -84,20 +91,38 @@ describe("Platz im Ziel-Deck (#427)", () => {
     expect(deckOptionLabel("Datenbanken", null)).toBe("Datenbanken");
   });
 
-  it("warnt erst, wenn ein normaler Scan nicht mehr sicher hineinpasst", () => {
-    expect(deckSpaceNotice(43)).toBeNull();
-    expect(deckSpaceNotice(DECK_SPACE_WARN_BELOW)).toBeNull();
-    expect(deckSpaceNotice(12)).toContain("Platz für 12 Karten");
+  it("warnt genau dann, wenn nicht alle Karten passen (#570, Variante 3)", () => {
+    // Früher warnte eine feste 25er-Schwelle — auch wenn 5 Karten in 12 Plätze
+    // locker passten, und nie bei 43 freien Plätzen und 60 Karten.
+    expect(deckSpaceNotice(12, 5)).toBeNull();
+    expect(deckSpaceNotice(12, 12)).toBeNull();
+    expect(deckSpaceNotice(43, 60)).toBe(
+      "Von deinen 60 Karten passen nur noch 43 in dieses Deck — " +
+        "der Rest wird beim Speichern gleichmäßig über den ganzen Stoff weggelassen."
+    );
+  });
+
+  it("formuliert die Rückfrage wortgleich mit der App", () => {
+    expect(OVERFLOW_CONFIRM_TITLE).toBe("Wenig Platz");
+    expect(deckOverflowWarning(27, 40)).toBe(
+      "Von deinen 40 Karten passen nur noch 27 in dieses Deck — der Rest wird " +
+        "beim Speichern gleichmäßig über den ganzen Stoff weggelassen. " +
+        "Trotzdem speichern?"
+    );
+    expect(deckOverflowWarning(27, 5)).toBeNull();
+    // Volles Deck: dort sperrt der Speichern-Knopf, keine Rückfrage.
+    expect(deckOverflowWarning(0, 5)).toBeNull();
+    expect(deckOverflowWarning(null, 5)).toBeNull();
   });
 
   it("sagt beim vollen Deck, was zu tun ist, statt nur „voll“", () => {
-    const message = deckSpaceNotice(0);
+    const message = deckSpaceNotice(0, 5);
     expect(message).toContain("voll");
     expect(message).toContain("anderes Deck");
   });
 
   it("schweigt bei unbekanntem Platz, statt zu raten", () => {
-    expect(deckSpaceNotice(null)).toBeNull();
+    expect(deckSpaceNotice(null, 40)).toBeNull();
   });
 
   it("behauptet nicht mehr, jeder Scan lege ein neues Deck an (seit #427 falsch)", () => {

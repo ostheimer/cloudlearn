@@ -57,7 +57,7 @@ import {
   deckSlotsLabel,
   freeCardSlots,
   isDeckLimitReached,
-  nearlyFullWarning,
+  deckOverflowWarning,
   savedSummary,
   selectEvenlySpread,
   shouldOpenLpModal,
@@ -685,7 +685,9 @@ export default function ScanScreen() {
       );
       return;
     }
-    const warning = nearlyFullWarning(free, "speichern");
+    // #570 (Laras Variante 3): Nachfrage nur, wenn die neuen Karten nicht mehr
+    // alle passen — gezählt wird, was wirklich gespeichert würde (ohne leere).
+    const warning = deckOverflowWarning(free, nonEmptyCards(cards).length);
     if (warning) {
       Alert.alert("Wenig Platz", warning, [
         { text: "Abbrechen", style: "cancel" },

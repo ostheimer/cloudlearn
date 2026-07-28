@@ -9,7 +9,11 @@
  * Reine Funktionen ohne React/Netz, damit sie testbar bleiben.
  */
 
-/** Ab wie wenigen freien Plätzen vor dem Speichern gewarnt wird. */
+/**
+ * Ab wie wenigen freien Plätzen die Zielauswahl die Platzzahl anzeigt. Die
+ * WARNUNG hängt seit #570 nicht mehr an dieser Schwelle, sondern daran, ob die
+ * neuen Karten wirklich alle passen (Laras Variante 3).
+ */
 export const NEARLY_FULL_THRESHOLD = 30;
 
 export interface PlanLimits {
@@ -57,22 +61,28 @@ export function deckLimitMessage(deckCount: number, maxDecks: number): string {
 }
 
 /**
- * Warnung, bevor Lernpunkte ausgegeben werden: Ist im Ziel-Deck kaum noch
- * Platz, soll die Nutzerin das vorher wissen und selbst entscheiden.
- * `null` bedeutet: genug Platz, keine Rückfrage nötig.
+ * Rückfrage vor dem Speichern (#570, Laras Variante 3): gewarnt wird genau
+ * dann, wenn die neuen Karten NICHT mehr alle ins Ziel-Deck passen — nicht bei
+ * einer festen Rest-Schwelle. Bei 27 freien Plätzen und 5 Karten kommt also
+ * keine Frage mehr; bei 40 freien Plätzen und 60 Karten sehr wohl.
+ * `null` bedeutet: alles passt, keine Rückfrage nötig. Ein volles Deck (0 frei)
+ * hat seinen eigenen, härteren Dialog und liefert hier ebenfalls `null`.
+ * Wortgleich mit `deckOverflowWarning` in apps/web/src/lib/import-limits.ts.
  */
-export function nearlyFullWarning(
-  freeSlots: number,
-  action: "scannen" | "speichern" = "scannen"
-): string | null {
+export function deckOverflowWarning(freeSlots: number, cardCount: number): string | null {
   if (freeSlots <= 0) return null;
-  if (freeSlots >= NEARLY_FULL_THRESHOLD) return null;
-  return `In diesem Deck ist nur noch Platz für ${freeSlots} Karten. Trotzdem ${action}?`;
+  if (cardCount <= freeSlots) return null;
+  return (
+    `Von deinen ${cardCount} Karten passen nur noch ${freeSlots} in dieses Deck — ` +
+    "der Rest wird beim Speichern gleichmäßig über den ganzen Stoff weggelassen. " +
+    "Trotzdem speichern?"
+  );
 }
 
 /** Beschriftung eines Decks in der Auswahl: „Biologie (12 Plätze frei)". */
 export function deckSlotsLabel(title: string, freeSlots: number): string {
   if (freeSlots <= 0) return `${title} (voll)`;
+  if (freeSlots === 1) return `${title} (1 Platz frei)`;
   if (freeSlots < NEARLY_FULL_THRESHOLD) return `${title} (${freeSlots} Plätze frei)`;
   return title;
 }
