@@ -40,6 +40,25 @@ export function createReviewSendBuffer() {
     },
 
     /**
+     * Die noch zurückgehaltene Bewertung korrigieren, wenn sie zu `cardId`
+     * gehört (Lückentext „Trotzdem als richtig zählen", #567): Die getippte
+     * Antwort wurde als falsch gewertet, die Lernerin übersteuert das — die
+     * Karte muss am Ende genau EIN „gut" tragen. Ein zweites obendrauf ließe
+     * den Fehlversuch stehen: Die Karte gälte als gescheitert UND bestanden
+     * und fiele im Lernplan trotzdem zurück.
+     *
+     * Gibt false zurück, wenn für diese Karte nichts mehr liegt (ihre
+     * Bewertung ist schon unterwegs zum Server); der Aufrufer schickt dann
+     * ersatzweise eine korrigierende zweite Bewertung — das Beste, was im
+     * Nachhinein noch geht.
+     */
+    amend(cardId: string, rating: ReviewRating): boolean {
+      if (!pending || pending.cardId !== cardId) return false;
+      pending = { cardId, rating };
+      return true;
+    },
+
+    /**
      * Was noch liegt, freigeben und leeren (Runde fertig / Ansicht verlassen)
      * — so wird es genau einmal gesendet.
      */

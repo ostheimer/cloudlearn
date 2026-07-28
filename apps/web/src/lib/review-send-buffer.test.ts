@@ -35,6 +35,25 @@ describe("review send buffer", () => {
     expect(buffer.flush()).toEqual({ cardId: "k1", rating: "good" });
   });
 
+  // „Trotzdem als richtig zählen" (#567): Die Karte muss am Ende genau EIN
+  // „gut" tragen — kein „falsch" plus „gut" obendrauf.
+  it("amend replaces the held rating in place", () => {
+    const buffer = createReviewSendBuffer();
+    buffer.rate({ cardId: "k1", rating: "again" });
+    expect(buffer.amend("k1", "good")).toBe(true);
+    expect(buffer.flush()).toEqual({ cardId: "k1", rating: "good" });
+  });
+
+  it("amend declines when the card's rating is already on its way", () => {
+    const buffer = createReviewSendBuffer();
+    buffer.rate({ cardId: "k1", rating: "again" });
+    buffer.rate({ cardId: "k2", rating: "good" });
+    // k1 wurde beim Bewerten von k2 freigegeben — zu spät zum Ersetzen; der
+    // Aufrufer muss ersatzweise eine korrigierende Bewertung schicken.
+    expect(buffer.amend("k1", "good")).toBe(false);
+    expect(buffer.flush()).toEqual({ cardId: "k2", rating: "good" });
+  });
+
   it("flushes exactly once at the end of a round", () => {
     const buffer = createReviewSendBuffer();
     buffer.rate({ cardId: "k9", rating: "easy" });
