@@ -22,6 +22,7 @@ import {
   loadSessionProgress,
   saveSessionProgress,
   type SessionProgress,
+  type StoredCardResult,
 } from "@/lib/session-progress";
 import {
   ArrowLeft,
@@ -180,7 +181,11 @@ export default function ClozePage() {
     });
   }, []);
 
-  const startRound = useCallback(async (cards: Card[], startAt = 0) => {
+  const startRound = useCallback(async (
+    cards: Card[],
+    startAt = 0,
+    storedResults?: Record<string, StoredCardResult>,
+  ) => {
     await awardSession(round.length);
     awardStateRef.current = { finalized: false, inFlight: null };
     pendingReviewsRef.current = [];
@@ -191,8 +196,21 @@ export default function ClozePage() {
     // Mal beantwortet und bewertet — der Zurück-Pfeil darf nicht in sie
     // hineinlaufen und eine zweite Bewertung einsammeln.
     const from = Math.min(Math.max(startAt, 0), Math.max(cards.length - 1, 0));
+    // Die Ergebnisse der letzten Sitzung wieder einfüllen, damit die Auswertung
+    // die ganze Runde zählt und alte falsche Karten wieder im Wiederhol-Stapel
+    // landen. Nur unterhalb der Untergrenze: ab der Einstiegskarte wird neu
+    // beantwortet. Die Eingabe von damals ist nicht gespeichert (leer) —
+    // sichtbar wird sie nie, der Zurück-Pfeil endet an der Untergrenze.
+    const initialResults: (Result | null)[] = new Array(cards.length).fill(null);
+    if (storedResults) {
+      for (let i = 0; i < from; i++) {
+        const skippedCard = cards[i];
+        const stored = skippedCard ? storedResults[skippedCard.id] : undefined;
+        if (stored) initialResults[i] = { input: "", ...stored };
+      }
+    }
     setRound(cards);
-    setResults(new Array(cards.length).fill(null));
+    setResults(initialResults);
     setIdx(from);
     setFloor(from);
     setInput("");
@@ -231,9 +249,10 @@ export default function ClozePage() {
 
   function next() {
     if (idx + 1 >= round.length) {
-      // Beim Weitermachen zählt nur, was in DIESER Runde beantwortet wurde —
-      // die Slots vor der Einstiegskarte bleiben null.
-      const answered = results.filter(Boolean).length;
+      // Lernpunkte gibt es nur für DIESE Sitzung: Die Slots unterhalb der
+      // Untergrenze sind wiederhergestellte Ergebnisse der letzten Sitzung —
+      // deren Punkte wurden damals schon abgerechnet.
+      const answered = results.slice(floor).filter(Boolean).length;
       const reviewedCount = getSessionReviewedCount(
         answered,
         pendingReviewsRef.current.length,
@@ -265,17 +284,29 @@ export default function ClozePage() {
     if (phase !== "play") return;
     const card = round[idx];
     if (!card) return;
+    // Die Ergebnisse der beantworteten Karten wandern mit in den Merker —
+    // nach Karten-Id, nicht nach Position, damit sie ein verändertes Deck
+    // überleben. Wiederhergestellte Ergebnisse einer noch früheren Sitzung
+    // stehen bereits in `results` und bleiben so über mehrere Unterbrechungen
+    // hinweg erhalten.
+    const answered: Record<string, StoredCardResult> = {};
+    round.forEach((roundCard, i) => {
+      const r = results[i];
+      if (r) answered[roundCard.id] = { correct: r.correct, overridden: r.overridden };
+    });
     saveSessionProgress(deckId, "cloze", {
       index: idx,
       cardId: card.id,
       source,
       reverse,
       total: round.length,
+      ...(Object.keys(answered).length > 0 ? { results: answered } : {}),
     });
-  }, [deckId, phase, round, idx, source, reverse]);
+  }, [deckId, phase, round, idx, source, reverse, results]);
 
   async function quit() {
-    const answered = results.filter(Boolean).length;
+    // Wie in next(): wiederhergestellte Ergebnisse zählen nicht als neue Reviews.
+    const answered = results.slice(floor).filter(Boolean).length;
     const reviewedCount = getSessionReviewedCount(
       answered,
       pendingReviewsRef.current.length,
@@ -387,7 +418,7 @@ export default function ClozePage() {
               // die fortgesetzten Karten werden genauso herum abgefragt wie
               // die davor.
               setReverse(saved.reverse);
-              void startRound(studyPool, saved.index);
+              void startRound(studyPool, saved.index, saved.results);
             }}
           >
             Weitermachen
@@ -414,7 +445,11 @@ export default function ClozePage() {
     // Nach einem Weitermachen zählt die Auswertung nur die in DIESER Runde
     // beantworteten Karten (ab der Untergrenze) — die übersprungenen wurden
     // letztes Mal bewertet und ausgewertet.
-    const total = round.length - floor;
+    // Zählt Karten mit Ergebnis: nach einem Weitermachen sind das die dieser
+    // Sitzung plus die aus dem Merker wiederhergestellten („11 von 12"). Bei
+    // einem Merker von vor dem Ergebnisse-Merken fehlen die alten — dann zählt
+    // ehrlich nur diese Sitzung.
+    const total = results.filter(Boolean).length;
     const correct = results.filter((r) => r && (r.correct || r.overridden)).length;
     const wrong = round.filter((_, i) => {
       const r = results[i];
