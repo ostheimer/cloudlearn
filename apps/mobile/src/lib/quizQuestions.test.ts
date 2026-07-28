@@ -316,6 +316,31 @@ describe("quizQuestions", () => {
     expect(tfCount).toBeGreaterThan(0);
   });
 
+  // #570 — Rundenlänge wählbar: `count` begrenzt die Fragen, nicht die Karten.
+  it("liefert genau die gewählte Anzahl, wenn der Pool reicht (#570)", () => {
+    for (const seed of [1, 3, 7, 11]) {
+      expect(generateQuestions(vocabCards, 7, undefined, seeded(seed))).toHaveLength(7);
+    }
+  });
+
+  it("füllt übersprungene Karten mit späteren auf, statt die Runde zu verkürzen (#570)", () => {
+    // Eine einzelne Occlusion-Karte hat keinen gleichartigen Ablenker und fällt
+    // im reinen MC-Betrieb raus — eine spätere Vokabelkarte rückt nach, egal an
+    // welcher Position die Occlusion-Karte im Mischergebnis landet.
+    const deck: QuizCardInput[] = [
+      ...vocabCards.slice(0, 8),
+      { id: "o1", front: OCCLUSION_FRONT, back: "Bereich 1", type: "occlusion" },
+    ];
+    for (const seed of [1, 2, 3, 5, 7, 11, 13, 17]) {
+      const questions = generateQuestions(deck, 8, undefined, seeded(seed), {
+        allowMc: true,
+        allowTrueFalse: false,
+      });
+      expect(questions).toHaveLength(8);
+      expect(questions.find((q) => q.cardId === "o1")).toBeUndefined();
+    }
+  });
+
   it("drops duplicate cards before generating questions", () => {
     const cards = [
       { id: "a1", front: "le soleil", back: "die Sonne" },

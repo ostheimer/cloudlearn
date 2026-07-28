@@ -27,8 +27,6 @@ import {
   Check,
   Timer,
   FileText,
-  Minus,
-  Plus,
 } from "lucide-react-native";
 import { listCardsInDeck, recordTestAttempt, type Card } from "../src/lib/api";
 import { sendReview } from "../src/features/sync/sendReview";
@@ -50,6 +48,7 @@ import {
   filterBySource,
   type CardSource,
 } from "../src/components/cardSourcePicker";
+import { QuestionCountPicker } from "../src/components/questionCountPicker";
 import { useColors, spacing, radius, typography, shadows } from "../src/theme";
 import { useReviewSession } from "../src/features/review/reviewSession";
 
@@ -238,14 +237,6 @@ export default function TestScreen() {
   useEffect(() => {
     if (usableCount > 0) setCount(usableCount);
   }, [usableCount]);
-
-  // Preset sizes below the full pool; the "Alle" chip always covers the max, so
-  // we never render a numeric chip equal to usableCount (it would duplicate
-  // "Alle"). On a small pool these all drop out and only "Alle (N)" remains.
-  const countPresets = useMemo(
-    () => [10, 20, 30, 50, 75, 100].filter((n) => n < usableCount),
-    [usableCount]
-  );
 
   const anyType = typeTF || typeMC || typeWritten;
 
@@ -576,37 +567,6 @@ export default function TestScreen() {
       </View>
     );
 
-    // A tappable pill for the question count. The active pill is filled with the
-    // brand colour + inverse text (like the Start button), the rest are muted.
-    const countChip = (
-      key: string | number,
-      label: string,
-      active: boolean,
-      onPress: () => void
-    ) => (
-      <TouchableOpacity
-        key={key}
-        onPress={onPress}
-        activeOpacity={0.8}
-        style={{
-          paddingVertical: spacing.sm,
-          paddingHorizontal: spacing.lg,
-          borderRadius: radius.full,
-          backgroundColor: active ? colors.primary : colors.surfaceSecondary,
-        }}
-      >
-        <Text
-          style={{
-            fontSize: typography.base,
-            fontWeight: typography.semibold,
-            color: active ? colors.textInverse : colors.text,
-          }}
-        >
-          {label}
-        </Text>
-      </TouchableOpacity>
-    );
-
     return (
       <>
         {screenHeader(deckTitle ?? "Test")}
@@ -623,49 +583,8 @@ export default function TestScreen() {
               )}
             </View>
 
-            {/* Anzahl Fragen — Presets zum Antippen + Feinauswahl per Stepper */}
-            <View style={cardStyle}>
-              <Text style={{ fontSize: typography.sm, color: colors.textSecondary, marginBottom: spacing.md }}>Anzahl Fragen</Text>
-
-              {/* Preset-Chips */}
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm }}>
-                {countPresets.map((value) =>
-                  countChip(value, String(value), count === value, () => setCount(value))
-                )}
-                {countChip(
-                  "all",
-                  `Alle (${usableCount})`,
-                  count >= usableCount,
-                  () => setCount(usableCount)
-                )}
-              </View>
-
-              {/* Feinauswahl: −  [Anzahl]  + */}
-              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: spacing.lg }}>
-                <TouchableOpacity
-                  onPress={() => setCount(Math.max(1, count - 1))}
-                  disabled={count <= 1}
-                  activeOpacity={0.7}
-                  style={{ width: 48, height: 48, borderRadius: radius.full, backgroundColor: colors.surfaceSecondary, justifyContent: "center", alignItems: "center", opacity: count <= 1 ? 0.4 : 1 }}
-                >
-                  <Minus size={22} color={colors.text} />
-                </TouchableOpacity>
-                <View style={{ alignItems: "center" }}>
-                  <Text style={{ fontSize: typography.xl, fontWeight: typography.bold, color: colors.primary }}>
-                    {count >= usableCount ? "Alle" : count}
-                  </Text>
-                  <Text style={{ fontSize: typography.xs, color: colors.textTertiary, marginTop: 2 }}>von {usableCount}</Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => setCount(Math.min(usableCount, count + 1))}
-                  disabled={count >= usableCount}
-                  activeOpacity={0.7}
-                  style={{ width: 48, height: 48, borderRadius: radius.full, backgroundColor: colors.surfaceSecondary, justifyContent: "center", alignItems: "center", opacity: count >= usableCount ? 0.4 : 1 }}
-                >
-                  <Plus size={22} color={colors.text} />
-                </TouchableOpacity>
-              </View>
-            </View>
+            {/* Anzahl Fragen — gemeinsamer Baustein mit dem Quiz (#570) */}
+            <QuestionCountPicker count={count} max={usableCount} onChange={setCount} />
 
             {/* Aufgabentypen */}
             <View style={cardStyle}>
