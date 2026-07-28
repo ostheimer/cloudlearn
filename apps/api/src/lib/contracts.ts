@@ -40,7 +40,18 @@ export const flashcardSchema = z.object({
   difficulty: difficultySchema.default("medium"),
   tags: cardTagsSchema.default([]),
   // Storage path of the card image (Occlusion & future image cards).
-  sourceImageUrl: z.string().max(1000).optional(),
+  // Muss ein relativer Speicher-Pfad sein, KEINE fremde URL: der Wert wird
+  // unverändert an Supabase Storage (createSignedUrl) gereicht, und das Feld
+  // füllt auch die KI-Kartenerzeugung. Eine http-Adresse würde beim Öffnen des
+  // Decks einen fremden Server anpingen. `://` und ein führender `/` schließen
+  // genau die URL-Formen aus, ohne einen echten Bucket-Pfad zu sperren (#440).
+  sourceImageUrl: z
+    .string()
+    .max(1000)
+    .refine((v) => !v.includes("://") && !v.startsWith("/"), {
+      message: "sourceImageUrl muss ein Speicher-Pfad sein, keine URL",
+    })
+    .optional(),
   // Free-form per-card data. For Occlusion: { regions: OcclusionRegion[], hideIndex: number }.
   extraData: z.record(z.string(), z.unknown()).optional(),
 });
@@ -74,7 +85,6 @@ export const scanProcessRequestSchema = z.object({
   imageMimeType: z.enum(["image/jpeg", "image/png", "image/webp"]).optional(),
   idempotencyKey: z.string().min(8).max(128),
   sourceLanguage: z.string().min(2).max(10).default("de"),
-  sourceImageUrl: z.string().url().optional(),
   deckId: z.string().uuid().optional(),
   preview: previewFlag,
 }).refine(

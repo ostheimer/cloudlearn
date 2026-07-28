@@ -14,7 +14,6 @@ export const scanProcessRequestSchema = z.object({
   imageMimeType: imageMimeTypeSchema.optional(),
   idempotencyKey: z.string().min(8).max(128),
   sourceLanguage: z.string().min(2).max(10).default("de"),
-  sourceImageUrl: z.string().url().optional(),
   deckId: z.string().uuid().optional()
 }).refine(
   (data) => Boolean(data.extractedText) || Boolean(data.imageBase64),
