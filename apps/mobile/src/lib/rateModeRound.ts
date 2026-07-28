@@ -1,9 +1,12 @@
 /**
- * Eine Runde Multiple Choice oder Zuordnen abschließen: Antworten melden,
- * danach die Lernpunkte holen.
+ * Eine Runde Zuordnen abschließen: Antworten melden, danach die Lernpunkte
+ * holen.
  *
- * Beide Bildschirme meldeten bisher gar nichts (Issue #406) — kein Streak,
- * keine Statistik, keine Punkte. Auf der Website zählen sie seit #398.
+ * Multiple Choice und Zuordnen meldeten bisher gar nichts (Issue #406) — kein
+ * Streak, keine Statistik, keine Punkte. Auf der Website zählen sie seit #398.
+ * Multiple Choice meldet seit #566 jede Antwort sofort (learn-session-lp-
+ * Muster in quiz.tsx) — nur Zuordnen sammelt noch bis zum Rundenende, weil
+ * dort erst die Auswertung entscheidet, welche Paare als gewusst gelten.
  *
  * Zwei Dinge sind hier nicht verhandelbar:
  *

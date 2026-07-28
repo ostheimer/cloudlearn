@@ -22,6 +22,7 @@ const SCREENS: { name: string; rel: string }[] = [
   { name: "learn", rel: "app/(tabs)/learn.tsx" },
   { name: "practice", rel: "app/practice.tsx" },
   { name: "cloze", rel: "app/cloze.tsx" },
+  { name: "quiz", rel: "app/quiz.tsx" },
 ];
 
 for (const { name, rel } of SCREENS) {
@@ -123,6 +124,62 @@ describe("mobile cloze – Folgerunden werden weiter abgerechnet", () => {
     // startRound geht — ein Startknopf, der die Runde direkt setzt, wuerde die
     // Abrechnung nicht scharf machen und die Folgerunde ohne LP laufen lassen.
     expect(source.match(/void startRound\(/g)).toHaveLength(4);
+  });
+});
+
+describe("mobile quiz – meldet sofort und rechnet Folgerunden ab", () => {
+  const source = read("app/quiz.tsx");
+
+  const from = source.indexOf("const beginRound = async (");
+  const to = source.indexOf("const startQuiz =");
+  const beginRound = from > -1 && to > from ? source.slice(from, to) : "";
+
+  it("meldet jede Antwort sofort beim Antippen", () => {
+    // #566: Vorher sammelte reportRound bis zum Rundenende — wer über den
+    // Header-„Abbrechen" ging, verlor Streak, Statistik und Lernpunkte.
+    // Gemeldet wird deshalb IM handleSelect, nicht erst in handleNext.
+    const selFrom = source.indexOf("const handleSelect =");
+    const selTo = source.indexOf("const handleNext =");
+    const handleSelect = selFrom > -1 && selTo > selFrom ? source.slice(selFrom, selTo) : "";
+    expect(handleSelect).not.toBe("");
+    expect(handleSelect).toContain('mode: "quiz"');
+    expect(handleSelect).toContain("pendingReviewsRef.current.push(reviewPromise);");
+  });
+
+  it("sammelt nicht mehr über finishRateModeRound", () => {
+    // Der Rundenend-Sammler lebt nur noch in match.tsx weiter — dort steht
+    // das Urteil je Karte erst mit der Auswertung fest.
+    expect(source).not.toContain("finishRateModeRound");
+  });
+
+  it("rechnet im Blur-Cleanup ab — der Header-„Abbrechen“ hat keinen eigenen Handler", () => {
+    expect(source).toContain("awardStateRef.current = { finalized: false, inFlight: null };");
+    expect(source).toContain("void awardSession(reviewedCount);");
+  });
+
+  it("macht die Abrechnung beim Rundenstart wieder scharf", () => {
+    // Wie cloze.startRound: handleNext schreibt am Rundenende gut (finalized),
+    // „Alle nochmal" / „Nur die nicht gewussten" liefen sonst ohne LP.
+    expect(beginRound).not.toBe("");
+    expect(beginRound).toContain("awardStateRef.current.finalized = false;");
+    expect(beginRound).toContain("pendingReviewsRef.current = [];");
+    expect(beginRound).toContain("sessionReviewsRef.current = 0;");
+  });
+
+  it("wartet die vorige Gutschrift ab, BEVOR es wieder scharf macht", () => {
+    expect(beginRound).not.toBe("");
+    const awaited = beginRound.indexOf("await awardSession(");
+    const rearmed = beginRound.indexOf("awardStateRef.current.finalized = false;");
+    expect(awaited).toBeGreaterThan(-1);
+    expect(rearmed).toBeGreaterThan(-1);
+    expect(awaited).toBeLessThan(rearmed);
+  });
+
+  it("nutzt beginRound an beiden Startwegen", () => {
+    // startQuiz („Starten", „Alle nochmal") und startQuizFrom („Nur die nicht
+    // gewussten") münden beide in beginRound — ein Startweg daran vorbei
+    // würde die Folgerunde ohne Abrechnung laufen lassen.
+    expect(source.match(/void beginRound\(/g)).toHaveLength(2);
   });
 });
 
