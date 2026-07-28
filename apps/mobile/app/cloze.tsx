@@ -30,6 +30,7 @@ import {
   loadSessionProgress,
   saveSessionProgress,
   type SessionProgress,
+  type StoredCardResult,
 } from "../src/features/review/sessionProgress";
 import {
   createReviewSendBuffer,
@@ -330,7 +331,11 @@ export default function ClozeScreen() {
   // Reihenfolge ist wichtig: erst die vorige Gutschrift zu Ende laufen lassen,
   // dann entschärfen. Andernfalls setzt der noch laufende Lauf `finalized`
   // wieder auf true, NACHDEM wir es hier zurückgesetzt haben.
-  const startRound = async (cardsForRound: Card[], startAt = 0) => {
+  const startRound = async (
+    cardsForRound: Card[],
+    startAt = 0,
+    storedResults?: Record<string, StoredCardResult>,
+  ) => {
     // Eine neue Runde darf keine Bewertung der alten mitschleppen: Die Karte
     // ist vorbei, ihre Bewertung gehört noch zur vorigen Abrechnung.
     flushReview();
@@ -345,8 +350,22 @@ export default function ClozeScreen() {
     // travels with it: the skipped cards were answered and sent last time, so
     // the back button must not walk into them and collect a second review.
     const from = Math.min(Math.max(startAt, 0), Math.max(cardsForRound.length - 1, 0));
+    // Die Ergebnisse der letzten Sitzung wieder einfüllen, damit die Auswertung
+    // die ganze Runde zählt und alte falsche Karten wieder im Wiederholungs-
+    // Stapel landen. Nur unterhalb der Untergrenze: alles ab der Einstiegskarte
+    // wird in dieser Sitzung neu beantwortet. Die Eingabe von damals ist nicht
+    // gespeichert (leer) — sichtbar wird sie nie, der Zurück-Pfeil endet an der
+    // Untergrenze.
+    const initialResults: (typeof results)[number][] = new Array(cardsForRound.length).fill(null);
+    if (storedResults) {
+      for (let i = 0; i < from; i++) {
+        const skippedCard = cardsForRound[i];
+        const stored = skippedCard ? storedResults[skippedCard.id] : undefined;
+        if (stored) initialResults[i] = { input: "", ...stored };
+      }
+    }
     setRound(cardsForRound);
-    setResults(new Array(cardsForRound.length).fill(null));
+    setResults(initialResults);
     setIdx(from);
     setFloor(from);
     setInput("");
@@ -423,14 +442,25 @@ export default function ClozeScreen() {
     if (phase !== "play") return;
     const card = round[idx];
     if (!card) return;
+    // Die Ergebnisse der beantworteten Karten wandern mit ins Lesezeichen —
+    // nach Karten-Id, nicht nach Position, damit sie ein verändertes Deck
+    // überleben. Wiederhergestellte Ergebnisse einer noch früheren Sitzung
+    // stehen bereits in `results` und bleiben so über mehrere Unterbrechungen
+    // hinweg erhalten.
+    const answered: Record<string, StoredCardResult> = {};
+    round.forEach((roundCard, i) => {
+      const result = results[i];
+      if (result) answered[roundCard.id] = { correct: result.correct, overridden: result.overridden };
+    });
     void saveSessionProgress(deckId, "cloze", {
       index: idx,
       cardId: card.id,
       source,
       reverse,
       total: round.length,
+      ...(Object.keys(answered).length > 0 ? { results: answered } : {}),
     });
-  }, [deckId, phase, round, idx, source, reverse]);
+  }, [deckId, phase, round, idx, source, reverse, results]);
 
   // Round outcome, derived from the per-card results.
   const correctCount = results.filter(
@@ -717,7 +747,7 @@ export default function ClozeScreen() {
               <TouchableOpacity
                 onPress={() => {
                   setReverse(saved.reverse);
-                  void startRound(studyPool, saved.index);
+                  void startRound(studyPool, saved.index, saved.results);
                 }}
                 activeOpacity={0.85}
                 style={{
@@ -789,10 +819,11 @@ export default function ClozeScreen() {
 
   // Summary
   if (phase === "summary") {
-    // Nach einem Weitermachen zählt die Auswertung nur die in DIESER Runde
-    // beantworteten Karten (ab der Untergrenze) — die übersprungenen wurden
-    // letztes Mal bewertet und ausgewertet.
-    const total = round.length - floor;
+    // Zählt Karten mit Ergebnis: nach einem Weitermachen sind das die dieser
+    // Sitzung plus die aus dem Lesezeichen wiederhergestellten („11 von 12").
+    // Bei einem Lesezeichen von vor dem Ergebnisse-Merken fehlen die alten —
+    // dann zählt ehrlich nur diese Sitzung.
+    const total = results.filter((result) => result !== null).length;
     const correct = correctCount;
     const wrongCount = wrong.length;
     const allRight = wrongCount === 0;
