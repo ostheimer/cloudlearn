@@ -3,7 +3,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/app/auth-context";
-import { reviewCard, updateCard, earnLp, type Card, type ReviewRating } from "@/lib/api";
+import {
+  listDecks,
+  reviewCard,
+  updateCard,
+  earnLp,
+  type Card,
+  type ReviewRating,
+} from "@/lib/api";
+import {
+  DEFAULT_SPEECH_LANGUAGE,
+  toSpeechLanguage,
+  type SpeechLanguage,
+} from "@/lib/speech-languages";
 import { useDisplayName } from "@/lib/use-display-name";
 import { cleanTerm, formatCloze, summarizeCardMedia } from "@/lib/card-display";
 import { speechTexts } from "@/lib/speech-text";
@@ -140,6 +152,47 @@ export function LearnSession({
   const displayBack = frontParsed.clozeAnswer ?? normalizedBack;
   const frontImage = media.frontImages[0] ?? media.primaryImage;
   const backImage = media.backImages[0] ?? media.primaryImage;
+
+  // ─── Vorlese-Sprachen je Deck (#571) ──────────────────────────────────────
+  // Auch die Ordner-Runde mischt Karten aus mehreren Decks, deshalb eine
+  // Zuordnung Deck → Sprachen statt einer Sprache für die ganze Sitzung. Ein
+  // Fehler ist unkritisch: ohne Eintrag bleibt es bei Deutsch wie bisher.
+  const [deckLangs, setDeckLangs] = useState<
+    Record<string, { front: SpeechLanguage; back: SpeechLanguage }>
+  >({});
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    listDecks(userId)
+      .then(({ decks }) => {
+        if (cancelled) return;
+        const map: Record<string, { front: SpeechLanguage; back: SpeechLanguage }> = {};
+        for (const d of decks) {
+          map[d.id] = {
+            front: toSpeechLanguage(d.speechLangFront),
+            back: toSpeechLanguage(d.speechLangBack),
+          };
+        }
+        setDeckLangs(map);
+      })
+      .catch(() => {
+        /* Ohne Zuordnung bleibt es bei Deutsch — Vorlesen muss trotzdem gehen */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  // Die Sprache folgt dem TEXT, nicht der Position: „Richtung tauschen"
+  // (reverse) zeigt die Rückseite zuerst, dann muss auch deren Sprache zuerst
+  // gesprochen werden.
+  const cardLangs = current?.deckId ? deckLangs[current.deckId] : undefined;
+  const frontSideLang: SpeechLanguage = reverse
+    ? (cardLangs?.back ?? DEFAULT_SPEECH_LANGUAGE)
+    : (cardLangs?.front ?? DEFAULT_SPEECH_LANGUAGE);
+  const backSideLang: SpeechLanguage = reverse
+    ? (cardLangs?.front ?? DEFAULT_SPEECH_LANGUAGE)
+    : (cardLangs?.back ?? DEFAULT_SPEECH_LANGUAGE);
 
   // ─── Vorlesen + Auto-Abspielen (wie der App-Lernmodus) ───────────────────
   const { supported, speaking, speak, stop } = useSpeech();
@@ -321,9 +374,19 @@ export function LearnSession({
     const card = cards[index];
     if (!card) return;
     const texts = speechTexts(reverse ? card.back : card.front, reverse ? card.front : card.back);
-    speak(flipped ? texts.back : texts.front);
+    speak(flipped ? texts.back : texts.front, flipped ? backSideLang : frontSideLang);
     return () => stop();
-  }, [autoPlaying, flipped, index, cards, reverse, speak, stop]);
+  }, [
+    autoPlaying,
+    flipped,
+    index,
+    cards,
+    reverse,
+    speak,
+    stop,
+    frontSideLang,
+    backSideLang,
+  ]);
 
   function toggleSpeak() {
     if (!spoken) return;
@@ -331,7 +394,7 @@ export function LearnSession({
       stop();
       return;
     }
-    speak(flipped ? spoken.back : spoken.front);
+    speak(flipped ? spoken.back : spoken.front, flipped ? backSideLang : frontSideLang);
   }
 
   function toggleAutoPlay() {

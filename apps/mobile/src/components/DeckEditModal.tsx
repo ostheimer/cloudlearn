@@ -17,7 +17,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { X, Check } from "lucide-react-native";
 import { useColors, spacing, radius, typography } from "../theme";
 import { useTranslation } from "react-i18next";
-import { updateDeck } from "../lib/api";
+import { getDeckDetails, updateDeck } from "../lib/api";
+import {
+  SPEECH_LANGUAGES,
+  toSpeechLanguage,
+  type SpeechLanguage,
+} from "../lib/speechLanguages";
 
 interface DeckEditModalProps {
   visible: boolean;
@@ -41,13 +46,31 @@ export default function DeckEditModal({
   const [title, setTitle] = useState(currentTitle);
   const [tagsText, setTagsText] = useState(currentTags.join(", "));
   const [saving, setSaving] = useState(false);
+  // Die gespeicherten Sprachen kennt der aufrufende Bildschirm nicht (er hält
+  // nur Titel und Schlagwörter), deshalb holt das Fenster sie sich beim Öffnen
+  // selbst. Das kostet genau dann eine Anfrage, wenn jemand wirklich bearbeitet.
+  const [langFront, setLangFront] = useState<SpeechLanguage>("de-DE");
+  const [langBack, setLangBack] = useState<SpeechLanguage>("de-DE");
 
   useEffect(() => {
-    if (visible) {
-      setTitle(currentTitle);
-      setTagsText(currentTags.join(", "));
-    }
-  }, [visible, currentTitle, currentTags]);
+    if (!visible) return;
+    setTitle(currentTitle);
+    setTagsText(currentTags.join(", "));
+
+    let cancelled = false;
+    getDeckDetails(deckId)
+      .then(({ details }) => {
+        if (cancelled) return;
+        setLangFront(toSpeechLanguage(details.speechLangFront));
+        setLangBack(toSpeechLanguage(details.speechLangBack));
+      })
+      .catch(() => {
+        /* Sprachen bleiben auf Deutsch stehen — Bearbeiten muss trotzdem gehen */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [visible, currentTitle, currentTags, deckId]);
 
   const isValid = title.trim().length > 0;
 
@@ -59,7 +82,12 @@ export default function DeckEditModal({
         .split(",")
         .map((t) => t.trim())
         .filter(Boolean);
-      await updateDeck(deckId, { title: title.trim(), tags });
+      await updateDeck(deckId, {
+        title: title.trim(),
+        tags,
+        speechLangFront: langFront,
+        speechLangBack: langBack,
+      });
       onSaved(title.trim(), tags);
       onClose();
     } catch {
@@ -68,6 +96,51 @@ export default function DeckEditModal({
       setSaving(false);
     }
   };
+
+  const sectionLabelStyle = {
+    fontWeight: typography.semibold,
+    color: colors.textSecondary,
+    fontSize: typography.sm,
+    textTransform: "uppercase" as const,
+    letterSpacing: 0.5,
+  };
+
+  /** Sprachwahl als Reihe von Chips — bei fünf Einträgen die kürzeste Geste. */
+  const languageChips = (
+    value: SpeechLanguage,
+    onPick: (code: SpeechLanguage) => void
+  ) => (
+    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm }}>
+      {SPEECH_LANGUAGES.map((lang) => {
+        const active = lang.code === value;
+        return (
+          <TouchableOpacity
+            key={lang.code}
+            onPress={() => onPick(lang.code)}
+            activeOpacity={0.7}
+            style={{
+              paddingVertical: spacing.sm,
+              paddingHorizontal: spacing.md,
+              borderRadius: radius.full,
+              borderWidth: 1,
+              borderColor: active ? colors.primary : colors.border,
+              backgroundColor: active ? colors.primary : colors.surface,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: typography.sm,
+                fontWeight: active ? typography.semibold : typography.normal,
+                color: active ? colors.textInverse : colors.text,
+              }}
+            >
+              {lang.label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
@@ -179,6 +252,24 @@ export default function DeckEditModal({
               />
               <Text style={{ color: colors.textTertiary, fontSize: typography.xs }}>
                 {t("deckEdit.tagsHint")}
+              </Text>
+            </View>
+
+            {/* Vorlese-Sprachen (#571). Getrennt nach Seite, weil Vokabelkarten
+                zweisprachig sind: vorne „les données", hinten „die Daten" —
+                eine Sprache fürs ganze Deck würde eine der beiden Seiten immer
+                falsch aussprechen. */}
+            <View style={{ gap: spacing.sm }}>
+              <Text style={sectionLabelStyle}>Vorlesen: Vorderseite</Text>
+              {languageChips(langFront, setLangFront)}
+            </View>
+
+            <View style={{ gap: spacing.sm }}>
+              <Text style={sectionLabelStyle}>Vorlesen: Rückseite</Text>
+              {languageChips(langBack, setLangBack)}
+              <Text style={{ color: colors.textTertiary, fontSize: typography.xs }}>
+                Bestimmt, in welcher Sprache der Lautsprecher die jeweilige Seite
+                vorliest. Bei Vokabeln also vorne die Fremdsprache, hinten Deutsch.
               </Text>
             </View>
           </ScrollView>

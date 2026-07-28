@@ -32,6 +32,13 @@ export interface DeckRecord {
    * "0 Karten" and look broken — the cards are there, just in another mode.
    */
   imageCardCount?: number;
+  /**
+   * Vorlese-Sprachen des Decks, getrennt nach Seite (#571). `null` heißt „nicht
+   * eingestellt" — die Clients lesen dann Deutsch. Getrennt, weil Vokabelkarten
+   * zweisprachig sind: vorne „les données", hinten „die Daten".
+   */
+  speechLangFront?: string | null;
+  speechLangBack?: string | null;
   deletedAt?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -91,6 +98,8 @@ function mapDeckRow(row: any): DeckRecord {
     title: row.title,
     tags: row.tags ?? [],
     ...(cardCount !== undefined ? { cardCount: Number(cardCount) } : {}),
+    speechLangFront: row.speech_lang_front ?? null,
+    speechLangBack: row.speech_lang_back ?? null,
     deletedAt: row.deleted_at ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -228,7 +237,9 @@ export async function getDeck(
 export async function updateDeck(
   deckId: string,
   userId: string,
-  updates: Partial<Pick<DeckRecord, "title" | "tags">>
+  updates: Partial<
+    Pick<DeckRecord, "title" | "tags" | "speechLangFront" | "speechLangBack">
+  >
 ): Promise<DeckRecord | null> {
   const db = getDb();
   const dbUpdates: Record<string, unknown> = {
@@ -236,6 +247,14 @@ export async function updateDeck(
   };
   if (updates.title !== undefined) dbUpdates.title = updates.title;
   if (updates.tags !== undefined) dbUpdates.tags = updates.tags;
+  // `null` schreibt die Spalte bewusst leer („Sprache wieder entfernen"); nur
+  // ein fehlendes Feld lässt sie unberührt.
+  if (updates.speechLangFront !== undefined) {
+    dbUpdates.speech_lang_front = updates.speechLangFront;
+  }
+  if (updates.speechLangBack !== undefined) {
+    dbUpdates.speech_lang_back = updates.speechLangBack;
+  }
 
   const { data, error } = await db
     .from("decks")

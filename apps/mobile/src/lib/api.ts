@@ -195,6 +195,14 @@ export interface Deck {
   cardCount?: number;
   /** Bild-Occlusion cards, counted separately ("20 Karten · 10 Bilder"). */
   imageCardCount?: number;
+  /**
+   * Vorlese-Sprachen des Decks, getrennt nach Seite (#571). `null` heißt „nicht
+   * eingestellt" → Deutsch. Getrennt, weil Vokabelkarten zweisprachig sind:
+   * vorne „les données", hinten „die Daten". Optional, solange ältere
+   * API-Versionen auslaufen.
+   */
+  speechLangFront?: string | null;
+  speechLangBack?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -592,7 +600,14 @@ export async function getTestAttempts(): Promise<{ attempts: TestAttemptSummary[
 
 export async function updateDeck(
   deckId: string,
-  updates: { title?: string; tags?: string[] }
+  updates: {
+    title?: string;
+    tags?: string[];
+    // `null` entfernt die Einstellung wieder; ein fehlendes Feld lässt sie in
+    // Ruhe. Deshalb hier kein `?? undefined`-Aufräumen beim Aufrufer.
+    speechLangFront?: string | null;
+    speechLangBack?: string | null;
+  }
 ): Promise<{ deck: Deck }> {
   return requestAuthenticated<{ deck: Deck }>(`/api/v1/decks/${deckId}`, {
     method: "PATCH",
@@ -848,6 +863,9 @@ export interface DeckDetails {
   tags: string[];
   cardCount: number;
   folders: Folder[];
+  /** Vorlese-Sprachen je Seite (#571); `null` = nicht eingestellt → Deutsch. */
+  speechLangFront?: string | null;
+  speechLangBack?: string | null;
   createdAt: string;
   updatedAt: string;
 }

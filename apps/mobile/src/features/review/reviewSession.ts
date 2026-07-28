@@ -7,6 +7,13 @@ export interface ReviewCard {
   front: string;
   back: string;
   starred?: boolean;
+  /**
+   * Deck der Karte — nur fürs Vorlesen gebraucht (#571): Im Lern-Tab liegen
+   * Karten aus vielen Decks gemischt, und jedes Deck bringt eigene Sprachen für
+   * Vorder- und Rückseite mit. Optional, weil ältere gespeicherte Sitzungen und
+   * andere Bildschirme das Feld nicht setzen; ohne Wert wird Deutsch gesprochen.
+   */
+  deckId?: string;
 }
 
 /** Eigentümer-Kennung des Lern-Tabs (fällige Karten über alle Decks). */
