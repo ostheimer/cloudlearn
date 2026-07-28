@@ -17,6 +17,13 @@ import {
   type SessionAwardState,
 } from "@/lib/learn-session-lp";
 import {
+  clearSessionProgress,
+  isProgressUsable,
+  loadSessionProgress,
+  saveSessionProgress,
+  type SessionProgress,
+} from "@/lib/session-progress";
+import {
   ArrowLeft,
   X,
   Check,
@@ -79,10 +86,17 @@ export default function ClozePage() {
   const [phase, setPhase] = useState<"setup" | "play" | "summary">("setup");
   const [round, setRound] = useState<Card[]>([]);
   const [idx, setIdx] = useState(0);
+  // Untergrenze für den Zurück-Pfeil. Beim Weitermachen wurden die Karten vor
+  // der Einstiegskarte letztes Mal beantwortet und bewertet — zurückblättern
+  // würde sie ein zweites Mal bewerten.
+  const [floor, setFloor] = useState(0);
   const [input, setInput] = useState("");
   // Ein Ergebnis-Slot je Karte (null = noch nicht beantwortet), damit der
   // Zurück-Knopf eine frühere Karte in ihrem beantworteten Zustand zeigt.
   const [results, setResults] = useState<(Result | null)[]>([]);
+  // Wo eine frühere Runde dieses Decks stand, falls gemerkt. Wird nur
+  // ANGEBOTEN, nie angewendet.
+  const [saved, setSaved] = useState<SessionProgress | null>(null);
 
   const [earned, setEarned] = useState<number | null>(null);
   const [earnCapReached, setEarnCapReached] = useState(false);
@@ -107,6 +121,22 @@ export default function ClozePage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Gemerkten Lernstand einmal je Seite lesen; das Angebot im Setup erscheint
+  // nur, solange er zum Stapel der aktuellen Auswahl passt.
+  useEffect(() => {
+    if (!deckId) return;
+    setSaved(loadSessionProgress(deckId, "cloze"));
+  }, [deckId]);
+
+  const studyPool = filterBySource(allCards, source, wobblyIds);
+  const canResume =
+    saved !== null &&
+    isProgressUsable(
+      saved,
+      studyPool.map((c) => c.id),
+      source
+    );
 
   const current = round[idx];
   const parsed = current ? buildPrompt(current, reverse) : null;
@@ -150,15 +180,21 @@ export default function ClozePage() {
     });
   }, []);
 
-  const startRound = useCallback(async (cards: Card[]) => {
+  const startRound = useCallback(async (cards: Card[], startAt = 0) => {
     await awardSession(round.length);
     awardStateRef.current = { finalized: false, inFlight: null };
     pendingReviewsRef.current = [];
     setEarned(null);
     setEarnCapReached(false);
+    // `startAt` setzt eine unterbrochene Runde fort (session-progress.ts).
+    // Die Untergrenze wandert mit: Die übersprungenen Karten wurden letztes
+    // Mal beantwortet und bewertet — der Zurück-Pfeil darf nicht in sie
+    // hineinlaufen und eine zweite Bewertung einsammeln.
+    const from = Math.min(Math.max(startAt, 0), Math.max(cards.length - 1, 0));
     setRound(cards);
     setResults(new Array(cards.length).fill(null));
-    setIdx(0);
+    setIdx(from);
+    setFloor(from);
     setInput("");
     setPhase("play");
   }, [awardSession, round.length]);
@@ -195,8 +231,11 @@ export default function ClozePage() {
 
   function next() {
     if (idx + 1 >= round.length) {
+      // Beim Weitermachen zählt nur, was in DIESER Runde beantwortet wurde —
+      // die Slots vor der Einstiegskarte bleiben null.
+      const answered = results.filter(Boolean).length;
       const reviewedCount = getSessionReviewedCount(
-        round.length,
+        answered,
         pendingReviewsRef.current.length,
       );
       void awardSession(reviewedCount);
@@ -208,10 +247,32 @@ export default function ClozePage() {
   }
 
   function back() {
-    if (idx === 0) return;
+    if (idx <= floor) return;
     setIdx((i) => i - 1);
     setInput("");
   }
+
+  // ─── Merken, wo eine unterbrochene Runde stand (Weitermachen) ────────────
+  // Bei jedem Kartenwechsel geschrieben statt beim Verlassen: Ein Tab lässt
+  // sich schließen, ohne dass irgendein Aufräum-Code läuft. Die Auswertung
+  // löscht den Eintrag — eine fertige Runde hat nichts fortzusetzen.
+  useEffect(() => {
+    if (!deckId || round.length === 0) return;
+    if (phase === "summary") {
+      clearSessionProgress(deckId, "cloze");
+      return;
+    }
+    if (phase !== "play") return;
+    const card = round[idx];
+    if (!card) return;
+    saveSessionProgress(deckId, "cloze", {
+      index: idx,
+      cardId: card.id,
+      source,
+      reverse,
+      total: round.length,
+    });
+  }, [deckId, phase, round, idx, source, reverse]);
 
   async function quit() {
     const answered = results.filter(Boolean).length;
@@ -316,12 +377,33 @@ export default function ClozePage() {
           wobblyCount={allCards.filter((c) => wobblyIds.has(c.id)).length}
         />
 
+        {/* Weitermachen — nur solange eine unterbrochene Runde noch passt */}
+        {canResume && saved && (
+          <button
+            type="button"
+            className="btn btn-primary btn-lg btn-block btn-resume"
+            onClick={() => {
+              // Die unterbrochene Runde lief in einer bestimmten Richtung —
+              // die fortgesetzten Karten werden genauso herum abgefragt wie
+              // die davor.
+              setReverse(saved.reverse);
+              void startRound(studyPool, saved.index);
+            }}
+          >
+            Weitermachen
+            <small>
+              Karte {saved.index + 1} von {studyPool.length}
+            </small>
+          </button>
+        )}
+
+        {/* Starten — wird zur Zweitwahl, sobald ein Weitermachen angeboten wird */}
         <button
           type="button"
-          className="btn btn-primary btn-lg btn-block"
-          onClick={() => startRound(filterBySource(allCards, source, wobblyIds))}
+          className={`btn ${canResume ? "btn-ghost" : "btn-primary"} btn-lg btn-block`}
+          onClick={() => startRound(studyPool)}
         >
-          Starten
+          {canResume ? "Von vorne beginnen" : "Starten"}
         </button>
       </div>
     );
@@ -329,7 +411,10 @@ export default function ClozePage() {
 
   // ---------- Auswertung ----------
   if (phase === "summary") {
-    const total = round.length;
+    // Nach einem Weitermachen zählt die Auswertung nur die in DIESER Runde
+    // beantworteten Karten (ab der Untergrenze) — die übersprungenen wurden
+    // letztes Mal bewertet und ausgewertet.
+    const total = round.length - floor;
     const correct = results.filter((r) => r && (r.correct || r.overridden)).length;
     const wrong = round.filter((_, i) => {
       const r = results[i];
@@ -481,7 +566,7 @@ export default function ClozePage() {
           type="button"
           className="cl-back"
           onClick={back}
-          disabled={idx === 0}
+          disabled={idx <= floor}
           aria-label="Vorherige Karte"
         >
           <ArrowLeft size={22} />

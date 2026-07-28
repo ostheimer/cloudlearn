@@ -14,6 +14,7 @@ import {
   isSessionEarnFinalized,
   type SessionAwardState,
 } from "@/lib/learn-session-lp";
+import { clearSessionProgress, saveSessionProgress } from "@/lib/session-progress";
 
 const RATINGS: { key: ReviewRating; label: string; cls: string }[] = [
   { key: "again", label: "Nochmal", cls: "rating--again" },
@@ -32,15 +33,30 @@ const AUTO_PLAY_SPEEDS = [1, 3, 5, 10];
  * from here on — rating, LP, restart, „nur nicht gewusste" — is the same either
  * way. `pool` is the full round: it must already be filtered (no occlusion
  * cards) and stay referentially stable, since „Alle nochmal" restores it.
+ *
+ * Weitermachen (sessionProgress wie in der App): Sind `progressDeckId` und
+ * `progressSource` gesetzt, merkt sich die Runde bei jedem Kartenwechsel ihre
+ * Position im Browser und löscht den Merker am Rundenende. Nur das
+ * Deck-Lernen setzt sie — beim Ordner-Lernen wechselt der Fällig-Stapel
+ * täglich von selbst, ein gemerkter Stand wäre fast nie mehr gültig, und die
+ * Wackelkandidaten-Sonderrunden (?cards=) startet man einfach neu.
+ * `startAt` steigt mitten in der Runde ein, nachdem das Setup den Stand als
+ * noch gültig geprüft und „Weitermachen" angeboten hat.
  */
 export function LearnSession({
   pool,
   backHref,
   backLabel,
+  startAt,
+  progressDeckId,
+  progressSource,
 }: {
   pool: Card[];
   backHref: string;
   backLabel: string;
+  startAt?: number | undefined;
+  progressDeckId?: string | undefined;
+  progressSource?: string | undefined;
 }) {
   const router = useRouter();
   const { userId } = useAuth();
@@ -48,7 +64,15 @@ export function LearnSession({
   // `cards` is the queue actually being studied — possibly a subset of `pool`
   // after „Nur die nicht gewussten".
   const [cards, setCards] = useState<Card[]>(pool);
-  const [index, setIndex] = useState(0);
+  const [index, setIndex] = useState(() =>
+    Math.min(Math.max(startAt ?? 0, 0), Math.max(pool.length - 1, 0))
+  );
+  // Wo DIESE Runde begonnen hat: 0 normalerweise, beim Weitermachen die
+  // Einstiegskarte. Die übersprungenen Karten wurden letztes Mal bewertet und
+  // abgerechnet — Auswertung und LP zählen nur, was ab hier gelernt wurde.
+  const [startIndex, setStartIndex] = useState(() =>
+    Math.min(Math.max(startAt ?? 0, 0), Math.max(pool.length - 1, 0))
+  );
   const [flipped, setFlipped] = useState(false);
   const [correct, setCorrect] = useState(0);
   const [notKnown, setNotKnown] = useState<Card[]>([]);
@@ -104,8 +128,31 @@ export function LearnSession({
   }, []);
 
   useEffect(() => {
-    if (done) void awardSession(total);
-  }, [done, total, awardSession]);
+    if (done) void awardSession(total - startIndex);
+  }, [done, total, startIndex, awardSession]);
+
+  // ─── Merken, wo eine unterbrochene Runde stand (Weitermachen) ────────────
+  // Bei jedem Kartenwechsel geschrieben statt beim Verlassen: Ein Tab lässt
+  // sich schließen, ohne dass irgendein Aufräum-Code läuft. Das Rundenende
+  // löscht den Eintrag — eine fertige Runde hat nichts fortzusetzen.
+  useEffect(() => {
+    if (!progressDeckId || !progressSource || total === 0) return;
+    if (done) {
+      clearSessionProgress(progressDeckId, "flashcards");
+      return;
+    }
+    const card = cards[index];
+    if (!card) return;
+    saveSessionProgress(progressDeckId, "flashcards", {
+      index,
+      cardId: card.id,
+      source: progressSource,
+      // Das Web fragt Karteikarten (noch) immer von vorn ab; das Feld hält
+      // nur das Format deckungsgleich zur App.
+      reverse: false,
+      total,
+    });
+  }, [progressDeckId, progressSource, cards, index, done, total]);
 
   // useCallback statt schlichter Funktion, weil der Auto-Abspielen-Timer sie
   // aus einem Effekt heraus aufruft.
@@ -192,7 +239,7 @@ export function LearnSession({
   }
 
   async function startRound(next: Card[]) {
-    await awardSession(total);
+    await awardSession(total - startIndex);
     awardStateRef.current.finalized = false;
     pendingReviewsRef.current = [];
     setEarned(null);
@@ -200,6 +247,9 @@ export function LearnSession({
     setCards(next);
     setNotKnown([]);
     setIndex(0);
+    // Folge-Runden („Nur die nicht gewussten" / „Alle nochmal") beginnen
+    // wieder ganz vorn — der Weitermachen-Einstieg galt nur der ersten.
+    setStartIndex(0);
     setFlipped(false);
     setCorrect(0);
   }
@@ -209,13 +259,20 @@ export function LearnSession({
     // die Stimme soll aber nicht so lange weiterreden.
     setAutoPlaying(false);
     stop();
-    // Beim frühen Beenden noch die LP der bisher gelernten Karten sichern.
-    const reviewedCount = getSessionReviewedCount(index, pendingReviewsRef.current.length);
+    // Beim frühen Beenden noch die LP der bisher gelernten Karten sichern —
+    // beim Weitermachen zählen nur die ab dem Einstieg gelernten.
+    const reviewedCount = getSessionReviewedCount(
+      index - startIndex,
+      pendingReviewsRef.current.length
+    );
     await awardSession(reviewedCount);
     router.push(backHref);
   }
 
   if (done) {
+    // Beim Weitermachen zählt die Auswertung nur die in DIESER Runde
+    // gelernten Karten — die übersprungenen wurden letztes Mal bewertet.
+    const studied = total - startIndex;
     return (
       <div className="study-wrap">
         <div className="study-done">
@@ -224,8 +281,8 @@ export function LearnSession({
           </div>
           <h2 className="h2">Runde geschafft{displayName ? `, ${displayName}` : ""}!</h2>
           <p className="lead">
-            Du hast {total} {total === 1 ? "Karte" : "Karten"} wiederholt — {correct} davon sicher
-            gewusst.
+            Du hast {studied} {studied === 1 ? "Karte" : "Karten"} wiederholt — {correct} davon
+            sicher gewusst.
           </p>
           {earned !== null && earned > 0 && (
             <span className="lp-pill">

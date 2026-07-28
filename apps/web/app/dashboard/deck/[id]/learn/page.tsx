@@ -8,6 +8,11 @@ import { listCardsInDeck, isApiError, type Card } from "@/lib/api";
 import { useWobblyIds } from "@/lib/use-wobbly-ids";
 import { filterBySource, type CardSource } from "@/lib/card-source";
 import { CardSourcePicker } from "@/components/app/card-source-picker";
+import {
+  isProgressUsable,
+  loadSessionProgress,
+  type SessionProgress,
+} from "@/lib/session-progress";
 import { Layers, ArrowLeft, AlertTriangle } from "@/components/icons";
 
 export default function LearnPage() {
@@ -27,6 +32,15 @@ export default function LearnPage() {
   // Auswahl schon getroffen und es geht direkt los.
   const [phase, setPhase] = useState<"setup" | "play">("setup");
   const [pool, setPool] = useState<Card[] | null>(null);
+  // Wo eine frühere Runde dieses Decks stand, falls gemerkt. Wird nur
+  // ANGEBOTEN, nie angewendet — ein Stand von vor Tagen muss nicht mehr das
+  // sein, was man jetzt will.
+  const [saved, setSaved] = useState<SessionProgress | null>(null);
+  // Einstiegskarte, sobald „Weitermachen" gewählt wurde; undefined = ganz vorn.
+  const [resumeAt, setResumeAt] = useState<number | undefined>(undefined);
+  // Gezielte Sonderrunde über ?cards= (z. B. „Wackelkandidaten üben" aus der
+  // Statistik): kurze Runden ohne Weitermachen — weder speichern noch anbieten.
+  const [adhocRound, setAdhocRound] = useState(false);
 
   const load = useCallback(async () => {
     if (!deckId) return;
@@ -45,6 +59,7 @@ export default function LearnPage() {
       if (wanted) {
         const subset = study.filter((x) => wanted.has(x.id));
         setPool(subset.length > 0 ? subset : study);
+        setAdhocRound(true);
         setPhase("play");
       }
       setError(null);
@@ -59,12 +74,33 @@ export default function LearnPage() {
     load();
   }, [load]);
 
-  function start() {
+  // Gemerkten Lernstand einmal je Seite lesen; das Angebot unten erscheint
+  // nur, solange er zum Stapel der aktuellen Auswahl passt.
+  useEffect(() => {
+    if (!deckId) return;
+    setSaved(loadSessionProgress(deckId, "flashcards"));
+  }, [deckId]);
+
+  // Nur anbieten, solange der Stand wirklich brauchbar ist: gleiche
+  // Kartenquelle, und an der gemerkten Position liegt noch dieselbe Karte
+  // (seitdem können Karten dazugekommen, gelöscht oder entmarkiert sein).
+  // Ein Wechsel der Quelle blendet das Angebot aus — ein Index in den einen
+  // Stapel sagt nichts über den anderen.
+  const chosenPool = studyable ? filterBySource(studyable, source, wobblyIds) : [];
+  const canResume =
+    saved !== null &&
+    isProgressUsable(
+      saved,
+      chosenPool.map((c) => c.id),
+      source
+    );
+
+  function start(startAtCard?: number) {
     if (!studyable) return;
-    const chosen = filterBySource(studyable, source, wobblyIds);
     // Leere Auswahl kann nur „all" sein (die anderen sind bei 0 gesperrt) —
     // dann bleibt es beim ganzen Deck.
-    setPool(chosen.length > 0 ? chosen : studyable);
+    setPool(chosenPool.length > 0 ? chosenPool : studyable);
+    setResumeAt(startAtCard);
     setPhase("play");
   }
 
@@ -102,7 +138,14 @@ export default function LearnPage() {
 
   if (phase === "play" && pool && pool.length > 0) {
     return (
-      <LearnSession pool={pool} backHref={`/dashboard/deck/${deckId}`} backLabel="Zurück zum Deck" />
+      <LearnSession
+        pool={pool}
+        backHref={`/dashboard/deck/${deckId}`}
+        backLabel="Zurück zum Deck"
+        startAt={resumeAt}
+        progressDeckId={adhocRound ? undefined : deckId}
+        progressSource={adhocRound ? undefined : source}
+      />
     );
   }
 
@@ -133,8 +176,27 @@ export default function LearnPage() {
         wobblyCount={studyable.filter((c) => wobblyIds.has(c.id)).length}
       />
 
-      <button type="button" className="btn btn-primary btn-lg btn-block" onClick={start}>
-        Starten
+      {/* Weitermachen — nur solange eine unterbrochene Runde noch passt */}
+      {canResume && saved && (
+        <button
+          type="button"
+          className="btn btn-primary btn-lg btn-block btn-resume"
+          onClick={() => start(saved.index)}
+        >
+          Weitermachen
+          <small>
+            Karte {saved.index + 1} von {chosenPool.length}
+          </small>
+        </button>
+      )}
+
+      {/* Starten — wird zur Zweitwahl, sobald ein Weitermachen angeboten wird */}
+      <button
+        type="button"
+        className={`btn ${canResume ? "btn-ghost" : "btn-primary"} btn-lg btn-block`}
+        onClick={() => start()}
+      >
+        {canResume ? "Von vorne beginnen" : "Starten"}
       </button>
     </div>
   );

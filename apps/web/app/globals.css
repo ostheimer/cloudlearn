@@ -386,6 +386,19 @@ p {
   width: 100%;
 }
 
+/* „Weitermachen"-Knopf im Lern-Setup: Hauptzeile + kleine Unterzeile
+   („Karte 4 von 12"), wie in der App. */
+.btn-resume {
+  flex-direction: column;
+  gap: 2px;
+}
+
+.btn-resume small {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+}
+
 /* ---------- Pills / badges ---------- */
 .pill {
   display: inline-flex;
