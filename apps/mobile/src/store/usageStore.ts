@@ -22,13 +22,18 @@ export interface UsageState {
   // Optimistically deduct LP after a successful feature use
   deductLp: (amount: number) => void;
 
+  // Optimistically add LP after a milestone grant. Reads the freshest balance
+  // itself, so a stale caller (e.g. a captured render value) cannot base the new
+  // total on an outdated number.
+  addLp: (amount: number) => void;
+
   // Overwrite from server response
-  setUsage: (usage: Partial<Omit<UsageState, "isLoaded" | "deductLp" | "setUsage" | "reset">>) => void;
+  setUsage: (usage: Partial<Omit<UsageState, "isLoaded" | "deductLp" | "addLp" | "setUsage" | "reset">>) => void;
 
   reset: () => void;
 }
 
-const INITIAL_STATE: Omit<UsageState, "deductLp" | "setUsage" | "reset"> = {
+const INITIAL_STATE: Omit<UsageState, "deductLp" | "addLp" | "setUsage" | "reset"> = {
   tier: "free",
   lpBalance: 10,
   lpEarnedToday: 0,
@@ -52,6 +57,11 @@ export const useUsageStore = create<UsageState>((set, get) => ({
     if (s.lpBalance >= amount) {
       set({ lpBalance: Math.max(s.lpBalance - amount, 0) });
     }
+  },
+
+  addLp: (amount: number) => {
+    if (amount <= 0) return;
+    set({ lpBalance: get().lpBalance + amount });
   },
 
   setUsage: (usage) => set({ ...usage, isLoaded: true }),
