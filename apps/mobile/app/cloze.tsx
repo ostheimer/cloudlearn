@@ -789,7 +789,10 @@ export default function ClozeScreen() {
 
   // Summary
   if (phase === "summary") {
-    const total = round.length;
+    // Nach einem Weitermachen zählt die Auswertung nur die in DIESER Runde
+    // beantworteten Karten (ab der Untergrenze) — die übersprungenen wurden
+    // letztes Mal bewertet und ausgewertet.
+    const total = round.length - floor;
     const correct = correctCount;
     const wrongCount = wrong.length;
     const allRight = wrongCount === 0;
