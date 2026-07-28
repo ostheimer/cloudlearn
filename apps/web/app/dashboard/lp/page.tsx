@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { getLpBalance, isApiError, type AiUsageResponse } from "@/lib/api";
+import { getLpBalance, isApiError, type LpBalanceResponse } from "@/lib/api";
 import {
   ArrowLeft,
   ChevronRight,
@@ -38,7 +38,7 @@ const MILESTONES = [
 ] as const;
 
 export default function LpPage() {
-  const [usage, setUsage] = useState<AiUsageResponse | null>(null);
+  const [usage, setUsage] = useState<LpBalanceResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

@@ -14,7 +14,7 @@ import {
   listDecks,
   saveImportedCards,
   isApiError,
-  type AiUsageResponse,
+  type LpBalanceResponse,
   type Deck,
   type Flashcard,
   type ScanResponse,
@@ -85,7 +85,7 @@ export default function ImportPage() {
   const [prepping, setPrepping] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [usage, setUsage] = useState<AiUsageResponse | null>(null);
+  const [usage, setUsage] = useState<LpBalanceResponse | null>(null);
   // #411: Die vorhandenen Decks — für die Grenz-Prüfung VOR dem Ausgeben von
   // Lernpunkten. `null` heißt „noch nicht geladen"; dann wird nichts gesperrt
   // (der Server prüft ohnehin und bucht notfalls zurück).

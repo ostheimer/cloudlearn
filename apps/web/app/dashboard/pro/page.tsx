@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { getLpBalance, type AiUsageResponse } from "@/lib/api";
+import { getLpBalance, type LpBalanceResponse } from "@/lib/api";
 import {
   ArrowLeft,
   BarChart,
@@ -36,7 +36,7 @@ const PRO_FEATURES = [
 ] as const;
 
 export default function ProPage() {
-  const [usage, setUsage] = useState<AiUsageResponse | null>(null);
+  const [usage, setUsage] = useState<LpBalanceResponse | null>(null);
 
   useEffect(() => {
     let active = true;

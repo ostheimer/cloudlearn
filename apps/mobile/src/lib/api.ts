@@ -157,7 +157,7 @@ export interface PdfImportResponse extends ScanResponse {
   usage?: LpUsageInfo;
 }
 
-export interface AiUsageResponse {
+export interface LpBalanceResponse {
   tier: "free" | "pro" | "lifetime";
   lpBalance: number;
   lpEarnedToday: number;
@@ -864,8 +864,8 @@ export async function exportDeckForOffline(
 
 // ─── LP (Lernpunkte) ──────────────────────────────────────────────────────────
 
-export async function getLpBalance(): Promise<AiUsageResponse> {
-  return requestAuthenticated<AiUsageResponse>("/api/v1/usage");
+export async function getLpBalance(): Promise<LpBalanceResponse> {
+  return requestAuthenticated<LpBalanceResponse>("/api/v1/usage");
 }
 
 export async function earnLp(
