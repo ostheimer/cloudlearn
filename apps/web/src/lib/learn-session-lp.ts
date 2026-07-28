@@ -1,5 +1,5 @@
-/** Minimum reviewed cards before the server may grant session LP. */
-export const LP_SESSION_MIN_CARDS = 5;
+/** Minimum reviewed cards before the client may call earnLp. Server chunk is 1. */
+export const LP_SESSION_MIN_CARDS = 1;
 
 export interface SessionEarnResult {
   granted: number;
