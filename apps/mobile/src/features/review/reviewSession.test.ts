@@ -39,7 +39,8 @@ describe("review session", () => {
     expect(useReviewSession.getState().completed).toBe(false);
   });
 
-  it("counts swipedLeft for 'again' and swipedRight for other ratings", () => {
+  it("counts swipedLeft for 'again' AND 'hard', swipedRight for the rest", () => {
+    // „Schwer" = nicht gewusst (#565) — der rote Zähler muss mitzählen.
     useReviewSession.getState().start([
       { id: "1", front: "Q1", back: "A1" },
       { id: "2", front: "Q2", back: "A2" },
@@ -49,11 +50,11 @@ describe("review session", () => {
 
     useReviewSession.getState().rateCurrent("again"); // left
     useReviewSession.getState().rateCurrent("good");  // right
-    useReviewSession.getState().rateCurrent("hard");  // right
+    useReviewSession.getState().rateCurrent("hard");  // left (#565)
     useReviewSession.getState().rateCurrent("easy");  // right
 
-    expect(useReviewSession.getState().swipedLeft).toBe(1);
-    expect(useReviewSession.getState().swipedRight).toBe(3);
+    expect(useReviewSession.getState().swipedLeft).toBe(2);
+    expect(useReviewSession.getState().swipedRight).toBe(2);
   });
 
   it("resets swipe counters on start", () => {
@@ -109,9 +110,11 @@ describe("missedCardsFrom", () => {
     expect(missed.map((c) => c.id)).toEqual(["1", "3"]);
   });
 
-  it("treats every non-'again' rating (hard/good/easy) as known", () => {
+  it("treats 'hard' as missed, 'good' and 'easy' as known (#565)", () => {
+    // Laras Entscheidung: „Schwer" heißt „nicht sicher gewusst" — dieselbe
+    // Runde muss in App und Web dieselbe Zahl ergeben.
     const missed = missedCardsFrom(cards, [0, 1, 2], ["hard", "good", "easy"]);
-    expect(missed).toEqual([]);
+    expect(missed.map((c) => c.id)).toEqual(["1"]);
   });
 
   it("uses the LAST rating per card, so a re-rated card counts by its final answer", () => {

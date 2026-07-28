@@ -120,7 +120,7 @@ export const useReviewSession = create<ReviewSessionState>((set, get) => ({
 
     // Decrement the counter that was incremented for the last rating
     const lastRating = ratingHistory[ratingHistory.length - 1];
-    const wasLeft = lastRating === "again";
+    const wasLeft = lastRating === "again" || lastRating === "hard";
 
     set({
       index: previousIndex,
@@ -141,7 +141,9 @@ export const useReviewSession = create<ReviewSessionState>((set, get) => ({
     }
 
     const nextIndex = index + 1;
-    const isLeft = rating === "again";
+    // „Schwer" zählt wie „Nochmal" als nicht gewusst (#565, Laras Wortlaut-
+    // Entscheidung) — Web und App rechnen damit gleich.
+    const isLeft = rating === "again" || rating === "hard";
     set({
       index: nextIndex,
       history: [...history, index],
@@ -156,11 +158,12 @@ export const useReviewSession = create<ReviewSessionState>((set, get) => ({
   }
 }));
 
-// Cards the learner didn't know this session: those whose most recent rating was
-// "again" (a left swipe or the "Nochmal" button — both record "again"). Uses the
-// LAST rating per card so a card re-rated after "Zurück" (goBack) counts by its
-// final answer, not an earlier one. Pure, so the result screen's "X von Y
-// gewusst" and "only the missed ones" button are unit-testable.
+// Cards the learner didn't know this session: those whose most recent rating
+// was "again" OR "hard" — „Schwer" heißt „nicht sicher gewusst" (#565, Laras
+// Entscheidung; das Web zählte immer schon so). Uses the LAST rating per card
+// so a card re-rated after "Zurück" (goBack) counts by its final answer, not
+// an earlier one. Pure, so the result screen's "X von Y gewusst" and "only
+// the missed ones" button are unit-testable.
 export function missedCardsFrom(
   cards: ReviewCard[],
   history: number[],
@@ -174,7 +177,7 @@ export function missedCardsFrom(
   const missed: ReviewCard[] = [];
   lastRating.forEach((rating, cardIndex) => {
     const card = cards[cardIndex];
-    if (rating === "again" && card) missed.push(card);
+    if ((rating === "again" || rating === "hard") && card) missed.push(card);
   });
   return missed;
 }
