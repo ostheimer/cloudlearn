@@ -26,6 +26,7 @@ import {
 } from "../../src/lib/statsApi";
 import { ApiError, getLpBalance, getTestAttempts, type TestAttemptSummary } from "../../src/lib/api";
 import { TestAttemptsCard } from "../../src/components/TestAttemptsCard";
+import { AccuracyByKindCard } from "../../src/components/AccuracyByKindCard";
 import {
   AccuracyRing,
   AccuracyTrendChart,
@@ -653,10 +654,17 @@ export default function StatsScreen() {
               )}
             </View>
 
-            {/* Prüfungs-Bereich — nach „Genauigkeit", wie im Web nach der
-                Trefferquote. Erst wenn geladen (attempts !== null), sonst
-                blitzte der Leerzustand kurz auf. Vergleichszahl „selbst
-                bewertet" ist die „Aus dem Kopf gewusst"-Quote. */}
+            {/* Trefferquote getrennt nach Art der Antwort — direkt unter
+                „Genauigkeit", weil die Karte genau die Zahl von dort aufteilt.
+                Zeigt sich selbst nicht, solange beide Gruppen leer sind. */}
+            {stats?.accuracyByKind ? (
+              <AccuracyByKindCard data={stats.accuracyByKind} />
+            ) : null}
+
+            {/* Prüfungs-Bereich — nach der Trefferquote, wie im Web. Erst wenn
+                geladen (attempts !== null), sonst blitzte der Leerzustand kurz
+                auf. Vergleichszahl „selbst bewertet" ist die „Aus dem Kopf
+                gewusst"-Quote. */}
             {attempts !== null && (
               <TestAttemptsCard
                 attempts={attempts}
