@@ -3,11 +3,22 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/app/auth-context";
-import { reviewCard, earnLp, type Card, type ReviewRating } from "@/lib/api";
+import { reviewCard, updateCard, earnLp, type Card, type ReviewRating } from "@/lib/api";
 import { useDisplayName } from "@/lib/use-display-name";
 import { speechTexts } from "@/lib/speech-text";
 import { useSpeech } from "@/lib/use-speech";
-import { X, Trophy, Zap, Play, Pause, Timer, Volume2 } from "@/components/icons";
+import {
+  X,
+  Trophy,
+  Zap,
+  Play,
+  Pause,
+  Timer,
+  Volume2,
+  Star,
+  ArrowLeft,
+  Repeat,
+} from "@/components/icons";
 import {
   beginSessionAward,
   getSessionReviewedCount,
@@ -15,6 +26,7 @@ import {
   type SessionAwardState,
 } from "@/lib/learn-session-lp";
 import { clearSessionProgress, saveSessionProgress } from "@/lib/session-progress";
+import { createReviewSendBuffer } from "@/lib/review-send-buffer";
 
 const RATINGS: { key: ReviewRating; label: string; cls: string }[] = [
   { key: "again", label: "Nochmal", cls: "rating--again" },
@@ -41,13 +53,20 @@ const AUTO_PLAY_SPEEDS = [1, 3, 5, 10];
  * täglich von selbst, ein gemerkter Stand wäre fast nie mehr gültig, und die
  * Wackelkandidaten-Sonderrunden (?cards=) startet man einfach neu.
  * `startAt` steigt mitten in der Runde ein, nachdem das Setup den Stand als
- * noch gültig geprüft und „Weitermachen" angeboten hat.
+ * noch gültig geprüft und „Weitermachen" angeboten hat; `startReverse` stellt
+ * dabei die Abfrage-Richtung der unterbrochenen Runde wieder her.
+ *
+ * Seit Laras Angleichung (#571 Teil B) spiegelt die Ansicht die App:
+ * Zurück-Pfeil mit Rückgängig (Ein-Schritt-Puffer, review-send-buffer.ts),
+ * Stern-Markieren, Richtung tauschen mitten in der Runde, rot/grün-Zähler
+ * und ständig sichtbare Bewertungs-Knöpfe.
  */
 export function LearnSession({
   pool,
   backHref,
   backLabel,
   startAt,
+  startReverse,
   progressDeckId,
   progressSource,
 }: {
@@ -55,6 +74,7 @@ export function LearnSession({
   backHref: string;
   backLabel: string;
   startAt?: number | undefined;
+  startReverse?: boolean | undefined;
   progressDeckId?: string | undefined;
   progressSource?: string | undefined;
 }) {
@@ -76,6 +96,18 @@ export function LearnSession({
   const [flipped, setFlipped] = useState(false);
   const [correct, setCorrect] = useState(0);
   const [notKnown, setNotKnown] = useState<Card[]>([]);
+  // Abfrage-Richtung: false = Vorderseite zuerst. Mitten in der Runde
+  // tauschbar wie in der App; beim Weitermachen wird die Richtung der
+  // unterbrochenen Runde wiederhergestellt.
+  const [reverse, setReverse] = useState(startReverse ?? false);
+  // Stern-Stand je Karte, damit Markieren sofort sichtbar ist und die Runde
+  // nicht neu laden muss (wie die starMap der App).
+  const [starredMap, setStarredMap] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(pool.map((c) => [c.id, c.starred ?? false]))
+  );
+  // Bewertete Karten dieser Sitzung, für den Zurück-Pfeil: welche Position
+  // und welche Bewertung — so lassen sich Zähler und Stapel zurückdrehen.
+  const [history, setHistory] = useState<{ index: number; rating: ReviewRating }[]>([]);
   const [earned, setEarned] = useState<number | null>(null);
   const [earnCapReached, setEarnCapReached] = useState(false);
   // Anzeigename fürs persönliche Lob am Ende — ohne ihn bleibt es beim
@@ -83,16 +115,23 @@ export function LearnSession({
   const displayName = useDisplayName();
   const awardStateRef = useRef<SessionAwardState>({ finalized: false, inFlight: null });
   const pendingReviewsRef = useRef<Promise<unknown>[]>([]);
+  // Ein-Schritt-Puffer (#283-Muster der App): Die jüngste Bewertung bleibt
+  // liegen, bis die nächste Karte bewertet ist — nur so kann der
+  // Zurück-Pfeil sie folgenlos verwerfen.
+  const reviewBufferRef = useRef(createReviewSendBuffer());
 
   const total = cards.length;
   const current = cards[index];
   const done = total > 0 && index >= total;
+  // Welche Seite vorn abgefragt wird, entscheidet die Richtung.
+  const shownFront = current ? (reverse ? current.back : current.front) : "";
+  const shownBack = current ? (reverse ? current.front : current.back) : "";
 
   // ─── Vorlesen + Auto-Abspielen (wie der App-Lernmodus) ───────────────────
   const { supported, speaking, speak, stop } = useSpeech();
   const [autoPlaying, setAutoPlaying] = useState(false);
   const [autoPlaySpeed, setAutoPlaySpeed] = useState(3);
-  const spoken = current ? speechTexts(current.front, current.back) : null;
+  const spoken = current ? speechTexts(shownFront, shownBack) : null;
 
   // LP fürs Lernen gutschreiben — wie die App. Der Server zählt review_logs;
   // wir warten auf laufende Review-Requests, bevor earnLp aufgerufen wird.
@@ -127,9 +166,37 @@ export function LearnSession({
     });
   }, []);
 
+  const sendReview = useCallback(
+    (cardId: string, rating: ReviewRating) => {
+      if (!userId) return;
+      // Ausdrücklich, obwohl "flashcard" ohnehin der Server-Default ist: Jeder
+      // Modus soll sagen, wer er ist. Sonst hängt die Richtigkeit dieser Zeile
+      // daran, dass der Default nie geändert wird — und dieser Ablauf trägt
+      // sowohl die Deck- als auch die Ordner-Lernseite.
+      const reviewPromise = reviewCard(userId, cardId, rating, { mode: "flashcard" }).catch(
+        () => {
+          /* review sync best-effort; scheduling will catch up on next load */
+        }
+      );
+      pendingReviewsRef.current.push(reviewPromise);
+    },
+    [userId]
+  );
+
+  /** Zurückgehaltene Bewertung abschicken: Runde vorbei oder Ansicht verlassen. */
+  const flushReview = useCallback(() => {
+    const last = reviewBufferRef.current.flush();
+    if (last) sendReview(last.cardId, last.rating);
+  }, [sendReview]);
+
   useEffect(() => {
-    if (done) void awardSession(total - startIndex);
-  }, [done, total, startIndex, awardSession]);
+    if (done) {
+      // Die letzte Karte hat kein „danach", das den Puffer freigäbe — und die
+      // Abrechnung zählt gleich, also muss sie vorher raus.
+      flushReview();
+      void awardSession(total - startIndex);
+    }
+  }, [done, total, startIndex, awardSession, flushReview]);
 
   // ─── Merken, wo eine unterbrochene Runde stand (Weitermachen) ────────────
   // Bei jedem Kartenwechsel geschrieben statt beim Verlassen: Ein Tab lässt
@@ -147,12 +214,10 @@ export function LearnSession({
       index,
       cardId: card.id,
       source: progressSource,
-      // Das Web fragt Karteikarten (noch) immer von vorn ab; das Feld hält
-      // nur das Format deckungsgleich zur App.
-      reverse: false,
+      reverse,
       total,
     });
-  }, [progressDeckId, progressSource, cards, index, done, total]);
+  }, [progressDeckId, progressSource, cards, index, done, total, reverse]);
 
   // useCallback statt schlichter Funktion, weil der Auto-Abspielen-Timer sie
   // aus einem Effekt heraus aufruft.
@@ -162,21 +227,54 @@ export function LearnSession({
       if (!card || !userId) return;
       if (rating === "good" || rating === "easy") setCorrect((n) => n + 1);
       else setNotKnown((prev) => [...prev, card]);
-      // Ausdrücklich, obwohl "flashcard" ohnehin der Server-Default ist: Jeder
-      // Modus soll sagen, wer er ist. Sonst hängt die Richtigkeit dieser Zeile
-      // daran, dass der Default nie geändert wird — und dieser Ablauf trägt
-      // sowohl die Deck- als auch die Ordner-Lernseite.
-      const reviewPromise = reviewCard(userId, card.id, rating, { mode: "flashcard" }).catch(
-        () => {
-          /* review sync best-effort; scheduling will catch up on next load */
-        }
-      );
-      pendingReviewsRef.current.push(reviewPromise);
+      // Die vorige Karte ist endgültig hinter uns — ihre Bewertung darf raus;
+      // die neue bleibt im Puffer, bis auch sie hinter uns liegt.
+      const previous = reviewBufferRef.current.rate({ cardId: card.id, rating });
+      if (previous) sendReview(previous.cardId, previous.rating);
+      setHistory((h) => [...h, { index, rating }]);
       setFlipped(false);
       window.setTimeout(() => setIndex((i) => i + 1), 160);
     },
-    [cards, index, userId]
+    [cards, index, userId, sendReview]
   );
+
+  // Zurück zur vorigen Karte: die noch ungesendete Bewertung wird verworfen
+  // (Rückgängig), Zähler und Wiederholungs-Stapel drehen zurück. Nur bis zur
+  // ersten Karte DIESER Sitzung — beim Weitermachen bleiben die Karten der
+  // letzten Sitzung gesperrt, ihre Bewertungen sind längst beim Server.
+  function goBack() {
+    const last = history[history.length - 1];
+    if (!last) return;
+    reviewBufferRef.current.back();
+    if (last.rating === "good" || last.rating === "easy") {
+      setCorrect((n) => Math.max(0, n - 1));
+    } else {
+      setNotKnown((prev) => prev.slice(0, -1));
+    }
+    setHistory((h) => h.slice(0, -1));
+    setFlipped(false);
+    setIndex(last.index);
+  }
+
+  // Stern-Markieren mitten in der Runde — sofort sichtbar (optimistisch),
+  // bei Serverfehler wieder zurückgenommen.
+  function toggleStar() {
+    const card = cards[index];
+    if (!card) return;
+    const next = !(starredMap[card.id] ?? false);
+    setStarredMap((m) => ({ ...m, [card.id]: next }));
+    updateCard(card.id, { starred: next }).catch(() => {
+      setStarredMap((m) => ({ ...m, [card.id]: !next }));
+    });
+  }
+
+  // Richtung tauschen mitten in der Runde — die Karte dreht auf die neue
+  // Vorderseite zurück, damit sofort in der neuen Richtung gefragt wird.
+  function toggleReverse() {
+    setReverse((r) => !r);
+    setFlipped(false);
+    stop();
+  }
 
   // Beim Kartenwechsel verstummen — wie die App. Läuft Auto-Abspielen, spricht
   // der Effekt darunter gleich danach die neue Karte.
@@ -208,10 +306,10 @@ export function LearnSession({
     if (!autoPlaying) return;
     const card = cards[index];
     if (!card) return;
-    const texts = speechTexts(card.front, card.back);
+    const texts = speechTexts(reverse ? card.back : card.front, reverse ? card.front : card.back);
     speak(flipped ? texts.back : texts.front);
     return () => stop();
-  }, [autoPlaying, flipped, index, cards, speak, stop]);
+  }, [autoPlaying, flipped, index, cards, reverse, speak, stop]);
 
   function toggleSpeak() {
     if (!spoken) return;
@@ -239,6 +337,8 @@ export function LearnSession({
   }
 
   async function startRound(next: Card[]) {
+    // Eine neue Runde darf keine Bewertung der alten mitschleppen.
+    flushReview();
     await awardSession(total - startIndex);
     awardStateRef.current.finalized = false;
     pendingReviewsRef.current = [];
@@ -250,6 +350,7 @@ export function LearnSession({
     // Folge-Runden („Nur die nicht gewussten" / „Alle nochmal") beginnen
     // wieder ganz vorn — der Weitermachen-Einstieg galt nur der ersten.
     setStartIndex(0);
+    setHistory([]);
     setFlipped(false);
     setCorrect(0);
   }
@@ -259,6 +360,8 @@ export function LearnSession({
     // die Stimme soll aber nicht so lange weiterreden.
     setAutoPlaying(false);
     stop();
+    // Auch die zurückgehaltene Bewertung gehört noch zu dieser Sitzung.
+    flushReview();
     // Beim frühen Beenden noch die LP der bisher gelernten Karten sichern —
     // beim Weitermachen zählen nur die ab dem Einstieg gelernten.
     const reviewedCount = getSessionReviewedCount(
@@ -320,6 +423,8 @@ export function LearnSession({
     );
   }
 
+  const starred = current ? starredMap[current.id] ?? false : false;
+
   return (
     <div className="study-wrap">
       <div className="study-top">
@@ -339,33 +444,54 @@ export function LearnSession({
         </span>
       </div>
 
-      {supported && (
-        <div className="autoplay-row">
+      {/* Rot/grün-Zähler außen, Richtung + Auto in der Mitte — wie die App. */}
+      <div className="learn-meta">
+        <span className="count-pill count-pill--again" aria-label="Nicht gewusst in dieser Runde">
+          {notKnown.length}
+        </span>
+        <span className="learn-meta__mid">
           <button
             type="button"
-            className={`autoplay-pill${autoPlaying ? " is-on" : ""}`}
-            onClick={toggleAutoPlay}
-            aria-pressed={autoPlaying}
-            aria-label={
-              autoPlaying ? "Automatisches Abspielen anhalten" : "Automatisch abspielen"
-            }
+            className="autoplay-pill"
+            onClick={toggleReverse}
+            aria-pressed={reverse}
+            aria-label="Abgefragte Richtung tauschen"
           >
-            {autoPlaying ? <Pause size={13} /> : <Play size={13} />}
-            Auto
+            <Repeat size={13} />
+            {reverse ? "Rückseite zuerst" : "Vorderseite zuerst"}
           </button>
-          {autoPlaying && (
-            <button
-              type="button"
-              className="autoplay-pill"
-              onClick={cycleSpeed}
-              aria-label={`Wartezeit ${autoPlaySpeed} Sekunden — tippen zum Wechseln`}
-            >
-              <Timer size={13} />
-              {autoPlaySpeed}s
-            </button>
+          {supported && (
+            <>
+              <button
+                type="button"
+                className={`autoplay-pill${autoPlaying ? " is-on" : ""}`}
+                onClick={toggleAutoPlay}
+                aria-pressed={autoPlaying}
+                aria-label={
+                  autoPlaying ? "Automatisches Abspielen anhalten" : "Automatisch abspielen"
+                }
+              >
+                {autoPlaying ? <Pause size={13} /> : <Play size={13} />}
+                Auto
+              </button>
+              {autoPlaying && (
+                <button
+                  type="button"
+                  className="autoplay-pill"
+                  onClick={cycleSpeed}
+                  aria-label={`Wartezeit ${autoPlaySpeed} Sekunden — tippen zum Wechseln`}
+                >
+                  <Timer size={13} />
+                  {autoPlaySpeed}s
+                </button>
+              )}
+            </>
           )}
-        </div>
-      )}
+        </span>
+        <span className="count-pill count-pill--good" aria-label="Gewusst in dieser Runde">
+          {correct}
+        </span>
+      </div>
 
       <div
         className={`flip study-card${flipped ? " is-flipped" : ""}`}
@@ -383,15 +509,28 @@ export function LearnSession({
         <div className="flip__inner">
           <div className="flip__face flip__face--front">
             <span className="flip__label">Frage</span>
-            <span className="flip__q">{current?.front}</span>
+            <span className="flip__q">{shownFront}</span>
             <span className="flip__hint">Klicken zum Umdrehen</span>
           </div>
           <div className="flip__face flip__face--back">
             <span className="flip__label">Antwort</span>
-            <span className="flip__q">{current?.back}</span>
+            <span className="flip__q">{shownBack}</span>
             <span className="flip__hint">Wie gut wusstest du es?</span>
           </div>
         </div>
+        <button
+          type="button"
+          className={`star-btn${starred ? " is-starred" : ""}`}
+          aria-label={starred ? "Markierung entfernen" : "Karte markieren"}
+          aria-pressed={starred}
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleStar();
+          }}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
+          <Star size={18} />
+        </button>
         {supported && (
           <button
             type="button"
@@ -408,26 +547,31 @@ export function LearnSession({
         )}
       </div>
 
-      {flipped ? (
-        <div className="rating-row">
-          {RATINGS.map((r) => (
-            <button
-              key={r.key}
-              type="button"
-              className={`rating ${r.cls}`}
-              onClick={() => rate(r.key)}
-            >
-              {r.label}
-            </button>
-          ))}
-        </div>
-      ) : (
-        <div className="center">
-          <button type="button" className="btn btn-primary" onClick={() => setFlipped(true)}>
-            Antwort zeigen
+      {/* Bewertungs-Knöpfe immer sichtbar — wie die App (Laras Wahl). */}
+      <div className="rating-row">
+        {RATINGS.map((r) => (
+          <button
+            key={r.key}
+            type="button"
+            className={`rating ${r.cls}`}
+            onClick={() => rate(r.key)}
+          >
+            {r.label}
           </button>
-        </div>
-      )}
+        ))}
+      </div>
+
+      <div className="learn-bottom">
+        <button
+          type="button"
+          className="cl-back"
+          onClick={goBack}
+          disabled={history.length === 0}
+          aria-label="Vorherige Karte — letzte Bewertung rückgängig"
+        >
+          <ArrowLeft size={22} />
+        </button>
+      </div>
     </div>
   );
 }

@@ -13,8 +13,10 @@ const lpModePages = [
     path: "src/components/app/learn-session.tsx",
     // total - startIndex: Beim Weitermachen zählen nur die Karten ab der
     // Einstiegskarte — die übersprungenen wurden letztes Mal abgerechnet.
+    // flushReview davor: der Ein-Schritt-Puffer (#283-Muster) hält die letzte
+    // Bewertung zurück, sie muss vor der Abrechnung noch raus.
     restartGuard:
-      "async function startRound(next: Card[]) {\n    await awardSession(total - startIndex);",
+      "async function startRound(next: Card[]) {\n    // Eine neue Runde darf keine Bewertung der alten mitschleppen.\n    flushReview();\n    await awardSession(total - startIndex);",
     awardCalls: ["void awardSession(total - startIndex)", "await awardSession(reviewedCount)"],
   },
   {
