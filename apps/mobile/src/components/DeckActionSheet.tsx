@@ -9,6 +9,7 @@ import {
   FolderPlus,
   Copy,
   Share2,
+  Link2Off,
   Info,
   Trash2,
 } from "lucide-react-native";
@@ -24,6 +25,7 @@ interface DeckActionSheetProps {
   onAddToFolder: () => void;
   onDuplicate: () => void;
   onShare: () => void;
+  onRevokeShare: () => void;
   onDetails: () => void;
   onDelete: () => void;
 }
@@ -37,6 +39,7 @@ export default function DeckActionSheet({
   onAddToFolder,
   onDuplicate,
   onShare,
+  onRevokeShare,
   onDetails,
   onDelete,
 }: DeckActionSheetProps) {
@@ -72,6 +75,13 @@ export default function DeckActionSheet({
       label: t("deckMenu.share"),
       icon: Share2,
       onPress: onShare,
+    },
+    {
+      key: "revokeShare",
+      label: t("deckMenu.revokeShare"),
+      icon: Link2Off,
+      onPress: onRevokeShare,
+      destructive: true,
     },
     {
       key: "details",
