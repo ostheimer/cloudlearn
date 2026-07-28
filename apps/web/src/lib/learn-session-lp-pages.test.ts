@@ -11,8 +11,11 @@ const lpModePages = [
     // der Ordner-Lernseite — die LP-Logik hängt hier für beide.
     name: "learn-session (geteilt)",
     path: "src/components/app/learn-session.tsx",
-    restartGuard: "async function startRound(next: Card[]) {\n    await awardSession(total);",
-    awardCalls: ["void awardSession(total)", "await awardSession(reviewedCount)"],
+    // total - startIndex: Beim Weitermachen zählen nur die Karten ab der
+    // Einstiegskarte — die übersprungenen wurden letztes Mal abgerechnet.
+    restartGuard:
+      "async function startRound(next: Card[]) {\n    await awardSession(total - startIndex);",
+    awardCalls: ["void awardSession(total - startIndex)", "await awardSession(reviewedCount)"],
   },
   {
     name: "quiz",
@@ -24,8 +27,10 @@ const lpModePages = [
   {
     name: "cloze",
     path: "app/dashboard/deck/[id]/cloze/page.tsx",
+    // startAt setzt eine unterbrochene Runde fort (Weitermachen) — die
+    // Abrechnungs-Reihenfolge davor bleibt unverändert.
     restartGuard:
-      "const startRound = useCallback(async (cards: Card[]) => {\n    await awardSession(round.length);",
+      "const startRound = useCallback(async (cards: Card[], startAt = 0) => {\n    await awardSession(round.length);",
     awardCalls: ["void awardSession(reviewedCount)", "await awardSession(reviewedCount)"],
   },
   // Der Test-Modus steht hier BEWUSST nicht mehr: Eine Prüfung misst, sie
