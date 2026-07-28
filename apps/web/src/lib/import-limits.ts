@@ -96,27 +96,24 @@ export function savedSummary(generatedCount: number, savedCount: number): string
 }
 
 /**
- * Ab wie wenig freien Plätzen vor dem Import gewarnt wird.
- *
- * Ein Scan liefert je nach Vorlage grob 10–30 Karten, ein PDF-Kapitel deutlich
- * mehr. 25 ist deshalb die Grenze, ab der es sich lohnt, vorher Bescheid zu
- * sagen — darüber passt ein normaler Scan fast immer.
- */
-export const DECK_SPACE_WARN_BELOW = 25;
-
-/**
  * Freie Kartenplätze eines Decks — oder `null`, wenn es sich nicht sagen lässt.
  *
- * Beide Eingaben sind optional, weil beide fehlen können: `cardCount` liefert
- * nur die Deckliste (nicht jede Deck-Antwort), `maxCardsPerDeck` erst ein
- * Server ab #411. Fehlt eines, wird nichts behauptet und nichts gewarnt.
+ * `cardCount` und `maxCardsPerDeck` sind optional, weil beide fehlen können:
+ * `cardCount` liefert nur die Deckliste (nicht jede Deck-Antwort),
+ * `maxCardsPerDeck` erst ein Server ab #411. Fehlt eines, wird nichts behauptet
+ * und nichts gewarnt.
+ *
+ * Bild-Karten zählen mit (#570): Der Server zählt beim Durchsetzen der Grenze
+ * jede lebende Karte — ohne `imageCardCount` zeigte das Web bei Decks mit
+ * Occlusion-Karten zu viel freien Platz an.
  */
 export function freeSlots(
   cardCount: number | undefined,
+  imageCardCount: number | undefined,
   maxCardsPerDeck: number | undefined
 ): number | null {
   if (typeof cardCount !== "number" || typeof maxCardsPerDeck !== "number") return null;
-  return Math.max(0, maxCardsPerDeck - cardCount);
+  return Math.max(0, maxCardsPerDeck - cardCount - (imageCardCount ?? 0));
 }
 
 /** Beschriftung eines Decks in der Zielauswahl: „Datenbanken · 43 Plätze frei". */
@@ -128,23 +125,39 @@ export function deckOptionLabel(title: string, free: number | null): string {
 }
 
 /**
- * Warnung zum gewählten Ziel-Deck — oder `null`, wenn genug Platz ist.
+ * Hinweis zum gewählten Ziel-Deck — oder `null`, wenn alles passt.
  *
- * Das ist die Warnung, die im Browser bis #427 nie auslösen konnte, weil jeder
- * Import in ein frisches, leeres Deck ging (siehe Kopf dieser Datei).
+ * Seit #570 (Laras Variante 3) hängt der Hinweis nicht mehr an einer festen
+ * Rest-Schwelle, sondern daran, ob die neuen Karten wirklich alle passen: keine
+ * falschen Alarme bei 27 freien Plätzen und 5 Karten, kein Schweigen bei 40
+ * freien Plätzen und 60 Karten.
  */
-export function deckSpaceNotice(free: number | null): string | null {
+export function deckSpaceNotice(free: number | null, cardCount: number): string | null {
   if (free === null) return null;
   if (free === 0) {
     return "Dieses Deck ist voll. Wähle ein anderes Deck oder lege ein neues an.";
   }
-  if (free < DECK_SPACE_WARN_BELOW) {
+  if (cardCount > free) {
     return (
-      `In diesem Deck ist nur noch Platz für ${free} Karten. ` +
-      "Passt nicht alles, verteilt der Server die Karten gleichmäßig über den ganzen Stoff."
+      `Von deinen ${cardCount} Karten passen nur noch ${free} in dieses Deck — ` +
+      "der Rest wird beim Speichern gleichmäßig über den ganzen Stoff weggelassen."
     );
   }
   return null;
+}
+
+/** Titel der Rückfrage vor dem Speichern — wortgleich mit dem App-Dialog. */
+export const OVERFLOW_CONFIRM_TITLE = "Wenig Platz";
+
+/**
+ * Rückfrage vor dem Speichern (#570, Laras Variante 3) — `null`, wenn alles
+ * passt. Wortgleich mit `deckOverflowWarning` in
+ * apps/mobile/src/lib/importLimits.ts: Hinweis-Satz plus „Trotzdem speichern?".
+ */
+export function deckOverflowWarning(free: number | null, cardCount: number): string | null {
+  if (free === null || free === 0) return null;
+  const notice = deckSpaceNotice(free, cardCount);
+  return notice ? `${notice} Trotzdem speichern?` : null;
 }
 
 interface ErrorLike {

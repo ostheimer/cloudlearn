@@ -55,12 +55,24 @@ describe("Web-Import-Seite – Plan-Grenzen (#411)", () => {
 
   it("speichert erst auf Knopfdruck, nicht schon beim Erzeugen (#427)", () => {
     const generate = source.indexOf("async function handleSubmit");
-    const save = source.indexOf("async function handleSave");
+    // #570: handleSave ist nur noch das Tor (Rückfrage bei wenig Platz);
+    // das eigentliche Speichern liegt in doSave.
+    const save = source.indexOf("async function doSave");
     expect(generate).toBeGreaterThan(-1);
     expect(save).toBeGreaterThan(generate);
     // Der Erzeugen-Zweig endet in der Vorschau, nicht in einer Navigation.
     expect(source).toContain("setDraft(result?.cards ?? []);");
     expect(source).toContain("saveImportedCards({");
+  });
+
+  it("fragt nach, wenn nicht alle Karten ins Ziel-Deck passen (#570)", () => {
+    // Die Rückfrage muss VOR dem Speichern stehen: erst bestätigen, dann doSave.
+    expect(source).toContain("setConfirmOverflow(true)");
+    expect(source).toContain("OVERFLOW_CONFIRM_TITLE");
+    const gate = source.indexOf("setConfirmOverflow(true)");
+    const save = source.indexOf("async function doSave");
+    expect(gate).toBeGreaterThan(-1);
+    expect(gate).toBeLessThan(save);
   });
 
   it("holt die Grenzen vom Server, statt sie im Web zu wiederholen", () => {

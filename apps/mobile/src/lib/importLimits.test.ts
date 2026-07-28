@@ -7,7 +7,7 @@ import {
   freeCardSlots,
   isDeckLimitReached,
   isPlanLimitError,
-  nearlyFullWarning,
+  deckOverflowWarning,
   savedSummary,
   selectEvenlySpread,
   shouldOpenLpModal,
@@ -41,34 +41,32 @@ describe("Deck-Grenze in der App (#411)", () => {
   });
 });
 
-describe("Warnung vor dem Lernpunkte-Ausgeben (#411)", () => {
-  it("warnt ab weniger als 30 freien Plätzen", () => {
-    expect(nearlyFullWarning(29)).toBe(
-      "In diesem Deck ist nur noch Platz für 29 Karten. Trotzdem scannen?"
-    );
-    expect(nearlyFullWarning(12)).toBe(
-      "In diesem Deck ist nur noch Platz für 12 Karten. Trotzdem scannen?"
+describe("Rückfrage vor dem Speichern (#570, Variante 3)", () => {
+  it("fragt genau dann nach, wenn nicht alle Karten passen", () => {
+    expect(deckOverflowWarning(27, 40)).toBe(
+      "Von deinen 40 Karten passen nur noch 27 in dieses Deck — der Rest wird " +
+        "beim Speichern gleichmäßig über den ganzen Stoff weggelassen. " +
+        "Trotzdem speichern?"
     );
   });
 
-  it("schweigt, wenn genug Platz ist", () => {
-    expect(nearlyFullWarning(NEARLY_FULL_THRESHOLD)).toBeNull();
-    expect(nearlyFullWarning(150)).toBeNull();
+  it("schweigt, wenn alles passt — auch bei wenig Restplatz", () => {
+    // Früher hätte die feste 30er-Schwelle hier gewarnt, obwohl 5 Karten in 27
+    // Plätze locker passen (#570).
+    expect(deckOverflowWarning(27, 5)).toBeNull();
+    expect(deckOverflowWarning(27, 27)).toBeNull();
+    expect(deckOverflowWarning(150, 40)).toBeNull();
   });
 
   it("schweigt bei einem vollen Deck — dort greift die Sperre, nicht die Warnung", () => {
-    expect(nearlyFullWarning(0)).toBeNull();
+    expect(deckOverflowWarning(0, 12)).toBeNull();
   });
 
-  it("passt das Verb an die Handlung an", () => {
-    expect(nearlyFullWarning(12, "speichern")).toBe(
-      "In diesem Deck ist nur noch Platz für 12 Karten. Trotzdem speichern?"
-    );
-  });
-
-  it("zeigt den Platz schon in der Deck-Auswahl", () => {
+  it("zeigt den Platz schon in der Deck-Auswahl — mit Singular", () => {
     expect(deckSlotsLabel("Biologie", 12)).toBe("Biologie (12 Plätze frei)");
+    expect(deckSlotsLabel("Biologie", 1)).toBe("Biologie (1 Platz frei)");
     expect(deckSlotsLabel("Biologie", 0)).toBe("Biologie (voll)");
+    expect(deckSlotsLabel("Biologie", NEARLY_FULL_THRESHOLD)).toBe("Biologie");
     expect(deckSlotsLabel("Biologie", 90)).toBe("Biologie");
   });
 });
