@@ -170,7 +170,7 @@ export default function LpPage() {
               <span className="lp-way__txt">
                 <span className="lp-way__t">Lernen</span>
                 <span className="lp-way__s">
-                  Ab 5 Karten +5 LP, bis {usage.lpEarnCapToday} LP am Tag
+                  1 LP je gelernter Karte, bis {usage.lpEarnCapToday} LP am Tag
                 </span>
               </span>
               <ChevronRight size={18} style={{ color: "var(--ink-3)", flex: "none" }} />
