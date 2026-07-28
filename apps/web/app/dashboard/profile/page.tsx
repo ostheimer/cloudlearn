@@ -330,7 +330,8 @@ export default function ProfilePage() {
                   </button>
                 </div>
                 <p className="pf-card__sub" style={{ margin: "12px 0 0" }}>
-                  +50 Lernpunkte, wenn dein Freund oder deine Freundin 7 Tage lernt.
+                  Löst dein Freund oder deine Freundin deinen Code ein, bekommt ihr sofort
+                  Lernpunkte: du 50, dein Freund oder deine Freundin 25.
                   {referral.referredCount > 0 &&
                     ` Bisher geworben: ${referral.referredCount} · verdient: ${referral.lpEarnedFromReferrals} LP.`}
                 </p>
