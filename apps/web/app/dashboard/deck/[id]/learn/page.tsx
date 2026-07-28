@@ -143,6 +143,9 @@ export default function LearnPage() {
         backHref={`/dashboard/deck/${deckId}`}
         backLabel="Zurück zum Deck"
         startAt={resumeAt}
+        // Die unterbrochene Runde lief in einer bestimmten Richtung — die
+        // fortgesetzten Karten werden genauso herum abgefragt wie die davor.
+        startReverse={resumeAt !== undefined ? saved?.reverse : undefined}
         progressDeckId={adhocRound ? undefined : deckId}
         progressSource={adhocRound ? undefined : source}
       />

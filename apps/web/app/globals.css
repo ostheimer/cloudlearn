@@ -3233,16 +3233,6 @@ a.mode-card:hover {
   color: var(--brand);
 }
 
-/* Auto-Abspielen: Pillen rechts über der Karte. Der negative Abstand rückt
-   sie näher an die Fortschrittszeile, als es das Raster von .study-wrap
-   vorsieht — sie gehören optisch zur Kopfzeile, nicht zur Karte. */
-.autoplay-row {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: -12px;
-}
-
 .autoplay-pill {
   display: inline-flex;
   align-items: center;
@@ -3261,6 +3251,86 @@ a.mode-card:hover {
   border-color: var(--brand);
   background: var(--brand-50);
   color: var(--brand);
+}
+
+/* Lernansicht wie die App (#571 Teil B): rot/grün-Zähler außen, Richtung +
+   Auto in der Mitte. Ersetzt die alte .autoplay-row; der negative Abstand
+   rückt die Zeile wie zuvor näher an die Kopfzeile. */
+.learn-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: -12px;
+}
+
+.learn-meta__mid {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.count-pill {
+  min-width: 36px;
+  text-align: center;
+  padding: 5px 12px;
+  border-radius: var(--r-pill);
+  font-size: 0.85rem;
+  font-weight: 800;
+  flex: none;
+}
+
+.count-pill--again {
+  background: rgba(239, 68, 68, 0.12);
+  color: #b91c1c;
+}
+
+.count-pill--good {
+  background: rgba(16, 185, 129, 0.14);
+  color: #047857;
+}
+
+/* Stern-Markieren in der Kartenecke — Gegenstück zum Vorlese-Knopf rechts. */
+.star-btn {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 2;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-3);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.star-btn.is-starred {
+  border-color: var(--amber);
+  color: var(--amber);
+}
+
+.star-btn.is-starred svg {
+  fill: var(--amber);
+}
+
+.learn-bottom {
+  display: flex;
+  justify-content: flex-start;
+}
+
+@media (prefers-color-scheme: dark) {
+  .count-pill--again {
+    background: rgba(239, 68, 68, 0.22);
+    color: #fca5a5;
+  }
+  .count-pill--good {
+    background: rgba(16, 185, 129, 0.22);
+    color: #6ee7b7;
+  }
 }
 
 .study-done {
