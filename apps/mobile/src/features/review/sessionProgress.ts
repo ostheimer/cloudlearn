@@ -25,6 +25,12 @@ const STORAGE_PREFIX = "review-progress:";
  */
 export type ProgressMode = "flashcards" | "cloze";
 
+/** Outcome of one already-answered card, keyed by card id in `results`. */
+export interface StoredCardResult {
+  correct: boolean;
+  overridden: boolean;
+}
+
 export interface SessionProgress {
   /** Zero-based index of the card the learner stopped on. */
   index: number;
@@ -36,6 +42,27 @@ export interface SessionProgress {
   reverse: boolean;
   /** Card count at save time, for the "Karte 9 von 40" label. */
   total: number;
+  /**
+   * Outcomes of the cards answered before the interruption, keyed by card id.
+   * Lets the summary after a resume count the whole round ("11 von 12") and
+   * puts old wrong cards back into the retry pile. Optional: bookmarks written
+   * before this field existed resume fine, the summary then counts only the
+   * current sitting.
+   */
+  results?: Record<string, StoredCardResult>;
+}
+
+/** Keep only entries shaped like a result; a corrupt map must not kill the bookmark. */
+function parseStoredResults(value: unknown): Record<string, StoredCardResult> | undefined {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
+  const entries: Record<string, StoredCardResult> = {};
+  for (const [cardId, result] of Object.entries(value)) {
+    if (typeof result !== "object" || result === null) continue;
+    const { correct, overridden } = result as Record<string, unknown>;
+    if (typeof correct !== "boolean" || typeof overridden !== "boolean") continue;
+    entries[cardId] = { correct, overridden };
+  }
+  return Object.keys(entries).length > 0 ? entries : undefined;
 }
 
 // The mode belongs in the key: one deck can have a Karteikarten session and a
@@ -58,7 +85,8 @@ export function parseSessionProgress(raw: string | null): SessionProgress | null
     if (typeof total !== "number" || !Number.isInteger(total) || total <= 0) return null;
     // An index at or past the end is a finished session, not a resumable one.
     if (index >= total) return null;
-    return { index, cardId, source, reverse: reverse === true, total };
+    const results = parseStoredResults(value.results);
+    return { index, cardId, source, reverse: reverse === true, total, ...(results ? { results } : {}) };
   } catch {
     return null;
   }
