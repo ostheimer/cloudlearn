@@ -2091,6 +2091,62 @@ a.mode-card:hover {
   font-weight: 800;
   color: var(--brand);
 }
+/* Anzahl Fragen — Chips + Feinauswahl wie die App-Prüfung (#570) */
+.count-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.count-chip {
+  padding: 7px 16px;
+  border-radius: 999px;
+  border: none;
+  background: var(--bg-softer);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.count-chip.on {
+  background: var(--brand);
+  color: #fff;
+}
+.count-fine {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 14px;
+}
+.count-step {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: none;
+  background: var(--bg-softer);
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.count-step:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.count-mid {
+  text-align: center;
+}
+.count-mid b {
+  display: block;
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--brand);
+}
+.count-mid span {
+  font-size: 0.75rem;
+  color: var(--ink-3);
+}
 .test-ptop {
   display: flex;
   align-items: center;

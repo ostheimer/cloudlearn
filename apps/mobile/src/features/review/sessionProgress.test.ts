@@ -70,6 +70,48 @@ describe("parseSessionProgress", () => {
   });
 });
 
+// The results map lets the summary after a resume count the whole round
+// ("11 von 12"). It is strictly optional: a bookmark from before the field
+// existed, or one with a corrupted map, must still resume — the summary then
+// counts only the current sitting.
+describe("remembering card results across an interruption", () => {
+  it("round-trips a results map", () => {
+    const withResults = progress({
+      results: {
+        "card-1": { correct: true, overridden: false },
+        "card-2": { correct: false, overridden: true },
+      },
+    });
+    expect(parseSessionProgress(JSON.stringify(withResults))).toEqual(withResults);
+  });
+
+  it("keeps the bookmark when results are missing entirely", () => {
+    expect(parseSessionProgress(JSON.stringify(progress()))?.results).toBeUndefined();
+  });
+
+  it("drops malformed entries but keeps the usable ones", () => {
+    const raw = JSON.stringify({
+      ...progress(),
+      results: {
+        "card-1": { correct: true, overridden: false },
+        "card-2": { correct: "ja", overridden: false },
+        "card-3": null,
+        "card-4": 7,
+      },
+    });
+    expect(parseSessionProgress(raw)?.results).toEqual({
+      "card-1": { correct: true, overridden: false },
+    });
+  });
+
+  it("keeps the bookmark when the whole results value is garbage", () => {
+    const asArray = JSON.stringify({ ...progress(), results: ["card-1"] });
+    const asString = JSON.stringify({ ...progress(), results: "kaputt" });
+    expect(parseSessionProgress(asArray)).toEqual(progress());
+    expect(parseSessionProgress(asString)).toEqual(progress());
+  });
+});
+
 describe("isProgressUsable", () => {
   const pile = ["card-1", "card-2", "card-3", "card-9"];
 

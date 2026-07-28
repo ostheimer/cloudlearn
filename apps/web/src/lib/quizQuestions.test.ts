@@ -134,6 +134,37 @@ describe("generateQuestions — Ablenker nur aus derselben Kartenart (#380)", ()
   });
 });
 
+describe("generateQuestions — Rundenlänge wählbar (#570)", () => {
+  it("liefert genau die gewählte Anzahl, wenn der Pool reicht", () => {
+    for (const seed of [1, 3, 7, 11]) {
+      expect(generateQuestions(vocabCards, { count: 7 }, seeded(seed))).toHaveLength(7);
+    }
+  });
+
+  it("füllt übersprungene Karten mit späteren auf, statt die Runde zu verkürzen", () => {
+    // Eine einzelne Occlusion-Karte hat keinen gleichartigen Ablenker und fällt
+    // im reinen MC-Betrieb raus — eine spätere Vokabelkarte rückt nach, egal an
+    // welcher Position die Occlusion-Karte im Mischergebnis landet.
+    const deck: QuizCardInput[] = [
+      ...vocabCards.slice(0, 8),
+      { id: "o1", front: OCCLUSION_FRONT, back: "Bereich 1", type: "occlusion" },
+    ];
+    for (const seed of [1, 2, 3, 5, 7, 11, 13, 17]) {
+      const questions = generateQuestions(
+        deck,
+        { count: 8, allowMc: true, allowTrueFalse: false },
+        seeded(seed)
+      );
+      expect(questions).toHaveLength(8);
+      expect(questions.find((q) => q.cardId === "o1")).toBeUndefined();
+    }
+  });
+
+  it("bleibt ohne count beim bisherigen Verhalten: jede Karte kommt dran", () => {
+    expect(generateQuestions(vocabCards, {}, seeded(5))).toHaveLength(vocabCards.length);
+  });
+});
+
 describe("generateQuestions — Wahr/Falsch kennt die echte Antwort (#497)", () => {
   it("tfPairing nennt die wirklich richtige Rückseite und ob die gezeigte stimmt", () => {
     // Der Ergebnis-Bildschirm zeigt bei einer falschen Paarung, was wirklich

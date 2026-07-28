@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
 import { listCardsInDeck, reviewCard, earnLp, isApiError, type Card } from "@/lib/api";
 import { useDisplayName } from "@/lib/use-display-name";
 import { useWobblyIds } from "@/lib/use-wobbly-ids";
 import { filterBySource, type CardSource } from "@/lib/card-source";
 import { CardSourcePicker } from "@/components/app/card-source-picker";
+import { QuestionCountPicker } from "@/components/app/question-count-picker";
 import { generateQuestions, type QuizQuestion } from "@/lib/quizQuestions";
 import {
   beginSessionAward,
@@ -43,6 +44,9 @@ export default function QuizPage() {
   const [allowMc, setAllowMc] = useState(true);
   const [allowTrueFalse, setAllowTrueFalse] = useState(true);
   const [source, setSource] = useState<CardSource>("all");
+  // Rundenlänge — wählbar wie bei der Prüfung (#570). Standard 10 (Laras
+  // Entscheidung 28.07.); vorher lief das Web ungebremst durchs ganze Deck.
+  const [count, setCount] = useState(10);
   const wobblyIds = useWobblyIds(deckId);
 
   const [phase, setPhase] = useState<"setup" | "play" | "result">("setup");
@@ -78,6 +82,24 @@ export default function QuizPage() {
   const total = questions.length;
   const q = questions[index];
   const answered = picked !== null;
+
+  // Die gewählte Kartenquelle (Alle / Nur markierte / Nur Wackelkandidaten).
+  const sourced = useMemo(
+    () => filterBySource(cards, source, wobblyIds),
+    [cards, source, wobblyIds]
+  );
+  // Obergrenze der Anzahl-Auswahl: wie die Prüfung nur Karten mit beiden
+  // Seiten — leere ergeben keine Frage, „Alle (N)" soll nicht mehr versprechen.
+  const usableCount = useMemo(
+    () => sourced.filter((c) => (c.front || "").trim() && (c.back || "").trim()).length,
+    [sourced]
+  );
+
+  // Schrumpft der Pool (andere Kartenquelle), darf die gewählte Anzahl nicht
+  // darüber liegen; nur klemmen, nie zurückwachsen (10 bleibt der Standard).
+  useEffect(() => {
+    if (usableCount > 0) setCount((c) => Math.min(c, usableCount));
+  }, [usableCount]);
 
   const awardSession = useCallback((count: number) => {
     const state = awardStateRef.current;
@@ -115,7 +137,7 @@ export default function QuizPage() {
   // setzt danach den Award-Zustand + offene Reviews zurück.
   const startQuizWith = useCallback(async (cardsForRound: Card[]) => {
     await awardSession(total);
-    const qs = generateQuestions(cardsForRound, { reverse, allowMc, allowTrueFalse });
+    const qs = generateQuestions(cardsForRound, { reverse, allowMc, allowTrueFalse, count });
     awardStateRef.current = { finalized: false, inFlight: null };
     pendingReviewsRef.current = [];
     setEarned(null);
@@ -125,12 +147,12 @@ export default function QuizPage() {
     setPicked(null);
     setAnswers([]);
     setPhase("play");
-  }, [reverse, allowMc, allowTrueFalse, awardSession, total]);
+  }, [reverse, allowMc, allowTrueFalse, count, awardSession, total]);
 
   // „Alle nochmal" wie der Start: immer die gewählte Kartenquelle.
   const startQuiz = useCallback(
-    () => startQuizWith(filterBySource(cards, source, wobblyIds)),
-    [startQuizWith, cards, source, wobblyIds]
+    () => startQuizWith(sourced),
+    [startQuizWith, sourced]
   );
 
   function pick(i: number) {
@@ -257,6 +279,9 @@ export default function QuizPage() {
           </div>
           <div className="cl-dir__hint">Richtung tauschen</div>
         </button>
+
+        {/* Anzahl Fragen — wählbar wie bei der Prüfung (#570) */}
+        <QuestionCountPicker count={count} max={usableCount} onChange={setCount} />
 
         <div className="cl-optcard">
           <div className="cl-dir__lbl">Fragetypen</div>
