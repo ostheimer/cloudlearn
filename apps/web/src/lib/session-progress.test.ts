@@ -75,6 +75,48 @@ describe("parseSessionProgress", () => {
   });
 });
 
+// Das Ergebnis-Feld lässt die Auswertung nach einem Weitermachen die ganze
+// Runde zählen („11 von 12"). Es ist strikt optional: Ein Merker von vor dem
+// Feld — oder mit kaputtem Inhalt — muss weiter fortsetzen; die Auswertung
+// zählt dann nur die aktuelle Sitzung.
+describe("Karten-Ergebnisse über eine Unterbrechung merken", () => {
+  it("liest eine gespeicherte Ergebnis-Liste wieder ein", () => {
+    const withResults = progress({
+      results: {
+        "card-1": { correct: true, overridden: false },
+        "card-2": { correct: false, overridden: true },
+      },
+    });
+    expect(parseSessionProgress(JSON.stringify(withResults))).toEqual(withResults);
+  });
+
+  it("lässt den Merker ohne Ergebnis-Feld unangetastet", () => {
+    expect(parseSessionProgress(JSON.stringify(progress()))?.results).toBeUndefined();
+  });
+
+  it("verwirft kaputte Einträge, behält aber die brauchbaren", () => {
+    const raw = JSON.stringify({
+      ...progress(),
+      results: {
+        "card-1": { correct: true, overridden: false },
+        "card-2": { correct: "ja", overridden: false },
+        "card-3": null,
+        "card-4": 7,
+      },
+    });
+    expect(parseSessionProgress(raw)?.results).toEqual({
+      "card-1": { correct: true, overridden: false },
+    });
+  });
+
+  it("überlebt ein komplett kaputtes Ergebnis-Feld", () => {
+    const alsListe = JSON.stringify({ ...progress(), results: ["card-1"] });
+    const alsText = JSON.stringify({ ...progress(), results: "kaputt" });
+    expect(parseSessionProgress(alsListe)).toEqual(progress());
+    expect(parseSessionProgress(alsText)).toEqual(progress());
+  });
+});
+
 describe("isProgressUsable", () => {
   const pile = ["card-1", "card-2", "card-3", "card-9"];
 

@@ -27,10 +27,11 @@ const lpModePages = [
   {
     name: "cloze",
     path: "app/dashboard/deck/[id]/cloze/page.tsx",
-    // startAt setzt eine unterbrochene Runde fort (Weitermachen) — die
+    // startAt setzt eine unterbrochene Runde fort (Weitermachen),
+    // storedResults füllt deren alte Ergebnisse wieder ein — die
     // Abrechnungs-Reihenfolge davor bleibt unverändert.
     restartGuard:
-      "const startRound = useCallback(async (cards: Card[], startAt = 0) => {\n    await awardSession(round.length);",
+      "const startRound = useCallback(async (\n    cards: Card[],\n    startAt = 0,\n    storedResults?: Record<string, StoredCardResult>,\n  ) => {\n    await awardSession(round.length);",
     awardCalls: ["void awardSession(reviewedCount)", "await awardSession(reviewedCount)"],
   },
   // Der Test-Modus steht hier BEWUSST nicht mehr: Eine Prüfung misst, sie

@@ -25,6 +25,12 @@ const STORAGE_PREFIX = "clearn:lernstand:";
  */
 export type ProgressMode = "flashcards" | "cloze";
 
+/** Ausgang einer schon beantworteten Karte, in `results` nach Karten-Id abgelegt. */
+export interface StoredCardResult {
+  correct: boolean;
+  overridden: boolean;
+}
+
 export interface SessionProgress {
   /** Nullbasierter Index der Karte, auf der die Runde stand. */
   index: number;
@@ -40,6 +46,27 @@ export interface SessionProgress {
   reverse: boolean;
   /** Kartenzahl beim Speichern, für „Karte 9 von 40“. */
   total: number;
+  /**
+   * Ausgänge der vor der Unterbrechung beantworteten Karten, nach Karten-Id.
+   * Damit zählt die Auswertung nach einem Weitermachen die ganze Runde
+   * („11 von 12“) und alte falsche Karten landen wieder im Wiederhol-Stapel.
+   * Optional: Merker von vor diesem Feld setzen normal fort, die Auswertung
+   * zählt dann nur die aktuelle Sitzung.
+   */
+  results?: Record<string, StoredCardResult>;
+}
+
+/** Nur Einträge behalten, die wie ein Ergebnis aussehen — ein kaputtes Feld darf nie den Merker töten. */
+function parseStoredResults(value: unknown): Record<string, StoredCardResult> | undefined {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
+  const entries: Record<string, StoredCardResult> = {};
+  for (const [cardId, result] of Object.entries(value)) {
+    if (typeof result !== "object" || result === null) continue;
+    const { correct, overridden } = result as Record<string, unknown>;
+    if (typeof correct !== "boolean" || typeof overridden !== "boolean") continue;
+    entries[cardId] = { correct, overridden };
+  }
+  return Object.keys(entries).length > 0 ? entries : undefined;
 }
 
 // Die Lernart gehört in den Schlüssel: Ein Deck kann gleichzeitig eine
@@ -63,7 +90,8 @@ export function parseSessionProgress(raw: string | null): SessionProgress | null
     if (typeof total !== "number" || !Number.isInteger(total) || total <= 0) return null;
     // Ein Index am oder hinter dem Ende ist eine fertige Runde, keine fortsetzbare.
     if (index >= total) return null;
-    return { index, cardId, source, reverse: reverse === true, total };
+    const results = parseStoredResults(value.results);
+    return { index, cardId, source, reverse: reverse === true, total, ...(results ? { results } : {}) };
   } catch {
     return null;
   }
