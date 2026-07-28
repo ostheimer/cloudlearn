@@ -33,6 +33,10 @@ export interface GenerateOptions {
   // Vom Lernenden aktivierte Fragetypen — mindestens einer sollte true sein.
   allowMc?: boolean;
   allowTrueFalse?: boolean;
+  // Obergrenze der Rundenlänge (#570). Ohne Angabe: keine Grenze (alle Karten).
+  // Begrenzt die FRAGEN, nicht die betrachteten Karten: Wird eine Karte
+  // übersprungen (kein gleichartiger Ablenker), rückt eine spätere nach.
+  count?: number;
 }
 
 const TF_PROMPT = "Stimmt diese Zuordnung?";
@@ -88,6 +92,7 @@ export function generateQuestions(
   const reverse = opts.reverse ?? false;
   const allowMc = opts.allowMc ?? true;
   const allowTrueFalse = opts.allowTrueFalse ?? true;
+  const count = opts.count ?? Infinity;
   if (cards.length < 2 || (!allowMc && !allowTrueFalse)) return [];
 
   const seenPairs = new Set<string>();
@@ -118,6 +123,7 @@ export function generateQuestions(
 
   const questions: QuizQuestion[] = [];
   for (const current of shuffle(enriched, randomFn)) {
+    if (questions.length >= count) break;
     const sameKind = enriched.filter(
       (e) => e.card.id !== current.card.id && e.kind === current.kind
     );

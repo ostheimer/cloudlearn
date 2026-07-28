@@ -41,6 +41,7 @@ import {
   filterBySource,
   type CardSource,
 } from "../src/components/cardSourcePicker";
+import { QuestionCountPicker } from "../src/components/questionCountPicker";
 import { useColors, spacing, radius, typography, shadows } from "../src/theme";
 
 export default function QuizScreen() {
@@ -94,6 +95,9 @@ export default function QuizScreen() {
   const [typeTF, setTypeTF] = useState(true);
   const [source, setSource] = useState<CardSource>("all");
   const [wobblyIds, setWobblyIds] = useState<Set<string>>(new Set());
+  // Rundenlänge — wählbar wie bei der Prüfung (#570). Standard 10 (Laras
+  // Entscheidung 28.07.); `count >= usableCount` bedeutet „Alle".
+  const [count, setCount] = useState(10);
   const anyType = typeMC || typeTF;
 
   // The chosen source; choice questions need at least two cards from it.
@@ -101,6 +105,17 @@ export default function QuizScreen() {
   const wobblyCount = cards.filter((c) => wobblyIds.has(c.id)).length;
   const pool = filterBySource(cards, source, wobblyIds);
   const canStart = anyType && pool.length >= 2;
+  // Obergrenze der Auswahl: wie die Prüfung nur Karten mit beiden Seiten —
+  // leere ergeben keine Frage, und „Alle (N)" soll nicht mehr versprechen.
+  const usableCount = pool.filter(
+    (c) => (c.front ?? "").trim() && (c.back ?? "").trim()
+  ).length;
+
+  // Schrumpft der Pool (andere Kartenquelle), darf die gewählte Anzahl nicht
+  // darüber liegen; nur klemmen, nie zurückwachsen (10 bleibt der Standard).
+  useEffect(() => {
+    if (usableCount > 0) setCount((c) => Math.min(c, usableCount));
+  }, [usableCount]);
 
   // Load cards
   const loadCards = useCallback(async () => {
@@ -133,7 +148,7 @@ export default function QuizScreen() {
 
   const startQuiz = () => {
     if (!canStart) return;
-    const q = generateQuestions(pool, 10, quizCopy, Math.random, {
+    const q = generateQuestions(pool, count, quizCopy, Math.random, {
       reverse,
       allowMc: typeMC,
       allowTrueFalse: typeTF,
@@ -233,7 +248,7 @@ export default function QuizScreen() {
     return pool.filter((c) => ids.has(c.id));
   })();
   const startQuizFrom = (sourceCards: Card[]) => {
-    const q = generateQuestions(sourceCards, Math.min(10, sourceCards.length), quizCopy, Math.random, {
+    const q = generateQuestions(sourceCards, Math.min(count, sourceCards.length), quizCopy, Math.random, {
       reverse,
       allowMc: typeMC,
       allowTrueFalse: typeTF,
@@ -497,6 +512,9 @@ export default function QuizScreen() {
                 Tippen zum Tauschen
               </Text>
             </TouchableOpacity>
+
+            {/* Anzahl Fragen — wählbar wie bei der Prüfung (#570) */}
+            <QuestionCountPicker count={count} max={usableCount} onChange={setCount} />
 
             {/* Fragetypen */}
             <View style={setupCardStyle}>

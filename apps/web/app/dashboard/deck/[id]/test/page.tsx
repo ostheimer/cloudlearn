@@ -16,6 +16,7 @@ import { useDisplayName } from "@/lib/use-display-name";
 import { useWobblyIds } from "@/lib/use-wobbly-ids";
 import { filterBySource, type CardSource } from "@/lib/card-source";
 import { CardSourcePicker } from "@/components/app/card-source-picker";
+import { QuestionCountPicker } from "@/components/app/question-count-picker";
 import { isAnswerCorrect } from "@/lib/answerCheck";
 import {
   answeredIndices,
@@ -189,20 +190,6 @@ export default function TestPage() {
   useEffect(() => {
     if (usableCount > 0) setCount(usableCount);
   }, [usableCount]);
-
-  const countPresets = useMemo(
-    () =>
-      [usableCount, 10, 20, 30].filter(
-        (n, i, arr) => n > 0 && n <= usableCount && arr.indexOf(n) === i
-      ),
-    [usableCount]
-  );
-
-  const cycleCount = () => {
-    if (countPresets.length <= 1) return;
-    const i = countPresets.indexOf(count);
-    setCount(countPresets[(i + 1) % countPresets.length]!);
-  };
 
   const anyType = typeTF || typeMC || typeWritten;
 
@@ -526,12 +513,9 @@ export default function TestPage() {
           wobblyCount={cards.filter((c) => wobblyIds.has(c.id)).length}
         />
 
-        <button type="button" className="cl-optcard test-tap" onClick={cycleCount}>
-          <span className="cl-row__t">Anzahl Fragen</span>
-          <span className="test-count">
-            {count >= usableCount ? `Alle (${usableCount})` : count}
-          </span>
-        </button>
+        {/* Anzahl Fragen — gemeinsamer Baustein mit dem Quiz, wie die
+            App-Prüfung: Chips + Feinauswahl statt Durchtipp-Knopf (#570) */}
+        <QuestionCountPicker count={count} max={usableCount} onChange={setCount} />
 
         <div className="cl-optcard">
           <div className="cl-dir__lbl">Aufgabentypen</div>

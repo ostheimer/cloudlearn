@@ -134,10 +134,13 @@ export function generateQuestions(
 
   const questions: QuizQuestion[] = [];
   const shuffledCards = shuffle(enriched, randomFn);
-  const limit = Math.min(count, shuffledCards.length);
 
-  for (let i = 0; i < limit; i++) {
-    const current = shuffledCards[i]!;
+  // `count` ist eine Obergrenze für die FRAGEN, nicht für die betrachteten
+  // Karten: Wer eine Karte überspringt (kein gleichartiger Ablenker), rückt
+  // eine spätere nach, damit die gewählte Rundenlänge erreicht wird, solange
+  // der Pool es hergibt (#570).
+  for (const current of shuffledCards) {
+    if (questions.length >= count) break;
     const hasImage = Boolean(current.media.primaryImage);
     const shouldUseImageQuestion =
       allowMc && hasImage && cards.length >= 4 && randomFn() < 0.35;
