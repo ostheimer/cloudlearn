@@ -494,7 +494,7 @@ export default function QuizScreen() {
                   marginTop: spacing.md,
                 }}
               >
-                Tippen zum Tauschen
+                Richtung tauschen
               </Text>
             </TouchableOpacity>
 
@@ -769,7 +769,7 @@ export default function QuizScreen() {
                   }}
                 >
                   <Text style={{ color: colors.textInverse, fontWeight: typography.bold }}>
-                    Nur die falschen ({wrongCards.length})
+                    Nur die nicht gewussten ({wrongCards.length})
                   </Text>
                 </TouchableOpacity>
               )}
@@ -854,7 +854,7 @@ export default function QuizScreen() {
                   fontWeight: typography.medium,
                 }}
               >
-                Frage {currentIdx + 1} / {questions.length}
+                Frage {currentIdx + 1} von {questions.length}
               </Text>
               <Text
                 style={{

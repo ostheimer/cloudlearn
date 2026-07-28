@@ -743,7 +743,7 @@ export default function MatchScreen() {
                 <Text
                   style={{ color: colors.textInverse, fontWeight: typography.bold }}
                 >
-                  Nochmal
+                  Alle nochmal
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity

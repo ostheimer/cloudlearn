@@ -777,7 +777,7 @@ export default function TestPage() {
     <div className="study-wrap">
       <div className="test-ptop">
         <span>
-          {idx + 1} / {questions.length}
+          Frage {idx + 1} von {questions.length}
         </span>
         {timed && (
           <span
