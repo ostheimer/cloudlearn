@@ -41,6 +41,7 @@ import {
   deleteDeck,
   duplicateDeck,
   shareDeck,
+  revokeDeckShare,
   exportDeckForOffline,
   type Card,
 } from "../../../src/lib/api";
@@ -523,6 +524,32 @@ export default function DeckDetailScreen() {
     } catch {
       Alert.alert(t("common.error"), t("deckAction.shareError"));
     }
+  };
+
+  const handleRevokeShare = () => {
+    Alert.alert(
+      t("deckAction.revokeShareTitle"),
+      t("deckAction.revokeShareMessage"),
+      [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: t("deckAction.revokeShareConfirm"),
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const { revoked } = await revokeDeckShare(deckId);
+              if (revoked) {
+                Alert.alert(t("common.success"), t("deckAction.revokeShareSuccess"));
+              } else {
+                Alert.alert(t("deckMenu.revokeShare"), t("deckAction.revokeShareNone"));
+              }
+            } catch {
+              Alert.alert(t("common.error"), t("deckAction.revokeShareError"));
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleDetails = () => {
@@ -1170,6 +1197,7 @@ export default function DeckDetailScreen() {
           onAddToFolder={handleAddToFolder}
           onDuplicate={handleDuplicate}
           onShare={handleShare}
+          onRevokeShare={handleRevokeShare}
           onDetails={handleDetails}
           onDelete={handleDeleteDeck}
         />

@@ -818,6 +818,15 @@ export async function shareDeck(deckId: string): Promise<{ shareToken: string; s
   });
 }
 
+// Deactivates the deck's share link (#519, App-Hälfte): the old URL stops
+// working; a later shareDeck() creates a brand-new link. `revoked: false`
+// means the deck had no active link to begin with.
+export async function revokeDeckShare(deckId: string): Promise<{ revoked: boolean }> {
+  return requestAuthenticated<{ revoked: boolean }>(`/api/v1/decks/${deckId}/share`, {
+    method: "DELETE",
+  });
+}
+
 export async function getSharedDeck(shareToken: string): Promise<{ deck: Deck; cards: Card[] }> {
   return request<{ deck: Deck; cards: Card[] }>(`/api/v1/decks/share/${shareToken}`);
 }
