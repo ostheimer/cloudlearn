@@ -187,3 +187,50 @@ describe("generateQuestions — Wahr/Falsch kennt die echte Antwort (#497)", () 
     expect(tfCount).toBeGreaterThan(0);
   });
 });
+
+describe("generateQuestions — Kartentexte werden aufbereitet (#569)", () => {
+  it("Lücken-Karten zeigen den Strich statt {{cN::…}} — die Lösung steht nie in der Frage", () => {
+    const clozeCards: QuizCardInput[] = [
+      { id: "c1", front: "Die Hauptstadt von Frankreich ist {{c1::Paris}}.", back: "Paris", type: "cloze" },
+      { id: "c2", front: "Berlin liegt an der {{c1::Spree}}.", back: "Spree", type: "cloze" },
+      { id: "c3", front: "Die Donau mündet ins {{c1::Schwarze Meer}}.", back: "Schwarze Meer", type: "cloze" },
+    ];
+    for (const seed of [1, 2, 3, 5, 7]) {
+      for (const q of generateQuestions(clozeCards, {}, seeded(seed))) {
+        const shown = q.type === "trueFalse" ? q.tfPairing!.front : q.questionText;
+        expect(shown).not.toMatch(/\{\{c\d+::/);
+        expect(shown).toContain("______");
+      }
+    }
+  });
+
+  it("entfernt Bild-Markdown und Übersetzungs-Zusätze aus Frage und Optionen", () => {
+    const cards: QuizCardInput[] = [
+      {
+        id: "b1",
+        front: "![Foto](https://example.com/a.png) Was heißt 'le soleil' auf Deutsch?",
+        back: "die Sonne",
+        type: "basic",
+      },
+      ...vocabCards,
+    ];
+    for (const seed of [1, 2, 3, 5, 7]) {
+      for (const q of generateQuestions(cards, { allowTrueFalse: false }, seeded(seed))) {
+        expect(q.questionText).not.toContain("![");
+        for (const opt of q.options) expect(opt).not.toContain("![");
+        if (q.cardId === "b1") expect(q.questionText).toBe("le soleil");
+      }
+    }
+  });
+
+  it("reine Bild-Karten fallen weg — ohne Bildanzeige wäre die Frage nicht beantwortbar", () => {
+    const cards: QuizCardInput[] = [
+      { id: "img1", front: "![Zellkern](https://example.com/z.png)", back: "Nucleus", type: "basic" },
+      ...vocabCards,
+    ];
+    for (const seed of [1, 2, 3, 5, 7]) {
+      const questions = generateQuestions(cards, {}, seeded(seed));
+      expect(questions.find((q) => q.cardId === "img1")).toBeUndefined();
+    }
+  });
+});

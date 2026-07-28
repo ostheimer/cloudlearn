@@ -8,6 +8,7 @@ import { earnLp, listCardsInDeck, reviewCard, isApiError, type Card } from "@/li
 import { useDisplayName } from "@/lib/use-display-name";
 import { useWobblyIds } from "@/lib/use-wobbly-ids";
 import { filterBySource, type CardSource } from "@/lib/card-source";
+import { matchTileTexts } from "@/lib/match-tiles";
 import { CardSourcePicker } from "@/components/app/card-source-picker";
 import {
   ArrowLeft,
@@ -102,27 +103,31 @@ export default function MatchPage() {
   }, [load]);
 
   // Die gewählte Kartenquelle (Alle / Nur markierte / Nur Wackelkandidaten).
+  // Spielbar sind nur Karten, deren beide Seiten nach der Aufbereitung (#569)
+  // Text haben — reine Bild-Karten ohne Beschriftung ergeben keine Kachel.
   const sourced = filterBySource(cards, source, wobblyIds);
-  const pairCount = Math.min(MAX_PAIRS, sourced.length);
+  const playable = sourced.filter((card) => matchTileTexts(card) !== null);
+  const pairCount = Math.min(MAX_PAIRS, playable.length);
   const gamePairs = tiles.length / 2;
 
   const startGameWith = useCallback(
     (sourceCards: Card[], withTimer: boolean) => {
-      const selectedCards = shuffle(sourceCards).slice(
-        0,
-        Math.min(MAX_PAIRS, sourceCards.length)
-      );
+      const usable = sourceCards.flatMap((card) => {
+        const texts = matchTileTexts(card);
+        return texts ? [{ card, texts }] : [];
+      });
+      const selectedCards = shuffle(usable).slice(0, Math.min(MAX_PAIRS, usable.length));
       const newTiles: Tile[] = [];
-      for (const card of selectedCards) {
+      for (const { card, texts } of selectedCards) {
         newTiles.push({
           id: `${card.id}-front`,
-          text: (card.front || "").trim(),
+          text: texts.front,
           cardId: card.id,
           side: "front",
         });
         newTiles.push({
           id: `${card.id}-back`,
-          text: (card.back || "").trim(),
+          text: texts.back,
           cardId: card.id,
           side: "back",
         });
@@ -254,7 +259,7 @@ export default function MatchPage() {
     );
   }
 
-  if (cards.length < 2) {
+  if (cards.filter((card) => matchTileTexts(card) !== null).length < 2) {
     return (
       <div className="empty-state">
         <div className="ic" aria-hidden>
@@ -337,6 +342,7 @@ export default function MatchPage() {
           type="button"
           className="btn btn-primary btn-lg btn-block"
           onClick={() => startGame(timed)}
+          disabled={pairCount < 2}
         >
           Starten
         </button>

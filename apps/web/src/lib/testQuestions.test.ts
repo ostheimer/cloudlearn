@@ -188,3 +188,46 @@ describe("buildTestQuestions", () => {
     expect(qs).toHaveLength(2);
   });
 });
+
+describe("buildTestQuestions — Kartentexte werden aufbereitet (#569)", () => {
+  it("Lücken-Karten zeigen den Strich statt {{cN::…}} — die Lösung steht nie in der Frage", () => {
+    const clozeCards: TestCardInput[] = [
+      { id: "c1", front: "Die Hauptstadt von Frankreich ist {{c1::Paris}}.", back: "Paris", type: "cloze" },
+      { id: "c2", front: "Berlin liegt an der {{c1::Spree}}.", back: "Spree", type: "cloze" },
+    ];
+    const qs = buildTestQuestions(clozeCards, { count: 2, types: ["written"], randomFn: () => 0 });
+    expect(qs).toHaveLength(2);
+    for (const q of qs) {
+      expect(q.type).toBe("written");
+      expect(q.prompt).not.toMatch(/\{\{c\d+::/);
+      expect(q.prompt).toContain("______");
+    }
+    const paris = qs.find((q) => q.cardId === "c1")!;
+    expect(paris.prompt).toBe("Die Hauptstadt von Frankreich ist ______.");
+    expect(paris.expected).toBe("Paris");
+  });
+
+  it("entfernt Bild-Markdown und Übersetzungs-Zusätze", () => {
+    const cards: TestCardInput[] = [
+      {
+        id: "b1",
+        front: "![Foto](https://example.com/a.png) Was heißt 'le soleil' auf Deutsch?",
+        back: "die Sonne",
+      },
+    ];
+    const qs = buildTestQuestions(cards, { count: 1, types: ["written"], randomFn: () => 0 });
+    expect(qs).toHaveLength(1);
+    expect(qs[0]!.prompt).toBe("le soleil");
+    expect(qs[0]!.expected).toBe("die Sonne");
+  });
+
+  it("reine Bild-Karten fallen weg — die Prüfung stellt keine Bildfragen", () => {
+    const cards: TestCardInput[] = [
+      { id: "img1", front: "![Zellkern](https://example.com/z.png)", back: "Nucleus" },
+      { id: "n1", front: "la lune", back: "der Mond" },
+    ];
+    const qs = buildTestQuestions(cards, { count: 5, types: ["written"], randomFn: () => 0 });
+    expect(qs.find((q) => q.cardId === "img1")).toBeUndefined();
+    expect(qs.find((q) => q.cardId === "n1")).toBeDefined();
+  });
+});

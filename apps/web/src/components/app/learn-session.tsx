@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/app/auth-context";
 import { reviewCard, updateCard, earnLp, type Card, type ReviewRating } from "@/lib/api";
 import { useDisplayName } from "@/lib/use-display-name";
+import { cleanTerm, formatCloze, summarizeCardMedia } from "@/lib/card-display";
 import { speechTexts } from "@/lib/speech-text";
 import { useSpeech } from "@/lib/use-speech";
 import {
@@ -126,6 +127,19 @@ export function LearnSession({
   // Welche Seite vorn abgefragt wird, entscheidet die Richtung.
   const shownFront = current ? (reverse ? current.back : current.front) : "";
   const shownBack = current ? (reverse ? current.front : current.back) : "";
+
+  // Anzeige-Aufbereitung wie die App (#569, apps/mobile/app/(tabs)/learn.tsx):
+  // Bild-Markdown wird herausgetrennt und als echtes Bild gezeigt,
+  // Übersetzungs-Zusätze verschwinden, die {{cN::…}}-Lücke wird zum Strich und
+  // ihre Lösung zur Rückseite. Das Vorlesen bleibt bei den Rohtexten —
+  // speechTexts macht seine eigene Aufbereitung (Pause statt Lösung).
+  const media = summarizeCardMedia({ front: shownFront, back: shownBack });
+  const normalizedFront = cleanTerm(media.plainFront || shownFront);
+  const normalizedBack = cleanTerm(media.plainBack || shownBack);
+  const frontParsed = formatCloze(normalizedFront);
+  const displayBack = frontParsed.clozeAnswer ?? normalizedBack;
+  const frontImage = media.frontImages[0] ?? media.primaryImage;
+  const backImage = media.backImages[0] ?? media.primaryImage;
 
   // ─── Vorlesen + Auto-Abspielen (wie der App-Lernmodus) ───────────────────
   const { supported, speaking, speak, stop } = useSpeech();
@@ -494,7 +508,9 @@ export function LearnSession({
       </div>
 
       <div
-        className={`flip study-card${flipped ? " is-flipped" : ""}`}
+        className={`flip study-card${flipped ? " is-flipped" : ""}${
+          frontImage || backImage ? " flip--media" : ""
+        }`}
         role="button"
         tabIndex={0}
         aria-label="Karte umdrehen"
@@ -509,12 +525,22 @@ export function LearnSession({
         <div className="flip__inner">
           <div className="flip__face flip__face--front">
             <span className="flip__label">Frage</span>
-            <span className="flip__q">{shownFront}</span>
+            {frontImage && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img className="flip__img" src={frontImage.url} alt={frontImage.alt} />
+            )}
+            <span className="flip__q">
+              {frontParsed.display || frontImage?.alt || "Bildkarte"}
+            </span>
             <span className="flip__hint">Klicken zum Umdrehen</span>
           </div>
           <div className="flip__face flip__face--back">
             <span className="flip__label">Antwort</span>
-            <span className="flip__q">{shownBack}</span>
+            {backImage && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img className="flip__img" src={backImage.url} alt={backImage.alt} />
+            )}
+            <span className="flip__q">{displayBack || backImage?.alt || "—"}</span>
             <span className="flip__hint">Wie gut wusstest du es?</span>
           </div>
         </div>

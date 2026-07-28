@@ -1,6 +1,12 @@
 // Fragen-Modell für den klausurartigen Test-Modus (Port von
 // apps/mobile/src/lib/testQuestions.ts, ohne Medien-/Bildfragen). Getrennt von
 // quizQuestions, damit der Multiple-Choice-Modus unberührt bleibt.
+//
+// Kartentexte werden wie in der App vorab aufbereitet (#569): Bild-Markdown
+// raus, Übersetzungs-Zusätze raus, und der Lückensatz zeigt den Strich statt
+// {{cN::…}} — sonst stünde die Lösung sichtbar in der Frage.
+
+import { cleanTerm, formatCloze, summarizeCardMedia } from "./card-display";
 
 export type TestQuestionType = "mc" | "trueFalse" | "written";
 
@@ -143,17 +149,30 @@ export function buildTestQuestions(
   const choiceTypes = enabled.filter((t) => t === "mc" || t === "trueFalse");
 
   // Anreichern, Leere raus, Duplikate raus (Decks halten Karten manchmal doppelt).
+  // Aufbereitung wie die App (termsOf): Bild-Markdown raus, Übersetzungs-Zusätze
+  // raus. Reine Bild-Karten haben danach keinen Text mehr und fallen weg — die
+  // Prüfung stellt keine Bildfragen (Dateikopf). Der Lückensatz wird gleich hier
+  // auf den Strich gebracht; der Duplikat-Schlüssel nutzt noch den Satz MIT
+  // {{cN::…}}, denn zwei Lückensätze, die sich nur in der Lösung unterscheiden,
+  // sind keine Duplikate.
   const seen = new Set<string>();
   const enriched: EnrichedCard[] = [];
   for (const card of cards) {
-    const front = (card.front || "").trim();
-    const back = (card.back || "").trim();
+    const media = summarizeCardMedia({ front: card.front || "", back: card.back || "" });
+    const front = cleanTerm(media.plainFront);
+    const back = cleanTerm(media.plainBack);
     if (!front || !back) continue;
     const key = `${front}|${back}`.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
     const fillIn = isFillIn(front);
-    enriched.push({ id: card.id, front, back, fillIn, kind: kindOf(card.type, fillIn) });
+    enriched.push({
+      id: card.id,
+      front: fillIn ? formatCloze(front).display : front,
+      back,
+      fillIn,
+      kind: kindOf(card.type, fillIn),
+    });
   }
   if (enriched.length === 0) return [];
 
