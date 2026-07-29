@@ -22,6 +22,7 @@ import {
 import { useColors, spacing, radius, typography, shadows } from "../theme";
 import { useTranslation } from "react-i18next";
 import { getDeckDetails, type DeckDetails } from "../lib/api";
+import { buildDeckCountLabel } from "../lib/deckCountLabel";
 
 interface DeckDetailsModalProps {
   visible: boolean;
@@ -206,7 +207,13 @@ export default function DeckDetailsModal({
               <DetailRow
                 icon={CreditCard}
                 label={t("deckDetails.cardCount")}
-                value={`${details.cardCount} ${details.cardCount === 1 ? t("deckDetails.card") : t("deckDetails.cards")}`}
+                // Gleiche Regel wie der Deck-Kopf ("20 Karten · 10 Bild-Karten",
+                // #612) — vorher zählten die Details alles in einen Topf und
+                // widersprachen der Überschrift.
+                value={
+                  buildDeckCountLabel(details.cardCount, details.imageCardCount) ??
+                  `0 ${t("deckDetails.cards")}`
+                }
                 iconColor={colors.primary}
               />
               <DetailRow

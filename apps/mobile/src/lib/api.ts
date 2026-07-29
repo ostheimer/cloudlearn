@@ -864,7 +864,10 @@ export interface DeckDetails {
   userId: string;
   title: string;
   tags: string[];
+  /** Text-Karten — gleiche Zähl-Regel wie die Deck-Liste (#612). */
   cardCount: number;
+  /** Bild-Occlusion-Karten, getrennt gezählt wie überall sonst. */
+  imageCardCount?: number;
   folders: Folder[];
   /** Vorlese-Sprachen je Seite (#571); `null` = nicht eingestellt → Deutsch. */
   speechLangFront?: string | null;

@@ -66,6 +66,12 @@ function makeDbMock(responses: QueryResponse[]) {
       calls.push({ method: "single", args: [] });
       return Promise.resolve(response);
     };
+    // Seitenweises Lesen (selectAllRows, #612): die Antwort der Queue ist die
+    // ganze Seite; weniger als 1000 Zeilen beenden das Blättern nach Seite 1.
+    builder.range = (fromIndex: number, toIndex: number) => {
+      calls.push({ method: "range", args: [fromIndex, toIndex] });
+      return Promise.resolve(response);
+    };
     builder.then = (onFulfilled: (v: QueryResponse) => unknown, onRejected?: (r: unknown) => unknown) =>
       Promise.resolve(response).then(onFulfilled, onRejected);
     return builder;

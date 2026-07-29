@@ -678,11 +678,12 @@ export interface LpEarnResponse {
 
 /**
  * Schreibt Lernpunkte fürs Lernen gut — wie die App am Ende einer Lernsitzung.
- * Ab 5 gelernten Karten gibt es LP (Tageslimit serverseitig). Web nutzt nur
- * "session"/"dailyGoal" (keine Werbung im Browser).
+ * Ab 5 gelernten Karten gibt es LP (Tageslimit serverseitig). Nur "session":
+ * der Server erlaubt keinen anderen Typ mehr (dailyGoal/ad sind entfernt) —
+ * das alte "dailyGoal" hier war eine Einladung zu einem sicheren 400 (#612).
  */
 export function earnLp(
-  type: "session" | "dailyGoal",
+  type: "session",
   sessionCardCount?: number
 ): Promise<LpEarnResponse> {
   return authed<LpEarnResponse>("/api/v1/lp/earn", {
