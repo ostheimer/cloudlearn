@@ -318,3 +318,59 @@ describe("buildTestQuestions — gap questions never print their answer (#592)",
     expect(paris.expected).toBe("Paris");
   });
 });
+
+describe("buildTestQuestions — image cards never print raw markdown (#592)", () => {
+  it("a pure image side becomes its caption, never ![…](…) code", () => {
+    const imageCards: TestCardInput[] = [
+      { id: "i1", front: "![Zellkern](https://example.com/zelle.png)", back: "Nucleus" },
+      { id: "i2", front: "![Zellwand](https://example.com/wand.png)", back: "Membran" },
+    ];
+    const qs = buildTestQuestions(imageCards, {
+      count: 2,
+      types: ["written"],
+      randomFn: () => 0,
+    });
+    expect(qs).toHaveLength(2);
+    for (const q of qs) {
+      expect(q.prompt).not.toMatch(/!\[/);
+      expect(q.expected).not.toMatch(/!\[/);
+    }
+    const nucleus = qs.find((q) => q.cardId === "i1")!;
+    expect(nucleus.prompt).toBe("Zellkern");
+    expect(nucleus.expected).toBe("Nucleus");
+  });
+
+  it("no option or shown pairing ever contains ![…](…) code", () => {
+    const imageCards: TestCardInput[] = [
+      { id: "i1", front: "![Zellkern](https://example.com/zelle.png)", back: "Nucleus" },
+      { id: "i2", front: "![Zellwand](https://example.com/wand.png)", back: "Membran" },
+      { id: "i3", front: "![Chloroplast](https://example.com/chlor.png)", back: "Chloroplast" },
+      { id: "i4", front: "![Golgi](https://example.com/golgi.png)", back: "Golgi-Apparat" },
+    ];
+    for (const seed of [1, 2, 3, 5, 7]) {
+      const qs = buildTestQuestions(imageCards, {
+        count: 8,
+        types: ["mc", "trueFalse", "written"],
+        randomFn: seeded(seed),
+      });
+      expect(qs.length).toBeGreaterThan(0);
+      for (const q of qs) {
+        const shown = [q.prompt, q.expected, q.tfShownBack, ...q.options];
+        for (const text of shown) expect(text).not.toMatch(/!\[/);
+      }
+    }
+  });
+
+  it("an image without a caption drops the card instead of showing raw text", () => {
+    const mixed: TestCardInput[] = [
+      { id: "i1", front: "![](https://example.com/zelle.png)", back: "Nucleus" },
+      { id: "t1", front: "la courbe", back: "die Kurve" },
+    ];
+    const qs = buildTestQuestions(mixed, {
+      count: 5,
+      types: ["written"],
+      randomFn: () => 0,
+    });
+    expect(qs.map((q) => q.cardId)).toEqual(["t1"]);
+  });
+});

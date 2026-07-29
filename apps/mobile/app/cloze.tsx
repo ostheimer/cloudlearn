@@ -44,6 +44,7 @@ import { useSessionStore } from "../src/store/sessionStore";
 import { useUsageStore } from "../src/store/usageStore";
 import { excludeOcclusionCards } from "../src/lib/occlusion";
 import { summarizeCardMedia } from "../src/lib/cardMedia";
+import { formatCloze } from "../src/lib/cloze";
 import { isAnswerCorrect } from "../src/lib/answerCheck";
 import { cleanTerm } from "../src/lib/cardTerms";
 import { fetchDeckStats } from "../src/lib/statsApi";
@@ -74,19 +75,18 @@ interface Prompt {
 //     (the blank is fixed in the text, so direction has no effect)
 //   - basic cards: show one side, type the other. `reverse` swaps which side.
 function buildPrompt(card: Card, reverse: boolean): Prompt {
+  // Prepared like the web (#592, cloze-prompt.ts): image markdown out,
+  // translation wrappers out. A side that is only an image has no text
+  // afterwards, so the card falls out of hasTypeable — without showing the
+  // image, its question would be raw ![…](…) code.
   const media = summarizeCardMedia(card);
-  const rawFront = (media.plainFront || card.front || "").trim();
-  const rawBack = (media.plainBack || card.back || "").trim();
-
-  const match = rawFront.match(/\{\{c\d+::(.+?)\}\}/);
-  if (match) {
-    const answer = (match[1] ?? "").trim();
-    const prompt = rawFront.replace(/\{\{c\d+::.+?\}\}/g, "______");
-    return { prompt, answer, isCloze: true };
+  const parsed = formatCloze(media.plainFront);
+  if (parsed.clozeAnswer !== null) {
+    return { prompt: parsed.display, answer: parsed.clozeAnswer.trim(), isCloze: true };
   }
   // Strip a translation-question wrapper so vocab cards behave as clean pairs.
-  const front = cleanTerm(rawFront);
-  const back = cleanTerm(rawBack);
+  const front = cleanTerm(media.plainFront);
+  const back = cleanTerm(media.plainBack);
   if (reverse) {
     return { prompt: back, answer: front, isCloze: false };
   }
@@ -97,10 +97,7 @@ function buildPrompt(card: Card, reverse: boolean): Prompt {
 function hasTypeable(card: Card): boolean {
   const parsed = buildPrompt(card, false);
   if (parsed.isCloze) return parsed.answer.length > 0;
-  const media = summarizeCardMedia(card);
-  const front = (media.plainFront || card.front || "").trim();
-  const back = (media.plainBack || card.back || "").trim();
-  return front.length > 0 && back.length > 0;
+  return parsed.prompt.length > 0 && parsed.answer.length > 0;
 }
 
 type Phase = "setup" | "play" | "summary";

@@ -1,5 +1,4 @@
-import { summarizeCardMedia } from "./cardMedia";
-import { cleanTerm } from "./cardTerms";
+import { cardSideTexts } from "./cardDisplay";
 import { formatCloze } from "./cloze";
 
 // Question model for the exam-style Test mode. Kept separate from quizQuestions
@@ -76,11 +75,13 @@ function kindOf(type: string | undefined, fillIn: boolean): string {
 }
 
 function termsOf(card: TestCardInput): EnrichedCard {
-  const media = summarizeCardMedia(card);
-  const rawFront = (media.plainFront || card.front || "").trim();
-  const front = cleanTerm(rawFront);
-  const back = cleanTerm((media.plainBack || card.back || "").trim());
-  const fillIn = isFillIn(rawFront);
+  // Prepared like the web (#592): image markdown out, translation wrappers
+  // out; a side that is only an image falls back to its caption. A side left
+  // without any text stays empty, so the caller's empty-filter drops the card
+  // — the test asks no image questions, and raw ![…](…) code must never reach
+  // a prompt or an option.
+  const { front, back } = cardSideTexts(card);
+  const fillIn = isFillIn(front);
   return { id: card.id, front, back, fillIn, kind: kindOf(card.type, fillIn) };
 }
 
