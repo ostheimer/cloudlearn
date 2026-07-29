@@ -587,7 +587,9 @@ export default function RootLayout() {
                 headerBackTitle: "Zurück",
                 headerTintColor,
                 headerStyle,
-                title: "Upgrade",
+                // Neutral statt "Upgrade": die Seite sehen auch Pro/Lifetime,
+                // die nichts upgraden koennen (#607).
+                title: "clearn Pro",
               }}
             />
             <Stack.Screen

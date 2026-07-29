@@ -314,6 +314,9 @@ export interface SubscriptionStatus {
   tier: "free" | "pro" | "lifetime";
   isActive: boolean;
   expiresAt: string | null;
+  // #607: Zeitpunkt des letzten RevenueCat-Zahlungsproblems (BILLING_ISSUE).
+  // Fehlt bei älteren API-Ständen — deshalb optional.
+  billingIssueAt?: string | null;
 }
 
 export interface DeleteAccountResponse {
