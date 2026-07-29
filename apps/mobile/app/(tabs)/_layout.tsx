@@ -58,9 +58,9 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, size }) => <User size={size} color={color} />,
         }}
       />
-      {/* Parked: the global "learn all due cards" screen stays routable but is no
-          longer a tab. Deck-specific learning uses the /deck-review route instead.
-          The global daily entry point returns in a later step. */}
+      {/* Not a tab, but routable: the Home "Jetzt lernen" button (#609) opens
+          this screen as the global due round (deck by deck). Deck-specific
+          learning uses the /deck-review route instead. */}
       <Tabs.Screen
         name="learn"
         options={{

@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
 import {
   BookOpen,
   ScanLine,
@@ -36,6 +37,7 @@ import { DisplayNamePrompt } from "../../src/components/DisplayNamePrompt";
 export default function HomeScreen() {
   const colors = useColors();
   const router = useRouter();
+  const { t } = useTranslation();
   const userId = useSessionStore((state) => state.userId);
   const setDueCount = useSessionStore((state) => state.setDueCount);
   const [stats, setStats] = useState<StatsResponse | null>(null);
@@ -720,7 +722,12 @@ export default function HomeScreen() {
                 >
                   Decks
                 </Text>
-                <View
+                {/* Die Pille startet bei fälligen Karten die globale Runde
+                    (#609); die Kachel drumherum öffnet weiter die Bibliothek. */}
+                <TouchableOpacity
+                  disabled={dueCount === 0}
+                  onPress={() => router.push("/(tabs)/learn")}
+                  activeOpacity={0.7}
                   style={{
                     marginTop: 6,
                     backgroundColor: dueCount > 0 ? colors.warningLight : colors.surfaceSecondary,
@@ -738,7 +745,7 @@ export default function HomeScreen() {
                   >
                     {dueCount > 0 ? `${dueCount} fällig  ›` : "Bibliothek  ›"}
                   </Text>
-                </View>
+                </TouchableOpacity>
               </TouchableOpacity>
 
               {/* Accuracy */}
@@ -883,29 +890,100 @@ export default function HomeScreen() {
               </TouchableOpacity>
             )}
 
-            {/* Action buttons */}
-            <View style={{ gap: spacing.md }}>{/* The parked global "learn all
-              due cards" button is gone for good — learning starts from a deck
-              (Bibliothek shows which decks are due). */}
+            {/* Action buttons — Lern-Einstieg (#609, Laras Variante A): Bei
+                fälligen Karten ist "Jetzt lernen" der große violette Knopf und
+                startet die globale Runde Deck für Deck; Scannen tritt in den
+                Rahmen-Stil zurück. Ohne fällige Karten steht eine ruhige
+                "gut gemacht"-Fläche da und Scannen ist wieder Haupt-Aktion. */}
+            <View style={{ gap: spacing.md }}>
+              {dueCount > 0 ? (
+                <TouchableOpacity
+                  onPress={() => router.push("/(tabs)/learn")}
+                  activeOpacity={0.8}
+                  style={{
+                    backgroundColor: colors.primary,
+                    borderRadius: radius.lg,
+                    paddingVertical: spacing.md,
+                    paddingHorizontal: spacing.lg,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 2,
+                    ...shadows.md,
+                  }}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+                    <BookOpen size={20} color={colors.textInverse} />
+                    <Text
+                      style={{
+                        color: colors.textInverse,
+                        fontSize: typography.lg,
+                        fontWeight: typography.bold,
+                      }}
+                    >
+                      {t("home.learnNow")}
+                    </Text>
+                  </View>
+                  <Text
+                    style={{
+                      color: colors.textInverse,
+                      fontSize: typography.sm,
+                      fontWeight: typography.semibold,
+                      opacity: 0.85,
+                    }}
+                  >
+                    {dueCount === 1
+                      ? t("home.dueCardsOne")
+                      : t("home.dueCardsMany", { count: dueCount })}
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                <View
+                  style={{
+                    backgroundColor: colors.surface,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    borderRadius: radius.lg,
+                    paddingVertical: spacing.md,
+                    paddingHorizontal: spacing.lg,
+                    alignItems: "center",
+                    gap: 2,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: typography.base,
+                      fontWeight: typography.semibold,
+                      color: colors.textSecondary,
+                    }}
+                  >
+                    {t("home.nothingDue")}
+                  </Text>
+                  <Text style={{ fontSize: typography.sm, color: colors.textTertiary }}>
+                    {t("home.nothingDueHint")}
+                  </Text>
+                </View>
+              )}
 
               <TouchableOpacity
                 onPress={() => router.push("/(tabs)/scan")}
                 activeOpacity={0.8}
                 style={{
-                  backgroundColor: colors.primary,
+                  backgroundColor: dueCount > 0 ? colors.surface : colors.primary,
+                  borderWidth: dueCount > 0 ? 1.5 : 0,
+                  borderColor: colors.primary,
                   borderRadius: radius.lg,
                   padding: spacing.lg,
                   flexDirection: "row",
                   alignItems: "center",
                   justifyContent: "center",
                   gap: spacing.sm,
-                  ...shadows.md,
+                  ...(dueCount > 0 ? {} : shadows.md),
                 }}
               >
-                <ScanLine size={20} color={colors.textInverse} />
+                <ScanLine size={20} color={dueCount > 0 ? colors.primary : colors.textInverse} />
                 <Text
                   style={{
-                    color: colors.textInverse,
+                    color: dueCount > 0 ? colors.primary : colors.textInverse,
                     fontSize: typography.lg,
                     fontWeight: typography.bold,
                   }}

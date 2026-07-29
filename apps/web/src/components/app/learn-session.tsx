@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/app/auth-context";
 import {
@@ -170,6 +170,11 @@ export function LearnSession({
   const [deckLangs, setDeckLangs] = useState<
     Record<string, { front: SpeechLanguage; back: SpeechLanguage }>
   >({});
+  // Deck-Titel für die kleine Beschriftung auf der Karte (#609): Sobald der
+  // Stapel Karten aus MEHREREN Decks mischt (globale Runde, Ordner-Runde),
+  // sagt die Karte, zu welchem Deck sie gehört — Laras Bedingung dafür, dass
+  // die fällige Runde über alle Decks überhaupt gebaut wird.
+  const [deckTitles, setDeckTitles] = useState<Record<string, string>>({});
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
@@ -177,13 +182,16 @@ export function LearnSession({
       .then(({ decks }) => {
         if (cancelled) return;
         const map: Record<string, { front: SpeechLanguage; back: SpeechLanguage }> = {};
+        const titles: Record<string, string> = {};
         for (const d of decks) {
           map[d.id] = {
             front: toSpeechLanguage(d.speechLangFront),
             back: toSpeechLanguage(d.speechLangBack),
           };
+          titles[d.id] = d.title;
         }
         setDeckLangs(map);
+        setDeckTitles(titles);
       })
       .catch(() => {
         /* Ohne Zuordnung bleibt es bei Deutsch — Vorlesen muss trotzdem gehen */
@@ -192,6 +200,15 @@ export function LearnSession({
       cancelled = true;
     };
   }, [userId]);
+
+  // Nur bei gemischten Stapeln beschriften — im Ein-Deck-Lernen stünde sonst
+  // auf jeder Karte redundant der Titel, den die Kopfzeile schon nennt.
+  const multiDeck = useMemo(
+    () => new Set(pool.map((c) => c.deckId)).size > 1,
+    [pool]
+  );
+  const currentDeckTitle =
+    multiDeck && current?.deckId ? deckTitles[current.deckId] : undefined;
 
   // Die Sprache folgt dem TEXT, nicht der Position: „Richtung tauschen"
   // (reverse) zeigt die Rückseite zuerst, dann muss auch deren Sprache zuerst
@@ -670,6 +687,7 @@ export function LearnSession({
       >
         <div className="flip__inner">
           <div className="flip__face flip__face--front">
+            {currentDeckTitle && <span className="flip__deck">{currentDeckTitle}</span>}
             <span className="flip__label">Frage</span>
             {frontImage && (
               // eslint-disable-next-line @next/next/no-img-element
@@ -681,6 +699,7 @@ export function LearnSession({
             <span className="flip__hint">Klicken zum Umdrehen</span>
           </div>
           <div className="flip__face flip__face--back">
+            {currentDeckTitle && <span className="flip__deck">{currentDeckTitle}</span>}
             <span className="flip__label">Antwort</span>
             {backImage && (
               // eslint-disable-next-line @next/next/no-img-element
