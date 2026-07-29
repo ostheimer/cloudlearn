@@ -132,6 +132,20 @@ export default function QuizPage() {
     });
   }, []);
 
+  // „Beenden" ist nicht der einzige Ausgang: Browser-Zurück oder ein Link
+  // verlassen die Runde ohne quit(). Nur dieses Abbau-Aufräumen sieht das
+  // noch und rechnet die bis dahin beantworteten Fragen ab (App-Vorbild: das
+  // Blur-Cleanup in quiz.tsx, #566). Die Anzahl kommt aus pendingReviewsRef —
+  // jede Antwort stößt genau einen Review an; `answers` wäre hier nur der
+  // eingefrorene Stand vom Einhängen. Nach einer regulären Abrechnung ist der
+  // Ref leer bzw. der Award abgeschlossen, dann tut das hier nichts.
+  useEffect(() => {
+    return () => {
+      const reviewedCount = getSessionReviewedCount(0, pendingReviewsRef.current.length);
+      void awardSession(reviewedCount);
+    };
+  }, [awardSession]);
+
   // Startet eine Runde mit den übergebenen Karten (alle Karten oder nur die
   // nicht gewussten). Schreibt zuerst die LP der eben beendeten Runde gut und
   // setzt danach den Award-Zustand + offene Reviews zurück.

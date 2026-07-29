@@ -35,7 +35,8 @@ const STEPS: { Icon: typeof Layers; title: string; subtitle: string }[] = [
   },
   {
     // Gleiches Funken-Symbol wie der Scan-Menüpunkt, damit der Wiedererkennungs-
-    // Effekt trägt. Dieser Schritt existiert nur im Web (Laras Wunsch 27.07.).
+    // Effekt trägt. Den Schritt gibt es inzwischen auch in der App
+    // (onboarding.scanTitle) — er startete hier im Web (Laras Wunsch 27.07.).
     Icon: Sparkles,
     title: "Karten aus Fotos",
     subtitle:

@@ -96,9 +96,10 @@ describe("Platz im Ziel-Deck (#427)", () => {
     // locker passten, und nie bei 43 freien Plätzen und 60 Karten.
     expect(deckSpaceNotice(12, 5)).toBeNull();
     expect(deckSpaceNotice(12, 12)).toBeNull();
+    // Nur die Zahlen — die Folge steht seit #595 allein in der Rückfrage,
+    // sonst las man denselben Satz zweimal direkt hintereinander.
     expect(deckSpaceNotice(43, 60)).toBe(
-      "Von deinen 60 Karten passen nur noch 43 in dieses Deck — " +
-        "der Rest wird beim Speichern gleichmäßig über den ganzen Stoff weggelassen."
+      "Von deinen 60 Karten passen nur noch 43 in dieses Deck."
     );
   });
 

@@ -87,7 +87,7 @@ export const LP_EARN_RULES = {
   streakDay7: 25,         // streak milestone bonus
   streakDay30: 100,
   streakDay100: 300,
-  referralSender: 50,     // LP when referred user reaches 7-day streak
+  referralSender: 50,     // LP when the invited user first redeems the code (claim_referral)
   referralReceiver: 25,   // new user signup bonus via referral
   firstDeck: 10,
   firstReview: 5,

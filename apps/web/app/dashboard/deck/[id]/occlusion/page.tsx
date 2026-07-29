@@ -155,6 +155,18 @@ export default function OcclusionLearnPage() {
     if (done) void awardSession(total);
   }, [done, total, awardSession]);
 
+  // Browser-Zurück oder ein Link verlassen die Runde ohne quit() — nur dieses
+  // Abbau-Aufräumen rechnet die bis dahin bewerteten Bereiche noch ab (gleiches
+  // Muster wie das Quiz, App-Vorbild #566). pendingReviewsRef statt State:
+  // jede Bewertung stößt genau einen Review an, und nach einer regulären
+  // Abrechnung ist der Ref leer — dann tut das hier nichts.
+  useEffect(() => {
+    return () => {
+      const reviewedCount = getSessionReviewedCount(0, pendingReviewsRef.current.length);
+      void awardSession(reviewedCount);
+    };
+  }, [awardSession]);
+
   function rate(known: boolean) {
     const item = items[index];
     if (!item || !userId) return;

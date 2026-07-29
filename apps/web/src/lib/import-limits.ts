@@ -131,6 +131,11 @@ export function deckOptionLabel(title: string, free: number | null): string {
  * Rest-Schwelle, sondern daran, ob die neuen Karten wirklich alle passen: keine
  * falschen Alarme bei 27 freien Plätzen und 5 Karten, kein Schweigen bei 40
  * freien Plätzen und 60 Karten.
+ *
+ * Bewusst nur die Zahlen, ohne die Folge („der Rest wird … weggelassen"):
+ * Die stand hier UND in der Rückfrage davor wortgleich doppelt (#595). Laras
+ * Entscheidung 29.07.: der Kasten kündigt kurz an, die Rückfrage vor dem
+ * Speichern erklärt — dort steht der volle Satz, wortgleich mit der App.
  */
 export function deckSpaceNotice(free: number | null, cardCount: number): string | null {
   if (free === null) return null;
@@ -138,10 +143,7 @@ export function deckSpaceNotice(free: number | null, cardCount: number): string 
     return "Dieses Deck ist voll. Wähle ein anderes Deck oder lege ein neues an.";
   }
   if (cardCount > free) {
-    return (
-      `Von deinen ${cardCount} Karten passen nur noch ${free} in dieses Deck — ` +
-      "der Rest wird beim Speichern gleichmäßig über den ganzen Stoff weggelassen."
-    );
+    return `Von deinen ${cardCount} Karten passen nur noch ${free} in dieses Deck.`;
   }
   return null;
 }
@@ -152,12 +154,18 @@ export const OVERFLOW_CONFIRM_TITLE = "Wenig Platz";
 /**
  * Rückfrage vor dem Speichern (#570, Laras Variante 3) — `null`, wenn alles
  * passt. Wortgleich mit `deckOverflowWarning` in
- * apps/mobile/src/lib/importLimits.ts: Hinweis-Satz plus „Trotzdem speichern?".
+ * apps/mobile/src/lib/importLimits.ts; seit #595 eigener Volltext statt aus
+ * `deckSpaceNotice` zusammengesetzt, denn der Kasten ist jetzt kürzer als die
+ * Rückfrage.
  */
 export function deckOverflowWarning(free: number | null, cardCount: number): string | null {
   if (free === null || free === 0) return null;
-  const notice = deckSpaceNotice(free, cardCount);
-  return notice ? `${notice} Trotzdem speichern?` : null;
+  if (cardCount <= free) return null;
+  return (
+    `Von deinen ${cardCount} Karten passen nur noch ${free} in dieses Deck — ` +
+    "der Rest wird beim Speichern gleichmäßig über den ganzen Stoff weggelassen. " +
+    "Trotzdem speichern?"
+  );
 }
 
 interface ErrorLike {
