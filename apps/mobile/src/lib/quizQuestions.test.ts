@@ -355,3 +355,30 @@ describe("quizQuestions", () => {
     expect(questions.length).toBeLessThanOrEqual(3);
   });
 });
+
+describe("quizQuestions — gap questions never print their answer (#592)", () => {
+  it("shows the blank instead of {{cN::…}} in every question shape", () => {
+    const clozeCards: QuizCardInput[] = [
+      { id: "c1", front: "Die Hauptstadt von Frankreich ist {{c1::Paris}}.", back: "Paris", type: "cloze" },
+      { id: "c2", front: "Berlin liegt an der {{c1::Spree}}.", back: "Spree", type: "cloze" },
+      { id: "c3", front: "Die Donau mündet ins {{c1::Schwarze Meer}}.", back: "Schwarze Meer", type: "cloze" },
+    ];
+    for (const seed of [1, 2, 3, 5, 7]) {
+      for (const q of generateQuestions(clozeCards, 10, undefined, seeded(seed))) {
+        const shown = q.type === "trueFalse" ? q.tfPairing!.front : q.questionText;
+        expect(shown).not.toMatch(/\{\{c\d+::/);
+        expect(shown).toContain("______");
+      }
+    }
+  });
+
+  it("keeps gap sentences differing only in their solution as separate cards", () => {
+    const twins: QuizCardInput[] = [
+      { id: "t1", front: "Der Satz endet mit {{c1::rot}}.", back: "rot", type: "cloze" },
+      { id: "t2", front: "Der Satz endet mit {{c1::blau}}.", back: "blau", type: "cloze" },
+    ];
+    const qs = generateQuestions(twins, 10, undefined, seeded(3));
+    const ids = new Set(qs.map((q) => q.cardId));
+    expect(ids.size).toBe(2);
+  });
+});

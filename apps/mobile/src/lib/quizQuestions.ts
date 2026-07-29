@@ -1,5 +1,6 @@
 import { summarizeCardMedia } from "./cardMedia";
 import { cleanTerm } from "./cardTerms";
+import { formatCloze } from "./cloze";
 
 export interface QuizCardInput {
   id: string;
@@ -112,16 +113,23 @@ export function generateQuestions(
     seenPairs.add(key);
     const label = media.preferredLabel || normalizedBack || normalizedFront;
     const fillIn = isFillIn(normalizedFront);
+    // The gap sentence is shown with a blank instead of the raw {{cN::…}} —
+    // the markup would print the answer inside the question (#592). The dedup
+    // key above keeps the raw sentence: two gaps differing only in their
+    // solution are not duplicates.
+    const displayFront = fillIn
+      ? formatCloze(normalizedFront).display
+      : normalizedFront;
     // Question/answer side follows the direction; fill-in cards always show
     // their gap sentence and expect the missing word.
-    const questionSide =
-      fillIn || !reverse ? normalizedFront : normalizedBack;
+    const questionSide = fillIn || !reverse ? displayFront : normalizedBack;
     const answerSide = fillIn || !reverse ? normalizedBack : normalizedFront;
     return [
       {
         card,
         media,
         normalizedFront,
+        displayFront,
         normalizedBack,
         label,
         fillIn,
@@ -165,7 +173,7 @@ export function generateQuestions(
         questions.push({
           type: "imageMc",
           cardId: current.card.id,
-          questionText: current.normalizedFront || copy.imagePrompt,
+          questionText: current.displayFront || copy.imagePrompt,
           correctAnswer: correctLabel,
           options,
           correctIndex: options.indexOf(correctLabel),

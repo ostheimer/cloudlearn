@@ -1,5 +1,6 @@
 import { summarizeCardMedia } from "./cardMedia";
 import { cleanTerm } from "./cardTerms";
+import { formatCloze } from "./cloze";
 
 // Question model for the exam-style Test mode. Kept separate from quizQuestions
 // so the standalone Multiple-Choice screen is untouched.
@@ -221,9 +222,14 @@ export function buildTestQuestions(
     const current = shuffled[i]!;
 
     // Fill-in cards are always "fill the gap" (front sentence → missing word).
+    // Shown with a blank instead of the raw {{cN::…}} — the markup would print
+    // the answer inside the question (#592). The dedup key keeps the raw
+    // sentence, so gaps differing only in their solution stay distinct.
     if (current.fillIn) {
       if (writtenEnabled) {
-        questions.push(writtenQuestion(current.id, current.front, current.back));
+        questions.push(
+          writtenQuestion(current.id, formatCloze(current.front).display, current.back)
+        );
       }
       continue;
     }
