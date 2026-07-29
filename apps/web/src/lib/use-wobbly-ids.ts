@@ -30,20 +30,26 @@ export function useWobblyIds(deckId: string | undefined): {
     if (!deckId) return;
     let active = true;
     (async () => {
+      // `settled` muss auf JEDEM Weg wahr werden — auch beim Gratis-Ausstieg —
+      // sonst wartete der Setup-Merker (#610) für immer.
       try {
-        const usage = await getLpBalance();
-        // Nur ein KLARES "free" ueberspringt die Statistik.
-        if (!active || usage.tier === "free") return;
-      } catch {
-        // Tarif unbekannt (Abfrage-Fehler): NICHT wie Free behandeln, sondern
-        // die Statistik trotzdem versuchen — fuer Pro klappt sie, fuer echte
-        // Free-Konten lehnt der Server sie gleich leise ab (#607).
-      }
-      try {
-        const stats = await getDeckStats(deckId);
-        if (active) setIds(new Set(stats.wobblyCards.map((w) => w.cardId)));
-      } catch {
-        /* Statistik ist Kür — ohne sie bleibt „Wackelkandidaten" einfach leer */
+        let skipStats = false;
+        try {
+          const usage = await getLpBalance();
+          // Nur ein KLARES "free" ueberspringt die Statistik.
+          if (usage.tier === "free") skipStats = true;
+        } catch {
+          // Tarif unbekannt (Abfrage-Fehler): NICHT wie Free behandeln, sondern
+          // die Statistik trotzdem versuchen — fuer Pro klappt sie, fuer echte
+          // Free-Konten lehnt der Server sie gleich leise ab (#607).
+        }
+        if (!active || skipStats) return;
+        try {
+          const stats = await getDeckStats(deckId);
+          if (active) setIds(new Set(stats.wobblyCards.map((w) => w.cardId)));
+        } catch {
+          /* Statistik ist Kür — ohne sie bleibt „Wackelkandidaten" einfach leer */
+        }
       } finally {
         if (active) setSettled(true);
       }
