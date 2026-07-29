@@ -238,23 +238,76 @@ export async function earnLp(
   return mapEarnRow(data);
 }
 
-// ─── Monthly Grant (no automatic caller yet — invoked manually/by future billing flow) ───
+// ─── Monthly Grant (#604) ────────────────────────────────────────────────────
+// Two callers that must never double-credit: the RevenueCat webhook (instant
+// credit on purchase/renewal) and the monthly cron /api/v1/lp/monthly-grant
+// (annual subs get a RENEWAL only once a YEAR and lifetime never, so without
+// the cron they miss most or all of the promised 300 LP/month). Both key the
+// grant to the calendar month; grant_monthly_lp inserts the (user, period)
+// guard row and credits in one transaction, so whichever caller comes second
+// in a month is a no-op regardless of ordering or webhook retries.
 
-export async function grantMonthlyLp(userId: string, tier: SubscriptionTier): Promise<number> {
+export function currentLpGrantPeriod(now = new Date()): string {
+  return now.toISOString().slice(0, 7); // calendar month, e.g. "2026-08"
+}
+
+export async function grantMonthlyLp(
+  userId: string,
+  tier: SubscriptionTier,
+  period: string
+): Promise<boolean> {
   const grant = getLimitsForTier(tier).lpGrantPerMonth;
-  if (grant <= 0) return 0;
+  if (grant <= 0) return false;
 
   const db = getDb();
-  const { error } = await db.rpc("add_lp", {
+  const { data, error } = await db.rpc("grant_monthly_lp", {
     p_user: userId,
+    p_tier: tier,
     p_amount: grant,
-    p_type: "abo_grant",
-    p_reason: `monthly_${tier}`,
+    p_period: period,
   });
 
   if (error) throw new Error(`grantMonthlyLp: ${error.message}`);
 
-  return grant;
+  return data === true;
+}
+
+// Credits the month's allotment to every profile whose subscription is still
+// active (pro/lifetime with no expiry or a future one — same activity rule as
+// getSubscriptionTier). A failing grant for one profile must not starve the
+// rest of the sweep, so per-user errors are logged and counted, not thrown.
+export async function grantMonthlyLpToActiveSubscribers(
+  period: string,
+  now = new Date()
+): Promise<{ eligible: number; granted: number; failed: number }> {
+  const db = getDb();
+  const { data, error } = await db
+    .from("profiles")
+    .select("id, subscription_tier, subscription_expires_at")
+    .in("subscription_tier", ["pro", "lifetime"]);
+
+  if (error) throw new Error(`grantMonthlyLpToActiveSubscribers: ${error.message}`);
+
+  const rows = (data ?? []) as Array<{
+    id: string;
+    subscription_tier: SubscriptionTier;
+    subscription_expires_at: string | null;
+  }>;
+  const active = rows.filter(
+    (row) => !row.subscription_expires_at || new Date(row.subscription_expires_at) > now
+  );
+
+  let granted = 0;
+  let failed = 0;
+  for (const row of active) {
+    try {
+      if (await grantMonthlyLp(row.id, row.subscription_tier, period)) granted++;
+    } catch (grantError) {
+      failed++;
+      console.error(`[lp/monthly-grant] grant failed for ${row.id}:`, grantError);
+    }
+  }
+  return { eligible: active.length, granted, failed };
 }
 
 // ─── Milestone Reward (idempotent) ───────────────────────────────────────────

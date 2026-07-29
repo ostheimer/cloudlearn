@@ -31,20 +31,24 @@ const envState = vi.hoisted(() => ({ secret: "secret" as string | undefined }));
 vi.mock("@/lib/env", () => ({
   getEnv: () => ({ REVENUECAT_WEBHOOK_SECRET: envState.secret }),
 }));
-vi.mock("@/services/lpService", () => ({ grantLpPurchase: vi.fn() }));
+// The monthly grant (#604) runs through lpService.grantMonthlyLp with the
+// calendar-month period key — the same key the /lp/monthly-grant cron uses.
+vi.mock("@/services/lpService", () => ({
+  grantLpPurchase: vi.fn(),
+  grantMonthlyLp: vi.fn(),
+  currentLpGrantPeriod: vi.fn(() => "2026-07"),
+}));
 vi.mock("@/services/subscriptionService", () => ({ updateSubscriptionStatus: vi.fn() }));
 vi.mock("@/services/revenueCatService", () => ({ mapRevenueCatEventToSubscription: vi.fn() }));
 vi.mock("@/lib/observability", () => ({ createRequestContext: () => ({ requestId: "req-wh-1" }) }));
-// Admin Supabase client used only for the additive monthly-LP grant (#209 Part A).
-const rpcMock = vi.hoisted(() => vi.fn());
-vi.mock("@/lib/supabase", () => ({ createSupabaseAdminClient: () => ({ rpc: rpcMock }) }));
 
 import { POST } from "../../app/api/v1/subscription/webhook/route";
-import { grantLpPurchase } from "@/services/lpService";
+import { grantLpPurchase, grantMonthlyLp } from "@/services/lpService";
 import { mapRevenueCatEventToSubscription } from "@/services/revenueCatService";
 import { updateSubscriptionStatus } from "@/services/subscriptionService";
 
 const mockedGrant = vi.mocked(grantLpPurchase);
+const mockedMonthly = vi.mocked(grantMonthlyLp);
 const mockedMap = vi.mocked(mapRevenueCatEventToSubscription);
 const mockedUpdate = vi.mocked(updateSubscriptionStatus);
 
@@ -78,6 +82,9 @@ describe("POST /api/v1/subscription/webhook – LP pack idempotent grant", () =>
     // grant_lp_purchase (via grantLpPurchase) is the single idempotent path — no
     // prior isLpTransactionProcessed SELECT, and the reason keys off the txid.
     expect(mockedGrant).toHaveBeenCalledWith("user-9", 300, "purchase_tx-123");
+    // An LP pack arrives as NON_RENEWING_PURCHASE too, but it must never ALSO
+    // trigger the monthly subscription grant (#604) — the pack branch returns first.
+    expect(mockedMonthly).not.toHaveBeenCalled();
   });
 
   it("rejects an invalid signature before crediting anything", async () => {
@@ -126,7 +133,7 @@ describe("POST /api/v1/subscription/webhook – LP pack idempotent grant", () =>
   });
 });
 
-describe("POST /api/v1/subscription/webhook – monthly Pro LP grant (#209 Part A)", () => {
+describe("POST /api/v1/subscription/webhook – monthly Pro LP grant (#209 Part A, #604)", () => {
   let errorSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
@@ -135,7 +142,7 @@ describe("POST /api/v1/subscription/webhook – monthly Pro LP grant (#209 Part 
     // Default: a plain subscription status update with no side effects.
     mockedUpdate.mockResolvedValue({ tier: "free", isActive: false } as never);
     mockedMap.mockReturnValue({ tier: "free", isActive: false, expiresAt: null });
-    rpcMock.mockResolvedValue({ error: null });
+    mockedMonthly.mockResolvedValue(true);
     errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
   });
 
@@ -143,7 +150,7 @@ describe("POST /api/v1/subscription/webhook – monthly Pro LP grant (#209 Part 
     errorSpy.mockRestore();
   });
 
-  it("grants monthly Pro LP on a RENEWAL, keyed to the billing-period expiry date", async () => {
+  it("grants monthly Pro LP on a RENEWAL, keyed to the calendar month", async () => {
     mockedMap.mockReturnValue({ tier: "pro", isActive: true, expiresAt: "2026-08-13T00:00:00.000Z" });
 
     const response = await POST(
@@ -156,14 +163,29 @@ describe("POST /api/v1/subscription/webhook – monthly Pro LP grant (#209 Part 
     );
 
     expect(response.status).toBe(201);
-    // Called with the auth-mapped user id (app_user_id), tier 'pro', the 300-LP Pro
-    // allotment, and a per-period key derived from the expiry date (YYYY-MM-DD).
-    expect(rpcMock).toHaveBeenCalledWith("grant_monthly_lp", {
-      p_user: "user-42",
-      p_tier: "pro",
-      p_amount: 300,
-      p_period: "2026-08-13",
-    });
+    // Called with the auth-mapped user id (app_user_id), the resolved tier and the
+    // CALENDAR month — NOT the expiry date, which paid annual subs once a year and
+    // would collide with the /lp/monthly-grant cron (#604).
+    expect(mockedMonthly).toHaveBeenCalledWith("user-42", "pro", "2026-07");
+  });
+
+  it("grants on a lifetime purchase (NON_RENEWING_PURCHASE, no expiry) (#604)", async () => {
+    mockedMap.mockReturnValue({ tier: "lifetime", isActive: true, expiresAt: null });
+
+    const response = await POST(
+      webhookRequest({
+        app_user_id: "user-42",
+        type: "NON_RENEWING_PURCHASE",
+        product_id: "clearn_lifetime",
+        entitlement_ids: ["lifetime"],
+      })
+    );
+
+    expect(response.status).toBe(201);
+    // Not an LP pack, so the purchase falls through to the subscription path and
+    // receives the instant month allotment; the cron covers every later month.
+    expect(mockedGrant).not.toHaveBeenCalled();
+    expect(mockedMonthly).toHaveBeenCalledWith("user-42", "lifetime", "2026-07");
   });
 
   it("does not grant monthly LP for a free / inactive subscription event", async () => {
@@ -174,7 +196,7 @@ describe("POST /api/v1/subscription/webhook – monthly Pro LP grant (#209 Part 
     );
 
     expect(response.status).toBe(201);
-    expect(rpcMock).not.toHaveBeenCalled();
+    expect(mockedMonthly).not.toHaveBeenCalled();
   });
 
   it("does not grant on non-billing-period events even for an active Pro sub", async () => {
@@ -186,12 +208,12 @@ describe("POST /api/v1/subscription/webhook – monthly Pro LP grant (#209 Part 
     );
 
     expect(response.status).toBe(201);
-    expect(rpcMock).not.toHaveBeenCalled();
+    expect(mockedMonthly).not.toHaveBeenCalled();
   });
 
-  it("still succeeds (2xx) when the monthly-grant RPC returns an error", async () => {
+  it("still succeeds (2xx) when the monthly grant fails", async () => {
     mockedMap.mockReturnValue({ tier: "pro", isActive: true, expiresAt: "2026-08-13T00:00:00.000Z" });
-    rpcMock.mockResolvedValueOnce({ error: { message: "boom" } });
+    mockedMonthly.mockRejectedValueOnce(new Error("boom"));
 
     const response = await POST(
       webhookRequest({ app_user_id: "user-42", type: "RENEWAL", entitlement_ids: ["pro"] })
@@ -199,6 +221,6 @@ describe("POST /api/v1/subscription/webhook – monthly Pro LP grant (#209 Part 
 
     // The tier update already stuck; a failed additive grant must not fail the webhook.
     expect(response.status).toBe(201);
-    expect(rpcMock).toHaveBeenCalled();
+    expect(mockedMonthly).toHaveBeenCalled();
   });
 });

@@ -15,7 +15,9 @@ import {
   spendLp,
   refundLp,
   earnLp,
+  currentLpGrantPeriod,
   grantMonthlyLp,
+  grantMonthlyLpToActiveSubscribers,
   claimMilestoneReward,
   grantLpPurchase,
   purchaseStreakFreeze,
@@ -370,33 +372,132 @@ describe("earnLp — session only, via earn_session_lp", () => {
   });
 });
 
-describe("grantMonthlyLp (atomic add_lp RPC)", () => {
+describe("grantMonthlyLp (idempotent grant_monthly_lp RPC, #604)", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("credits the monthly grant for pro and returns the grant amount", async () => {
+  it("credits the monthly grant for pro via the per-period RPC", async () => {
     const db = makeMockDb();
-    db.rpc.mockResolvedValue({ data: 400, error: null });
+    db.rpc.mockResolvedValue({ data: true, error: null });
     useMockDb(db);
 
-    const result = await grantMonthlyLp("user-1", "pro");
+    const result = await grantMonthlyLp("user-1", "pro", "2026-08");
 
-    expect(db.rpc).toHaveBeenCalledWith("add_lp", {
+    expect(db.rpc).toHaveBeenCalledWith("grant_monthly_lp", {
       p_user: "user-1",
+      p_tier: "pro",
       p_amount: TIER_LIMITS.pro.lpGrantPerMonth, // 300
-      p_type: "abo_grant",
-      p_reason: "monthly_pro",
+      p_period: "2026-08",
     });
-    expect(result).toBe(TIER_LIMITS.pro.lpGrantPerMonth);
+    expect(result).toBe(true);
   });
 
-  it("does nothing and returns 0 for free tier (no grant)", async () => {
+  it("returns false when the period was already granted (idempotent no-op)", async () => {
+    const db = makeMockDb();
+    db.rpc.mockResolvedValue({ data: false, error: null });
+    useMockDb(db);
+
+    expect(await grantMonthlyLp("user-1", "lifetime", "2026-08")).toBe(false);
+  });
+
+  it("does nothing and returns false for free tier (no grant)", async () => {
     const db = makeMockDb();
     useMockDb(db);
 
-    const result = await grantMonthlyLp("user-1", "free");
+    const result = await grantMonthlyLp("user-1", "free", "2026-08");
 
-    expect(result).toBe(0);
+    expect(result).toBe(false);
     expect(db.rpc).not.toHaveBeenCalled();
+  });
+
+  it("throws when the RPC fails", async () => {
+    const db = makeMockDb();
+    db.rpc.mockResolvedValue({ data: null, error: { message: "boom" } });
+    useMockDb(db);
+
+    await expect(grantMonthlyLp("user-1", "pro", "2026-08")).rejects.toThrow(
+      "grantMonthlyLp: boom"
+    );
+  });
+});
+
+describe("currentLpGrantPeriod", () => {
+  it("keys the grant to the calendar month (shared by webhook and cron)", () => {
+    expect(currentLpGrantPeriod(new Date("2026-08-15T10:30:00.000Z"))).toBe("2026-08");
+    expect(currentLpGrantPeriod(new Date("2026-12-01T00:00:00.000Z"))).toBe("2026-12");
+  });
+});
+
+describe("grantMonthlyLpToActiveSubscribers (monthly cron sweep, #604)", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  // The sweep needs from().select().in() for the profile list plus rpc() for
+  // the per-user grant — one client object serves both.
+  function makeSweepDb(rows: unknown, listError: { message: string } | null = null) {
+    const inFn = vi.fn().mockResolvedValue({ data: rows, error: listError });
+    const select = vi.fn().mockReturnValue({ in: inFn });
+    const from = vi.fn().mockReturnValue({ select });
+    const rpc = vi.fn().mockResolvedValue({ data: true, error: null });
+    return { from, select, in: inFn, rpc };
+  }
+
+  it("grants every active pro/lifetime profile once and skips expired ones", async () => {
+    const now = new Date("2026-08-01T06:00:00.000Z");
+    const db = makeSweepDb([
+      { id: "user-1", subscription_tier: "pro", subscription_expires_at: "2027-01-01T00:00:00.000Z" },
+      { id: "user-2", subscription_tier: "lifetime", subscription_expires_at: null },
+      { id: "user-3", subscription_tier: "pro", subscription_expires_at: "2026-07-01T00:00:00.000Z" },
+    ]);
+    useMockDb(db as never);
+
+    const result = await grantMonthlyLpToActiveSubscribers("2026-08", now);
+
+    expect(db.from).toHaveBeenCalledWith("profiles");
+    expect(db.in).toHaveBeenCalledWith("subscription_tier", ["pro", "lifetime"]);
+    // user-3's subscription already expired → no grant attempt for them
+    expect(db.rpc).toHaveBeenCalledTimes(2);
+    expect(db.rpc).toHaveBeenCalledWith("grant_monthly_lp", {
+      p_user: "user-1",
+      p_tier: "pro",
+      p_amount: TIER_LIMITS.pro.lpGrantPerMonth,
+      p_period: "2026-08",
+    });
+    expect(db.rpc).toHaveBeenCalledWith("grant_monthly_lp", {
+      p_user: "user-2",
+      p_tier: "lifetime",
+      p_amount: TIER_LIMITS.lifetime.lpGrantPerMonth,
+      p_period: "2026-08",
+    });
+    expect(result).toEqual({ eligible: 2, granted: 2, failed: 0 });
+  });
+
+  it("keeps sweeping when a single grant fails and reports counts", async () => {
+    const db = makeSweepDb([
+      { id: "user-1", subscription_tier: "pro", subscription_expires_at: null },
+      { id: "user-2", subscription_tier: "pro", subscription_expires_at: null },
+      { id: "user-3", subscription_tier: "pro", subscription_expires_at: null },
+    ]);
+    db.rpc
+      .mockResolvedValueOnce({ data: true, error: null })
+      .mockResolvedValueOnce({ data: null, error: { message: "boom" } })
+      .mockResolvedValueOnce({ data: false, error: null }); // already granted this month
+    useMockDb(db as never);
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const result = await grantMonthlyLpToActiveSubscribers("2026-08");
+
+    errorSpy.mockRestore();
+    // The failed grant is counted, the remaining profiles still got their turn.
+    expect(db.rpc).toHaveBeenCalledTimes(3);
+    expect(result).toEqual({ eligible: 3, granted: 1, failed: 1 });
+  });
+
+  it("throws when the profile list itself cannot be read", async () => {
+    const db = makeSweepDb(null, { message: "db down" });
+    useMockDb(db as never);
+
+    await expect(grantMonthlyLpToActiveSubscribers("2026-08")).rejects.toThrow(
+      "grantMonthlyLpToActiveSubscribers: db down"
+    );
   });
 });
 

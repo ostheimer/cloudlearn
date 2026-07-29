@@ -613,7 +613,8 @@ Die initiale Migration oben ist nur das Basisschema. Die vollständige, maßgebl
 │   ├── POST   /earn         # LP verdienen (nur session; dailyGoal/ad entfernt, ad-LP via /ads/ssv)
 │   ├── POST   /spend        # LP für KI-Features einlösen
 │   ├── POST   /milestone    # Einmalige Streak-/First-Action-Boni
-│   └── POST   /purchase     # LP-Pack-Kauf nach RevenueCat-Flow
+│   ├── POST   /purchase     # LP-Pack-Kauf nach RevenueCat-Flow
+│   └── POST   /monthly-grant # Cron-Trigger: 300 LP/Monat für aktive Pro/Lifetime (idempotent je Kalendermonat, #604)
 ├── /leaderboard
 │   ├── GET    /global       # Globales LP-Leaderboard
 │   └── GET    /friends      # Freunde-Leaderboard
