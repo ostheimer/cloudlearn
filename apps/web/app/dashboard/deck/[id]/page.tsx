@@ -618,6 +618,26 @@ function CardEditor({
   const [back, setBack] = useState(initial?.back ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Nachfrage vor dem Verwerfen (#608): Escape, Klick neben das Fenster und
+  // „Abbrechen" werfen sonst halbfertigen Text kommentarlos weg.
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const dirty = front !== (initial?.front ?? "") || back !== (initial?.back ?? "");
+
+  function requestClose() {
+    // Während des Speicherns nicht schließen — sonst wüsste niemand, ob die
+    // Karte angekommen ist.
+    if (busy) return;
+    if (confirmDiscard) {
+      // Escape im Nachfrage-Fenster: zurück zum Bearbeiten, nichts verwerfen.
+      setConfirmDiscard(false);
+      return;
+    }
+    if (dirty) {
+      setConfirmDiscard(true);
+      return;
+    }
+    onClose();
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -635,7 +655,7 @@ function CardEditor({
   }
 
   return (
-    <Modal title={initial ? "Karte bearbeiten" : "Neue Karte"} onClose={onClose}>
+    <Modal title={initial ? "Karte bearbeiten" : "Neue Karte"} onClose={requestClose}>
       <form onSubmit={submit} style={{ display: "grid", gap: 16 }}>
         <div className="card-editor">
           <div className="field">
@@ -667,7 +687,7 @@ function CardEditor({
           </div>
         )}
         <div className="modal__actions">
-          <button type="button" className="btn btn-ghost" onClick={onClose} disabled={busy}>
+          <button type="button" className="btn btn-ghost" onClick={requestClose} disabled={busy}>
             Abbrechen
           </button>
           <button type="submit" className="btn btn-primary" disabled={busy}>
@@ -675,6 +695,44 @@ function CardEditor({
           </button>
         </div>
       </form>
+      {confirmDiscard && (
+        // Liegt im DOM hinter dem Editor-Overlay und damit optisch darüber —
+        // dieselben Modal-Bausteine, nur schmaler. Klick neben das Fenster
+        // heißt hier „Weiter bearbeiten": Die zerstörende Wahl braucht einen
+        // ausdrücklichen Knopfdruck.
+        <div
+          className="modal-overlay"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setConfirmDiscard(false);
+          }}
+        >
+          <div
+            className="modal"
+            role="alertdialog"
+            aria-modal="true"
+            aria-label="Änderungen verwerfen?"
+            style={{ maxWidth: 340 }}
+          >
+            <h3 className="h3">Änderungen verwerfen?</h3>
+            <p className="muted" style={{ margin: 0 }}>
+              Dein eingetippter Text geht sonst verloren.
+            </p>
+            <div className="modal__actions">
+              <button type="button" className="btn btn-ghost" onClick={onClose}>
+                Verwerfen
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => setConfirmDiscard(false)}
+                autoFocus
+              >
+                Weiter bearbeiten
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Modal>
   );
 }
