@@ -63,6 +63,7 @@ import {
   toSpeechLanguage,
   type SpeechLanguage,
 } from "../../src/lib/speechLanguages";
+import { formatCloze } from "../../src/lib/cloze";
 import { setLastUsedDeck } from "../../src/lib/lastUsedDeck";
 import { useDisplayName } from "../../src/lib/useDisplayName";
 import { useUsageStore } from "../../src/store/usageStore";
@@ -790,14 +791,6 @@ function AuthenticatedLearnScreen({
   const progress = cards.length > 0 ? (index + (revealed ? 1 : 0)) / cards.length : 0;
   const canGoBackOne = canGoBack();
 
-  const formatCloze = (text: string): { display: string; clozeAnswer: string | null } => {
-    const match = text.match(/\{\{c\d+::(.+?)\}\}/);
-    if (!match) return { display: text, clozeAnswer: null };
-    const clozeAnswer = match[1] ?? null;
-    const display = text.replace(/\{\{c\d+::.+?\}\}/g, "______");
-    return { display, clozeAnswer };
-  };
-
   const rawFront = current?.front ?? "";
   const rawBack = current?.back ?? "";
   const effectiveFront = showBackFirst ? rawBack : rawFront;
@@ -812,7 +805,7 @@ function AuthenticatedLearnScreen({
   const displayBack = frontParsed.clozeAnswer ?? normalizedBack;
   // Fürs Vorlesen der Vorderseite: die Lücke wird zur Sprech-Pause ("…") statt
   // zur Lösung — Parität zum Web (speechTexts in apps/web/src/lib/speech-text.ts).
-  const speechFront = normalizedFront.replace(/\{\{c\d+::.+?\}\}/g, "…");
+  const speechFront = formatCloze(normalizedFront, "…").display;
   // Sprache folgt dem TEXT, nicht der Position: „Richtung tauschen"
   // (showBackFirst) zeigt die Rückseite zuerst, und dann muss auch deren Sprache
   // zuerst gesprochen werden. Ohne diese Drehung läse die App bei getauschter

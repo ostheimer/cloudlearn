@@ -3,9 +3,6 @@
 // a gap comes back unchanged. Mirrors formatCloze in the web's card-display.ts
 // (#569/#592) — the raw markup must never reach a question, because it prints
 // the answer inside the question text.
-//
-// apps/mobile/app/(tabs)/learn.tsx still carries its own local copy; folding
-// it into this file is deferred until PR #593 (which edits learn.tsx) lands.
 
 export function formatCloze(
   text: string,
