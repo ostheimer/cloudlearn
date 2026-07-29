@@ -721,7 +721,7 @@ export default function ScanScreen() {
         onPress: () => confirmSaveToDeck(d),
       }));
       buttons.push({ text: "Abbrechen", onPress: () => {} });
-      Alert.alert("Deck wählen", `${cards.length} Karten hinzufügen zu:`, buttons);
+      Alert.alert("Deck wählen", `${nonEmptyCards(cards).length} Karten hinzufügen zu:`, buttons);
     } catch {
       Alert.alert("Fehler", "Decks konnten nicht geladen werden.");
     }
@@ -729,10 +729,13 @@ export default function ScanScreen() {
 
   const handleSaveAndLearn = () => {
     if (!userId || cards.length === 0) return;
+    // Die Dialog-Kette zählt nur nicht-leere Karten (#595): gespeichert wird
+    // ohnehin nur `savable` (saveCardsToDeck), und die Platz-Rückfrage darunter
+    // zählt schon so — sonst nennen zwei Dialoge nacheinander andere Zahlen.
     // #411: An der Deck-Grenze wird „Neues Deck" nicht als funktionierende
     // Möglichkeit angeboten — der Hinweis steht direkt an der Schaltfläche,
     // damit die Nutzerin gleich ein bestehendes Deck wählt statt zu scheitern.
-    Alert.alert("Karten speichern", `${cards.length} Karten speichern in:`, [
+    Alert.alert("Karten speichern", `${nonEmptyCards(cards).length} Karten speichern in:`, [
       {
         text: deckLimitReached ? `Neues Deck (${DECK_LIMIT_LABEL})` : "Neues Deck",
         onPress: deckLimitReached

@@ -52,9 +52,13 @@ export function AccuracyByKindCard({ data }: { data: AccuracyByKind }) {
   const colors = useColors();
 
   // Dieselbe Ampel wie im Web und im Prüfungs-Bereich: unter 60 rot, unter 80
-  // gelb, sonst grün.
-  const accColor = (pct: number) =>
-    pct < 60 ? colors.error : pct < 80 ? colors.warning : colors.success;
+  // gelb, sonst grün. Gefärbt wird nach der rohen Rate, nicht dem gerundeten
+  // Prozent (wie Web accuracy-by-kind.tsx): 59,9 % rundet auf „60 %", ist aber
+  // noch rot — sonst zeigen Web und App dieselbe Zahl in verschiedenen Farben.
+  const accColor = (rate: number) => {
+    const pct = rate <= 1 ? rate * 100 : rate;
+    return pct < 60 ? colors.error : pct < 80 ? colors.warning : colors.success;
+  };
 
   const cardStyle = {
     backgroundColor: colors.surface,
@@ -129,7 +133,7 @@ export function AccuracyByKindCard({ data }: { data: AccuracyByKind }) {
                   style={{
                     fontSize: typography.base,
                     fontWeight: typography.semibold,
-                    color: has ? accColor(pct) : colors.textTertiary,
+                    color: has ? accColor(rate) : colors.textTertiary,
                   }}
                 >
                   {has ? `${pct} %` : "—"}
@@ -154,7 +158,7 @@ export function AccuracyByKindCard({ data }: { data: AccuracyByKind }) {
                       width: `${pct}%`,
                       height: "100%",
                       borderRadius: radius.full,
-                      backgroundColor: accColor(pct),
+                      backgroundColor: accColor(rate),
                     }}
                   />
                 ) : null}
