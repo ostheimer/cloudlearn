@@ -18,6 +18,11 @@ import {
   type SessionAwardState,
 } from "@/lib/learn-session-lp";
 import {
+  isCardGone,
+  persistedReviewCount,
+  unsavedReviewsNotice,
+} from "@/lib/unsaved-reviews";
+import {
   ArrowLeft,
   X,
   Check,
@@ -59,6 +64,10 @@ export default function QuizPage() {
   const [earnCapReached, setEarnCapReached] = useState(false);
   const awardStateRef = useRef<SessionAwardState>({ finalized: false, inFlight: null });
   const pendingReviewsRef = useRef<Promise<unknown>[]>([]);
+  // Endgültig verlorene Bewertungen (#605): Ref für die Abrechnung, State für
+  // die Ergebnis-Zeile — immer zusammen fortgeschrieben.
+  const unsavedRef = useRef(0);
+  const [unsavedCount, setUnsavedCount] = useState(0);
 
   const load = useCallback(async () => {
     if (!deckId) return;
@@ -117,11 +126,20 @@ export default function QuizPage() {
           pendingReviewsRef.current = [];
           await Promise.allSettled(pendingReviews);
 
-          const res = await earnLp("session", count);
+          // Erst NACH dem Abwarten zählen (#605): Beansprucht wird nur, was
+          // der Server wirklich gespeichert hat — abgelehnte Bewertungen
+          // gelöschter Karten gehen ab.
+          const saved = persistedReviewCount(count, unsavedRef.current);
+          if (saved === 0) {
+            state.finalized = true;
+            break;
+          }
+
+          const res = await earnLp("session", saved);
           setEarned(res.granted);
           setEarnCapReached(res.capReached);
 
-          if (isSessionEarnFinalized(res, count)) {
+          if (isSessionEarnFinalized(res, saved)) {
             state.finalized = true;
             break;
           }
@@ -154,6 +172,8 @@ export default function QuizPage() {
     const qs = generateQuestions(cardsForRound, { reverse, allowMc, allowTrueFalse, count });
     awardStateRef.current = { finalized: false, inFlight: null };
     pendingReviewsRef.current = [];
+    unsavedRef.current = 0;
+    setUnsavedCount(0);
     setEarned(null);
     setEarnCapReached(false);
     setQuestions(qs);
@@ -191,7 +211,14 @@ export default function QuizPage() {
       // hält also weiterhin, nur ohne die Nebenwirkung.
       const reviewPromise = reviewCard(userId, q.cardId, correct ? "good" : "again", {
         mode: "quiz",
-      }).catch(() => {});
+      }).catch((error) => {
+        // Karte inzwischen gelöscht (#605): endgültig verloren — zählen und am
+        // Rundenende ehrlich ausweisen. Alles andere bleibt best-effort.
+        if (isCardGone(error)) {
+          unsavedRef.current += 1;
+          setUnsavedCount(unsavedRef.current);
+        }
+      });
       pendingReviewsRef.current.push(reviewPromise);
     }
   }
@@ -384,6 +411,11 @@ export default function QuizPage() {
           <p className="muted" style={{ margin: 0 }}>
             {msg}
           </p>
+          {/* Ehrliche Zeile (#605): was der Server nie gespeichert hat, weil
+              die Karten inzwischen gelöscht wurden. */}
+          {unsavedCount > 0 && (
+            <p className="study-unsaved">{unsavedReviewsNotice(unsavedCount)}</p>
+          )}
           {earned !== null && earned > 0 && (
             <span className="lp-pill">
               <Zap size={15} /> +{earned} Lernpunkte

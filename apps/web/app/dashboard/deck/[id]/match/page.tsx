@@ -11,6 +11,11 @@ import { filterBySource, type CardSource } from "@/lib/card-source";
 import { matchTileTexts } from "@/lib/match-tiles";
 import { CardSourcePicker } from "@/components/app/card-source-picker";
 import {
+  isCardGone,
+  persistedReviewCount,
+  unsavedReviewsNotice,
+} from "@/lib/unsaved-reviews";
+import {
   ArrowLeft,
   X,
   Match,
@@ -53,6 +58,9 @@ export default function MatchPage() {
   const [earned, setEarned] = useState<number | null>(null);
   // Verhindert, dass eine Runde zweimal abgerechnet wird.
   const awardedRef = useRef(false);
+  // Endgültig verlorene Bewertungen (#605) fürs Ergebnis — hier reicht State,
+  // weil Zählen und Abrechnen im selben Ablauf nach dem Speichern passieren.
+  const [unsavedCount, setUnsavedCount] = useState(0);
 
   const [cards, setCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
@@ -140,6 +148,7 @@ export default function MatchPage() {
       setMissedIds(new Set());
       setIsNewBest(false);
       setEarned(null);
+      setUnsavedCount(0);
       awardedRef.current = false;
       setTimed(withTimer);
       setPhase("playing");
@@ -185,17 +194,27 @@ export default function MatchPage() {
       awardedRef.current = true;
       const cardIds = Array.from(new Set(tiles.map((t) => t.cardId)));
       void (async () => {
-        await Promise.allSettled(
+        const outcomes = await Promise.allSettled(
           cardIds.map((cardId) =>
             reviewCard(userId, cardId, missedIds.has(cardId) ? "again" : "good", {
               mode: "match",
-            }).catch(() => {})
+            })
           )
         );
+        // Karten, die inzwischen gelöscht wurden (#605): endgültig verloren —
+        // zählen und im Ergebnis ehrlich ausweisen. Andere Fehler bleiben
+        // best-effort wie bisher.
+        const gone = outcomes.filter(
+          (o) => o.status === "rejected" && isCardGone(o.reason)
+        ).length;
+        if (gone > 0) setUnsavedCount(gone);
         // Erst nach dem Speichern abrechnen — der Server leitet die Menge aus
         // den gespeicherten Wiederholungen ab, nicht aus einer Behauptung.
+        // Beansprucht wird nur, was wirklich gespeichert wurde.
+        const saved = persistedReviewCount(cardIds.length, gone);
+        if (saved === 0) return;
         try {
-          const res = await earnLp("session", cardIds.length);
+          const res = await earnLp("session", saved);
           setEarned(res.granted);
         } catch {
           /* LP-Gutschrift ist best-effort */
@@ -400,6 +419,11 @@ export default function MatchPage() {
             <p className="muted" style={{ margin: 0, fontSize: "0.9rem" }}>
               Bestzeit: {formatTime(bestTime)}
             </p>
+          )}
+          {/* Ehrliche Zeile (#605): was der Server nie gespeichert hat, weil
+              die Karten inzwischen gelöscht wurden. */}
+          {unsavedCount > 0 && (
+            <p className="study-unsaved">{unsavedReviewsNotice(unsavedCount)}</p>
           )}
           {/* Die Plakette ist wieder da — jetzt zu Recht: Zuordnen schreibt
               seit Schritt 8 eigene Wiederholungen und verdient die Punkte

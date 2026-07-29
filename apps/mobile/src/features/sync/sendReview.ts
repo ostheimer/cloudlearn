@@ -26,6 +26,12 @@ export function sendReview(input: {
     (error: unknown) => {
       if (shouldRetryLater(error)) {
         useOfflineQueueStore.getState().enqueue(queued);
+      } else {
+        // Endgültig abgelehnt (#605, z. B. 404 — die Karte wurde auf einem
+        // anderen Gerät gelöscht): nicht einreihen, aber ZÄHLEN. Der Lern-Tab
+        // zeigt dafür sein Hinweis-Banner; vorher verschwand die Antwort
+        // spurlos und der Ergebnis-Bildschirm behauptete das Gegenteil.
+        useOfflineQueueStore.getState().recordRejected();
       }
     }
   );

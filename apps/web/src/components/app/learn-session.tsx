@@ -40,6 +40,11 @@ import {
 } from "@/lib/learn-session-lp";
 import { clearSessionProgress, saveSessionProgress } from "@/lib/session-progress";
 import { createReviewSendBuffer } from "@/lib/review-send-buffer";
+import {
+  isCardGone,
+  persistedReviewCount,
+  unsavedReviewsNotice,
+} from "@/lib/unsaved-reviews";
 
 const RATINGS: { key: ReviewRating; label: string; cls: string }[] = [
   { key: "again", label: "Nochmal", cls: "rating--again" },
@@ -128,6 +133,11 @@ export function LearnSession({
   const displayName = useDisplayName();
   const awardStateRef = useRef<SessionAwardState>({ finalized: false, inFlight: null });
   const pendingReviewsRef = useRef<Promise<unknown>[]>([]);
+  // Endgültig verlorene Bewertungen (#605): Ref für die Abrechnung (die läuft
+  // in einem Callback und darf keinen veralteten State sehen), State für die
+  // Ergebnis-Zeile. Beide werden immer zusammen fortgeschrieben.
+  const unsavedRef = useRef(0);
+  const [unsavedCount, setUnsavedCount] = useState(0);
   // Ein-Schritt-Puffer (#283-Muster der App): Die jüngste Bewertung bleibt
   // liegen, bis die nächste Karte bewertet ist — nur so kann der
   // Zurück-Pfeil sie folgenlos verwerfen.
@@ -218,11 +228,23 @@ export function LearnSession({
           pendingReviewsRef.current = [];
           await Promise.allSettled(pendingReviews);
 
-          const res = await earnLp("session", count);
+          // Erst NACH dem Abwarten zählen: Ob eine Bewertung endgültig
+          // abgelehnt wurde (#605), steht erst fest, wenn alle Sende-Versuche
+          // beantwortet sind. Beansprucht wird nur, was wirklich gespeichert
+          // wurde.
+          const saved = persistedReviewCount(count, unsavedRef.current);
+          if (saved === 0) {
+            // Nichts kam durch — es gibt nichts abzurechnen, und ein weiterer
+            // Anlauf würde daran nichts ändern.
+            state.finalized = true;
+            break;
+          }
+
+          const res = await earnLp("session", saved);
           setEarned(res.granted);
           setEarnCapReached(res.capReached);
 
-          if (isSessionEarnFinalized(res, count)) {
+          if (isSessionEarnFinalized(res, saved)) {
             state.finalized = true;
             break;
           }
@@ -241,8 +263,14 @@ export function LearnSession({
       // daran, dass der Default nie geändert wird — und dieser Ablauf trägt
       // sowohl die Deck- als auch die Ordner-Lernseite.
       const reviewPromise = reviewCard(userId, cardId, rating, { mode: "flashcard" }).catch(
-        () => {
-          /* review sync best-effort; scheduling will catch up on next load */
+        (error) => {
+          // Karte inzwischen gelöscht (#605): endgültig verloren — zählen und
+          // am Rundenende ehrlich ausweisen. Alle anderen Fehler bleiben
+          // best-effort; die Planung holt sie beim nächsten Laden nach.
+          if (isCardGone(error)) {
+            unsavedRef.current += 1;
+            setUnsavedCount(unsavedRef.current);
+          }
         }
       );
       pendingReviewsRef.current.push(reviewPromise);
@@ -419,6 +447,8 @@ export function LearnSession({
     await awardSession(total - startIndex);
     awardStateRef.current.finalized = false;
     pendingReviewsRef.current = [];
+    unsavedRef.current = 0;
+    setUnsavedCount(0);
     setEarned(null);
     setEarnCapReached(false);
     setCards(next);
@@ -467,6 +497,12 @@ export function LearnSession({
             Du hast {studied} {studied === 1 ? "Karte" : "Karten"} wiederholt — {correct} davon
             sicher gewusst.
           </p>
+          {/* Ehrliche Zeile (#605): Zahlen oben zeigen die ganze Runde (Laras
+              Variante A), diese Zeile sagt, was davon der Server nie
+              gespeichert hat, weil die Karten inzwischen gelöscht wurden. */}
+          {unsavedCount > 0 && (
+            <p className="study-unsaved">{unsavedReviewsNotice(unsavedCount)}</p>
+          )}
           {earned !== null && earned > 0 && (
             <span className="lp-pill">
               <Zap size={15} /> +{earned} Lernpunkte
