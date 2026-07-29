@@ -18,12 +18,14 @@ import { randomUUID } from "node:crypto";
 import { HttpError } from "@/lib/http";
 import { speechLangSchema, type SpeechLanguage } from "@/lib/speechLanguages";
 import { getSubscriptionStatus } from "./subscriptionService";
-import { assertDeckLimit, assertEntitlement, TITLE_MAX } from "@/lib/limits";
+import { assertDeckLimit, assertEntitlement } from "@/lib/limits";
+import { clampTitle } from "@/lib/titleLimit";
 
-// Titel (#612): trimmen, damit "   " kein gültiger Name ist, und deckeln —
-// sonst liesse sich beliebig viel Text als Titel speichern. Gleiches Schema
+// Titel (#612): trimmen, damit "   " kein gültiger Name ist, und auf 120
+// Zeichen KAPPEN statt abweisen — Scan-Titel schreibt die KI, und alte
+// App-Builds haben keinen Tipp-Stopp (siehe titleLimit.ts). Gleiches Schema
 // wie bei Ordnern (folderService).
-const titleSchema = z.string().trim().min(1).max(TITLE_MAX);
+const titleSchema = z.string().trim().min(1).transform(clampTitle);
 
 const createDeckSchema = z.object({
   userId: z.string().uuid(),

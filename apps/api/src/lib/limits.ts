@@ -8,15 +8,6 @@ import {
   IMPORT_LIMIT_STATUS,
 } from "@/lib/importCapacity";
 
-/**
- * Höchstlänge für Deck- und Ordner-Titel (#612). Vorher gab es keine Grenze —
- * tausende Zeichen liessen sich als Titel speichern und sprengten jede Liste.
- * 120 Zeichen reichen für jede echte Überschrift; Langtext gehört in die
- * Beschreibung (500). Die Clients stoppen die Eingabe beim selben Wert
- * (App: titleLimit.ts, Web: maxLength an den Namensfeldern).
- */
-export const TITLE_MAX = 120;
-
 // The boolean, per-tier Pro entitlements in TierLimits. Kept as a keyof so a
 // new feature flag automatically becomes assertable without touching this type.
 export type EntitlementFeature = {

@@ -3,13 +3,16 @@
  *
  * Vorher hatten die Schemata nur `.min(1)` — tausende Zeichen liessen sich als
  * Titel speichern und sprengten jede Liste, und "   " galt als gültiger Name.
- * Jetzt: trimmen, dann 1–120 Zeichen (TITLE_MAX; die Beschreibung behält ihre
- * eigenen 500). Die Clients stoppen die Eingabe beim selben Wert, dieser Test
- * hält die Servergrenze fest — nie dem Client vertrauen.
+ * Jetzt: trimmen, dann auf TITLE_MAX=120 KAPPEN — nicht abweisen, denn
+ * Scan-Titel schreibt die KI und ausgelieferte App-Builds haben keinen
+ * Tipp-Stopp; deren Speichern darf an der neuen Grenze nicht scheitern.
+ * Die Beschreibung behält ihre eigenen 500 (dort weiterhin .max, Clients
+ * deckeln die Eingabe). Dieser Test hält die Servergrenze fest — nie dem
+ * Client vertrauen.
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { TITLE_MAX } from "@/lib/limits";
+import { TITLE_MAX, clampTitle } from "@/lib/titleLimit";
 
 const dbMocks = vi.hoisted(() => ({
   createDeck: vi.fn(),
@@ -60,17 +63,36 @@ beforeEach(() => {
   dbMocks.updateFolder.mockResolvedValue({ id: entityId });
 });
 
-describe("Deck-Titel — 1 bis 120 Zeichen, getrimmt (#612)", () => {
-  it("nimmt einen Titel mit exakt TITLE_MAX Zeichen an", async () => {
+describe("clampTitle — kappt nach Code-Punkten", () => {
+  it("lässt Titel bis TITLE_MAX unangetastet", () => {
+    expect(clampTitle("Biologie")).toBe("Biologie");
+    expect(clampTitle("a".repeat(TITLE_MAX))).toBe("a".repeat(TITLE_MAX));
+  });
+
+  it("kappt längere Titel auf exakt TITLE_MAX", () => {
+    expect(clampTitle("a".repeat(TITLE_MAX + 50))).toBe("a".repeat(TITLE_MAX));
+  });
+
+  it("halbiert kein Emoji an der Schnittkante", () => {
+    // 119 ASCII-Zeichen + Emoji (2 UTF-16-Einheiten): naives .slice(0, 120)
+    // schnitte das Surrogatpaar auseinander — ungültiges UTF-8, die Datenbank
+    // wiese die Zeile ab. Nach Code-Punkten bleibt das Emoji ganz.
+    const clamped = clampTitle("a".repeat(TITLE_MAX - 1) + "\u{1F600}\u{1F600}");
+    expect(clamped).toBe("a".repeat(TITLE_MAX - 1) + "\u{1F600}");
+  });
+});
+
+describe("Deck-Titel — getrimmt und bei 120 gekappt (#612)", () => {
+  it("nimmt einen Titel mit exakt TITLE_MAX Zeichen unverändert an", async () => {
     await createDeckForUser({ userId, title: "a".repeat(TITLE_MAX), tags: [] });
     expect(dbMocks.createDeck).toHaveBeenCalledWith(userId, "a".repeat(TITLE_MAX), []);
   });
 
-  it("weist einen Titel mit TITLE_MAX + 1 Zeichen ab", async () => {
-    await expect(
-      createDeckForUser({ userId, title: "a".repeat(TITLE_MAX + 1), tags: [] })
-    ).rejects.toThrow();
-    expect(dbMocks.createDeck).not.toHaveBeenCalled();
+  it("kappt einen zu langen Titel, statt das Speichern scheitern zu lassen", async () => {
+    // Der Scan schickt KI-Titel durch genau diesen Weg — ausgelieferte
+    // App-Builds ohne Tipp-Stopp dürfen hier keinen Fehler bekommen.
+    await createDeckForUser({ userId, title: "a".repeat(TITLE_MAX + 80), tags: [] });
+    expect(dbMocks.createDeck).toHaveBeenCalledWith(userId, "a".repeat(TITLE_MAX), []);
   });
 
   it("trimmt Randleerraum, statt ihn mitzuzählen oder zu speichern", async () => {
@@ -78,16 +100,16 @@ describe("Deck-Titel — 1 bis 120 Zeichen, getrimmt (#612)", () => {
     expect(dbMocks.createDeck).toHaveBeenCalledWith(userId, "Biologie", []);
   });
 
-  it("weist einen Titel aus nur Leerraum ab", async () => {
+  it("weist einen Titel aus nur Leerraum weiterhin ab", async () => {
     await expect(createDeckForUser({ userId, title: "   ", tags: [] })).rejects.toThrow();
     expect(dbMocks.createDeck).not.toHaveBeenCalled();
   });
 
-  it("deckelt auch das Umbenennen", async () => {
-    await expect(
-      updateDeckForUser({ userId, deckId: entityId, title: "a".repeat(TITLE_MAX + 1) })
-    ).rejects.toThrow();
-    expect(dbMocks.updateDeck).not.toHaveBeenCalled();
+  it("kappt auch beim Umbenennen", async () => {
+    await updateDeckForUser({ userId, deckId: entityId, title: "a".repeat(TITLE_MAX + 1) });
+    expect(dbMocks.updateDeck).toHaveBeenCalledWith(entityId, userId, {
+      title: "a".repeat(TITLE_MAX),
+    });
   });
 
   it("lässt ein Update ohne Titel unangetastet durch", async () => {
@@ -99,18 +121,28 @@ describe("Deck-Titel — 1 bis 120 Zeichen, getrimmt (#612)", () => {
 describe("Ordner-Titel — gleiche Grenze wie Decks (#612)", () => {
   it("nimmt einen Titel mit exakt TITLE_MAX Zeichen an", async () => {
     await createFolderForUser({ userId, title: "b".repeat(TITLE_MAX) });
-    expect(dbMocks.createFolder).toHaveBeenCalled();
+    expect(dbMocks.createFolder).toHaveBeenCalledWith(
+      userId,
+      "b".repeat(TITLE_MAX),
+      undefined,
+      undefined,
+      undefined
+    );
   });
 
-  it("weist einen Titel mit TITLE_MAX + 1 Zeichen ab — auch beim Umbenennen", async () => {
-    await expect(
-      createFolderForUser({ userId, title: "b".repeat(TITLE_MAX + 1) })
-    ).rejects.toThrow();
-    await expect(
-      updateFolderForUser({ userId, folderId: entityId, title: "b".repeat(TITLE_MAX + 1) })
-    ).rejects.toThrow();
-    expect(dbMocks.createFolder).not.toHaveBeenCalled();
-    expect(dbMocks.updateFolder).not.toHaveBeenCalled();
+  it("kappt zu lange Titel beim Anlegen und Umbenennen", async () => {
+    await createFolderForUser({ userId, title: "b".repeat(TITLE_MAX + 30) });
+    expect(dbMocks.createFolder).toHaveBeenCalledWith(
+      userId,
+      "b".repeat(TITLE_MAX),
+      undefined,
+      undefined,
+      undefined
+    );
+    await updateFolderForUser({ userId, folderId: entityId, title: "b".repeat(TITLE_MAX + 30) });
+    expect(dbMocks.updateFolder).toHaveBeenCalled();
+    const updates = dbMocks.updateFolder.mock.calls[0]?.[2] as { title?: string };
+    expect(updates.title).toBe("b".repeat(TITLE_MAX));
   });
 
   it("trimmt Randleerraum und weist reinen Leerraum ab", async () => {
@@ -119,7 +151,9 @@ describe("Ordner-Titel — gleiche Grenze wie Decks (#612)", () => {
     await expect(createFolderForUser({ userId, title: " " })).rejects.toThrow();
   });
 
-  it("lässt die Beschreibung bei ihren eigenen 500 Zeichen", async () => {
+  it("lässt die Beschreibung bei ihren eigenen 500 Zeichen (dort weiterhin abweisen)", async () => {
+    // Die Beschreibung tippt IMMER eine Nutzerin (kein KI-Weg), und beide
+    // Clients deckeln die Eingabe — hartes .max() bleibt hier richtig.
     await createFolderForUser({ userId, title: "Schule", description: "c".repeat(500) });
     expect(dbMocks.createFolder).toHaveBeenCalled();
     await expect(

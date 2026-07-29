@@ -11,14 +11,15 @@ import {
   listFoldersForDeck,
   setFolderDeckOrder,
 } from "@/lib/db";
-import { TITLE_MAX } from "@/lib/limits";
+import { clampTitle } from "@/lib/titleLimit";
 
 // Freitext von der Nutzerin — gedeckelt, damit niemand über die Beschreibung
 // beliebig viel in die Datenbank schreibt. Zwei Sätze passen bequem hinein.
 const DESCRIPTION_MAX = 500;
 
-// Titel (#612): trimmen + deckeln, gleiches Schema wie bei Decks (deckService).
-const titleSchema = z.string().trim().min(1).max(TITLE_MAX);
+// Titel (#612): trimmen + auf 120 kappen statt abweisen, gleiches Schema wie
+// bei Decks (deckService, Begründung in titleLimit.ts).
+const titleSchema = z.string().trim().min(1).transform(clampTitle);
 
 const createFolderSchema = z.object({
   userId: z.string().uuid(),
