@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { StoredCardResult } from "./sessionProgress";
 
 export type ReviewRating = "again" | "hard" | "good" | "easy";
 
@@ -59,8 +60,26 @@ interface ReviewSessionState {
    * einem Ordner.
    */
   cardsOwner: string | null;
-  /** `startIndex` resumes an interrupted deck session; defaults to the first card. */
-  start: (cards: ReviewCard[], startIndex?: number, owner?: string) => void;
+  /** Einstiegskarte dieser Runde — nur nach „Weitermachen" größer als 0 (#595). */
+  startIndex: number;
+  /**
+   * Wie viele `history`-Einträge aus der gespeicherten Vor-Sitzung eingefüllt
+   * wurden (#595): Sie zählen in Auswertung und „Nur die nicht gewussten" mit,
+   * aber der Zurück-Pfeil darf sie nicht erreichen — ihre Bewertungen sind
+   * längst beim Server, ein zweiter Besuch würde doppelt bewerten.
+   */
+  seededCount: number;
+  /**
+   * `startIndex` resumes an interrupted deck session; defaults to the first
+   * card. `priorResults` (das Lesezeichen aus sessionProgress.ts) füllt die
+   * Ergebnisse der Vor-Sitzung wieder ein.
+   */
+  start: (
+    cards: ReviewCard[],
+    startIndex?: number,
+    owner?: string,
+    priorResults?: Record<string, StoredCardResult>
+  ) => void;
   /**
    * Wie `start`, aber als „von außen vorgegeben" markiert. Nur für
    * Bildschirme, die eine Auswahl treffen und dann zum Lern-Tab schicken.
@@ -83,26 +102,52 @@ export const useReviewSession = create<ReviewSessionState>((set, get) => ({
   completed: false,
   presetToken: 0,
   cardsOwner: null,
-  start: (cards, startIndex = 0, owner) =>
+  startIndex: 0,
+  seededCount: 0,
+  start: (cards, startIndex = 0, owner, priorResults) => {
+    // Resuming an interrupted deck session (sessionProgress.ts).
+    const from =
+      cards.length === 0 ? 0 : Math.min(Math.max(startIndex, 0), cards.length - 1);
+    // Die Ergebnisse der Vor-Sitzung wieder einfüllen (#595, wie der
+    // Lückentext): Als history-Einträge zählen sie in der Auswertung und im
+    // „Nur die nicht gewussten"-Stapel mit. Nur unterhalb der Einstiegskarte —
+    // alles ab dort wird in dieser Sitzung neu bewertet. Alte Lesezeichen ohne
+    // Ergebnisse füllen nichts ein; die Auswertung nennt dann nur die aktuelle
+    // Runde (sessionResultCounts).
+    const history: number[] = [];
+    const ratingHistory: ReviewRating[] = [];
+    let swipedLeft = 0;
+    let swipedRight = 0;
+    if (priorResults) {
+      for (let i = 0; i < from; i++) {
+        const result = priorResults[cards[i]?.id ?? ""];
+        if (!result) continue;
+        history.push(i);
+        // Die genaue Bewertung von damals steht nicht im Lesezeichen — für
+        // Zählung und Wiederholungs-Stapel zählt nur gewusst / nicht gewusst.
+        ratingHistory.push(result.correct ? "good" : "again");
+        if (result.correct) swipedRight++;
+        else swipedLeft++;
+      }
+    }
     set({
       cards,
-      // Resuming an interrupted deck session (sessionProgress.ts). `history`
-      // stays empty on purpose: the skipped cards were rated in the earlier
-      // session and already sent, so stepping back into them would offer a
-      // second rating for a card that has one.
-      index: cards.length === 0 ? 0 : Math.min(Math.max(startIndex, 0), cards.length - 1),
-      history: [],
-      ratingHistory: [],
-      swipedLeft: 0,
-      swipedRight: 0,
+      index: from,
+      history,
+      ratingHistory,
+      swipedLeft,
+      swipedRight,
       revealed: false,
       completed: cards.length === 0,
+      startIndex: from,
+      seededCount: history.length,
       // Ohne ausdrücklichen Eigentümer bleibt die Herkunft unbekannt (null).
       // Der Lern-Tab wertet das als "gehört mir nicht" und lädt neu — die
       // sichere Richtung: lieber einmal zu viel nachladen als der Nutzerin
       // fremde Karten unterschieben (#282).
       cardsOwner: owner ?? null
-    }),
+    });
+  },
   startPreset: (cards) =>
     set((state) => ({
       cards,
@@ -113,13 +158,21 @@ export const useReviewSession = create<ReviewSessionState>((set, get) => ({
       swipedRight: 0,
       revealed: false,
       completed: cards.length === 0,
+      startIndex: 0,
+      seededCount: 0,
       presetToken: state.presetToken + 1,
       cardsOwner: PRESET_OWNER
     })),
   reveal: () => set({ revealed: true }),
-  canGoBack: () => get().history.length > 0,
+  // Eingefüllte Vor-Sitzungs-Einträge sind für den Zurück-Pfeil tabu (#595):
+  // ihre Bewertungen sind längst gesendet, ein Rückschritt würde eine zweite
+  // Bewertung für eine Karte anbieten, die schon eine hat.
+  canGoBack: () => get().history.length > get().seededCount,
   goBack: () => {
-    const { history, ratingHistory, swipedLeft, swipedRight } = get();
+    const { history, ratingHistory, swipedLeft, swipedRight, seededCount } = get();
+    if (history.length <= seededCount) {
+      return false;
+    }
     const previousIndex = history[history.length - 1];
     if (previousIndex === undefined) {
       return false;
@@ -187,4 +240,47 @@ export function missedCardsFrom(
     if ((rating === "again" || rating === "hard") && card) missed.push(card);
   });
   return missed;
+}
+
+// Für das Lesezeichen (#595): der Stand jeder in dieser Sitzung bewerteten
+// Karte, per LETZTER Bewertung wie missedCardsFrom. Eingefüllte Vor-Sitzungs-
+// Einträge stecken selbst in `history` und wandern so beim nächsten Speichern
+// automatisch mit — eine zweite Unterbrechung verliert nichts.
+export function storedResultsFrom(
+  cards: ReviewCard[],
+  history: number[],
+  ratingHistory: ReviewRating[],
+): Record<string, StoredCardResult> {
+  const lastRating = new Map<number, ReviewRating>();
+  history.forEach((cardIndex, k) => {
+    const rating = ratingHistory[k];
+    if (rating) lastRating.set(cardIndex, rating);
+  });
+  const results: Record<string, StoredCardResult> = {};
+  lastRating.forEach((rating, cardIndex) => {
+    const card = cards[cardIndex];
+    if (!card) return;
+    results[card.id] = {
+      correct: rating === "good" || rating === "easy",
+      // Karteikarten kennen kein „Trotzdem als richtig zählen" — das Feld
+      // gehört zum geteilten StoredCardResult (Lückentext).
+      overridden: false,
+    };
+  });
+  return results;
+}
+
+// Was die Abschluss-Auswertung nennt (#595): alle Karten, für die es in dieser
+// Sitzung ein Ergebnis gibt — die ab der Einstiegskarte neu bewerteten plus
+// die aus der Vor-Sitzung eingefüllten. Bei einem alten Lesezeichen ohne
+// gespeicherte Ergebnisse bleibt so ehrlich nur die aktuelle Runde übrig,
+// statt übersprungene Karten als „gewusst" mitzuzählen.
+export function sessionResultCounts(
+  cardCount: number,
+  startIndex: number,
+  seededCount: number,
+  missedCount: number,
+): { total: number; known: number } {
+  const total = seededCount + Math.max(0, cardCount - startIndex);
+  return { total, known: Math.max(0, total - missedCount) };
 }

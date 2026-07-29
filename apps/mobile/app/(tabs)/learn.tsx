@@ -41,6 +41,8 @@ import * as Speech from "expo-speech";
 import {
   useReviewSession,
   missedCardsFrom,
+  storedResultsFrom,
+  sessionResultCounts,
   GLOBAL_OWNER,
   type ReviewRating,
 } from "../../src/features/review/reviewSession";
@@ -68,6 +70,7 @@ import { excludeOcclusionCards } from "../../src/lib/occlusion";
 import {
   clearSessionProgress,
   saveSessionProgress,
+  type StoredCardResult,
 } from "../../src/features/review/sessionProgress";
 import { summarizeCardMedia } from "../../src/lib/cardMedia";
 import { cleanTerm } from "../../src/lib/cardTerms";
@@ -109,6 +112,7 @@ export default function LearnScreen({
   source,
   wobblyIds,
   initialIndex,
+  initialResults,
 }: {
   deckId?: string | undefined;
   deckTitle?: string | undefined;
@@ -121,6 +125,9 @@ export default function LearnScreen({
   // Deck mode: card to resume on, chosen on the setup screen from stored
   // progress (sessionProgress.ts). Omitted means start at the first card.
   initialIndex?: number | undefined;
+  // Deck mode: Ergebnisse der unterbrochenen Vor-Sitzung (#595) — beim
+  // Weitermachen zählt die Auswertung sie mit, wie beim Lückentext.
+  initialResults?: Record<string, StoredCardResult> | undefined;
 } = {}) {
   const router = useRouter();
   const c = useColors();
@@ -149,6 +156,7 @@ export default function LearnScreen({
       source={source}
       wobblyIds={wobblyIds}
       initialIndex={initialIndex}
+      initialResults={initialResults}
     />
   );
 }
@@ -161,6 +169,7 @@ function AuthenticatedLearnScreen({
   source,
   wobblyIds,
   initialIndex,
+  initialResults,
 }: {
   userId: string;
   deckId?: string | undefined;
@@ -169,12 +178,13 @@ function AuthenticatedLearnScreen({
   source?: CardSource | undefined;
   wobblyIds?: string[] | undefined;
   initialIndex?: number | undefined;
+  initialResults?: Record<string, StoredCardResult> | undefined;
 }) {
   const { t } = useTranslation();
   const displayName = useDisplayName();
   const router = useRouter();
   const c = useColors();
-  const { cards, index, revealed, completed, swipedLeft, swipedRight, history, ratingHistory, presetToken, cardsOwner, start, reveal, rateCurrent, canGoBack, goBack } =
+  const { cards, index, revealed, completed, swipedLeft, swipedRight, history, ratingHistory, presetToken, cardsOwner, startIndex, seededCount, start, reveal, rateCurrent, canGoBack, goBack } =
     useReviewSession();
 
   // Studying IS using the deck (#415). Only for a single-deck session — the
@@ -184,12 +194,21 @@ function AuthenticatedLearnScreen({
   }, [deckId, deckTitle]);
 
   // Cards the learner didn't know this session, powering the result summary and
-  // the "only the missed ones" button (pure helper, unit-tested).
+  // the "only the missed ones" button (pure helper, unit-tested). Nach einem
+  // „Weitermachen" stecken auch die eingefüllten Vor-Sitzungs-Ergebnisse in
+  // history — Fehler von vor der Unterbrechung landen also wieder hier (#595).
   const missedCards = useMemo(
     () => missedCardsFrom(cards, history, ratingHistory),
     [cards, history, ratingHistory],
   );
-  const knownCount = Math.max(0, cards.length - missedCards.length);
+  // Auswertung über alles, wofür es Ergebnisse gibt: neu bewertete plus
+  // eingefüllte. Bei alten Lesezeichen ohne Ergebnisse nur die aktuelle Runde.
+  const { total: resultTotal, known: knownCount } = sessionResultCounts(
+    cards.length,
+    startIndex,
+    seededCount,
+    missedCards.length,
+  );
   const enqueueOfflineReview = useOfflineQueueStore((state) => state.enqueue);
   const acknowledgeRejectedReviews = useOfflineQueueStore(
     (state) => state.acknowledgeRejected
@@ -362,7 +381,8 @@ function AuthenticatedLearnScreen({
           initialIndex ?? 0,
           // Herkunft an die Karten heften, damit dieser Bildschirm sie beim
           // nächsten Fokus als seine erkennt — und fremde nicht (#282).
-          deckId ?? GLOBAL_OWNER
+          deckId ?? GLOBAL_OWNER,
+          initialResults
         );
       } else {
         start([], 0, deckId ?? GLOBAL_OWNER);
@@ -374,7 +394,7 @@ function AuthenticatedLearnScreen({
     } finally {
       setLoading(false);
     }
-  }, [userId, deckId, source, wobblyIds, start, initialIndex]);
+  }, [userId, deckId, source, wobblyIds, start, initialIndex, initialResults]);
 
   // ─── Remember where a deck session was interrupted ───────────────────────
   // Only in deck mode: the global tab studies whatever is due today, so a
@@ -389,14 +409,19 @@ function AuthenticatedLearnScreen({
     }
     const current = cards[index];
     if (!current) return;
+    // Die Ergebnisse wandern mit ins Lesezeichen (#595): Nach „Weitermachen"
+    // zählt die Auswertung so die ganze Runde, und alte Fehler landen wieder
+    // im „Nur die nicht gewussten"-Stapel — wie beim Lückentext.
+    const results = storedResultsFrom(cards, history, ratingHistory);
     void saveSessionProgress(deckId, "flashcards", {
       index,
       cardId: current.id,
       source,
       reverse: showBackFirst,
       total: cards.length,
+      ...(Object.keys(results).length > 0 ? { results } : {}),
     });
-  }, [deckId, source, cards, index, completed, showBackFirst]);
+  }, [deckId, source, cards, index, completed, showBackFirst, history, ratingHistory]);
 
   // The review session store is module-global, so a fresh screen can inherit
   // cards from a previous session. Reload whenever the source changes (a
@@ -976,9 +1001,9 @@ function AuthenticatedLearnScreen({
                     : t("review.resultTitle")}
                 </Text>
                 <Text style={{ color: c.textSecondary, textAlign: "center", fontSize: typography.base }}>
-                  {cards.length === 1
+                  {resultTotal === 1
                     ? t("review.resultBodyOne", { known: knownCount })
-                    : t("review.resultBody", { total: cards.length, known: knownCount })}
+                    : t("review.resultBody", { total: resultTotal, known: knownCount })}
                 </Text>
                 <View style={{ width: "100%", maxWidth: 340, gap: spacing.sm, marginTop: spacing.sm }}>
                   {missedCards.length > 0 && (
