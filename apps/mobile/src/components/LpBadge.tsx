@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { Zap } from "lucide-react-native";
-import { useUsageStore } from "../store/usageStore";
+import { usageFromBalanceResponse, useUsageStore } from "../store/usageStore";
 import { useSessionStore } from "../store/sessionStore";
 import { getLpBalance } from "../lib/api";
 import { useColors, spacing, radius, typography } from "../theme";
@@ -21,24 +21,13 @@ export function LpBadge({ onPress }: LpBadgeProps) {
   const accent = isLow ? colors.error : colors.warning;
   const accentBg = isLow ? colors.errorLight : colors.warningLight;
 
-  // Load LP balance on first mount
+  // Load LP balance on first mount. Über den gemeinsamen Übersetzer, damit
+  // auch die Tarif-Grenzen ankommen (#603) — diese Stelle lud sie früher nicht
+  // mit und der Scan-Tab hielt den Store trotzdem für fertig geladen.
   useEffect(() => {
     if (!isAuthenticated || isLoaded) return;
     getLpBalance()
-      .then((res) => {
-        setUsage({
-          tier: res.tier,
-          lpBalance: res.lpBalance,
-          lpEarnedToday: res.lpEarnedToday,
-          lpAdsToday: res.lpAdsToday,
-          lpEarnCapToday: res.lpEarnCapToday,
-          lpAdCapToday: res.lpAdCapToday,
-          lpCostAiScan: res.lpCostAiScan,
-          lpCostUrlImport: res.lpCostUrlImport,
-          lpCostPdfImport: res.lpCostPdfImport,
-          periodStart: res.periodStart,
-        });
-      })
+      .then((res) => setUsage(usageFromBalanceResponse(res)))
       .catch(() => { /* best-effort */ });
   }, [isAuthenticated, isLoaded, setUsage]);
 

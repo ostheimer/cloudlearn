@@ -8,6 +8,7 @@ import {
   isDeckLimitReached,
   isPlanLimitError,
   deckOverflowWarning,
+  roomForNewCards,
   savedSummary,
   selectEvenlySpread,
   shouldOpenLpModal,
@@ -38,6 +39,47 @@ describe("Deck-Grenze in der App (#411)", () => {
     expect(freeCardSlots({ cardCount: 120, imageCardCount: 18 }, 150)).toBe(12);
     // Ein Deck über der Grenze meldet 0 statt einer negativen Zahl.
     expect(freeCardSlots({ cardCount: 200 }, 150)).toBe(0);
+  });
+});
+
+describe("Unbekannte Grenzen sperren nichts (#603)", () => {
+  it("hält die Deck-Grenze für nicht erreicht, solange sie unbekannt ist", () => {
+    // Pro-Konto mit 25 Decks, Grenzen noch nicht vom Server geladen: kein
+    // Banner, keine Sperre — die alte Gratis-Vorbelegung tat genau das.
+    expect(isDeckLimitReached(25, null)).toBe(false);
+    expect(isDeckLimitReached(0, null)).toBe(false);
+  });
+
+  it("behauptet ohne Grenze keine freien Plätze", () => {
+    expect(freeCardSlots({ cardCount: 200 }, null)).toBeNull();
+    expect(freeCardSlots({}, null)).toBeNull();
+  });
+
+  it("zeigt in der Deck-Auswahl nur den Titel", () => {
+    expect(deckSlotsLabel("Biologie", null)).toBe("Biologie");
+  });
+
+  it("stellt keine Platz-Rückfrage", () => {
+    expect(deckOverflowWarning(null, 60)).toBeNull();
+  });
+});
+
+describe("Ausdünnen nur mit echten Grenzen (#603)", () => {
+  it("lässt ohne Server-Grenze alle Karten durch — der Server entscheidet", () => {
+    // Der Kern des Pro-Datenverlusts: 163 erkannte Karten, Grenze unbekannt →
+    // früher wurde gegen die geratene 150er-Grenze weggeworfen.
+    expect(roomForNewCards(163, 10, null)).toBe(163);
+  });
+
+  it("lässt ohne lesbaren Deck-Bestand alle Karten durch", () => {
+    expect(roomForNewCards(163, null, 150)).toBe(163);
+  });
+
+  it("rechnet mit echter Grenze und echtem Bestand", () => {
+    expect(roomForNewCards(163, 140, 150)).toBe(10);
+    expect(roomForNewCards(5, 100, 150)).toBe(5);
+    // Deck schon über der Grenze: nichts mehr hinein, nichts Negatives.
+    expect(roomForNewCards(163, 200, 150)).toBe(0);
   });
 });
 

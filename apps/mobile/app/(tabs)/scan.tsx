@@ -58,6 +58,7 @@ import {
   freeCardSlots,
   isDeckLimitReached,
   deckOverflowWarning,
+  roomForNewCards,
   savedSummary,
   selectEvenlySpread,
   shouldOpenLpModal,
@@ -75,7 +76,7 @@ import {
   getStableImportAttemptKey,
   type ImportAttemptKey,
 } from "../../src/features/ocr/importAttemptIdempotency";
-import { useUsageStore } from "../../src/store/usageStore";
+import { usageFromBalanceResponse, useUsageStore } from "../../src/store/usageStore";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
 import { LpInsufficientModal } from "../../src/components/LpInsufficientModal";
 import { AuthPromptCard } from "../../src/components/AuthPromptCard";
@@ -98,7 +99,6 @@ export default function ScanScreen() {
   const lpCostUrlImport = useUsageStore((state) => state.lpCostUrlImport);
   const lpCostPdfImport = useUsageStore((state) => state.lpCostPdfImport);
   const usageTier = useUsageStore((state) => state.tier);
-  const isUsageLoaded = useUsageStore((state) => state.isLoaded);
   const maxDecks = useUsageStore((state) => state.maxDecks);
   const maxCardsPerDeck = useUsageStore((state) => state.maxCardsPerDeck);
 
@@ -107,26 +107,17 @@ export default function ScanScreen() {
   const [lpModalFeature, setLpModalFeature] = useState<"aiScan" | "urlImport" | "pdfImport">("aiScan");
   const [lpModalCost, setLpModalCost] = useState(0);
 
+  // #603: Nachgeladen wird, solange die GRENZEN unbekannt sind — nicht bis
+  // `isLoaded` gesetzt ist. Das alte Tor stand schon zu, sobald irgendwer
+  // (das LP-Abzeichen der Startseite) nur den Kontostand geladen hatte, und
+  // Pro-Konten blieben für immer auf den Gratis-Vorbelegungen sitzen.
+  const limitsKnown = maxDecks !== null && maxCardsPerDeck !== null;
   useEffect(() => {
-    if (!userId || isUsageLoaded) return;
-    void getLpBalance().then((data) => setUsage({
-      tier: data.tier,
-      lpBalance: data.lpBalance,
-      lpEarnedToday: data.lpEarnedToday,
-      lpAdsToday: data.lpAdsToday,
-      lpEarnCapToday: data.lpEarnCapToday,
-      lpAdCapToday: data.lpAdCapToday,
-      lpCostAiScan: data.lpCostAiScan,
-      lpCostUrlImport: data.lpCostUrlImport,
-      lpCostPdfImport: data.lpCostPdfImport,
-      periodStart: data.periodStart,
-      // #411: Grenzen kommen vom Server. Fehlen sie (älterer Server), bleiben
-      // die Vorbelegungen stehen und die App warnt einfach nicht vor.
-      ...(data.limits
-        ? { maxDecks: data.limits.maxDecks, maxCardsPerDeck: data.limits.maxCardsPerDeck }
-        : {}),
-    })).catch(() => {/* ignore */});
-  }, [userId, setUsage, isUsageLoaded]);
+    if (!userId || limitsKnown) return;
+    void getLpBalance()
+      .then((data) => setUsage(usageFromBalanceResponse(data)))
+      .catch(() => {/* ignore */});
+  }, [userId, setUsage, limitsKnown]);
 
   // Deckliste für die Grenz-Prüfung VOR dem Ausgeben von Lernpunkten (#411).
   // Schlägt sie fehl, bleibt `decksLoaded` false und es wird nichts gesperrt —
@@ -249,7 +240,15 @@ export default function ScanScreen() {
   // erst im Dialog danach, wahlweise in ein bestehendes Deck. Die Deck-Grenze
   // ist deshalb keine Sackgasse mehr und sperrt das Scannen nicht (wie im Web
   // seit #445): Nur der Weg „Neues Deck" ist zu, der Hinweis oben sagt das an.
-  const deckLimitReached = decksLoaded && isDeckLimitReached(decks.length, maxDecks);
+  // Unbekannte Grenze (maxDecks === null, #603) sperrt nichts. Der fertige
+  // Hinweistext entsteht gleich hier mit, weil deckLimitMessage eine echte
+  // Zahl braucht und TypeScript die Kopplung „erreicht ⇒ Zahl" sonst an den
+  // Alert-Stellen nicht sieht.
+  const deckLimitNotice =
+    decksLoaded && maxDecks !== null && isDeckLimitReached(decks.length, maxDecks)
+      ? deckLimitMessage(decks.length, maxDecks)
+      : null;
+  const deckLimitReached = deckLimitNotice !== null;
 
   const isHttpUrl = (value: string): boolean => {
     try {
@@ -603,11 +602,13 @@ export default function ScanScreen() {
         (card) => !existingKeys.has(JSON.stringify([card.front, card.back]))
       );
       // #411: Passt das Kapitel nicht mehr ganz ins Deck, wird gleichmäßig über
-      // den ganzen Stoff ausgedünnt statt hinten abgeschnitten. Konnten wir das
-      // Deck nicht lesen, wird nicht gekürzt — dann entscheidet der Server.
-      const room =
-        existingCount === null ? pending.length : Math.max(0, maxCardsPerDeck - existingCount);
-      const toSave = selectEvenlySpread(pending, Math.min(pending.length, room));
+      // den ganzen Stoff ausgedünnt statt hinten abgeschnitten. Gekürzt wird
+      // nur, wenn Deck-Bestand UND Server-Grenze wirklich bekannt sind (#603) —
+      // fehlt eines, entscheidet der Server.
+      const toSave = selectEvenlySpread(
+        pending,
+        roomForNewCards(pending.length, existingCount, maxCardsPerDeck)
+      );
 
       for (const card of toSave) {
         await createCard(userId, deckId, card);
@@ -642,8 +643,8 @@ export default function ScanScreen() {
     // Hier — und nur hier — sperrt die Deck-Grenze noch: Genau diese Aktion
     // legt ein NEUES Deck an. Der Dialog fängt das schon ab; dies ist das Netz
     // für eine veraltete Deck-Liste.
-    if (deckLimitReached) {
-      Alert.alert(DECK_LIMIT_LABEL, deckLimitMessage(decks.length, maxDecks));
+    if (deckLimitNotice) {
+      Alert.alert(DECK_LIMIT_LABEL, deckLimitNotice);
       return;
     }
     const title =
@@ -677,8 +678,11 @@ export default function ScanScreen() {
    * Nutzerin selbst — statt dass der Server mittendrin abbricht.
    */
   const confirmSaveToDeck = (deck: Deck) => {
+    // #603: Bei unbekannter Server-Grenze ist `free` null — dann wird weder
+    // gesperrt noch gewarnt, sondern gespeichert; die echte Grenze hält der
+    // Server beim Schreiben selbst.
     const free = freeCardSlots(deck, maxCardsPerDeck);
-    if (free <= 0) {
+    if (maxCardsPerDeck !== null && free === 0) {
       Alert.alert(
         "Deck voll",
         `"${deck.title}" hat bereits ${maxCardsPerDeck} Karten. Wähle ein anderes Deck.`
@@ -738,9 +742,13 @@ export default function ScanScreen() {
     Alert.alert("Karten speichern", `${nonEmptyCards(cards).length} Karten speichern in:`, [
       {
         text: deckLimitReached ? `Neues Deck (${DECK_LIMIT_LABEL})` : "Neues Deck",
-        onPress: deckLimitReached
-          ? () => Alert.alert(DECK_LIMIT_LABEL, deckLimitMessage(decks.length, maxDecks))
-          : handleSaveNewDeck,
+        onPress: () => {
+          if (deckLimitNotice) {
+            Alert.alert(DECK_LIMIT_LABEL, deckLimitNotice);
+            return;
+          }
+          void handleSaveNewDeck();
+        },
       },
       { text: "Bestehendes Deck", onPress: handleSaveToExistingDeck },
       { text: "Abbrechen", style: "cancel" },
@@ -1153,7 +1161,7 @@ export default function ScanScreen() {
                 {DECK_LIMIT_LABEL}
               </Text>
               <Text style={{ color: colors.text, fontSize: typography.sm, lineHeight: 19 }}>
-                {deckLimitMessage(decks.length, maxDecks)}
+                {deckLimitNotice}
               </Text>
             </View>
           </View>
