@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
+import { Modal } from "@/components/app/modal";
 import { createCard, deleteCard, isApiError, getLpBalance } from "@/lib/api";
 import { getSupabase } from "@/lib/supabase-browser";
 import { ArrowLeft, ImageIcon, X, Trash, Check, AlertTriangle } from "@/components/icons";
@@ -41,7 +42,24 @@ export default function OcclusionEditorPage() {
   // erst beim Speichern — nach Bild wählen und allen Kästchen (#364).
   const [proGate, setProGate] = useState<ProGate>("unknown");
 
+  // Nachfrage vor Kästchen-Verlust (#608): „Zurück zum Deck", „Anderes Bild"
+  // und „Bereiche löschen" warfen gezeichnete Kästchen kommentarlos weg.
+  const [confirm, setConfirm] = useState<null | "leave" | "clear" | "newImage">(null);
+
   const stageRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Tab schließen oder neu laden: nur der Browser kann hier noch warnen —
+  // solange Kästchen gezeichnet und noch nicht gespeichert sind.
+  useEffect(() => {
+    if (regions.length === 0) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [regions.length]);
 
   // Tarif beim Öffnen abfragen — BEWUSST fail-open: nur ein bestätigtes "free"
   // sperrt. Fehler oder "läuft noch" bleiben "unknown" und lassen den Editor
@@ -202,7 +220,18 @@ export default function OcclusionEditorPage() {
 
   return (
     <div className="study-wrap">
-      <Link href={`/dashboard/deck/${deckId}`} className="crumb">
+      <Link
+        href={`/dashboard/deck/${deckId}`}
+        className="crumb"
+        onClick={(e) => {
+          // Mit gezeichneten Kästchen erst nachfragen (#608) — die Navigation
+          // übernimmt dann der „Verwerfen"-Knopf der Nachfrage.
+          if (regions.length > 0) {
+            e.preventDefault();
+            setConfirm("leave");
+          }
+        }}
+      >
         <ArrowLeft size={16} /> Zurück zum Deck
       </Link>
 
@@ -219,20 +248,34 @@ export default function OcclusionEditorPage() {
       </div>
 
       <div className="occ-tools">
-        <label className="btn btn-ghost" style={{ cursor: "pointer" }}>
+        {/* Knopf + verstecktes Feld statt <label>: Mit gezeichneten Kästchen
+            muss VOR dem Dateidialog die Nachfrage kommen (#608) — ein Label
+            hätte den Dialog immer sofort geöffnet. */}
+        <button
+          type="button"
+          className="btn btn-ghost"
+          onClick={() => {
+            if (regions.length > 0) setConfirm("newImage");
+            else fileInputRef.current?.click();
+          }}
+        >
           {imageSrc ? "Anderes Bild" : "Bild wählen"}
-          <input
-            type="file"
-            accept="image/*"
-            style={{ display: "none" }}
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) pickImage(f);
-            }}
-          />
-        </label>
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          style={{ display: "none" }}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) pickImage(f);
+            // Zurücksetzen, damit auch die erneute Wahl DERSELBEN Datei ein
+            // change-Ereignis auslöst — nach „Verwerfen" wird sie erwartet.
+            e.target.value = "";
+          }}
+        />
         {regions.length > 0 && (
-          <button type="button" className="btn btn-ghost" onClick={() => setRegions([])}>
+          <button type="button" className="btn btn-ghost" onClick={() => setConfirm("clear")}>
             Bereiche löschen
           </button>
         )}
@@ -334,6 +377,44 @@ export default function OcclusionEditorPage() {
           </>
         )}
       </button>
+
+      {confirm !== null && (
+        // Escape und Klick neben das Fenster schließen nur die Nachfrage —
+        // die zerstörende Wahl braucht einen ausdrücklichen Knopfdruck.
+        <Modal
+          title={confirm === "clear" ? "Alle Bereiche löschen?" : "Änderungen verwerfen?"}
+          onClose={() => setConfirm(null)}
+        >
+          <p className="muted" style={{ margin: 0 }}>
+            {confirm === "clear"
+              ? "Alle gezeichneten Kästchen werden entfernt — das Bild bleibt."
+              : "Deine gezeichneten Kästchen gehen sonst verloren."}
+          </p>
+          <div className="modal__actions">
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => {
+                const which = confirm;
+                setConfirm(null);
+                if (which === "leave") router.push(`/dashboard/deck/${deckId}`);
+                else if (which === "clear") setRegions([]);
+                else if (which === "newImage") fileInputRef.current?.click();
+              }}
+            >
+              {confirm === "clear" ? "Löschen" : "Verwerfen"}
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setConfirm(null)}
+              autoFocus
+            >
+              {confirm === "clear" ? "Abbrechen" : "Weiter zeichnen"}
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
