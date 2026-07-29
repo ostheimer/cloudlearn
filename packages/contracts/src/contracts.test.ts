@@ -4,6 +4,7 @@ import {
   apiErrorSchema,
   flashcardListSchema,
   reviewRequestSchema,
+  revenueCatWebhookSchema,
   scanProcessRequestSchema,
   syncRequestSchema,
   urlImportRequestSchema,
@@ -95,6 +96,22 @@ describe("contracts", () => {
     });
 
     expect(feedback.channel).toBe("in_app");
+  });
+
+  it("parses a RevenueCat TRANSFER event without app_user_id (#607)", () => {
+    // Echte TRANSFER-Ereignisse (Gerätewechsel/Family Sharing) tragen laut
+    // RevenueCat-Doku KEIN app_user_id — nur transferred_from/transferred_to.
+    const parsed = revenueCatWebhookSchema.parse({
+      event: {
+        type: "TRANSFER",
+        store: "APP_STORE",
+        transferred_from: ["$RCAnonymousID:1234567890abcdef"],
+        transferred_to: ["bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"],
+      },
+    });
+
+    expect(parsed.event.app_user_id).toBeUndefined();
+    expect(parsed.event.transferred_to).toHaveLength(1);
   });
 });
 

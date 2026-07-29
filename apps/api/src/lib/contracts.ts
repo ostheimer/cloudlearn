@@ -318,7 +318,10 @@ export type LpSpendRequest = z.infer<typeof lpSpendRequestSchema>;
 
 export const revenueCatWebhookSchema = z.object({
   event: z.object({
-    app_user_id: z.string(),
+    // TRANSFER-Ereignisse haben laut RevenueCat-Doku KEIN app_user_id — sie
+    // benennen die Konten über transferred_from/transferred_to. Mit einem
+    // Pflichtfeld prallte jeder echte Gerätewechsel am Schema ab (#607).
+    app_user_id: z.string().optional(),
     type: z.string(),
     entitlement_ids: z.array(z.string()).optional(),
     expiration_at_ms: z.number().int().nullable().optional(),
@@ -326,6 +329,9 @@ export const revenueCatWebhookSchema = z.object({
     product_id: z.string().optional(),
     transaction_id: z.string().optional(),
     store_transaction_id: z.string().optional(),
+    // TRANSFER only: store transactions moved between these app user ids
+    transferred_from: z.array(z.string()).optional(),
+    transferred_to: z.array(z.string()).optional(),
   })
 });
 

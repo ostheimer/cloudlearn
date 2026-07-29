@@ -38,19 +38,26 @@ vi.mock("@/services/lpService", () => ({
   grantMonthlyLp: vi.fn(),
   currentLpGrantPeriod: vi.fn(() => "2026-07"),
 }));
-vi.mock("@/services/subscriptionService", () => ({ updateSubscriptionStatus: vi.fn() }));
+vi.mock("@/services/subscriptionService", () => ({
+  updateSubscriptionStatus: vi.fn(),
+  transferSubscriptionBetweenUsers: vi.fn(),
+}));
 vi.mock("@/services/revenueCatService", () => ({ mapRevenueCatEventToSubscription: vi.fn() }));
 vi.mock("@/lib/observability", () => ({ createRequestContext: () => ({ requestId: "req-wh-1" }) }));
 
 import { POST } from "../../app/api/v1/subscription/webhook/route";
 import { grantLpPurchase, grantMonthlyLp } from "@/services/lpService";
 import { mapRevenueCatEventToSubscription } from "@/services/revenueCatService";
-import { updateSubscriptionStatus } from "@/services/subscriptionService";
+import {
+  transferSubscriptionBetweenUsers,
+  updateSubscriptionStatus,
+} from "@/services/subscriptionService";
 
 const mockedGrant = vi.mocked(grantLpPurchase);
 const mockedMonthly = vi.mocked(grantMonthlyLp);
 const mockedMap = vi.mocked(mapRevenueCatEventToSubscription);
 const mockedUpdate = vi.mocked(updateSubscriptionStatus);
+const mockedTransfer = vi.mocked(transferSubscriptionBetweenUsers);
 
 function webhookRequest(event: Record<string, unknown>, signature = "secret") {
   return new Request("http://localhost/api/v1/subscription/webhook", {
@@ -209,6 +216,39 @@ describe("POST /api/v1/subscription/webhook – monthly Pro LP grant (#209 Part 
 
     expect(response.status).toBe(201);
     expect(mockedMonthly).not.toHaveBeenCalled();
+  });
+
+  it("routes a TRANSFER event (no app_user_id) to the transfer handler (#607)", async () => {
+    mockedTransfer.mockResolvedValueOnce({ movedTier: "pro" });
+
+    const response = await POST(
+      webhookRequest({
+        type: "TRANSFER",
+        transferred_from: ["aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"],
+        transferred_to: ["bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"],
+      })
+    );
+    const body = (await response.json()) as { type: string; movedTier: string };
+
+    expect(response.status).toBe(201);
+    expect(body.type).toBe("transfer_processed");
+    expect(body.movedTier).toBe("pro");
+    expect(mockedTransfer).toHaveBeenCalledWith(
+      ["aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"],
+      ["bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"]
+    );
+    // Der Übertrag läuft NICHT durch den normalen Abo-Pfad.
+    expect(mockedUpdate).not.toHaveBeenCalled();
+    expect(mockedMonthly).not.toHaveBeenCalled();
+  });
+
+  it("rejects a non-transfer event without app_user_id with 400", async () => {
+    const response = await POST(webhookRequest({ type: "RENEWAL" }));
+    const body = (await response.json()) as { code: string };
+
+    expect(response.status).toBe(400);
+    expect(body.code).toBe("VALIDATION_ERROR");
+    expect(mockedUpdate).not.toHaveBeenCalled();
   });
 
   it("still succeeds (2xx) when the monthly grant fails", async () => {

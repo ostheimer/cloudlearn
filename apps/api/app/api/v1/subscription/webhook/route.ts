@@ -5,7 +5,10 @@ import { jsonError, jsonOk, normalizeError } from "@/lib/http";
 import { createRequestContext } from "@/lib/observability";
 import { secureCompare } from "@/lib/secureCompare";
 import { mapRevenueCatEventToSubscription } from "@/services/revenueCatService";
-import { updateSubscriptionStatus } from "@/services/subscriptionService";
+import {
+  transferSubscriptionBetweenUsers,
+  updateSubscriptionStatus,
+} from "@/services/subscriptionService";
 import { LP_PACKS } from "@/lib/featureGates";
 import { currentLpGrantPeriod, grantLpPurchase, grantMonthlyLp } from "@/services/lpService";
 
@@ -57,7 +60,27 @@ export async function POST(request: NextRequest) {
 
     const parsed = revenueCatWebhookSchema.parse(await request.json());
     const { event } = parsed;
+
+    // ── TRANSFER (Gerätewechsel / Family Sharing, #607) ────────────────────────
+    // Trägt kein app_user_id — die Konten stehen in transferred_from/to. Ohne
+    // diesen Zweig behielte das alte Konto Pro und das neue bliebe Free.
+    if (event.type === "TRANSFER") {
+      const { movedTier } = await transferSubscriptionBetweenUsers(
+        event.transferred_from ?? [],
+        event.transferred_to ?? []
+      );
+      return jsonOk(requestId, { requestId, type: "transfer_processed", movedTier }, 201);
+    }
+
     const userId = event.app_user_id;
+    if (!userId) {
+      return jsonError(
+        requestId,
+        "VALIDATION_ERROR",
+        "app_user_id is required for non-transfer events",
+        400
+      );
+    }
 
     // ── LP-Pack Purchase (consumable one-time product) ─────────────────────────
     const productId = event.product_id ?? "";
