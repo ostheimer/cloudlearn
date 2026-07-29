@@ -23,6 +23,7 @@ import {
   isProgressUsable,
   loadSessionProgress,
   type SessionProgress,
+  type StoredCardResult,
 } from "../../src/features/review/sessionProgress";
 
 // Full-screen "Karteikarten" session for a single deck. Opens with a setup
@@ -40,6 +41,11 @@ export default function DeckReviewScreen() {
   const [saved, setSaved] = useState<SessionProgress | null>(null);
   // Card to start on once "Weitermachen" was chosen; undefined starts at the top.
   const [resumeIndex, setResumeIndex] = useState<number | undefined>(undefined);
+  // Ergebnisse der unterbrochenen Sitzung (#595) — nur beim Weitermachen
+  // gesetzt, damit „Von vorne beginnen" ohne alte Ergebnisse startet.
+  const [resumeResults, setResumeResults] = useState<
+    Record<string, StoredCardResult> | undefined
+  >(undefined);
 
   // Card-source data for the picker: the deck's cards (counts) + its wobbly ids.
   const [allCards, setAllCards] = useState<Card[]>([]);
@@ -101,6 +107,9 @@ export default function DeckReviewScreen() {
 
   const beginSession = (startAt?: number) => {
     setResumeIndex(startAt);
+    // Beim Weitermachen wandern die gespeicherten Ergebnisse der Vor-Sitzung
+    // mit in die Auswertung (#595); „Von vorne beginnen" startet ohne sie.
+    setResumeResults(startAt !== undefined ? saved?.results : undefined);
     // Resuming restores the direction the interrupted session ran with, so the
     // continued cards are asked the same way round as the ones before them.
     if (startAt !== undefined && saved) setReverse(saved.reverse);
@@ -118,6 +127,7 @@ export default function DeckReviewScreen() {
           source={source}
           wobblyIds={[...wobblyIds]}
           initialIndex={resumeIndex}
+          initialResults={resumeResults}
         />
       </>
     );

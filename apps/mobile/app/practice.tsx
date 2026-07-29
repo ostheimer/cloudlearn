@@ -51,8 +51,9 @@ export default function PracticeScreen() {
     rateCurrent,
   } = useReviewSession();
 
-  // Not-known cards this round (last rating "again") — for the result summary
-  // and the "only the missed ones" button. Same helper as the flashcard screen.
+  // Not-known cards this round (last rating "again" or "hard", #565) — for the
+  // result summary and the "only the missed ones" button. Same helper as the
+  // flashcard screen.
   const missedCards = useMemo(
     () => missedCardsFrom(cards, history, ratingHistory),
     [cards, history, ratingHistory],

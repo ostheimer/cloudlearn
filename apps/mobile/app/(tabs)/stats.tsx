@@ -654,26 +654,9 @@ export default function StatsScreen() {
               )}
             </View>
 
-            {/* Trefferquote getrennt nach Art der Antwort — direkt unter
-                „Genauigkeit", weil die Karte genau die Zahl von dort aufteilt.
-                Zeigt sich selbst nicht, solange beide Gruppen leer sind. */}
-            {stats?.accuracyByKind ? (
-              <AccuracyByKindCard data={stats.accuracyByKind} />
-            ) : null}
-
-            {/* Prüfungs-Bereich — nach der Trefferquote, wie im Web. Erst wenn
-                geladen (attempts !== null), sonst blitzte der Leerzustand kurz
-                auf. Vergleichszahl „selbst bewertet" ist die „Aus dem Kopf
-                gewusst"-Quote. */}
-            {attempts !== null && (
-              <TestAttemptsCard
-                attempts={attempts}
-                selfGradedRate={stats?.accuracyByKind?.recall.rate ?? null}
-              />
-            )}
-
-            {/* Reviews-per-day bar chart. The card itself is pressable so a
-                tap on the background deselects the day. */}
+            {/* Reviews-per-day bar chart — direkt nach der Genauigkeit, wie im
+                Web (Laras Reihenfolge 27.07.). The card itself is pressable so
+                a tap on the background deselects the day. */}
             <Pressable
               style={{ ...cardStyle, gap: spacing.sm }}
               onPress={() => setSelectedDate(null)}
@@ -770,6 +753,24 @@ export default function StatsScreen() {
                 )
               )}
             </Pressable>
+
+            {/* Trefferquote getrennt nach Art der Antwort — hinter „Karten pro
+                Tag", wie im Web (Laras Reihenfolge 27.07., dashboard/stats).
+                Zeigt sich selbst nicht, solange beide Gruppen leer sind. */}
+            {stats?.accuracyByKind ? (
+              <AccuracyByKindCard data={stats.accuracyByKind} />
+            ) : null}
+
+            {/* Prüfungs-Bereich — nach der Trefferquote, wie im Web. Erst wenn
+                geladen (attempts !== null), sonst blitzte der Leerzustand kurz
+                auf. Vergleichszahl „selbst bewertet" ist die „Aus dem Kopf
+                gewusst"-Quote. */}
+            {attempts !== null && (
+              <TestAttemptsCard
+                attempts={attempts}
+                selfGradedRate={stats?.accuracyByKind?.recall.rate ?? null}
+              />
+            )}
           </View>
         ) : null}
 

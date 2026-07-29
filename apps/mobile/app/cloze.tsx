@@ -320,9 +320,9 @@ export default function ClozeScreen() {
   );
 
   // Jede Runde ist eine eigene Abrechnung. Weil `handleNext` am Rundenende
-  // sofort gutschreibt (state.finalized = true), müsste „“ /
-  // „“ sonst ohne Lernpunkte laufen — der Ablauf steht dann
-  // dauerhaft auf „“. Gleiches Muster wie Web
+  // sofort gutschreibt (state.finalized = true), müssten „Nur die nicht
+  // gewussten“ / „Alle nochmal“ sonst ohne Lernpunkte laufen — der Ablauf
+  // steht dann dauerhaft auf „abgerechnet“. Gleiches Muster wie Web
   // (src/components/app/learn-session.tsx, startRound).
   //
   // Reihenfolge ist wichtig: erst die vorige Gutschrift zu Ende laufen lassen,
@@ -1077,7 +1077,10 @@ export default function ClozeScreen() {
             <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
               <TouchableOpacity
                 onPress={handleBack}
-                disabled={idx === 0}
+                // Beim Weitermachen endet die Runde nicht bei Karte 1, sondern
+                // an der Untergrenze — der Pfeil muss überall dort ausgegraut
+                // sein, wo handleBack sperrt (wie Web cloze/page.tsx).
+                disabled={idx <= floor}
                 activeOpacity={0.7}
                 style={{
                   width: 50,
@@ -1086,7 +1089,7 @@ export default function ClozeScreen() {
                   backgroundColor: colors.surfaceSecondary,
                   justifyContent: "center",
                   alignItems: "center",
-                  opacity: idx === 0 ? 0.3 : 1,
+                  opacity: idx <= floor ? 0.3 : 1,
                 }}
               >
                 <ArrowLeft size={22} color={colors.textSecondary} />
