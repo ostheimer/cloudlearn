@@ -16,7 +16,6 @@ import {
   Match,
   Clock,
   Trophy,
-  CheckCircle,
   RotateCw,
   Star,
   StarFilled,
@@ -360,8 +359,9 @@ export default function MatchPage() {
     return (
       <div className="study-wrap">
         <div className="study-done">
+          {/* Immer die grüne Trophäe, auch ohne Zeit-Modus (App-Kanon, #595 Teil C). */}
           <div className="big" aria-hidden style={{ color: "var(--green)" }}>
-            {timed ? <Trophy size={54} /> : <CheckCircle size={54} />}
+            <Trophy size={54} />
           </div>
           <div
             style={{

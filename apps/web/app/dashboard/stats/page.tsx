@@ -325,7 +325,13 @@ export default function StatsPage() {
       {attempts !== null && (
         <TestAttemptsPanel
           attempts={attempts}
-          selfGradedRate={stats?.accuracyByKind?.recall.rate ?? null}
+          // Ohne Antworten liefert der Server rate 0, nicht null — das zeigte
+          // „0 % selbst bewertet" neben dem Strich im Kasten darüber (#595).
+          selfGradedRate={
+            stats?.accuracyByKind && stats.accuracyByKind.recall.answers > 0
+              ? stats.accuracyByKind.recall.rate
+              : null
+          }
         />
       )}
 

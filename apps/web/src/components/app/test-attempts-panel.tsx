@@ -27,7 +27,8 @@ export function TestAttemptsPanel({
 }: {
   attempts: TestAttemptSummary[];
   /** „Aus dem Kopf gewusst"-Quote (0..1), die selbst vergebene Zahl. null, wenn
-   *  es davon noch keine gibt — dann entfällt der Vergleich. */
+   *  es noch keine selbst bewerteten Antworten gibt — dann steht ein Strich,
+   *  wie im Kasten „Trefferquote genauer" darüber (Laras Entscheidung, #595). */
   selfGradedRate: number | null;
 }) {
   // Noch keine Prüfung: ein ehrlicher Leerzustand statt einer leeren Karte.
@@ -80,20 +81,22 @@ export function TestAttemptsPanel({
           <div style={{ fontSize: "1.4rem", fontWeight: 500, color: accColor(examPct / 100) }}>{examPct} %</div>
           <div className="muted" style={{ fontSize: "0.75rem" }}>in Prüfungen</div>
         </div>
-        {selfPct != null && (
-          <div
-            style={{
-              flex: 1,
-              background: "var(--bg-soft)",
-              borderRadius: 10,
-              padding: "10px 12px",
-              opacity: 0.6,
-            }}
-          >
-            <div style={{ fontSize: "1.4rem", fontWeight: 500 }}>{selfPct} %</div>
-            <div className="muted" style={{ fontSize: "0.75rem" }}>selbst bewertet</div>
+        <div
+          style={{
+            flex: 1,
+            background: "var(--bg-soft)",
+            borderRadius: 10,
+            padding: "10px 12px",
+            opacity: 0.6,
+          }}
+        >
+          {/* Strich statt „0 %", solange nichts selbst bewertet wurde — dieselbe
+              leere Datenlage zeigt der Kasten darüber auch als Strich (#595). */}
+          <div style={{ fontSize: "1.4rem", fontWeight: 500 }}>
+            {selfPct != null ? `${selfPct} %` : "—"}
           </div>
-        )}
+          <div className="muted" style={{ fontSize: "0.75rem" }}>selbst bewertet</div>
+        </div>
       </div>
 
       {/* Ein Satz, der den Abstand einordnet — bewusst RUHIG (weiche Fläche,
