@@ -74,4 +74,12 @@ describe("#460 — der Helfer wiederholt das Richtige", () => {
     // „Zu viele Anfragen" heißt später nochmal, nicht falsch.
     expect(helfer).toContain("error.status === 429");
   });
+
+  it("zählt endgültige Ablehnungen statt sie still wegzuwerfen (#605)", () => {
+    // 404 heißt: Die Karte wurde auf einem anderen Gerät gelöscht. Nicht
+    // einreihen ist richtig — aber der Zähler muss steigen, sonst feuert das
+    // Hinweis-Banner des Lern-Tabs nie. Verhalten im Detail:
+    // sendReviewRejected.test.ts.
+    expect(helfer).toContain("recordRejected");
+  });
 });

@@ -229,6 +229,28 @@ describe("Offline-Warteschlange — was beim Hochladen mit einer Antwort passier
     expect(queue().pending).toHaveLength(1);
   });
 
+  it("zählt direkt gesendete, endgültig abgelehnte Wiederholungen in denselben Zähler (#605)", async () => {
+    // Der Direktweg (sendReview-Helfer) hat keine Warteschlangen-Operation —
+    // seine 404-Ablehnungen landen über recordRejected trotzdem im selben
+    // Zähler wie die des Abgleichs, damit EIN Banner beide Wege abdeckt.
+    useOfflineQueueStore.getState().recordRejected();
+    useOfflineQueueStore.getState().recordRejected();
+
+    expect(queue().rejectedCount).toBe(2);
+    expect(ids(queue().pending)).toEqual([]);
+    expect(ids(queue().inFlight)).toEqual([]);
+
+    // Mitgesichert wie alles andere: Der Hinweis überlebt einen App-Neustart.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const persisted = storage.get(STORAGE_KEY);
+    expect(persisted).toBeTruthy();
+    expect((JSON.parse(persisted!) as { rejectedCount?: number }).rejectedCount).toBe(2);
+
+    // Antippen des Banners quittiert — danach ist Ruhe.
+    useOfflineQueueStore.getState().acknowledgeRejected();
+    expect(queue().rejectedCount).toBe(0);
+  });
+
   it("arbeitet den Rückstand in Runden ab, bis er leer ist", async () => {
     const viele = Array.from({ length: 1200 }, (_, i) => operation(`review-${i}`));
     useOfflineQueueStore.setState({

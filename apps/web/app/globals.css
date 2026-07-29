@@ -3385,6 +3385,23 @@ a.mode-card:hover {
   justify-content: center;
 }
 
+/* Die ehrliche Ergebnis-Zeile (#605): Bewertungen, die der Server endgültig
+   abgelehnt hat, weil die Karten inzwischen gelöscht wurden. Amber wie die
+   LP-Pille (--amber-50 trägt den Dunkelmodus mit), mit Rand aus demselben
+   Grund wie beim Kalender (#496): ohne ihn ginge die Fläche auf Weiß unter. */
+.study-unsaved {
+  margin: 0;
+  max-width: 420px;
+  padding: 10px 14px;
+  border: 1px solid var(--amber);
+  border-radius: 10px;
+  background: var(--amber-50);
+  color: var(--amber);
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
 /* ---------- Stats ---------- */
 .stat-grid {
   display: grid;

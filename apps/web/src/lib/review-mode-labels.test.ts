@@ -48,11 +48,17 @@ describe("Web — jeder Lernmodus meldet sein eigenes Etikett", () => {
     // Eine vergessene Stelle reicht: In der Prüfung wäre die Nachbewertung
     // („Trotzdem als richtig zählen") sonst als Karteikarte angekommen und
     // hätte als einzige Regung der ganzen Prüfung den Lernplan bewegt.
+    //
+    // Nicht mehr am `.catch` verankert: Seit #605 hat Zuordnen keins mehr
+    // (die Fehler liest dort Promise.allSettled) — und ein Aufruf OHNE catch
+    // entging der alten Suche sogar komplett. Stattdessen: jedes Vorkommen
+    // finden und das Etikett im Aufruf-Fenster dahinter verlangen.
     const src = read(rel);
-    const aufrufe = src.match(/reviewCard\([\s\S]*?\)\s*\.catch/g) ?? [];
-    expect(aufrufe.length).toBeGreaterThan(0);
-    for (const aufruf of aufrufe) {
-      expect(aufruf).toContain(`mode: "${mode}"`);
+    const stellen = [...src.matchAll(/reviewCard\(/g)];
+    expect(stellen.length).toBeGreaterThan(0);
+    for (const stelle of stellen) {
+      const fenster = src.slice(stelle.index, stelle.index + 300);
+      expect(fenster).toContain(`mode: "${mode}"`);
     }
   });
 });

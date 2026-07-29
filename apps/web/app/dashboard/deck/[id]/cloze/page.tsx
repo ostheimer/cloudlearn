@@ -8,6 +8,11 @@ import { listCardsInDeck, reviewCard, earnLp, isApiError, type Card } from "@/li
 import { isAnswerCorrect } from "@/lib/answerCheck";
 import { buildPrompt, hasTypeable } from "@/lib/cloze-prompt";
 import { createReviewSendBuffer } from "@/lib/review-send-buffer";
+import {
+  isCardGone,
+  persistedReviewCount,
+  unsavedReviewsNotice,
+} from "@/lib/unsaved-reviews";
 import { useDisplayName } from "@/lib/use-display-name";
 import { useWobblyIds } from "@/lib/use-wobbly-ids";
 import { filterBySource, type CardSource } from "@/lib/card-source";
@@ -75,6 +80,10 @@ export default function ClozePage() {
   const [earnCapReached, setEarnCapReached] = useState(false);
   const awardStateRef = useRef<SessionAwardState>({ finalized: false, inFlight: null });
   const pendingReviewsRef = useRef<Promise<unknown>[]>([]);
+  // Endgültig verlorene Bewertungen (#605): Ref für die Abrechnung, State für
+  // die Ergebnis-Zeile — immer zusammen fortgeschrieben.
+  const unsavedRef = useRef(0);
+  const [unsavedCount, setUnsavedCount] = useState(0);
   // Ein-Schritt-Puffer (#567): hält die jüngste Bewertung zurück, damit
   // „Trotzdem als richtig zählen" sie ersetzen kann statt doppelt zu melden.
   const reviewBufferRef = useRef(createReviewSendBuffer());
@@ -141,11 +150,20 @@ export default function ClozePage() {
           pendingReviewsRef.current = [];
           await Promise.allSettled(pendingReviews);
 
-          const res = await earnLp("session", count);
+          // Erst NACH dem Abwarten zählen (#605): Beansprucht wird nur, was
+          // der Server wirklich gespeichert hat — abgelehnte Bewertungen
+          // gelöschter Karten gehen ab.
+          const saved = persistedReviewCount(count, unsavedRef.current);
+          if (saved === 0) {
+            state.finalized = true;
+            break;
+          }
+
+          const res = await earnLp("session", saved);
           setEarned(res.granted);
           setEarnCapReached(res.capReached);
 
-          if (isSessionEarnFinalized(res, count)) {
+          if (isSessionEarnFinalized(res, saved)) {
             state.finalized = true;
             break;
           }
@@ -167,6 +185,8 @@ export default function ClozePage() {
     await awardSession(round.length);
     awardStateRef.current = { finalized: false, inFlight: null };
     pendingReviewsRef.current = [];
+    unsavedRef.current = 0;
+    setUnsavedCount(0);
     setEarned(null);
     setEarnCapReached(false);
     // `startAt` setzt eine unterbrochene Runde fort (session-progress.ts).
@@ -200,7 +220,14 @@ export default function ClozePage() {
 
   function sendReview(cardId: string, rating: "good" | "again") {
     if (!userId) return;
-    const reviewPromise = reviewCard(userId, cardId, rating, { mode: "cloze" }).catch(() => {});
+    const reviewPromise = reviewCard(userId, cardId, rating, { mode: "cloze" }).catch((error) => {
+      // Karte inzwischen gelöscht (#605): endgültig verloren — zählen und am
+      // Rundenende ehrlich ausweisen. Alles andere bleibt best-effort.
+      if (isCardGone(error)) {
+        unsavedRef.current += 1;
+        setUnsavedCount(unsavedRef.current);
+      }
+    });
     pendingReviewsRef.current.push(reviewPromise);
   }
 
@@ -487,6 +514,11 @@ export default function ClozePage() {
             <p className="muted" style={{ margin: 0 }}>
               {wrong.length} {wrong.length === 1 ? "Karte" : "Karten"} noch offen.
             </p>
+          )}
+          {/* Ehrliche Zeile (#605): was der Server nie gespeichert hat, weil
+              die Karten inzwischen gelöscht wurden. */}
+          {unsavedCount > 0 && (
+            <p className="study-unsaved">{unsavedReviewsNotice(unsavedCount)}</p>
           )}
           {earned !== null && earned > 0 && (
             <span className="lp-pill">

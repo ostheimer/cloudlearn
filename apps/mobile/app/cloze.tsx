@@ -119,6 +119,7 @@ export default function ClozeScreen() {
   const setUsage = useUsageStore((s) => s.setUsage);
   const displayName = useDisplayName();
   const enqueueOfflineReview = useOfflineQueueStore((state) => state.enqueue);
+  const recordRejectedReview = useOfflineQueueStore((state) => state.recordRejected);
   const awardStateRef = useRef<SessionAwardState>({ finalized: false, inFlight: null });
   const pendingReviewsRef = useRef<Promise<unknown>[]>([]);
   const sessionReviewsRef = useRef(0);
@@ -241,12 +242,15 @@ export default function ClozeScreen() {
         buffered.queuedReview.payload,
       ).catch((error) => {
         // Offline oder Serverfehler: für später aufheben. Bei 4xx würde ein
-        // erneuter Versuch genauso abgelehnt — dann lieber fallen lassen.
+        // erneuter Versuch genauso abgelehnt — fallen lassen, aber ZÄHLEN
+        // (#605): Der Lern-Tab zeigt dafür sein Hinweis-Banner, statt dass
+        // die Antwort spurlos verschwindet (z. B. Karte anderswo gelöscht).
         if (shouldRetryLater(error)) enqueueOfflineReview(buffered.queuedReview);
+        else recordRejectedReview();
       });
       pendingReviewsRef.current.push(reviewPromise);
     },
-    [userId, enqueueOfflineReview],
+    [userId, enqueueOfflineReview, recordRejectedReview],
   );
 
   const review = useCallback(

@@ -267,6 +267,14 @@ interface OfflineQueueState {
   ) => void;
   restoreInFlight: (operationIds?: string[]) => void;
   setSyncing: (syncing: boolean) => void;
+  /**
+   * Eine DIREKT gesendete Wiederholung wurde endgültig abgelehnt (#605, z. B.
+   * 404 — die Karte wurde auf einem anderen Gerät gelöscht). Sie war nie in
+   * der Warteschlange, zählt aber in denselben Zähler wie die Ablehnungen aus
+   * dem Abgleich: Nur so greift das Hinweis-Banner des Lern-Tabs auch für
+   * Quiz, Zuordnen, Bild-Abdecken und Lückentext.
+   */
+  recordRejected: () => void;
   /** Hinweis auf endgültig abgelehnte Wiederholungen zur Kenntnis genommen. */
   acknowledgeRejected: () => void;
   clear: () => void;
@@ -343,6 +351,13 @@ export const useOfflineQueueStore = create<OfflineQueueState>((set, get) => ({
         ...state.queue,
         syncing,
       },
+    })),
+  recordRejected: () =>
+    // Über applyQueueUpdate wie alles andere: mitgesichert, damit der Hinweis
+    // einen App-Neustart überlebt (siehe toPersistedQueue).
+    applyQueueUpdate(set, (queue) => ({
+      ...queue,
+      rejectedCount: queue.rejectedCount + 1,
     })),
   acknowledgeRejected: () =>
     applyQueueUpdate(set, (queue) =>
