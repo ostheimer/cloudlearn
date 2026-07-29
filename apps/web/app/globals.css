@@ -1865,6 +1865,11 @@ a.mode-card:hover {
   width: 100%;
   display: grid;
   gap: 8px;
+  /* minmax(0, 1fr) statt der automatischen Spalte (#602): Eine auto-Spalte
+     wird so breit, wie die nowrap-Frage darunter verlangt — die Ellipse in
+     .quiz-sum__q greift dann nie, und die ganze Ergebnisseite läuft am Handy
+     seitlich über (das #545-Muster). */
+  grid-template-columns: minmax(0, 1fr);
 }
 .quiz-sum__row {
   display: flex;
@@ -3355,6 +3360,10 @@ a.mode-card:hover {
   gap: 16px;
   justify-items: center;
   padding: 40px 20px;
+  /* Schutz für ALLE Ergebnis-Bildschirme (#602): Ohne minmax(0, 1fr) reicht
+     ein einziges überbreites Kind (siehe .quiz-sum) seine Mindestbreite an
+     diese Spalte durch, und der ganze Rahmen wächst über den Bildschirm. */
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .study-done .big {
