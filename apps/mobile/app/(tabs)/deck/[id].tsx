@@ -69,6 +69,7 @@ import DeckDetailsModal from "../../../src/components/DeckDetailsModal";
 function CardEditor({
   visible,
   card,
+  saving,
   onSave,
   onCancel,
 }: {
@@ -78,6 +79,7 @@ function CardEditor({
     back: string;
     difficulty: string;
   } | null;
+  saving: boolean;
   onSave: (data: {
     front: string;
     back: string;
@@ -104,11 +106,36 @@ function CardEditor({
 
   const isValid = front.trim().length > 0 && back.trim().length > 0;
 
+  // Nachfrage vor dem Verwerfen (#608, wortgleich zum Web): „Abbrechen" und
+  // die Android-Zurück-Taste werfen sonst halbfertigen Text kommentarlos weg.
+  const dirty =
+    front !== (card?.front ?? "") ||
+    back !== (card?.back ?? "") ||
+    difficulty !== (card?.difficulty ?? "medium");
+
+  const requestClose = () => {
+    // Während des Speicherns nicht schließen — sonst wüsste niemand, ob die
+    // Karte angekommen ist.
+    if (saving) return;
+    if (!dirty) {
+      onCancel();
+      return;
+    }
+    Alert.alert("Änderungen verwerfen?", "Dein eingetippter Text geht sonst verloren.", [
+      // „Weiter bearbeiten" ist der cancel-Knopf (betont): Wer aus Versehen
+      // rausgeht, kommt am leichtesten zurück zum Text.
+      { text: "Weiter bearbeiten", style: "cancel" },
+      { text: "Verwerfen", style: "destructive", onPress: onCancel },
+    ]);
+  };
+
   return (
     <Modal
       visible={visible}
       animationType="slide"
       presentationStyle="pageSheet"
+      // Android-Zurück-Taste (#608) — vorher tat sie hier nichts.
+      onRequestClose={requestClose}
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -128,7 +155,7 @@ function CardEditor({
             }}
           >
             <TouchableOpacity
-              onPress={onCancel}
+              onPress={requestClose}
               style={{
                 flexDirection: "row",
                 alignItems: "center",
@@ -162,7 +189,9 @@ function CardEditor({
                   difficulty,
                 })
               }
-              disabled={!isValid}
+              // `saving` sperrt gegen Doppeltippen (#608): Jeder weitere Tipp
+              // legte sonst dieselbe Karte noch einmal an.
+              disabled={!isValid || saving}
               style={{
                 flexDirection: "row",
                 alignItems: "center",
@@ -171,16 +200,16 @@ function CardEditor({
             >
               <Check
                 size={18}
-                color={isValid ? colors.primary : colors.textTertiary}
+                color={isValid && !saving ? colors.primary : colors.textTertiary}
               />
               <Text
                 style={{
-                  color: isValid ? colors.primary : colors.textTertiary,
+                  color: isValid && !saving ? colors.primary : colors.textTertiary,
                   fontSize: typography.base,
                   fontWeight: typography.bold,
                 }}
               >
-                Speichern
+                {saving ? "Speichert …" : "Speichern"}
               </Text>
             </TouchableOpacity>
           </View>
@@ -1171,6 +1200,7 @@ export default function DeckDetailScreen() {
         {/* Card editor modal */}
         <CardEditor
           visible={editorVisible}
+          saving={saving}
           card={
             editingCard
               ? {

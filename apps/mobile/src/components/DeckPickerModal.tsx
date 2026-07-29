@@ -120,7 +120,13 @@ export default function DeckPickerModal({
       : t("folder.addSelectedMany", { count: selectedIds.length });
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      // Android-Zurueck-Taste schliesst das Fenster (#608) — vorher tat sie nichts.
+      onRequestClose={onClose}
+    >
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
         {/* Header — mirrors FolderPickerModal, minus "new": decks are created by
             scanning, not from here. */}
