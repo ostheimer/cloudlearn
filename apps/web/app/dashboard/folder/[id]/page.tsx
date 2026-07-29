@@ -32,7 +32,12 @@ import {
   Play,
   Pencil,
   GripVertical,
+  Search,
 } from "@/components/icons";
+
+// Ab dieser Listenlänge zeigt der Deck-Picker ein Suchfeld (#612) — gleicher
+// Wert wie im Ordner-Picker der Bibliothek und in den App-Pickern.
+const PICKER_SEARCH_THRESHOLD = 6;
 
 type SubfolderModal =
   | { type: "create" }
@@ -677,6 +682,14 @@ function AddDecksModal({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  // Nur die Anzeige wird gefiltert — die Auswahl bleibt erhalten, auch wenn
+  // ein bereits angehaktes Deck gerade nicht zur Suche passt.
+  const shown = useMemo(() => {
+    const q = search.trim().toLocaleLowerCase("de");
+    if (!q) return decks;
+    return decks.filter((d) => d.title.toLocaleLowerCase("de").includes(q));
+  }, [decks, search]);
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -694,8 +707,22 @@ function AddDecksModal({
       ) : (
         <>
           <p className="muted">Wähle die Decks aus, die in diesen Ordner sollen.</p>
-          <div style={{ display: "grid", gap: 8, maxHeight: 320, overflowY: "auto" }}>
-            {decks.map((deck) => (
+          {decks.length >= PICKER_SEARCH_THRESHOLD && (
+            <div className="input-icon">
+              <span aria-hidden>
+                <Search size={16} />
+              </span>
+              <input
+                className="input"
+                placeholder="Deck suchen..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+          )}
+          {shown.length === 0 && <p className="muted">Kein Deck passt zu deiner Suche.</p>}
+          <div className="modal__scroll" style={{ display: "grid", gap: 8 }}>
+            {shown.map((deck) => (
               <label
                 key={deck.id}
                 className="btn btn-ghost"

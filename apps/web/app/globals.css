@@ -2778,8 +2778,23 @@ a.mode-card:hover {
   border: 1px solid var(--line);
   box-shadow: var(--shadow-lg);
   padding: 24px;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 18px;
+  /* Nie höher als der Bildschirm (#612): Vorher wuchs das Fenster mit jeder
+     Listenzeile weiter und ab ~15 Ordnern lag "Abbrechen" unerreichbar
+     unterhalb des Bildschirms. 40px = 2 × 20px Overlay-Innenabstand. */
+  max-height: calc(100vh - 40px);
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+}
+
+/* Lange Listen in einem Modal scrollen innen, damit Titel oben und Knöpfe
+   unten sichtbar bleiben. min-height: 0 erlaubt dem Flex-Kind, kleiner zu
+   werden als sein Inhalt — sonst schiebt es das Fenster doch wieder auf. */
+.modal__scroll {
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .modal h3 {

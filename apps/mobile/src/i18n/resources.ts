@@ -266,6 +266,11 @@ export const resources = {
       "folder.addError": "Deck konnte nicht zum Ordner hinzugefügt werden.",
       "folder.addSuccess": "Zum Ordner \"{{title}}\" hinzugefügt",
       "folder.empty": "Noch keine Ordner vorhanden.\nErstelle einen neuen Ordner.",
+      "folder.loadError": "Ordner konnten nicht geladen werden.",
+      "folder.searchPlaceholder": "Ordner suchen...",
+      "folder.searchEmpty": "Kein Ordner passt zu deiner Suche.",
+      "folder.searchDecksPlaceholder": "Deck suchen...",
+      "folder.searchDecksEmpty": "Kein Deck passt zu deiner Suche.",
 
       // Deck edit
       "deckEdit.title": "Deck bearbeiten",
@@ -741,6 +746,11 @@ export const resources = {
       "folder.addError": "Could not add deck to folder.",
       "folder.addSuccess": "Added to folder \"{{title}}\"",
       "folder.empty": "No folders yet.\nCreate a new folder.",
+      "folder.loadError": "Could not load folders.",
+      "folder.searchPlaceholder": "Search folders...",
+      "folder.searchEmpty": "No folder matches your search.",
+      "folder.searchDecksPlaceholder": "Search decks...",
+      "folder.searchDecksEmpty": "No deck matches your search.",
 
       // Deck edit
       "deckEdit.title": "Edit deck",
