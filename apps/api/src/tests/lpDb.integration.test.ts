@@ -34,7 +34,7 @@ do $$ begin
     create role service_role;
   end if;
 end $$;
-drop table if exists lp_transactions, rewards_claimed, streak_freeze_uses, profiles cascade;
+drop table if exists lp_transactions, rewards_claimed, streak_freeze_uses, monthly_lp_grants, profiles cascade;
 create table profiles (
   id uuid primary key,
   lp_balance int not null default 10,
@@ -89,6 +89,7 @@ suite("LP SQL functions (real Postgres integration)", () => {
     await client.query(loadMigration("20260404130000_atomic_lp_operations.sql"));
     await client.query(loadMigration("20260708150000_atomic_claim_milestone.sql"));
     await client.query(loadMigration("20260709120000_idempotent_lp_purchase.sql"));
+    await client.query(loadMigration("20260713110000_monthly_lp_grant.sql"));
     await client.query(loadMigration("20260713140000_streak_freeze.sql"));
     await client.query(loadMigration("20260714120000_streak_repair.sql"));
     await client.query(loadMigration("20260714130000_friend_streaks.sql"));
@@ -483,6 +484,79 @@ suite("LP SQL functions (real Postgres integration)", () => {
       await both("current_date");
       await both("current_date + 2");
       expect((await streak()).current_streak).toBe(1);
+    });
+  });
+
+  // ── grant_monthly_lp: per-(user, period) idempotency (#604) ──────────────
+  // The webhook (instant credit on purchase) and the /lp/monthly-grant cron
+  // both call this with the calendar month as the period — these tests pin
+  // that the second caller in a month can never double-credit.
+  describe("grant_monthly_lp", () => {
+    it("credits once per period and writes the audited ledger row", async () => {
+      await seed(0);
+      const first = await client.query(
+        "select grant_monthly_lp($1, 'pro', 300, '2026-08') as granted", [USER]
+      );
+      expect(first.rows[0].granted).toBe(true);
+      expect(await balance()).toBe(300);
+      const led = await client.query(
+        "select type, amount, reason from lp_transactions where user_id = $1", [USER]
+      );
+      expect(led.rows).toEqual([{ type: "abo_grant", amount: 300, reason: "monthly_pro_2026-08" }]);
+    });
+
+    it("the same period again is a no-op (webhook + cron overlap safely)", async () => {
+      await seed(0);
+      await client.query("select grant_monthly_lp($1, 'pro', 300, '2026-08')", [USER]);
+      const dup = await client.query(
+        "select grant_monthly_lp($1, 'pro', 300, '2026-08') as granted", [USER]
+      );
+      expect(dup.rows[0].granted).toBe(false);
+      expect(await balance()).toBe(300); // NOT 600
+    });
+
+    it("a new month grants again (the annual/lifetime fix, #604)", async () => {
+      await seed(0);
+      await client.query("select grant_monthly_lp($1, 'lifetime', 300, '2026-08')", [USER]);
+      const next = await client.query(
+        "select grant_monthly_lp($1, 'lifetime', 300, '2026-09') as granted", [USER]
+      );
+      expect(next.rows[0].granted).toBe(true);
+      expect(await balance()).toBe(600);
+    });
+
+    it("two concurrent calls for the same period credit exactly once", async () => {
+      await seed(0);
+      const { Client } = await import("pg");
+      const a = new Client({ connectionString: DATABASE_URL });
+      const b = new Client({ connectionString: DATABASE_URL });
+      await a.connect();
+      await b.connect();
+      try {
+        const [ra, rb] = await Promise.all([
+          a.query("select grant_monthly_lp($1, 'pro', 300, '2026-08') as granted", [USER]),
+          b.query("select grant_monthly_lp($1, 'pro', 300, '2026-08') as granted", [USER]),
+        ]);
+        const granted = [ra.rows[0].granted, rb.rows[0].granted];
+        expect(granted.filter(Boolean)).toHaveLength(1); // exactly one credited
+        expect(await balance()).toBe(300);
+      } finally {
+        await a.end();
+        await b.end();
+      }
+    });
+
+    it("a non-positive amount grants nothing and leaves no guard row", async () => {
+      await seed(0);
+      const { rows } = await client.query(
+        "select grant_monthly_lp($1, 'free', 0, '2026-08') as granted", [USER]
+      );
+      expect(rows[0].granted).toBe(false);
+      expect(await balance()).toBe(0);
+      const guard = await client.query(
+        "select count(*)::int as n from monthly_lp_grants where user_id = $1", [USER]
+      );
+      expect(guard.rows[0].n).toBe(0);
     });
   });
 

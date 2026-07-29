@@ -6,9 +6,8 @@ import { createRequestContext } from "@/lib/observability";
 import { secureCompare } from "@/lib/secureCompare";
 import { mapRevenueCatEventToSubscription } from "@/services/revenueCatService";
 import { updateSubscriptionStatus } from "@/services/subscriptionService";
-import { LP_PACKS, getLimitsForTier } from "@/lib/featureGates";
-import { grantLpPurchase } from "@/services/lpService";
-import { createSupabaseAdminClient } from "@/lib/supabase";
+import { LP_PACKS } from "@/lib/featureGates";
+import { currentLpGrantPeriod, grantLpPurchase, grantMonthlyLp } from "@/services/lpService";
 
 // LP pack event types from RevenueCat (consumable products trigger these)
 const LP_PACK_EVENT_TYPES = new Set([
@@ -17,13 +16,17 @@ const LP_PACK_EVENT_TYPES = new Set([
 ]);
 
 // Events that open a NEW paid billing period → a fresh monthly LP allotment is due
-// (#209 Part A). The subscription tier itself is derived from entitlements + expiry
+// (#209 Part A). NON_RENEWING_PURCHASE is how RevenueCat reports a LIFETIME
+// purchase (#604) — LP packs arrive as NON_RENEWING_PURCHASE too, but the
+// LP-pack branch in POST returns before the monthly grant is reached.
+// The subscription tier itself is derived from entitlements + expiry
 // (see mapRevenueCatEventToSubscription), not from the event type; this set only
 // gates the additive monthly grant, so we do NOT re-grant on PRODUCT_CHANGE,
 // UNCANCELLATION, BILLING_ISSUE, EXPIRATION, etc.
 const MONTHLY_GRANT_EVENT_TYPES = new Set([
   "INITIAL_PURCHASE",
   "RENEWAL",
+  "NON_RENEWING_PURCHASE",
 ]);
 
 // Webhook route — authenticates via x-revenuecat-signature, not JWT
@@ -82,47 +85,24 @@ export async function POST(request: NextRequest) {
       expiresAt: mappedStatus.expiresAt,
     });
 
-    // ── Monthly Pro LP grant (#209 Part A) ───────────────────────────────────────
-    // grantMonthlyLp had no caller, so Pro subscribers never received their monthly
-    // LP allotment. Grant it here — additively, right after the tier update — but only
-    // on events that open a new billing period and only when the resolved tier actually
-    // grants LP (pro/lifetime: 300, free: 0). grant_monthly_lp is idempotent per
-    // (user, period), so a re-delivered webhook for the same period credits nothing.
-    // A failure here must NOT fail the webhook: the tier update above already succeeded
-    // and must stick, so we log and still return success (as before).
+    // ── Monthly Pro LP grant (#209 Part A, #604) ─────────────────────────────────
+    // Instant credit on events that open a new paid period, so buyers see their
+    // 300 LP immediately. The period key is the CALENDAR MONTH — the same key the
+    // monthly cron (/api/v1/lp/monthly-grant) uses, so webhook and cron can never
+    // double-credit each other: grant_monthly_lp is idempotent per (user, period).
+    // (The key used to be the billing period's expiry date, which paid annual subs
+    // once per YEAR, never paid lifetime, and would have collided with the cron.)
+    // A failure here must NOT fail the webhook: the tier update above already
+    // succeeded and must stick, so we log and still return success (as before).
     if (mappedStatus.isActive && MONTHLY_GRANT_EVENT_TYPES.has(event.type)) {
-      const grant = getLimitsForTier(mappedStatus.tier).lpGrantPerMonth;
-      if (grant > 0) {
-        // Period key = the billing period's expiration DATE (YYYY-MM-DD). RevenueCat
-        // sends the SAME expiration_at_ms for every re-delivery of one RENEWAL /
-        // INITIAL_PURCHASE, and a new (~+1 month) expiration for the next cycle — so it
-        // dedupes retries yet advances each period. Fall back to the current month
-        // (YYYY-MM) only when the event carries no expiry (e.g. a non-expiring grant).
-        const period = mappedStatus.expiresAt
-          ? mappedStatus.expiresAt.slice(0, 10)
-          : new Date().toISOString().slice(0, 7);
-        try {
-          const db = createSupabaseAdminClient();
-          if (db) {
-            const { error: grantError } = await db.rpc("grant_monthly_lp", {
-              p_user: userId,
-              p_tier: mappedStatus.tier,
-              p_amount: grant,
-              p_period: period,
-            });
-            if (grantError) {
-              console.error(
-                `[subscription/webhook] monthly LP grant failed for ${userId} (${requestId}): ${grantError.message}`
-              );
-            }
-          }
-        } catch (grantError) {
-          // Never let the additive LP grant break the subscription webhook.
-          console.error(
-            `[subscription/webhook] monthly LP grant threw for ${userId} (${requestId}):`,
-            grantError
-          );
-        }
+      try {
+        await grantMonthlyLp(userId, mappedStatus.tier, currentLpGrantPeriod());
+      } catch (grantError) {
+        // Never let the additive LP grant break the subscription webhook.
+        console.error(
+          `[subscription/webhook] monthly LP grant failed for ${userId} (${requestId}):`,
+          grantError
+        );
       }
     }
 
