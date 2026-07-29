@@ -328,9 +328,12 @@ export default function OcclusionStudyScreen() {
     return wrap(
       <StudyResult
         headline={`Runde geschafft${displayName ? `, ${displayName}` : ""}!`}
+        // „Bereiche" statt „Karten" (Laras Entscheidung, #595): ein Bild kann
+        // mehrere verdeckte Bereiche tragen — gezählt wird, was geübt wurde.
+        // Wortgleich mit dem Web (occlusion/page.tsx).
         subtitle={`Du hast ${total} ${
-          total === 1 ? "Karte" : "Karten"
-        } wiederholt — ${correct} davon sicher gewusst.`}
+          total === 1 ? "Bereich" : "Bereiche"
+        } durchgegangen — ${correct} davon sicher gewusst.`}
         accessory={lpAccessory}
         actions={[
           ...(wrong.length > 0

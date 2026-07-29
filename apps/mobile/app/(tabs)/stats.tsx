@@ -768,7 +768,13 @@ export default function StatsScreen() {
             {attempts !== null && (
               <TestAttemptsCard
                 attempts={attempts}
-                selfGradedRate={stats?.accuracyByKind?.recall.rate ?? null}
+                // Ohne Antworten liefert der Server rate 0, nicht null — das
+                // zeigte „0 % selbst bewertet" neben dem Strich darüber (#595).
+                selfGradedRate={
+                  stats?.accuracyByKind && stats.accuracyByKind.recall.answers > 0
+                    ? stats.accuracyByKind.recall.rate
+                    : null
+                }
               />
             )}
           </View>

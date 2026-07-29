@@ -369,12 +369,11 @@ export default function QuizPage() {
     return (
       <div className="study-wrap">
         <div className="study-done">
-          <div
-            className="big"
-            aria-hidden
-            style={{ color: allRight ? "var(--amber)" : "var(--brand)" }}
-          >
-            {allRight ? <Trophy size={54} /> : <CheckCircle size={54} />}
+          {/* Immer die grüne Trophäe im grünen Kreis (App-Kanon, #595 Teil C):
+              eine geschaffte Runde ist nie ein Misserfolg — die Bewertung trägt
+              die Prozentzahl. */}
+          <div className="big big--ring" aria-hidden>
+            <Trophy size={42} />
           </div>
           <div style={{ fontSize: "2.6rem", fontWeight: 800, letterSpacing: "-0.02em" }}>
             {pct}%

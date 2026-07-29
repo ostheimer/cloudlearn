@@ -23,7 +23,9 @@ export function TestAttemptsCard({
   selfGradedRate,
 }: {
   attempts: TestAttemptSummary[];
-  /** „Aus dem Kopf gewusst"-Quote (0..1). null/undefined -> kein Vergleich. */
+  /** „Aus dem Kopf gewusst"-Quote (0..1). null/undefined -> noch keine selbst
+   *  bewerteten Antworten: dann steht ein Strich, wie in „Trefferquote
+   *  genauer" darüber (Laras Entscheidung, #595). */
   selfGradedRate: number | null | undefined;
 }) {
   const colors = useColors();
@@ -114,10 +116,12 @@ export function TestAttemptsCard({
     <View style={{ ...cardStyle, gap: spacing.md }}>
       {header}
 
-      {/* Vergleich: gemessen betont, selbst vergeben blass daneben. */}
+      {/* Vergleich: gemessen betont, selbst vergeben blass daneben. Strich
+          statt „0 %", solange nichts selbst bewertet wurde — dieselbe leere
+          Datenlage zeigt der Kasten darüber auch als Strich (#595). */}
       <View style={{ flexDirection: "row", gap: spacing.sm }}>
         {tile(`${examPct} %`, "in Prüfungen", scoreColor(examPct), false)}
-        {selfPct != null && tile(`${selfPct} %`, "selbst bewertet", colors.text, true)}
+        {tile(selfPct != null ? `${selfPct} %` : "—", "selbst bewertet", colors.text, true)}
       </View>
 
       {/* Ruhige Einordnung (kein Alarm), nur wenn die Prüfung wirklich tiefer liegt. */}

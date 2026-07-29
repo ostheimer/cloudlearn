@@ -615,7 +615,6 @@ export default function TestPage() {
 
   // ---------- Ergebnis ----------
   if (phase === "result") {
-    const pass = percent >= 50;
     // „Nicht gewusst" = als falsch gewertet UND nicht per Selbstbewertung
     // nachträglich als richtig gezählt. Auf die zugehörigen Karten abbilden,
     // damit ein Neustart genau diese wiederholt (eine Frage = eine Karte).
@@ -627,12 +626,11 @@ export default function TestPage() {
     return (
       <div className="study-wrap">
         <div className="test-reshead">
-          <div
-            className="big"
-            aria-hidden
-            style={{ color: pass ? "var(--green)" : "#ef4444" }}
-          >
-            <Trophy size={48} />
+          {/* Immer die grüne Trophäe im grünen Kreis (App-Kanon, #595 Teil C) —
+              keine rote mehr unter 50 %: das Urteil trägt die Prozentzahl,
+              nicht das Symbol. */}
+          <div className="big big--ring" aria-hidden>
+            <Trophy size={42} />
           </div>
           <div style={{ fontSize: "2.4rem", fontWeight: 800, letterSpacing: "-0.02em" }}>
             {percent}%
