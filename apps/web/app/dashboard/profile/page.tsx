@@ -272,7 +272,13 @@ export default function ProfilePage() {
           <div className="pf-row">
             <div className="pf-row__t">
               <b>Dein Tarif</b>
-              <span>Pro-Vorteile schaltest du in der clearn-App frei</span>
+              {/* Wer Pro schon hat, soll nicht zum "Freischalten" aufgefordert
+                  werden (#607, Laras Variante A). */}
+              <span>
+                {tier === "pro" || tier === "lifetime"
+                  ? "Pro ist auf deinem Konto aktiv — verwalten kannst du es in der clearn-App"
+                  : "Pro-Vorteile schaltest du in der clearn-App frei"}
+              </span>
             </div>
             <span className={`tier-badge tier-badge--${tier ?? "free"}`}>
               {tier ? (TIER_LABEL[tier] ?? tier) : "…"}

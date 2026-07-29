@@ -23,7 +23,14 @@ export function useWobblyIds(deckId: string | undefined): Set<string> {
     (async () => {
       try {
         const usage = await getLpBalance();
+        // Nur ein KLARES "free" ueberspringt die Statistik.
         if (!active || usage.tier === "free") return;
+      } catch {
+        // Tarif unbekannt (Abfrage-Fehler): NICHT wie Free behandeln, sondern
+        // die Statistik trotzdem versuchen — fuer Pro klappt sie, fuer echte
+        // Free-Konten lehnt der Server sie gleich leise ab (#607).
+      }
+      try {
         const stats = await getDeckStats(deckId);
         if (active) setIds(new Set(stats.wobblyCards.map((w) => w.cardId)));
       } catch {
