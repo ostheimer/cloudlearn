@@ -299,3 +299,22 @@ describe("buildTestQuestions", () => {
     }
   });
 });
+
+describe("buildTestQuestions — gap questions never print their answer (#592)", () => {
+  it("the written prompt shows the blank instead of {{cN::…}}", () => {
+    const clozeCards: TestCardInput[] = [
+      { id: "c1", front: "Die Hauptstadt von Frankreich ist {{c1::Paris}}.", back: "Paris", type: "cloze" },
+      { id: "c2", front: "Berlin liegt an der {{c1::Spree}}.", back: "Spree", type: "cloze" },
+    ];
+    const qs = buildTestQuestions(clozeCards, { count: 2, types: ["written"], randomFn: () => 0 });
+    expect(qs).toHaveLength(2);
+    for (const q of qs) {
+      expect(q.type).toBe("written");
+      expect(q.prompt).not.toMatch(/\{\{c\d+::/);
+      expect(q.prompt).toContain("______");
+    }
+    const paris = qs.find((q) => q.cardId === "c1")!;
+    expect(paris.prompt).toBe("Die Hauptstadt von Frankreich ist ______.");
+    expect(paris.expected).toBe("Paris");
+  });
+});

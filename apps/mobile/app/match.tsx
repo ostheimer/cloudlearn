@@ -30,6 +30,7 @@ import { useSessionStore } from "../src/store/sessionStore";
 import { useUsageStore } from "../src/store/usageStore";
 import { excludeOcclusionCards } from "../src/lib/occlusion";
 import { cleanTerm } from "../src/lib/cardTerms";
+import { formatCloze } from "../src/lib/cloze";
 import { fetchDeckStats } from "../src/lib/statsApi";
 import {
   CardSourcePicker,
@@ -156,12 +157,14 @@ export default function MatchScreen() {
     const selected = shuffle(allCards).slice(0, count);
     setGameCards(selected);
 
-    // Create tiles: one "front" tile + one "back" tile per card
+    // Create tiles: one "front" tile + one "back" tile per card. The front of
+    // a cloze card shows its gap as a blank — the raw {{cN::…}} would print
+    // the matching back right on the question tile (#592).
     const newTiles: Tile[] = [];
     for (const card of selected) {
       newTiles.push({
         id: `${card.id}-front`,
-        text: cleanTerm(card.front),
+        text: formatCloze(cleanTerm(card.front)).display,
         cardId: card.id,
         side: "front",
       });
