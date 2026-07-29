@@ -25,6 +25,12 @@ import {
 import { listCardsInDeck, reviewCard, earnLp, type Card } from "../src/lib/api";
 import { setLastUsedDeck } from "../src/lib/lastUsedDeck";
 import {
+  loadSetup,
+  resolveSource,
+  saveSetup,
+  type StoredSetup,
+} from "../src/lib/setupMemory";
+import {
   clearSessionProgress,
   isProgressUsable,
   loadSessionProgress,
@@ -191,10 +197,41 @@ export default function ClozeScreen() {
     };
   }, [deckId]);
 
+  // #610: Zuletzt gestartete Einstellungen dieses Decks als Vorbelegung. Der
+  // Merker wird asynchron gelesen und erst angewendet, wenn auch die Karten da
+  // sind — die gemerkte Quelle wird nur übernommen, wenn sie heute wieder
+  // Karten hätte (eine leere Quelle wäre eine Sackgasse mit gesperrtem Start).
+  const [storedSetup, setStoredSetup] = useState<StoredSetup | null | undefined>(undefined);
+  useEffect(() => {
+    if (!deckId) return;
+    let active = true;
+    void loadSetup(deckId, "cloze").then((stored) => {
+      if (active) setStoredSetup(stored);
+    });
+    return () => {
+      active = false;
+    };
+  }, [deckId]);
+
   // The chosen source decides which cards this round draws from.
   const starredCount = allCards.filter((c) => c.starred).length;
   const wobblyCount = allCards.filter((c) => wobblyIds.has(c.id)).length;
   const studyPool = filterBySource(allCards, source, wobblyIds);
+
+  const setupRestoredRef = useRef(false);
+  useEffect(() => {
+    if (setupRestoredRef.current || loading || storedSetup === undefined) return;
+    if (phase !== "setup") return;
+    setupRestoredRef.current = true;
+    if (!storedSetup) return;
+    if (storedSetup.strict !== undefined) setStrict(storedSetup.strict);
+    if (storedSetup.reverse !== undefined) setReverse(storedSetup.reverse);
+    const wanted = resolveSource(storedSetup.source, {
+      starred: starredCount,
+      wobbly: wobblyCount,
+    });
+    if (wanted) setSource(wanted);
+  }, [loading, storedSetup, phase, starredCount, wobblyCount]);
 
   const canResume =
     saved !== null && isProgressUsable(saved, studyPool.map((card) => card.id), source);
@@ -748,6 +785,14 @@ export default function ClozeScreen() {
               <TouchableOpacity
                 onPress={() => {
                   setReverse(saved.reverse);
+                  // Beim Start die Wahl für dieses Deck merken (#610) — mit
+                  // der Richtung, in der die fortgesetzte Runde wirklich läuft.
+                  if (deckId)
+                    void saveSetup(deckId, "cloze", {
+                      strict,
+                      reverse: saved.reverse,
+                      source,
+                    });
                   void startRound(studyPool, saved.index, saved.results);
                 }}
                 activeOpacity={0.85}
@@ -779,7 +824,11 @@ export default function ClozeScreen() {
 
             {/* Start — becomes the secondary action once a resume is offered */}
             <TouchableOpacity
-              onPress={() => void startRound(studyPool)}
+              onPress={() => {
+                // Beim Start die Wahl für dieses Deck merken (#610).
+                if (deckId) void saveSetup(deckId, "cloze", { strict, reverse, source });
+                void startRound(studyPool);
+              }}
               disabled={studyPool.length === 0}
               activeOpacity={0.85}
               style={{

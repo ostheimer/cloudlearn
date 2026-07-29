@@ -32,6 +32,12 @@ import { excludeOcclusionCards } from "../src/lib/occlusion";
 import { matchTileTexts } from "../src/lib/cardDisplay";
 import { fetchDeckStats } from "../src/lib/statsApi";
 import {
+  loadSetup,
+  resolveSource,
+  saveSetup,
+  type StoredSetup,
+} from "../src/lib/setupMemory";
+import {
   CardSourcePicker,
   filterBySource,
   type CardSource,
@@ -155,7 +161,39 @@ export default function MatchScreen() {
     });
   }, [deckId, loadCards]);
 
+  // #610: Zuletzt gestartete Einstellungen dieses Decks als Vorbelegung. Der
+  // Merker wird asynchron gelesen und erst angewendet, wenn auch die Karten da
+  // sind — die gemerkte Quelle wird nur übernommen, wenn sie heute wieder
+  // Karten hätte (eine leere Quelle wäre eine Sackgasse mit gesperrtem Start).
+  const [storedSetup, setStoredSetup] = useState<StoredSetup | null | undefined>(undefined);
+  useEffect(() => {
+    if (!deckId) return;
+    let active = true;
+    void loadSetup(deckId, "match").then((stored) => {
+      if (active) setStoredSetup(stored);
+    });
+    return () => {
+      active = false;
+    };
+  }, [deckId]);
+
+  const setupRestoredRef = useRef(false);
+  useEffect(() => {
+    if (setupRestoredRef.current || loading || storedSetup === undefined) return;
+    if (phase !== "setup") return;
+    setupRestoredRef.current = true;
+    if (!storedSetup) return;
+    if (storedSetup.timed !== undefined) setTimed(storedSetup.timed);
+    const wanted = resolveSource(storedSetup.source, {
+      starred: starredCount,
+      wobbly: wobblyCount,
+    });
+    if (wanted) setSource(wanted);
+  }, [loading, storedSetup, phase, starredCount, wobblyCount]);
+
   const startGame = (allCards: Card[], withTimer: boolean) => {
+    // Beim Start die Wahl für dieses Deck merken (#610).
+    if (deckId) void saveSetup(deckId, "match", { timed: withTimer, source });
     // Tiles come from the shared display texts (#592): the front of a cloze
     // card shows its gap as a blank — the raw {{cN::…}} would print the
     // matching back right on the question tile — and a pure image side shows

@@ -47,6 +47,14 @@ import {
   type CardSource,
 } from "../src/components/cardSourcePicker";
 import { QuestionCountPicker } from "../src/components/questionCountPicker";
+import {
+  encodeCount,
+  loadSetup,
+  resolveCount,
+  resolveSource,
+  saveSetup,
+  type StoredSetup,
+} from "../src/lib/setupMemory";
 import { useColors, spacing, radius, typography, shadows } from "../src/theme";
 
 export default function QuizScreen() {
@@ -129,6 +137,46 @@ export default function QuizScreen() {
   useEffect(() => {
     if (usableCount > 0) setCount((c) => Math.min(c, usableCount));
   }, [usableCount]);
+
+  // #610: Zuletzt gestartete Einstellungen dieses Decks als Vorbelegung. Der
+  // Merker wird asynchron gelesen und erst angewendet, wenn auch die Karten da
+  // sind — die gemerkte Quelle wird nur übernommen, wenn sie heute wieder
+  // Karten hätte (eine leere Quelle wäre eine Sackgasse mit gesperrtem Start).
+  const [storedSetup, setStoredSetup] = useState<StoredSetup | null | undefined>(undefined);
+  useEffect(() => {
+    if (!deckId) return;
+    let active = true;
+    void loadSetup(deckId, "quiz").then((stored) => {
+      if (active) setStoredSetup(stored);
+    });
+    return () => {
+      active = false;
+    };
+  }, [deckId]);
+
+  const setupRestoredRef = useRef(false);
+  useEffect(() => {
+    if (setupRestoredRef.current || loading || storedSetup === undefined) return;
+    if (!inSetup) return;
+    setupRestoredRef.current = true;
+    if (!storedSetup) return;
+    if (storedSetup.reverse !== undefined) setReverse(storedSetup.reverse);
+    if (storedSetup.typeMC !== undefined) setTypeMC(storedSetup.typeMC);
+    if (storedSetup.typeTF !== undefined) setTypeTF(storedSetup.typeTF);
+    const wanted = resolveSource(storedSetup.source, {
+      starred: starredCount,
+      wobbly: wobblyCount,
+    });
+    if (wanted) setSource(wanted);
+    // Obergrenze der Anzahl ist der Vorrat der Quelle, die ab jetzt gilt —
+    // der Klemm-Effekt oben zieht sie bei Quellenwechseln weiter mit.
+    const wantedPool = filterBySource(cards, wanted ?? source, wobblyIds);
+    const wantedMax = wantedPool.filter(
+      (c) => (c.front ?? "").trim() && (c.back ?? "").trim()
+    ).length;
+    const storedCount = resolveCount(storedSetup.count, wantedMax);
+    if (storedCount !== null) setCount(storedCount);
+  }, [loading, storedSetup, inSetup, starredCount, wobblyCount, cards, source, wobblyIds]);
 
   // Load cards
   const loadCards = useCallback(async () => {
@@ -249,6 +297,16 @@ export default function QuizScreen() {
       allowTrueFalse: typeTF,
     });
     if (q.length === 0) return;
+    // Beim Start die Wahl für dieses Deck merken (#610). „Alle" wird als
+    // Absicht gespeichert, nicht als Zahl — das Deck darf wachsen.
+    if (deckId)
+      void saveSetup(deckId, "quiz", {
+        reverse,
+        typeMC,
+        typeTF,
+        source,
+        count: encodeCount(count, usableCount),
+      });
     void beginRound(q);
   };
 

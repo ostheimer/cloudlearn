@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocalSearchParams, Stack } from "expo-router";
 import {
   ActivityIndicator,
@@ -25,6 +25,12 @@ import {
   type SessionProgress,
   type StoredCardResult,
 } from "../../src/features/review/sessionProgress";
+import {
+  loadSetup,
+  resolveSource,
+  saveSetup,
+  type StoredSetup,
+} from "../../src/lib/setupMemory";
 
 // Full-screen "Karteikarten" session for a single deck. Opens with a setup
 // screen (direction + Starten) like the other study modes, then reuses the
@@ -94,9 +100,39 @@ export default function DeckReviewScreen() {
     };
   }, [id]);
 
+  // #610: Zuletzt gestartete Einstellungen dieses Decks als Vorbelegung. Der
+  // Merker wird asynchron gelesen und erst angewendet, wenn auch die Karten da
+  // sind — die gemerkte Quelle wird nur übernommen, wenn sie heute wieder
+  // Karten hätte (eine leere Quelle wäre eine Sackgasse mit gesperrtem Start).
+  const [storedSetup, setStoredSetup] = useState<StoredSetup | null | undefined>(undefined);
+  useEffect(() => {
+    if (!id) return;
+    let active = true;
+    void loadSetup(id, "flashcards").then((stored) => {
+      if (active) setStoredSetup(stored);
+    });
+    return () => {
+      active = false;
+    };
+  }, [id]);
+
   const starredCount = allCards.filter((card) => card.starred).length;
   const wobblyCount = allCards.filter((card) => wobblyIds.has(card.id)).length;
   const studyPool = filterBySource(allCards, source, wobblyIds);
+
+  const setupRestoredRef = useRef(false);
+  useEffect(() => {
+    if (setupRestoredRef.current || loading || storedSetup === undefined) return;
+    if (phase !== "setup") return;
+    setupRestoredRef.current = true;
+    if (!storedSetup) return;
+    if (storedSetup.reverse !== undefined) setReverse(storedSetup.reverse);
+    const wanted = resolveSource(storedSetup.source, {
+      starred: starredCount,
+      wobbly: wobblyCount,
+    });
+    if (wanted) setSource(wanted);
+  }, [loading, storedSetup, phase, starredCount, wobblyCount]);
 
   // Offer the resume only while it is genuinely usable: same source, and the
   // stored card still sits at the stored position (cards may have been added,
@@ -113,6 +149,13 @@ export default function DeckReviewScreen() {
     // Resuming restores the direction the interrupted session ran with, so the
     // continued cards are asked the same way round as the ones before them.
     if (startAt !== undefined && saved) setReverse(saved.reverse);
+    // Beim Start die Wahl für dieses Deck merken (#610) — mit der Richtung,
+    // in der die Runde wirklich läuft (beim Weitermachen die der alten Runde).
+    if (id)
+      void saveSetup(id, "flashcards", {
+        reverse: startAt !== undefined && saved ? saved.reverse : reverse,
+        source,
+      });
     setPhase("play");
   };
 

@@ -8,6 +8,7 @@ import { earnLp, listCardsInDeck, reviewCard, isApiError, type Card } from "@/li
 import { useDisplayName } from "@/lib/use-display-name";
 import { useWobblyIds } from "@/lib/use-wobbly-ids";
 import { filterBySource, type CardSource } from "@/lib/card-source";
+import { loadSetup, resolveSource, saveSetup } from "@/lib/setup-memory";
 import { matchTileTexts } from "@/lib/match-tiles";
 import { CardSourcePicker } from "@/components/app/card-source-picker";
 import {
@@ -70,7 +71,7 @@ export default function MatchPage() {
   const [bestTime, setBestTime] = useState<number | null>(null);
   const [isNewBest, setIsNewBest] = useState(false);
   const [source, setSource] = useState<CardSource>("all");
-  const wobblyIds = useWobblyIds(deckId);
+  const { ids: wobblyIds, settled: wobblySettled } = useWobblyIds(deckId);
 
   const [phase, setPhase] = useState<"setup" | "playing" | "finished">("setup");
   const [tiles, setTiles] = useState<Tile[]>([]);
@@ -108,6 +109,28 @@ export default function MatchPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // #610: Die Schalter der letzten Runde sofort beim Öffnen vorbelegen — da
+  // steht noch der Spinner, es kann also keine eigene Wahl überschrieben
+  // werden. Die Kartenquelle folgt im Effekt darunter, sobald feststeht, ob
+  // sie heute wieder Karten hätte.
+  useEffect(() => {
+    const stored = loadSetup(deckId, "match");
+    if (stored?.timed !== undefined) setTimed(stored.timed);
+  }, [deckId]);
+
+  const sourceRestoredRef = useRef(false);
+  const sourceTouchedRef = useRef(false);
+  useEffect(() => {
+    if (sourceRestoredRef.current || sourceTouchedRef.current) return;
+    if (phase !== "setup" || loading || !wobblySettled) return;
+    sourceRestoredRef.current = true;
+    const wanted = resolveSource(loadSetup(deckId, "match")?.source, {
+      starred: cards.filter((c) => c.starred).length,
+      wobbly: cards.filter((c) => wobblyIds.has(c.id)).length,
+    });
+    if (wanted) setSource(wanted);
+  }, [deckId, phase, loading, wobblySettled, cards, wobblyIds]);
 
   // Die gewählte Kartenquelle (Alle / Nur markierte / Nur Wackelkandidaten).
   // Spielbar sind nur Karten, deren beide Seiten nach der Aufbereitung (#569)
@@ -157,8 +180,12 @@ export default function MatchPage() {
   );
 
   const startGame = useCallback(
-    (withTimer: boolean) => startGameWith(filterBySource(cards, source, wobblyIds), withTimer),
-    [cards, source, wobblyIds, startGameWith]
+    (withTimer: boolean) => {
+      // Beim Start die Wahl für dieses Deck merken (#610).
+      saveSetup(deckId, "match", { timed: withTimer, source });
+      startGameWith(filterBySource(cards, source, wobblyIds), withTimer);
+    },
+    [deckId, cards, source, wobblyIds, startGameWith]
   );
 
   // Stoppuhr — läuft nur im Zeit-Modus während des Spiels.
@@ -314,7 +341,12 @@ export default function MatchPage() {
 
         <CardSourcePicker
           value={source}
-          onChange={setSource}
+          onChange={(next) => {
+            // Eigene Wahl schlägt die Vorbelegung — auch wenn die
+            // Wackelkandidaten erst danach eintreffen (#610).
+            sourceTouchedRef.current = true;
+            setSource(next);
+          }}
           allCount={cards.length}
           starredCount={cards.filter((c) => c.starred).length}
           wobblyCount={cards.filter((c) => wobblyIds.has(c.id)).length}
