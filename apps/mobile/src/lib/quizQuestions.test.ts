@@ -382,3 +382,59 @@ describe("quizQuestions — gap questions never print their answer (#592)", () =
     expect(ids.size).toBe(2);
   });
 });
+
+describe("quizQuestions — image cards never print raw markdown (#592)", () => {
+  const imageDeck: QuizCardInput[] = [
+    { id: "i1", front: "![Zellkern](https://example.com/zelle.png)", back: "Nucleus" },
+    { id: "i2", front: "![Zellwand](https://example.com/wand.png)", back: "Membran" },
+    { id: "i3", front: "![Chloroplast](https://example.com/chlor.png)", back: "Chloroplast" },
+    { id: "i4", front: "![Golgi](https://example.com/golgi.png)", back: "Golgi-Apparat" },
+  ];
+
+  it("no question, option or answer ever contains ![…](…) code", () => {
+    for (const seed of [1, 2, 3, 5, 7]) {
+      const questions = generateQuestions(imageDeck, 10, undefined, seeded(seed));
+      expect(questions.length).toBeGreaterThan(0);
+      for (const q of questions) {
+        const shown = [
+          q.questionText,
+          q.correctAnswer,
+          ...q.options,
+          q.tfPairing?.front ?? "",
+          q.tfPairing?.back ?? "",
+        ];
+        for (const text of shown) expect(text).not.toMatch(/!\[/);
+      }
+    }
+  });
+
+  it("a pure image front asks with its caption instead of the markdown", () => {
+    const qs = generateQuestions(imageDeck.slice(0, 3), 10, undefined, seeded(2), {
+      allowMc: true,
+      allowTrueFalse: false,
+    });
+    const q1 = qs.find((q) => q.cardId === "i1");
+    expect(q1).toBeTruthy();
+    expect(q1!.questionText).toBe("Zellkern");
+    expect(q1!.image?.url).toBe("https://example.com/zelle.png");
+  });
+
+  it("one-sided cards yield no question and no option (#592)", () => {
+    const cards: QuizCardInput[] = [
+      ...vocabCards.slice(0, 4),
+      { id: "leer1", front: "Nur eine Vorderseite", back: "" },
+      { id: "leer2", front: "", back: "nur eine Rückseite" },
+      { id: "leer3", front: "   ", back: "auch halb leer" },
+    ];
+    for (const seed of [1, 2, 3, 5, 7]) {
+      const qs = generateQuestions(cards, 99, undefined, seeded(seed));
+      expect(qs.length).toBeGreaterThan(0);
+      for (const q of qs) {
+        expect(["leer1", "leer2", "leer3"]).not.toContain(q.cardId);
+        expect(q.options).not.toContain("Nur eine Vorderseite");
+        expect(q.options).not.toContain("nur eine Rückseite");
+        expect(q.options).not.toContain("auch halb leer");
+      }
+    }
+  });
+});

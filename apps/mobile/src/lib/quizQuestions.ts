@@ -1,5 +1,4 @@
-import { summarizeCardMedia } from "./cardMedia";
-import { cleanTerm } from "./cardTerms";
+import { cardSideTexts } from "./cardDisplay";
 import { formatCloze } from "./cloze";
 
 export interface QuizCardInput {
@@ -104,9 +103,19 @@ export function generateQuestions(
 
   const seenPairs = new Set<string>();
   const enriched = cards.flatMap((card) => {
-    const media = summarizeCardMedia(card);
-    const normalizedFront = cleanTerm(media.plainFront || card.front);
-    const normalizedBack = cleanTerm(media.plainBack || card.back);
+    // Prepared like the web (#592): image markdown out, translation wrappers
+    // out; a side that is only an image falls back to its caption — raw
+    // ![…](…) code never reaches a question, an option or an answer.
+    const { front: normalizedFront, back: normalizedBack, media } = cardSideTexts(card);
+    // One-sided cards yield no question: without a second side there is no
+    // question/answer pair — the count picker in the setup does not count
+    // them either. An image counts as a side (image questions).
+    if (
+      (!normalizedFront && media.frontImages.length === 0) ||
+      (!normalizedBack && media.backImages.length === 0)
+    ) {
+      return [];
+    }
     // Decks sometimes hold each card twice (double scans) — drop duplicates.
     const key = `${normalizedFront}|${normalizedBack}`.toLowerCase();
     if (seenPairs.has(key)) return [];

@@ -29,8 +29,7 @@ import { finishRateModeRound } from "../src/lib/rateModeRound";
 import { useSessionStore } from "../src/store/sessionStore";
 import { useUsageStore } from "../src/store/usageStore";
 import { excludeOcclusionCards } from "../src/lib/occlusion";
-import { cleanTerm } from "../src/lib/cardTerms";
-import { formatCloze } from "../src/lib/cloze";
+import { matchTileTexts } from "../src/lib/cardDisplay";
 import { fetchDeckStats } from "../src/lib/statsApi";
 import {
   CardSourcePicker,
@@ -100,6 +99,10 @@ export default function MatchScreen() {
   const starredCount = cards.filter((c) => c.starred).length;
   const wobblyCount = cards.filter((c) => wobblyIds.has(c.id)).length;
   const pool = filterBySource(cards, source, wobblyIds);
+  // Spielbar sind nur Karten, deren beide Seiten nach der Aufbereitung (#592)
+  // Text haben — wie im Web: reine Bild-Karten ohne Beschriftung ergeben
+  // keine Text-Kachel.
+  const playable = pool.filter((card) => matchTileTexts(card) !== null);
 
   // Game state
   const [tiles, setTiles] = useState<Tile[]>([]);
@@ -153,24 +156,30 @@ export default function MatchScreen() {
   }, [deckId, loadCards]);
 
   const startGame = (allCards: Card[], withTimer: boolean) => {
-    const count = Math.min(MAX_PAIRS, allCards.length);
-    const selected = shuffle(allCards).slice(0, count);
-    setGameCards(selected);
+    // Tiles come from the shared display texts (#592): the front of a cloze
+    // card shows its gap as a blank — the raw {{cN::…}} would print the
+    // matching back right on the question tile — and a pure image side shows
+    // its caption instead of raw ![…](…) code. A card without text on both
+    // sides cannot be a text tile and is skipped.
+    const usable = allCards.flatMap((card) => {
+      const texts = matchTileTexts(card);
+      return texts ? [{ card, texts }] : [];
+    });
+    const selected = shuffle(usable).slice(0, Math.min(MAX_PAIRS, usable.length));
+    setGameCards(selected.map((entry) => entry.card));
 
-    // Create tiles: one "front" tile + one "back" tile per card. The front of
-    // a cloze card shows its gap as a blank — the raw {{cN::…}} would print
-    // the matching back right on the question tile (#592).
+    // Create tiles: one "front" tile + one "back" tile per card.
     const newTiles: Tile[] = [];
-    for (const card of selected) {
+    for (const { card, texts } of selected) {
       newTiles.push({
         id: `${card.id}-front`,
-        text: formatCloze(cleanTerm(card.front)).display,
+        text: texts.front,
         cardId: card.id,
         side: "front",
       });
       newTiles.push({
         id: `${card.id}-back`,
-        text: cleanTerm(card.back),
+        text: texts.back,
         cardId: card.id,
         side: "back",
       });
@@ -311,7 +320,7 @@ export default function MatchScreen() {
   };
 
   const tileWidth = (SCREEN_WIDTH - spacing.lg * 2 - spacing.sm) / 2;
-  const pairCount = Math.min(MAX_PAIRS, pool.length);
+  const pairCount = Math.min(MAX_PAIRS, playable.length);
 
   const screenHeader = (title: string, backTitle: string) => (
     <Stack.Screen
@@ -386,7 +395,7 @@ export default function MatchScreen() {
     );
   }
 
-  if (cards.length < 2) {
+  if (cards.filter((card) => matchTileTexts(card) !== null).length < 2) {
     return (
       <>
         {screenHeader("Zuordnen", "Zurück")}
@@ -564,7 +573,7 @@ export default function MatchScreen() {
                 starredCount={starredCount}
                 wobblyCount={wobblyCount}
               />
-              {source !== "all" && pool.length < 2 && (
+              {source !== "all" && playable.length < 2 && (
                 <Text style={{ fontSize: typography.xs, color: colors.error }}>
                   Mindestens 2 Karten für diese Auswahl nötig.
                 </Text>
@@ -575,11 +584,11 @@ export default function MatchScreen() {
 
             {/* Start */}
             <TouchableOpacity
-              onPress={() => startGame(pool, timed)}
-              disabled={pool.length < 2}
+              onPress={() => startGame(playable, timed)}
+              disabled={playable.length < 2}
               activeOpacity={0.85}
               style={{
-                backgroundColor: pool.length < 2 ? colors.surfaceSecondary : colors.primary,
+                backgroundColor: playable.length < 2 ? colors.surfaceSecondary : colors.primary,
                 paddingVertical: 16,
                 borderRadius: radius.lg,
                 alignItems: "center",
@@ -588,7 +597,7 @@ export default function MatchScreen() {
             >
               <Text
                 style={{
-                  color: pool.length < 2 ? colors.textTertiary : colors.textInverse,
+                  color: playable.length < 2 ? colors.textTertiary : colors.textInverse,
                   fontWeight: typography.bold,
                   fontSize: typography.lg,
                 }}
@@ -742,7 +751,7 @@ export default function MatchScreen() {
 
             <View style={{ width: "100%", gap: spacing.sm }}>
               <TouchableOpacity
-                onPress={() => startGame(pool, timed)}
+                onPress={() => startGame(playable, timed)}
                 style={{
                   backgroundColor: colors.primary,
                   paddingVertical: 14,

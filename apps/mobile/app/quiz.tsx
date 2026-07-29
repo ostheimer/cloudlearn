@@ -323,6 +323,10 @@ export default function QuizScreen() {
     const ids = new Set(questions.filter((_, i) => !answers[i]).map((q) => q.cardId));
     return pool.filter((c) => ids.has(c.id));
   })();
+  // Multiple Choice braucht mindestens 2 Karten für Ablenker — bei genau
+  // einer falschen lieferte generateQuestions keine Fragen und der Knopf war
+  // tot (#592); wie im Web erst ab 2 zeigen.
+  const canRetryWrong = wrongCards.length >= 2;
   const startQuizFrom = (sourceCards: Card[]) => {
     const q = generateQuestions(sourceCards, Math.min(count, sourceCards.length), quizCopy, Math.random, {
       reverse,
@@ -867,7 +871,7 @@ export default function QuizScreen() {
 
             {/* Actions */}
             <View style={{ width: "100%", gap: spacing.sm }}>
-              {wrongCards.length > 0 && (
+              {canRetryWrong && (
                 <TouchableOpacity
                   onPress={() => startQuizFrom(wrongCards)}
                   style={{
@@ -886,8 +890,8 @@ export default function QuizScreen() {
               <TouchableOpacity
                 onPress={startQuiz}
                 style={{
-                  backgroundColor: wrongCards.length > 0 ? colors.surface : colors.primary,
-                  borderWidth: wrongCards.length > 0 ? 1 : 0,
+                  backgroundColor: canRetryWrong ? colors.surface : colors.primary,
+                  borderWidth: canRetryWrong ? 1 : 0,
                   borderColor: colors.border,
                   paddingVertical: 14,
                   borderRadius: radius.md,
@@ -897,10 +901,10 @@ export default function QuizScreen() {
                   gap: spacing.sm,
                 }}
               >
-                <RotateCcw size={18} color={wrongCards.length > 0 ? colors.text : colors.textInverse} />
+                <RotateCcw size={18} color={canRetryWrong ? colors.text : colors.textInverse} />
                 <Text
                   style={{
-                    color: wrongCards.length > 0 ? colors.text : colors.textInverse,
+                    color: canRetryWrong ? colors.text : colors.textInverse,
                     fontWeight: typography.bold,
                   }}
                 >
