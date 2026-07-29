@@ -24,6 +24,7 @@ describe("subscriptionService", () => {
       tier: "pro",
       expiresAt: "2026-01-01T00:00:00.000Z",
       isActive: false,
+      billingIssueAt: null,
     });
 
     const status = await getSubscriptionStatus(
@@ -35,6 +36,7 @@ describe("subscriptionService", () => {
       tier: "free",
       isActive: false,
       expiresAt: null,
+      billingIssueAt: null,
     });
   });
 
@@ -43,6 +45,7 @@ describe("subscriptionService", () => {
       tier: "pro",
       expiresAt: "2027-01-01T00:00:00.000Z",
       isActive: true,
+      billingIssueAt: null,
     });
 
     const status = await getSubscriptionStatus(
@@ -54,6 +57,7 @@ describe("subscriptionService", () => {
       tier: "pro",
       isActive: true,
       expiresAt: "2027-01-01T00:00:00.000Z",
+      billingIssueAt: null,
     });
   });
 
@@ -62,6 +66,7 @@ describe("subscriptionService", () => {
       tier: "lifetime",
       expiresAt: null,
       isActive: true,
+      billingIssueAt: null,
     });
 
     const status = await getSubscriptionStatus(
@@ -73,7 +78,40 @@ describe("subscriptionService", () => {
       tier: "lifetime",
       isActive: true,
       expiresAt: null,
+      billingIssueAt: null,
     });
+  });
+
+  it("exposes a billing issue for an active paid subscription (#607)", async () => {
+    mockedGetSubscriptionTier.mockResolvedValueOnce({
+      tier: "pro",
+      expiresAt: "2027-01-01T00:00:00.000Z",
+      isActive: true,
+      billingIssueAt: "2026-07-29T10:00:00.000Z",
+    });
+
+    const status = await getSubscriptionStatus(
+      "6e5db9e4-7e48-4e11-8d8c-6ca90c18d42a"
+    );
+
+    expect(status.billingIssueAt).toBe("2026-07-29T10:00:00.000Z");
+  });
+
+  it("hides a stale billing issue once the subscription is inactive (#607)", async () => {
+    // Ablauf ohne EXPIRATION-Webhook: Konto ist effektiv free, ein
+    // „Zahlungsproblem"-Banner wäre irreführend.
+    mockedGetSubscriptionTier.mockResolvedValueOnce({
+      tier: "pro",
+      expiresAt: "2026-01-01T00:00:00.000Z",
+      isActive: false,
+      billingIssueAt: "2026-07-29T10:00:00.000Z",
+    });
+
+    const status = await getSubscriptionStatus(
+      "6e5db9e4-7e48-4e11-8d8c-6ca90c18d42a"
+    );
+
+    expect(status.billingIssueAt).toBeNull();
   });
 
   it("normalizes inactive updates to free before persisting", async () => {
@@ -88,6 +126,7 @@ describe("subscriptionService", () => {
       "6e5db9e4-7e48-4e11-8d8c-6ca90c18d42a",
       "free",
       false,
+      null,
       null
     );
     expect(updated).toEqual({
@@ -95,6 +134,7 @@ describe("subscriptionService", () => {
       tier: "free",
       isActive: false,
       expiresAt: null,
+      billingIssueAt: null,
     });
   });
 
@@ -110,7 +150,8 @@ describe("subscriptionService", () => {
       "6e5db9e4-7e48-4e11-8d8c-6ca90c18d42a",
       "pro",
       true,
-      "2026-03-01T00:00:00.000Z"
+      "2026-03-01T00:00:00.000Z",
+      null
     );
     expect(updated.tier).toBe("pro");
     expect(updated.isActive).toBe(true);
@@ -134,29 +175,41 @@ describe("transferSubscriptionBetweenUsers – RevenueCat TRANSFER (#607)", () =
       tier: "pro",
       expiresAt: "2099-01-01T00:00:00.000Z",
       isActive: true,
+      billingIssueAt: null,
     });
 
     const result = await transferSubscriptionBetweenUsers([FROM_ID], [TO_ID]);
 
     expect(result.movedTier).toBe("pro");
-    expect(mockedUpdateSubscriptionTier).toHaveBeenCalledWith(FROM_ID, "free", false, null);
+    expect(mockedUpdateSubscriptionTier).toHaveBeenCalledWith(FROM_ID, "free", false, null, null);
     expect(mockedUpdateSubscriptionTier).toHaveBeenCalledWith(
       TO_ID,
       "pro",
       true,
-      "2099-01-01T00:00:00.000Z"
+      "2099-01-01T00:00:00.000Z",
+      null
     );
   });
 
   it("prefers lifetime over pro when several source accounts are paid", async () => {
     mockedGetSubscriptionTier
-      .mockResolvedValueOnce({ tier: "pro", expiresAt: "2099-01-01T00:00:00.000Z", isActive: true })
-      .mockResolvedValueOnce({ tier: "lifetime", expiresAt: null, isActive: true });
+      .mockResolvedValueOnce({
+        tier: "pro",
+        expiresAt: "2099-01-01T00:00:00.000Z",
+        isActive: true,
+        billingIssueAt: null,
+      })
+      .mockResolvedValueOnce({
+        tier: "lifetime",
+        expiresAt: null,
+        isActive: true,
+        billingIssueAt: null,
+      });
 
     const result = await transferSubscriptionBetweenUsers([FROM_ID, FROM_ID_2], [TO_ID]);
 
     expect(result.movedTier).toBe("lifetime");
-    expect(mockedUpdateSubscriptionTier).toHaveBeenCalledWith(TO_ID, "lifetime", true, null);
+    expect(mockedUpdateSubscriptionTier).toHaveBeenCalledWith(TO_ID, "lifetime", true, null, null);
   });
 
   it("leaves the target untouched when no source account is paid (replay safety)", async () => {
@@ -165,6 +218,7 @@ describe("transferSubscriptionBetweenUsers – RevenueCat TRANSFER (#607)", () =
       tier: "free",
       expiresAt: null,
       isActive: true,
+      billingIssueAt: null,
     });
 
     const result = await transferSubscriptionBetweenUsers([FROM_ID], [TO_ID]);
@@ -172,7 +226,7 @@ describe("transferSubscriptionBetweenUsers – RevenueCat TRANSFER (#607)", () =
     expect(result.movedTier).toBeNull();
     // Quellkonto wird (wirkungslos) erneut auf free gesetzt, Zielkonto NIE angefasst.
     expect(mockedUpdateSubscriptionTier).toHaveBeenCalledTimes(1);
-    expect(mockedUpdateSubscriptionTier).toHaveBeenCalledWith(FROM_ID, "free", false, null);
+    expect(mockedUpdateSubscriptionTier).toHaveBeenCalledWith(FROM_ID, "free", false, null, null);
   });
 
   it("does not move an expired subscription", async () => {
@@ -180,6 +234,7 @@ describe("transferSubscriptionBetweenUsers – RevenueCat TRANSFER (#607)", () =
       tier: "pro",
       expiresAt: "2020-01-01T00:00:00.000Z",
       isActive: false,
+      billingIssueAt: null,
     });
 
     const result = await transferSubscriptionBetweenUsers([FROM_ID], [TO_ID]);
@@ -187,6 +242,7 @@ describe("transferSubscriptionBetweenUsers – RevenueCat TRANSFER (#607)", () =
     expect(result.movedTier).toBeNull();
     expect(mockedUpdateSubscriptionTier).not.toHaveBeenCalledWith(
       TO_ID,
+      expect.anything(),
       expect.anything(),
       expect.anything(),
       expect.anything()

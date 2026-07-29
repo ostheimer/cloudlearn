@@ -101,11 +101,17 @@ export async function POST(request: NextRequest) {
 
     // ── Subscription event ─────────────────────────────────────────────────────
     const mappedStatus = mapRevenueCatEventToSubscription(event);
+    // #607: BILLING_ISSUE (Zahlungsproblem, Zugang läuft in der Gnadenfrist
+    // weiter) merken, damit App/Web es anzeigen können. Jedes ANDERE
+    // Abo-Ereignis desselben Kontos löscht die Markierung — RENEWAL heißt
+    // „Zahlung wieder ok", EXPIRATION macht das Konto ohnehin free.
+    const billingIssueAt = event.type === "BILLING_ISSUE" ? new Date().toISOString() : null;
     const status = await updateSubscriptionStatus({
       userId,
       tier: mappedStatus.tier,
       isActive: mappedStatus.isActive,
       expiresAt: mappedStatus.expiresAt,
+      billingIssueAt,
     });
 
     // ── Monthly Pro LP grant (#209 Part A, #604) ─────────────────────────────────

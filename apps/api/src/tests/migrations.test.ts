@@ -45,6 +45,16 @@ describe("supabase migrations", () => {
     expect(sql).toContain("grant execute on function delete_account_data(uuid, text) to service_role");
   });
 
+  it("adds the billing_issue_at column for RevenueCat BILLING_ISSUE (#607)", () => {
+    const migrationPath = join(
+      apiRoot,
+      "supabase/migrations/20260729130000_billing_issue_at.sql",
+    );
+    const sql = readFileSync(migrationPath, "utf-8");
+
+    expect(sql).toContain("add column if not exists billing_issue_at timestamptz");
+  });
+
   it("adds 'refund' to the lp_transactions type constraint for failed-charge reversals", () => {
     const migrationPath = join(
       apiRoot,

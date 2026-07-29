@@ -53,6 +53,7 @@ describe("getSubscriptionTier – Fehler durchreichen statt still free (#607)", 
       tier: "free",
       expiresAt: null,
       isActive: true,
+      billingIssueAt: null,
     });
   });
 
@@ -62,6 +63,7 @@ describe("getSubscriptionTier – Fehler durchreichen statt still free (#607)", 
         data: {
           subscription_tier: "pro",
           subscription_expires_at: "2099-01-01T00:00:00.000Z",
+          billing_issue_at: null,
         },
         error: null,
       })
@@ -71,7 +73,24 @@ describe("getSubscriptionTier – Fehler durchreichen statt still free (#607)", 
       tier: "pro",
       expiresAt: "2099-01-01T00:00:00.000Z",
       isActive: true,
+      billingIssueAt: null,
     });
+  });
+
+  it("maps a stored billing issue timestamp (#607)", async () => {
+    mockedCreateDb.mockReturnValue(
+      makeDbMock({
+        data: {
+          subscription_tier: "pro",
+          subscription_expires_at: "2099-01-01T00:00:00.000Z",
+          billing_issue_at: "2026-07-29T10:00:00.000Z",
+        },
+        error: null,
+      })
+    );
+
+    const result = await getSubscriptionTier(USER_ID);
+    expect(result.billingIssueAt).toBe("2026-07-29T10:00:00.000Z");
   });
 
   it("maps an unknown tier string to free", async () => {

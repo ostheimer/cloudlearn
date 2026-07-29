@@ -218,6 +218,32 @@ describe("POST /api/v1/subscription/webhook – monthly Pro LP grant (#209 Part 
     expect(mockedMonthly).not.toHaveBeenCalled();
   });
 
+  it("stores a billing issue timestamp on BILLING_ISSUE (#607)", async () => {
+    // In der Gnadenfrist läuft der Zugang weiter — aktiv pro, aber markiert.
+    mockedMap.mockReturnValue({ tier: "pro", isActive: true, expiresAt: "2026-08-13T00:00:00.000Z" });
+
+    const response = await POST(
+      webhookRequest({ app_user_id: "user-42", type: "BILLING_ISSUE", entitlement_ids: ["pro"] })
+    );
+
+    expect(response.status).toBe(201);
+    expect(mockedUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ billingIssueAt: expect.any(String) })
+    );
+    // Ein Zahlungsproblem öffnet keine neue Zahlperiode → kein Monats-LP.
+    expect(mockedMonthly).not.toHaveBeenCalled();
+  });
+
+  it("clears the billing issue on any other subscription event (#607)", async () => {
+    mockedMap.mockReturnValue({ tier: "pro", isActive: true, expiresAt: "2026-08-13T00:00:00.000Z" });
+
+    await POST(webhookRequest({ app_user_id: "user-42", type: "RENEWAL", entitlement_ids: ["pro"] }));
+
+    expect(mockedUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ billingIssueAt: null })
+    );
+  });
+
   it("routes a TRANSFER event (no app_user_id) to the transfer handler (#607)", async () => {
     mockedTransfer.mockResolvedValueOnce({ movedTier: "pro" });
 
