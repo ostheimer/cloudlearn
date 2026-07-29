@@ -27,6 +27,7 @@ import {
   mapLpPackOffersById,
   type LpPackDefinition,
 } from "../src/features/paywall/lpPackOffers";
+import { packUnavailableBodyKey, scansForLpPack } from "../src/features/paywall/proDisplay";
 import { useSessionStore } from "../src/store/sessionStore";
 
 // Display values for the streak-freeze tile. The server enforces the real
@@ -44,6 +45,7 @@ export default function LpStoreScreen() {
     lpAdsToday,
     lpEarnCapToday,
     lpAdCapToday,
+    lpCostAiScan,
     tier,
     setUsage,
     isLoaded,
@@ -128,9 +130,10 @@ export default function LpStoreScreen() {
     if (!userId || purchasingPackId) return;
     const storeOffer = lpPackOffersById[pack.id];
     if (!storeOffer) {
+      // Pro/Lifetime nicht zu Werbung oder Pro-Kauf raten (#607).
       Alert.alert(
         t("lp.purchaseUnavailableTitle"),
-        t("lp.purchaseUnavailableBody")
+        t(packUnavailableBodyKey(tier))
       );
       return;
     }
@@ -518,8 +521,8 @@ export default function LpStoreScreen() {
                       }}>
                         {isPurchasable
                           ? pack.popular
-                            ? t("lp.packPopularHint", { scans: Math.floor(pack.lp / 10) })
-                            : t("lp.packHint", { scans: Math.floor(pack.lp / 10) })
+                            ? t("lp.packPopularHint", { scans: scansForLpPack(pack.lp, lpCostAiScan) })
+                            : t("lp.packHint", { scans: scansForLpPack(pack.lp, lpCostAiScan) })
                           : t("lp.packUnavailableHint")}
                       </Text>
                     </View>

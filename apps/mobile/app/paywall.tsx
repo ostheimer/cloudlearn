@@ -20,6 +20,11 @@ import {
 } from "../src/features/paywall/revenuecat";
 import { filterSubscriptionOffers } from "../src/features/paywall/subscriptionOffers";
 import { type SubscriptionTier } from "../src/features/paywall/subscriptionMapping";
+import {
+  paywallSubtitleKey,
+  showsPaidUntil,
+  tierLabelKey,
+} from "../src/features/paywall/proDisplay";
 import { getSubscriptionStatus, getLpBalance } from "../src/lib/api";
 import { useSessionStore } from "../src/store/sessionStore";
 import { usageFromBalanceResponse, useUsageStore } from "../src/store/usageStore";
@@ -65,6 +70,7 @@ export default function PaywallScreen() {
   const router = useRouter();
   const userId = useSessionStore((state) => state.userId);
   const [tier, setTier] = useState<SubscriptionTier>("free");
+  const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [offers, setOffers] = useState<RevenueCatOffer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activePurchaseId, setActivePurchaseId] = useState<string | null>(null);
@@ -93,6 +99,7 @@ export default function PaywallScreen() {
         ]);
         if (isMounted) {
           setTier(status.status.tier);
+          setExpiresAt(status.status.expiresAt ?? null);
           // Über den Übersetzer statt der rohen Antwort: nimmt die
           // Tarif-Grenzen mit und hält fremde Felder (limits-Objekt) aus dem
           // Store heraus (#603).
@@ -254,7 +261,7 @@ export default function PaywallScreen() {
           </Text>
         </View>
         <Text style={{ color: colors.textSecondary, fontSize: typography.base }}>
-          {t("paywall.subtitle")}
+          {t(paywallSubtitleKey(tier))}
         </Text>
 
         {/* LP Balance — show for free tier */}
@@ -315,8 +322,18 @@ export default function PaywallScreen() {
             {t("paywall.currentTierLabel")}
           </Text>
           <Text style={{ color: colors.text, fontSize: typography.xl, fontWeight: typography.bold }}>
-            {tier === "free" ? t("paywall.tierFree") : tier === "pro" ? t("paywall.tierPro") : t("paywall.tierLifetime")}
+            {t(tierLabelKey(tier))}
           </Text>
+          {tier === "lifetime" ? (
+            <Text style={{ color: colors.textSecondary, fontSize: typography.sm }}>
+              {t("paywall.tierLifetimeHint")}
+            </Text>
+          ) : null}
+          {showsPaidUntil(tier, expiresAt) && expiresAt ? (
+            <Text style={{ color: colors.textSecondary, fontSize: typography.sm }}>
+              {t("paywall.paidUntil", { date: new Date(expiresAt).toLocaleDateString() })}
+            </Text>
+          ) : null}
         </View>
 
         {isLoading ? (
@@ -422,27 +439,32 @@ export default function PaywallScreen() {
                 );
               })
             )}
-
-            <TouchableOpacity
-              onPress={() => void handleRestore()}
-              disabled={Boolean(activePurchaseId) || isRestoring}
-              activeOpacity={0.8}
-              style={{
-                backgroundColor: colors.surfaceSecondary,
-                borderRadius: radius.md,
-                paddingVertical: 12,
-                alignItems: "center",
-              }}
-            >
-              {isRestoring ? (
-                <ActivityIndicator color={colors.textSecondary} />
-              ) : (
-                <Text style={{ color: colors.textSecondary, fontWeight: typography.medium }}>
-                  {t("paywall.restoreButton")}
-                </Text>
-              )}
-            </TouchableOpacity>
           </>
+        ) : null}
+
+        {/* Restore — für JEDEN Tarif sichtbar (#607): gerade im Mischzustand
+            (Store sagt Pro, Server sagt Free, z. B. Webhook verloren) ist das
+            der einzige Weg, den Server-Abgleich von Hand anzustoßen. */}
+        {!isLoading && !availabilityMessage ? (
+          <TouchableOpacity
+            onPress={() => void handleRestore()}
+            disabled={Boolean(activePurchaseId) || isRestoring}
+            activeOpacity={0.8}
+            style={{
+              backgroundColor: colors.surfaceSecondary,
+              borderRadius: radius.md,
+              paddingVertical: 12,
+              alignItems: "center",
+            }}
+          >
+            {isRestoring ? (
+              <ActivityIndicator color={colors.textSecondary} />
+            ) : (
+              <Text style={{ color: colors.textSecondary, fontWeight: typography.medium }}>
+                {t("paywall.restoreButton")}
+              </Text>
+            )}
+          </TouchableOpacity>
         ) : null}
 
       </ScrollView>

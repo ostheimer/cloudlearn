@@ -89,6 +89,7 @@ export const resources = {
       "lp.purchaseComingSoon": "Kauf derzeit nicht verfügbar.",
       "lp.purchaseUnavailableTitle": "LP-Pack nicht verfügbar",
       "lp.purchaseUnavailableBody": "LP-Packs sind in diesem Build noch nicht als Store-Produkte aktiviert. Du kannst weiter LP durch Lernen oder Werbung verdienen oder auf Pro upgraden.",
+      "lp.purchaseUnavailableBodyPro": "LP-Packs sind in diesem Build noch nicht als Store-Produkte aktiviert. Du kannst weiter LP durchs Lernen verdienen.",
       "lp.purchaseUnavailableShort": "Nicht verfügbar",
 
       // Streak freeze (LP store item)
@@ -162,6 +163,7 @@ export const resources = {
       "profile.impressum": "Impressum",
       "profile.impressumSubtitle": "Kontakt und Anbieterangaben",
       "profile.manageSubscription": "Abo verwalten",
+      "profile.billingIssue": "Zahlungsproblem: Prüfe deine Zahlungsart im App Store.",
       "profile.subscriptionManageErrorTitle": "Abo-Verwaltung nicht geöffnet",
       "profile.subscriptionManageErrorBody": "Bitte öffne deine Store-Abos direkt in den Einstellungen deines Geräts.",
       "profile.deleteAccount": "Konto löschen",
@@ -349,13 +351,18 @@ export const resources = {
       "folderDetail.remove": "Entfernen",
       "folderDetail.removeDeckError": "Deck konnte nicht entfernt werden.",
 
-      // Paywall
-      "paywall.title": "Upgrade erforderlich",
-      "paywall.subtitle": "Du hast dein Free-Limit erreicht. Wähle einen Plan, um weiter zu scannen.",
+      // Paywall — Titel/Untertitel werben ehrlich statt „Limit erreicht" zu
+      // behaupten: die Seite öffnet sich auch bei knappen LP oder aus dem
+      // Profil, und Pro/Lifetime sollen keine Kauf-Ansprache sehen (#607).
+      "paywall.title": "clearn Pro",
+      "paywall.subtitle": "Hol dir mehr Platz, günstigere KI-Kosten und 300 LP im Monat.",
+      "paywall.subtitlePro": "Du hast clearn Pro — alles ist freigeschaltet.",
       "paywall.currentTierLabel": "Aktueller Plan",
       "paywall.tierFree": "Free",
       "paywall.tierPro": "Pro",
-      "paywall.tierLifetime": "Pro",
+      "paywall.tierLifetime": "Lifetime",
+      "paywall.tierLifetimeHint": "Einmal gekauft — gilt für immer",
+      "paywall.paidUntil": "Bezahlt bis {{date}}",
       "paywall.continue": "Weiter",
       "paywall.lpHint": "KI-Scan kostet {{cost}} LP · Mit Pro 300 LP/Monat inklusive",
       "paywall.openCta": "Upgrade",
@@ -557,6 +564,7 @@ export const resources = {
       "lp.purchaseComingSoon": "Purchase currently unavailable.",
       "lp.purchaseUnavailableTitle": "LP pack unavailable",
       "lp.purchaseUnavailableBody": "LP packs are not activated as store products in this build yet. You can still earn LP by learning or watching ads, or upgrade to Pro.",
+      "lp.purchaseUnavailableBodyPro": "LP packs are not activated as store products in this build yet. You can still earn LP by learning.",
       "lp.purchaseUnavailableShort": "Unavailable",
 
       // Streak freeze (LP store item)
@@ -630,6 +638,7 @@ export const resources = {
       "profile.impressum": "Legal notice",
       "profile.impressumSubtitle": "Contact and provider information",
       "profile.manageSubscription": "Manage subscription",
+      "profile.billingIssue": "Payment issue: check your payment method in the App Store.",
       "profile.subscriptionManageErrorTitle": "Could not open subscription settings",
       "profile.subscriptionManageErrorBody": "Please open your store subscriptions directly in your device settings.",
       "profile.deleteAccount": "Delete account",
@@ -818,12 +827,15 @@ export const resources = {
       "folderDetail.removeDeckError": "Could not remove deck.",
 
       // Paywall
-      "paywall.title": "Upgrade required",
-      "paywall.subtitle": "You reached your free limit. Choose a plan to continue scanning.",
+      "paywall.title": "clearn Pro",
+      "paywall.subtitle": "Get more space, cheaper AI costs and 300 LP per month.",
+      "paywall.subtitlePro": "You have clearn Pro — everything is unlocked.",
       "paywall.currentTierLabel": "Current plan",
       "paywall.tierFree": "Free",
       "paywall.tierPro": "Pro",
-      "paywall.tierLifetime": "Pro",
+      "paywall.tierLifetime": "Lifetime",
+      "paywall.tierLifetimeHint": "Bought once — yours forever",
+      "paywall.paidUntil": "Paid until {{date}}",
       "paywall.continue": "Continue",
       "paywall.lpHint": "AI scan costs {{cost}} LP · Pro includes 300 LP/month",
       "paywall.openCta": "Upgrade",

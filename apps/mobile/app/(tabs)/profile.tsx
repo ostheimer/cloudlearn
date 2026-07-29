@@ -67,6 +67,8 @@ export default function ProfileScreen() {
   const email = useSessionStore((state) => state.email);
   const signOut = useSessionStore((state) => state.signOut);
   const [tier, setTier] = useState("...");
+  const [subExpiresAt, setSubExpiresAt] = useState<string | null>(null);
+  const [billingIssueAt, setBillingIssueAt] = useState<string | null>(null);
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderHour, setReminderHour] = useState(19);
   const [deletingAccount, setDeletingAccount] = useState(false);
@@ -91,7 +93,11 @@ export default function ProfileScreen() {
   useEffect(() => {
     if (!userId) return;
     getSubscriptionStatus()
-      .then((res) => setTier(res.status.tier))
+      .then((res) => {
+        setTier(res.status.tier);
+        setSubExpiresAt(res.status.expiresAt ?? null);
+        setBillingIssueAt(res.status.billingIssueAt ?? null);
+      })
       .catch(() => setTier("unbekannt"));
     getProfile()
       .then((p) => {
@@ -306,7 +312,9 @@ export default function ProfileScreen() {
       ? "Free"
       : tier === "pro"
         ? "Pro"
-        : tier;
+        : tier === "lifetime"
+          ? "Lifetime"
+          : tier;
   const isFreeTier = tier === "free";
   const isProTier = tier === "pro";
   const isDark = resolvedThemeMode === "dark";
@@ -364,6 +372,29 @@ export default function ProfileScreen() {
               <Text style={{ fontSize: typography.base, fontWeight: typography.semibold, color: c.text, marginTop: 2 }}>
                 {tierLabel}
               </Text>
+              {tier === "lifetime" ? (
+                <Text style={{ fontSize: typography.sm, color: c.textSecondary, marginTop: 2 }}>
+                  {t("paywall.tierLifetimeHint")}
+                </Text>
+              ) : null}
+              {tier === "pro" && subExpiresAt ? (
+                <Text style={{ fontSize: typography.sm, color: c.textSecondary, marginTop: 2 }}>
+                  {t("paywall.paidUntil", { date: new Date(subExpiresAt).toLocaleDateString() })}
+                </Text>
+              ) : null}
+              {billingIssueAt ? (
+                <View style={{
+                  marginTop: spacing.sm,
+                  backgroundColor: c.warningLight,
+                  borderRadius: radius.sm,
+                  paddingHorizontal: spacing.md,
+                  paddingVertical: 6,
+                }}>
+                  <Text style={{ fontSize: typography.sm, color: c.warning }}>
+                    {t("profile.billingIssue")}
+                  </Text>
+                </View>
+              ) : null}
               {isGuest ? (
                 <TouchableOpacity
                   onPress={() => router.push("/auth")}
