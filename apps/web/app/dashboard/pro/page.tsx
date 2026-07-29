@@ -52,7 +52,13 @@ export default function ProPage() {
     };
   }, []);
 
-  const hasPro = usage ? usage.tier !== "free" : false;
+  // Solange der Tarif unbekannt ist (laedt noch oder Abfrage-Fehler), behauptet
+  // die Seite NICHTS: weder "Du hast Pro" noch die Kauf-Zeile. Vorher galt
+  // unbekannt = Free, und ein Pro-Konto sah bei jedem Aussetzer die
+  // Kauf-Aufforderung (#607).
+  const tierKnown = usage !== null;
+  const hasPro = tierKnown && usage.tier !== "free";
+  const isFree = tierKnown && usage.tier === "free";
 
   return (
     <>
@@ -89,7 +95,7 @@ export default function ProPage() {
           ))}
         </div>
 
-        {!hasPro && (
+        {isFree && (
           <div className="info-note" style={{ marginTop: 0 }}>
             <Smartphone size={16} />
             <span>
