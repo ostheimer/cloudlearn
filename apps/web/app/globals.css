@@ -3995,6 +3995,35 @@ a.lp-pill:hover {
 }
 
 /* Amber-Warnhinweis bei zu wenig Lernpunkten (wie in der App) */
+/* #608: Angebots-Karte für einen gemerkten, unfertigen Import — bewusst
+   auffälliger als die Quellen-Kacheln darunter (Markenfarbe als Rand), denn
+   hier warten schon bezahlte Karten. */
+.import-resume {
+  background: var(--surface);
+  border: 2px solid var(--brand);
+  border-radius: var(--r-lg);
+  padding: 14px 16px;
+  margin-bottom: 18px;
+}
+
+.import-resume__t {
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 2px;
+}
+
+.import-resume__hint {
+  font-size: 0.88rem;
+  color: var(--ink-3);
+  margin-bottom: 12px;
+}
+
+.import-resume__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .lp-warn {
   display: flex;
   align-items: flex-start;

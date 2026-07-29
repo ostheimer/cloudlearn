@@ -20,6 +20,12 @@ import {
   type ScanResponse,
 } from "@/lib/api";
 import { compressImageToJpeg, fileToBase64 } from "@/lib/files";
+import {
+  clearImportDraft,
+  loadImportDraft,
+  saveImportDraft,
+  type ImportDraft,
+} from "@/lib/import-draft";
 import { useCoarsePointer } from "@/lib/use-coarse-pointer";
 import {
   DECK_LIMIT_LABEL,
@@ -102,6 +108,11 @@ export default function ImportPage() {
   const [draft, setDraft] = useState<Flashcard[] | null>(null);
   // #534: Zeigt den Verwerfen-Bestätigungsdialog, statt sofort zu löschen.
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  // #608: Ein im Browser gemerkter, unfertiger Entwurf einer FRÜHEREN Sitzung.
+  // Wird im Auswahl-Menü nur ANGEBOTEN (Weitermachen/Verwerfen), nie
+  // automatisch angewendet — Muster wie das Weitermachen einer Lernrunde.
+  const [storedDraft, setStoredDraft] = useState<ImportDraft | null>(null);
+  const [confirmStoredDiscard, setConfirmStoredDiscard] = useState(false);
   // #570: Rückfrage, wenn nicht alle Karten ins Ziel-Deck passen.
   const [confirmOverflow, setConfirmOverflow] = useState(false);
   const [newDeckTitle, setNewDeckTitle] = useState("");
@@ -137,6 +148,38 @@ export default function ImportPage() {
       active = false;
     };
   }, []);
+
+  // #608: Einmal beim Öffnen nachsehen, ob ein unfertiger Entwurf gemerkt ist.
+  useEffect(() => {
+    setStoredDraft(loadImportDraft());
+  }, []);
+
+  // #608: Die Vorschau bei jeder Änderung im Browser ablegen — die Karten
+  // haben Lernpunkte gekostet, ein Tab-Schluss darf sie nicht mehr kosten.
+  // Eine leer geräumte Vorschau (alle Karten gelöscht) räumt auch den Merker;
+  // `draft === null` heißt dagegen nur „keine Vorschau offen" und lässt einen
+  // gemerkten Entwurf einer früheren Sitzung in Ruhe.
+  useEffect(() => {
+    if (!draft) return;
+    if (draft.length === 0) {
+      clearImportDraft();
+      return;
+    }
+    saveImportDraft({ cards: draft, newDeckTitle, targetDeckId });
+  }, [draft, newDeckTitle, targetDeckId]);
+
+  // #608: Tab schließen oder neu laden mit offener Vorschau — der Browser
+  // fragt mit seinem eigenen Fenster nach (Text ist nicht beeinflussbar).
+  // Zweites Sicherheitsnetz zum Merker, etwa wenn der Speicher gesperrt ist.
+  useEffect(() => {
+    if (!draft || !draft.some((c) => c.front.trim() || c.back.trim())) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [draft]);
 
   // #411: Deckliste für die Grenz-Prüfung. Schlägt sie fehl, bleibt deckCount
   // null und es wird nichts gesperrt — lieber einmal nicht vorgewarnt als ein
@@ -445,10 +488,12 @@ export default function ImportPage() {
       if (typeof offered === "number" && typeof saved === "number" && saved < offered) {
         setSummary({ text: savedSummary(offered, saved), href: target });
         setDraft(null);
+        clearImportDraft();
         setSaving(false);
         return;
       }
       setDraft(null);
+      clearImportDraft();
       router.push(target);
     } catch (e) {
       const limitMessage = planLimitMessage(e);
@@ -482,8 +527,34 @@ export default function ImportPage() {
   function discardDraft() {
     setConfirmDiscard(false);
     setDraft(null);
+    clearImportDraft();
     setError(null);
     setMode("choose");
+  }
+
+  // ─── #608: Gemerkten Entwurf einer früheren Sitzung fortsetzen/verwerfen ──
+  function resumeStoredDraft() {
+    if (!storedDraft) return;
+    setDraft(storedDraft.cards);
+    setNewDeckTitle(storedDraft.newDeckTitle);
+    // Das gemerkte Ziel-Deck kann inzwischen gelöscht sein — dann zurück auf
+    // „Neues Deck". Ist die Deckliste (noch) nicht geladen, bleibt die Wahl
+    // stehen; der Server prüft beim Speichern ohnehin.
+    setTargetDeckId(
+      storedDraft.targetDeckId === null || decks === null
+        ? storedDraft.targetDeckId
+        : decks.some((d) => d.id === storedDraft.targetDeckId)
+          ? storedDraft.targetDeckId
+          : null
+    );
+    setStoredDraft(null);
+    setError(null);
+  }
+
+  function discardStoredDraft() {
+    setConfirmStoredDiscard(false);
+    clearImportDraft();
+    setStoredDraft(null);
   }
 
   /** #427: Eine leere Karte anhängen, die man selbst ausfüllt. */
@@ -800,6 +871,31 @@ export default function ImportPage() {
           </>
         ) : mode === "choose" ? (
           <>
+            {/* #608: Ein gemerkter, unfertiger Entwurf wird angeboten, nie
+                automatisch geöffnet — wie das Weitermachen einer Lernrunde. */}
+            {storedDraft && (
+              <div className="import-resume" role="status">
+                <p className="import-resume__t">Unfertiger Import</p>
+                <p className="import-resume__hint">
+                  {storedDraft.cards.length} erstellte{" "}
+                  {storedDraft.cards.length === 1 ? "Karte wurde" : "Karten wurden"} noch nicht
+                  gespeichert.
+                </p>
+                <div className="import-resume__actions">
+                  <button type="button" className="btn btn-primary" onClick={resumeStoredDraft}>
+                    Weitermachen
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() => setConfirmStoredDiscard(true)}
+                  >
+                    Verwerfen
+                  </button>
+                </div>
+              </div>
+            )}
+
             {deckLimitHint && (
               <div className="lp-warn" role="status">
                 <Layers size={16} />
@@ -1154,6 +1250,36 @@ export default function ImportPage() {
               }}
             >
               Trotzdem speichern
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* #608: Verwerfen des GEMERKTEN Entwurfs — gleiche Nachfrage wie beim
+          Verwerfen der offenen Vorschau, die Karten sind genauso bezahlt. */}
+      {confirmStoredDiscard && storedDraft && (
+        <Modal title="Karten verwerfen?" onClose={() => setConfirmStoredDiscard(false)}>
+          <p className="muted">
+            {storedDraft.cards.length === 1
+              ? "Die gemerkte Karte wird gelöscht."
+              : `Alle ${storedDraft.cards.length} gemerkten Karten werden gelöscht.`}{" "}
+            Die dafür ausgegebenen Lernpunkte kommen nicht zurück.
+          </p>
+          <div className="modal__actions">
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setConfirmStoredDiscard(false)}
+            >
+              Abbrechen
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ background: "#dc2626", boxShadow: "none" }}
+              onClick={discardStoredDraft}
+            >
+              Verwerfen
             </button>
           </div>
         </Modal>
