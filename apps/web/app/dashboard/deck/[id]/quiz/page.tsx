@@ -8,6 +8,13 @@ import { listCardsInDeck, reviewCard, earnLp, isApiError, type Card } from "@/li
 import { useDisplayName } from "@/lib/use-display-name";
 import { useWobblyIds } from "@/lib/use-wobbly-ids";
 import { filterBySource, type CardSource } from "@/lib/card-source";
+import {
+  encodeCount,
+  loadSetup,
+  resolveCount,
+  resolveSource,
+  saveSetup,
+} from "@/lib/setup-memory";
 import { CardSourcePicker } from "@/components/app/card-source-picker";
 import { QuestionCountPicker } from "@/components/app/question-count-picker";
 import { generateQuestions, type QuizQuestion } from "@/lib/quizQuestions";
@@ -52,7 +59,7 @@ export default function QuizPage() {
   // Rundenlänge — wählbar wie bei der Prüfung (#570). Standard 10 (Laras
   // Entscheidung 28.07.); vorher lief das Web ungebremst durchs ganze Deck.
   const [count, setCount] = useState(10);
-  const wobblyIds = useWobblyIds(deckId);
+  const { ids: wobblyIds, settled: wobblySettled } = useWobblyIds(deckId);
 
   const [phase, setPhase] = useState<"setup" | "play" | "result">("setup");
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
@@ -109,6 +116,38 @@ export default function QuizPage() {
   useEffect(() => {
     if (usableCount > 0) setCount((c) => Math.min(c, usableCount));
   }, [usableCount]);
+
+  // #610: Die Schalter der letzten Runde sofort beim Öffnen vorbelegen — da
+  // steht noch der Spinner, es kann also keine eigene Wahl überschrieben
+  // werden. Quelle und Anzahl folgen im Effekt darunter, sobald feststeht,
+  // ob die gemerkte Quelle heute wieder Karten hätte.
+  useEffect(() => {
+    const stored = loadSetup(deckId, "quiz");
+    if (stored?.reverse !== undefined) setReverse(stored.reverse);
+    if (stored?.typeMC !== undefined) setAllowMc(stored.typeMC);
+    if (stored?.typeTF !== undefined) setAllowTrueFalse(stored.typeTF);
+  }, [deckId]);
+
+  const setupRestoredRef = useRef(false);
+  const setupTouchedRef = useRef(false);
+  useEffect(() => {
+    if (setupRestoredRef.current || setupTouchedRef.current) return;
+    if (phase !== "setup" || loading || !wobblySettled) return;
+    setupRestoredRef.current = true;
+    const stored = loadSetup(deckId, "quiz");
+    if (!stored) return;
+    const wanted = resolveSource(stored.source, {
+      starred: cards.filter((c) => c.starred).length,
+      wobbly: cards.filter((c) => wobblyIds.has(c.id)).length,
+    });
+    if (wanted) setSource(wanted);
+    // Obergrenze der Anzahl ist der Vorrat der Quelle, die ab jetzt gilt —
+    // der Klemm-Effekt oben zieht sie bei Quellenwechseln weiter mit.
+    const pool = filterBySource(cards, wanted ?? source, wobblyIds);
+    const max = pool.filter((c) => (c.front || "").trim() && (c.back || "").trim()).length;
+    const storedCount = resolveCount(stored.count, max);
+    if (storedCount !== null) setCount(storedCount);
+  }, [deckId, phase, loading, wobblySettled, cards, wobblyIds, source]);
 
   const awardSession = useCallback((count: number) => {
     const state = awardStateRef.current;
@@ -302,7 +341,12 @@ export default function QuizPage() {
 
         <CardSourcePicker
           value={source}
-          onChange={setSource}
+          onChange={(next) => {
+            // Eigene Wahl schlägt die Vorbelegung — auch wenn die
+            // Wackelkandidaten erst danach eintreffen (#610).
+            setupTouchedRef.current = true;
+            setSource(next);
+          }}
           allCount={cards.length}
           starredCount={starredCount}
           wobblyCount={wobblyCount}
@@ -322,7 +366,14 @@ export default function QuizPage() {
         </button>
 
         {/* Anzahl Fragen — wählbar wie bei der Prüfung (#570) */}
-        <QuestionCountPicker count={count} max={usableCount} onChange={setCount} />
+        <QuestionCountPicker
+          count={count}
+          max={usableCount}
+          onChange={(next) => {
+            setupTouchedRef.current = true;
+            setCount(next);
+          }}
+        />
 
         <div className="cl-optcard">
           <div className="cl-dir__lbl">Fragetypen</div>
@@ -363,7 +414,18 @@ export default function QuizPage() {
           type="button"
           className="btn btn-primary btn-lg btn-block"
           disabled={!anyType}
-          onClick={startQuiz}
+          onClick={() => {
+            // Beim Start die Wahl für dieses Deck merken (#610). „Alle" wird
+            // als Absicht gespeichert, nicht als Zahl — das Deck darf wachsen.
+            saveSetup(deckId, "quiz", {
+              reverse,
+              typeMC: allowMc,
+              typeTF: allowTrueFalse,
+              source,
+              count: encodeCount(count, usableCount),
+            });
+            void startQuiz();
+          }}
         >
           Starten
         </button>

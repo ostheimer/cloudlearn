@@ -16,6 +16,7 @@ import {
 import { useDisplayName } from "@/lib/use-display-name";
 import { useWobblyIds } from "@/lib/use-wobbly-ids";
 import { filterBySource, type CardSource } from "@/lib/card-source";
+import { loadSetup, resolveSource, saveSetup } from "@/lib/setup-memory";
 import { CardSourcePicker } from "@/components/app/card-source-picker";
 import {
   beginSessionAward,
@@ -59,7 +60,7 @@ export default function ClozePage() {
   const [strict, setStrict] = useState(true);
   const [reverse, setReverse] = useState(false);
   const [source, setSource] = useState<CardSource>("all");
-  const wobblyIds = useWobblyIds(deckId);
+  const { ids: wobblyIds, settled: wobblySettled } = useWobblyIds(deckId);
 
   const [phase, setPhase] = useState<"setup" | "play" | "summary">("setup");
   const [round, setRound] = useState<Card[]>([]);
@@ -113,6 +114,29 @@ export default function ClozePage() {
     if (!deckId) return;
     setSaved(loadSessionProgress(deckId, "cloze"));
   }, [deckId]);
+
+  // #610: Die Schalter der letzten Runde sofort beim Öffnen vorbelegen — da
+  // steht noch der Spinner, es kann also keine eigene Wahl überschrieben
+  // werden. Die Kartenquelle folgt im Effekt darunter, sobald feststeht, ob
+  // sie heute wieder Karten hätte.
+  useEffect(() => {
+    const stored = loadSetup(deckId, "cloze");
+    if (stored?.strict !== undefined) setStrict(stored.strict);
+    if (stored?.reverse !== undefined) setReverse(stored.reverse);
+  }, [deckId]);
+
+  const sourceRestoredRef = useRef(false);
+  const sourceTouchedRef = useRef(false);
+  useEffect(() => {
+    if (sourceRestoredRef.current || sourceTouchedRef.current) return;
+    if (phase !== "setup" || loading || !wobblySettled) return;
+    sourceRestoredRef.current = true;
+    const wanted = resolveSource(loadSetup(deckId, "cloze")?.source, {
+      starred: allCards.filter((c) => c.starred).length,
+      wobbly: allCards.filter((c) => wobblyIds.has(c.id)).length,
+    });
+    if (wanted) setSource(wanted);
+  }, [deckId, phase, loading, wobblySettled, allCards, wobblyIds]);
 
   const studyPool = filterBySource(allCards, source, wobblyIds);
   const canResume =
@@ -436,7 +460,12 @@ export default function ClozePage() {
 
         <CardSourcePicker
           value={source}
-          onChange={setSource}
+          onChange={(next) => {
+            // Eigene Wahl schlägt die Vorbelegung — auch wenn die
+            // Wackelkandidaten erst danach eintreffen (#610).
+            sourceTouchedRef.current = true;
+            setSource(next);
+          }}
           allCount={allCards.length}
           starredCount={allCards.filter((c) => c.starred).length}
           wobblyCount={allCards.filter((c) => wobblyIds.has(c.id)).length}
@@ -452,6 +481,9 @@ export default function ClozePage() {
               // die fortgesetzten Karten werden genauso herum abgefragt wie
               // die davor.
               setReverse(saved.reverse);
+              // Beim Start die Wahl für dieses Deck merken (#610) — mit der
+              // Richtung, in der die fortgesetzte Runde wirklich läuft.
+              saveSetup(deckId, "cloze", { strict, reverse: saved.reverse, source });
               void startRound(studyPool, saved.index, saved.results);
             }}
           >
@@ -466,7 +498,11 @@ export default function ClozePage() {
         <button
           type="button"
           className={`btn ${canResume ? "btn-ghost" : "btn-primary"} btn-lg btn-block`}
-          onClick={() => startRound(studyPool)}
+          onClick={() => {
+            // Beim Start die Wahl für dieses Deck merken (#610).
+            saveSetup(deckId, "cloze", { strict, reverse, source });
+            void startRound(studyPool);
+          }}
         >
           {canResume ? "Von vorne beginnen" : "Starten"}
         </button>

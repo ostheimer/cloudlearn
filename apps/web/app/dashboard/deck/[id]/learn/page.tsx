@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { LearnSession } from "@/components/app/learn-session";
 import { listCardsInDeck, isApiError, type Card } from "@/lib/api";
 import { useWobblyIds } from "@/lib/use-wobbly-ids";
 import { filterBySource, type CardSource } from "@/lib/card-source";
+import { loadSetup, resolveSource, saveSetup } from "@/lib/setup-memory";
 import { CardSourcePicker } from "@/components/app/card-source-picker";
 import {
   isProgressUsable,
@@ -25,7 +26,7 @@ export default function LearnPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [source, setSource] = useState<CardSource>("all");
-  const wobblyIds = useWobblyIds(deckId);
+  const { ids: wobblyIds, settled: wobblySettled } = useWobblyIds(deckId);
   // Karteikarten hatten bisher keinen Vorschalt-Schritt. Jetzt wird die
   // Kartenquelle gewählt (#523) — außer die Runde kommt als Deep-Link mit
   // ?cards=… (z. B. „Wackelkandidaten üben" aus der Statistik): dann ist die
@@ -81,6 +82,22 @@ export default function LearnPage() {
     setSaved(loadSessionProgress(deckId, "flashcards"));
   }, [deckId]);
 
+  // #610: Die Kartenquelle der letzten Runde vorbelegen — erst wenn Karten UND
+  // Wackelkandidaten da sind, denn übernommen wird nur eine Quelle, die heute
+  // wieder Karten hätte. Wer schon selbst gewählt hat, wird nicht übersteuert.
+  const setupRestoredRef = useRef(false);
+  const setupTouchedRef = useRef(false);
+  useEffect(() => {
+    if (setupRestoredRef.current || setupTouchedRef.current) return;
+    if (phase !== "setup" || !studyable || !wobblySettled) return;
+    setupRestoredRef.current = true;
+    const wanted = resolveSource(loadSetup(deckId, "flashcards")?.source, {
+      starred: studyable.filter((c) => c.starred).length,
+      wobbly: studyable.filter((c) => wobblyIds.has(c.id)).length,
+    });
+    if (wanted) setSource(wanted);
+  }, [deckId, phase, studyable, wobblyIds, wobblySettled]);
+
   // Nur anbieten, solange der Stand wirklich brauchbar ist: gleiche
   // Kartenquelle, und an der gemerkten Position liegt noch dieselbe Karte
   // (seitdem können Karten dazugekommen, gelöscht oder entmarkiert sein).
@@ -97,6 +114,9 @@ export default function LearnPage() {
 
   function start(startAtCard?: number) {
     if (!studyable) return;
+    // Beim Start die Wahl für dieses Deck merken (#610) — nächstes Öffnen
+    // beginnt dann so, wie die letzte Runde wirklich lief.
+    saveSetup(deckId, "flashcards", { source });
     // Leere Auswahl kann nur „all" sein (die anderen sind bei 0 gesperrt) —
     // dann bleibt es beim ganzen Deck.
     setPool(chosenPool.length > 0 ? chosenPool : studyable);
@@ -173,7 +193,12 @@ export default function LearnPage() {
 
       <CardSourcePicker
         value={source}
-        onChange={setSource}
+        onChange={(next) => {
+          // Eigene Wahl schlägt die Vorbelegung — auch wenn die
+          // Wackelkandidaten erst danach eintreffen (#610).
+          setupTouchedRef.current = true;
+          setSource(next);
+        }}
         allCount={studyable.length}
         starredCount={studyable.filter((c) => c.starred).length}
         wobblyCount={studyable.filter((c) => wobblyIds.has(c.id)).length}

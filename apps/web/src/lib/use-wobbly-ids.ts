@@ -13,9 +13,18 @@ import { getDeckStats, getLpBalance } from "@/lib/api";
  * nur einen 403-Konsolenfehler und eine leere Liste liefern (#521 hat solche
  * Fehler gerade beseitigt). Darum zuerst den Tarif prüfen — der ist nicht
  * gesperrt — und die Statistik nur bei Pro/Lifetime holen.
+ *
+ * `settled` wird wahr, sobald die Antwort da ist (auch bei Gratis-Tarif oder
+ * Fehler). Der Setup-Merker (#610) wartet darauf: Eine gemerkte
+ * „Wackelkandidaten"-Quelle darf erst vorbelegt werden, wenn feststeht, ob es
+ * heute überhaupt welche gibt.
  */
-export function useWobblyIds(deckId: string | undefined): Set<string> {
+export function useWobblyIds(deckId: string | undefined): {
+  ids: Set<string>;
+  settled: boolean;
+} {
   const [ids, setIds] = useState<Set<string>>(new Set());
+  const [settled, setSettled] = useState(false);
 
   useEffect(() => {
     if (!deckId) return;
@@ -35,6 +44,8 @@ export function useWobblyIds(deckId: string | undefined): Set<string> {
         if (active) setIds(new Set(stats.wobblyCards.map((w) => w.cardId)));
       } catch {
         /* Statistik ist Kür — ohne sie bleibt „Wackelkandidaten" einfach leer */
+      } finally {
+        if (active) setSettled(true);
       }
     })();
     return () => {
@@ -42,5 +53,5 @@ export function useWobblyIds(deckId: string | undefined): Set<string> {
     };
   }, [deckId]);
 
-  return ids;
+  return { ids, settled };
 }

@@ -49,6 +49,14 @@ import {
   type CardSource,
 } from "../src/components/cardSourcePicker";
 import { QuestionCountPicker } from "../src/components/questionCountPicker";
+import {
+  encodeCount,
+  loadSetup,
+  resolveCount,
+  resolveSource,
+  saveSetup,
+  type StoredSetup,
+} from "../src/lib/setupMemory";
 import { useColors, spacing, radius, typography, shadows } from "../src/theme";
 import { useReviewSession } from "../src/features/review/reviewSession";
 
@@ -233,10 +241,63 @@ export default function TestScreen() {
     });
   }, [deckId, loadCards]);
 
-  // Default the question count to the maximum once cards are loaded.
+  // Default the question count to the maximum once cards are loaded. Danach
+  // nur noch klemmen, nie zurücksetzen (#610, gleiche Regel wie das Quiz):
+  // Ein Quellenwechsel soll eine gewählte oder gemerkte Anzahl nicht
+  // stillschweigend auf „Alle" zurückdrehen.
+  const countInitializedRef = useRef(false);
   useEffect(() => {
-    if (usableCount > 0) setCount(usableCount);
+    if (usableCount <= 0) return;
+    if (!countInitializedRef.current) {
+      countInitializedRef.current = true;
+      setCount(usableCount);
+      return;
+    }
+    setCount((c) => Math.min(c, usableCount));
   }, [usableCount]);
+
+  // #610: Zuletzt gestartete Einstellungen dieses Decks als Vorbelegung. Der
+  // Merker wird asynchron gelesen und erst angewendet, wenn auch die Karten da
+  // sind — die gemerkte Quelle wird nur übernommen, wenn sie heute wieder
+  // Karten hätte (eine leere Quelle wäre eine Sackgasse mit gesperrtem Start).
+  const [storedSetup, setStoredSetup] = useState<StoredSetup | null | undefined>(undefined);
+  useEffect(() => {
+    if (!deckId) return;
+    let active = true;
+    void loadSetup(deckId, "test").then((stored) => {
+      if (active) setStoredSetup(stored);
+    });
+    return () => {
+      active = false;
+    };
+  }, [deckId]);
+
+  const setupRestoredRef = useRef(false);
+  useEffect(() => {
+    if (setupRestoredRef.current || loading || storedSetup === undefined) return;
+    if (phase !== "setup") return;
+    setupRestoredRef.current = true;
+    if (!storedSetup) return;
+    if (storedSetup.reverse !== undefined) setReverse(storedSetup.reverse);
+    if (storedSetup.strict !== undefined) setStrict(storedSetup.strict);
+    if (storedSetup.timed !== undefined) setTimed(storedSetup.timed);
+    if (storedSetup.typeTF !== undefined) setTypeTF(storedSetup.typeTF);
+    if (storedSetup.typeMC !== undefined) setTypeMC(storedSetup.typeMC);
+    if (storedSetup.typeWritten !== undefined) setTypeWritten(storedSetup.typeWritten);
+    const wanted = resolveSource(storedSetup.source, {
+      starred: starredCount,
+      wobbly: wobblyCount,
+    });
+    if (wanted) setSource(wanted);
+    // Obergrenze der Anzahl ist der Vorrat der Quelle, die ab jetzt gilt —
+    // der Klemm-Effekt oben zieht sie bei Quellenwechseln weiter mit.
+    const wantedMax = filterBySource(usableCards, wanted ?? source, wobblyIds).length;
+    const storedCount = resolveCount(storedSetup.count, wantedMax);
+    if (storedCount !== null) {
+      countInitializedRef.current = true;
+      setCount(storedCount);
+    }
+  }, [loading, storedSetup, phase, starredCount, wobblyCount, usableCards, source, wobblyIds]);
 
   const anyType = typeTF || typeMC || typeWritten;
 
@@ -253,6 +314,20 @@ export default function TestScreen() {
       reverse,
     });
     if (qs.length === 0) return;
+
+    // Beim Start die Wahl für dieses Deck merken (#610). „Alle" wird als
+    // Absicht gespeichert, nicht als Zahl — das Deck darf wachsen.
+    if (deckId)
+      void saveSetup(deckId, "test", {
+        reverse,
+        strict,
+        timed,
+        typeTF,
+        typeMC,
+        typeWritten,
+        source,
+        count: encodeCount(count || usableCount, usableCount),
+      });
 
     setQuestions(qs);
     setAnswers(qs.map(() => ({ ...EMPTY_ANSWER })));

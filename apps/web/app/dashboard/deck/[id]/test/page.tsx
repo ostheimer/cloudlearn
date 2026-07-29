@@ -15,6 +15,13 @@ import {
 import { useDisplayName } from "@/lib/use-display-name";
 import { useWobblyIds } from "@/lib/use-wobbly-ids";
 import { filterBySource, type CardSource } from "@/lib/card-source";
+import {
+  encodeCount,
+  loadSetup,
+  resolveCount,
+  resolveSource,
+  saveSetup,
+} from "@/lib/setup-memory";
 import { CardSourcePicker } from "@/components/app/card-source-picker";
 import { QuestionCountPicker } from "@/components/app/question-count-picker";
 import { isAnswerCorrect } from "@/lib/answerCheck";
@@ -108,7 +115,7 @@ export default function TestPage() {
   const [reverse, setReverse] = useState(false);
   const [timed, setTimed] = useState(false);
   const [source, setSource] = useState<CardSource>("all");
-  const wobblyIds = useWobblyIds(deckId);
+  const { ids: wobblyIds, settled: wobblySettled } = useWobblyIds(deckId);
 
   const [phase, setPhase] = useState<"setup" | "play" | "result">("setup");
   const [questions, setQuestions] = useState<TestQuestion[]>([]);
@@ -187,9 +194,57 @@ export default function TestPage() {
   );
 
   // Fragenanzahl standardmäßig auf das Maximum, sobald Karten geladen sind.
+  // Danach nur noch klemmen, nie zurücksetzen (#610, gleiche Regel wie das
+  // Quiz): Ein Quellenwechsel soll eine gewählte oder gemerkte Anzahl nicht
+  // stillschweigend auf „Alle" zurückdrehen.
+  const countInitializedRef = useRef(false);
   useEffect(() => {
-    if (usableCount > 0) setCount(usableCount);
+    if (usableCount <= 0) return;
+    if (!countInitializedRef.current) {
+      countInitializedRef.current = true;
+      setCount(usableCount);
+      return;
+    }
+    setCount((c) => Math.min(c, usableCount));
   }, [usableCount]);
+
+  // #610: Die Schalter der letzten Runde sofort beim Öffnen vorbelegen — da
+  // steht noch der Spinner, es kann also keine eigene Wahl überschrieben
+  // werden. Quelle und Anzahl folgen im Effekt darunter, sobald feststeht,
+  // ob die gemerkte Quelle heute wieder Karten hätte.
+  useEffect(() => {
+    const stored = loadSetup(deckId, "test");
+    if (stored?.reverse !== undefined) setReverse(stored.reverse);
+    if (stored?.strict !== undefined) setStrict(stored.strict);
+    if (stored?.timed !== undefined) setTimed(stored.timed);
+    if (stored?.typeTF !== undefined) setTypeTF(stored.typeTF);
+    if (stored?.typeMC !== undefined) setTypeMC(stored.typeMC);
+    if (stored?.typeWritten !== undefined) setTypeWritten(stored.typeWritten);
+  }, [deckId]);
+
+  const setupRestoredRef = useRef(false);
+  const setupTouchedRef = useRef(false);
+  useEffect(() => {
+    if (setupRestoredRef.current || setupTouchedRef.current) return;
+    if (phase !== "setup" || loading || !wobblySettled) return;
+    setupRestoredRef.current = true;
+    const stored = loadSetup(deckId, "test");
+    if (!stored) return;
+    const wanted = resolveSource(stored.source, {
+      starred: cards.filter((c) => c.starred).length,
+      wobbly: cards.filter((c) => wobblyIds.has(c.id)).length,
+    });
+    if (wanted) setSource(wanted);
+    // Obergrenze der Anzahl ist der Vorrat der Quelle, die ab jetzt gilt —
+    // der Klemm-Effekt oben zieht sie bei Quellenwechseln weiter mit.
+    const pool = filterBySource(cards, wanted ?? source, wobblyIds);
+    const max = pool.filter((c) => (c.front || "").trim() && (c.back || "").trim()).length;
+    const storedCount = resolveCount(stored.count, max);
+    if (storedCount !== null) {
+      countInitializedRef.current = true;
+      setCount(storedCount);
+    }
+  }, [deckId, phase, loading, wobblySettled, cards, wobblyIds, source]);
 
   const anyType = typeTF || typeMC || typeWritten;
 
@@ -507,7 +562,12 @@ export default function TestPage() {
 
         <CardSourcePicker
           value={source}
-          onChange={setSource}
+          onChange={(next) => {
+            // Eigene Wahl schlägt die Vorbelegung — auch wenn die
+            // Wackelkandidaten erst danach eintreffen (#610).
+            setupTouchedRef.current = true;
+            setSource(next);
+          }}
           allCount={cards.length}
           starredCount={cards.filter((c) => c.starred).length}
           wobblyCount={cards.filter((c) => wobblyIds.has(c.id)).length}
@@ -515,7 +575,14 @@ export default function TestPage() {
 
         {/* Anzahl Fragen — gemeinsamer Baustein mit dem Quiz, wie die
             App-Prüfung: Chips + Feinauswahl statt Durchtipp-Knopf (#570) */}
-        <QuestionCountPicker count={count} max={usableCount} onChange={setCount} />
+        <QuestionCountPicker
+          count={count}
+          max={usableCount}
+          onChange={(next) => {
+            setupTouchedRef.current = true;
+            setCount(next);
+          }}
+        />
 
         <div className="cl-optcard">
           <div className="cl-dir__lbl">Aufgabentypen</div>
@@ -605,7 +672,21 @@ export default function TestPage() {
           type="button"
           className="btn btn-primary btn-lg btn-block"
           disabled={!anyType}
-          onClick={() => void startTest()}
+          onClick={() => {
+            // Beim Start die Wahl für dieses Deck merken (#610). „Alle" wird
+            // als Absicht gespeichert, nicht als Zahl — das Deck darf wachsen.
+            saveSetup(deckId, "test", {
+              reverse,
+              strict,
+              timed,
+              typeTF,
+              typeMC,
+              typeWritten,
+              source,
+              count: encodeCount(count || usableCount, usableCount),
+            });
+            void startTest();
+          }}
         >
           Test starten
         </button>
