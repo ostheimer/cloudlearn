@@ -3361,6 +3361,21 @@ a.mode-card:hover {
   font-size: 54px;
 }
 
+/* Der grüne Kreis hinter der Ergebnis-Trophäe — das App-Symbol aus
+   StudyResult.tsx, laut Laras Punkt-16-Entscheidung IMMER und in jedem
+   Modus gleich (#595 Teil C). Geteilte Klasse, damit kein Ergebnis-
+   Bildschirm eigene Farben oder Proportionen erfindet. */
+.big--ring {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.14);
+  color: var(--green);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* ---------- Stats ---------- */
 .stat-grid {
   display: grid;

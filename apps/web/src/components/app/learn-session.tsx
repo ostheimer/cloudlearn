@@ -456,10 +456,11 @@ export function LearnSession({
     return (
       <div className="study-wrap">
         <div className="study-done">
-          {/* Immer die grüne Trophäe (App-Kanon, #595 Teil C): eine geschaffte
-              Runde ist nie ein Misserfolg — wie gut es lief, sagt der Text. */}
-          <div className="big" aria-hidden style={{ color: "var(--green)" }}>
-            <Trophy size={56} />
+          {/* Immer die grüne Trophäe im grünen Kreis (App-Kanon, #595 Teil C):
+              eine geschaffte Runde ist nie ein Misserfolg — wie gut es lief,
+              sagt der Text. */}
+          <div className="big big--ring" aria-hidden>
+            <Trophy size={42} />
           </div>
           <h2 className="h2">Runde geschafft{displayName ? `, ${displayName}` : ""}!</h2>
           <p className="lead">
