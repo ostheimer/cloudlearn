@@ -18,18 +18,23 @@ import { randomUUID } from "node:crypto";
 import { HttpError } from "@/lib/http";
 import { speechLangSchema, type SpeechLanguage } from "@/lib/speechLanguages";
 import { getSubscriptionStatus } from "./subscriptionService";
-import { assertDeckLimit, assertEntitlement } from "@/lib/limits";
+import { assertDeckLimit, assertEntitlement, TITLE_MAX } from "@/lib/limits";
+
+// Titel (#612): trimmen, damit "   " kein gültiger Name ist, und deckeln —
+// sonst liesse sich beliebig viel Text als Titel speichern. Gleiches Schema
+// wie bei Ordnern (folderService).
+const titleSchema = z.string().trim().min(1).max(TITLE_MAX);
 
 const createDeckSchema = z.object({
   userId: z.string().uuid(),
-  title: z.string().min(1),
+  title: titleSchema,
   tags: z.array(z.string()).default([]),
 });
 
 const updateDeckSchema = z.object({
   userId: z.string().uuid(),
   deckId: z.string().uuid(),
-  title: z.string().min(1).optional(),
+  title: titleSchema.optional(),
   tags: z.array(z.string()).optional(),
   // Vorlese-Sprachen (#571): `null` löscht die Einstellung, ein fehlendes Feld
   // lässt sie unangetastet. Siehe speechLangSchema.

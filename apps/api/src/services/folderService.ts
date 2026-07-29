@@ -11,14 +11,18 @@ import {
   listFoldersForDeck,
   setFolderDeckOrder,
 } from "@/lib/db";
+import { TITLE_MAX } from "@/lib/limits";
 
 // Freitext von der Nutzerin — gedeckelt, damit niemand über die Beschreibung
 // beliebig viel in die Datenbank schreibt. Zwei Sätze passen bequem hinein.
 const DESCRIPTION_MAX = 500;
 
+// Titel (#612): trimmen + deckeln, gleiches Schema wie bei Decks (deckService).
+const titleSchema = z.string().trim().min(1).max(TITLE_MAX);
+
 const createFolderSchema = z.object({
   userId: z.string().uuid(),
-  title: z.string().min(1),
+  title: titleSchema,
   parentId: z.string().uuid().optional(),
   color: z.string().optional(),
   description: z.string().max(DESCRIPTION_MAX).optional(),
@@ -29,7 +33,7 @@ const updateFolderSchema = z.object({
   // token's user id, so a userId smuggled into the request body is ignored.
   userId: z.string().uuid(),
   folderId: z.string().uuid(),
-  title: z.string().min(1).optional(),
+  title: titleSchema.optional(),
   parentId: z.string().uuid().nullable().optional(),
   color: z.string().optional(),
   // `.max()` ohne `.default()` — ein `.default().optional()` würde in zod v4

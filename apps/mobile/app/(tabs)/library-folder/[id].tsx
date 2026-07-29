@@ -24,6 +24,7 @@ import {
 } from "lucide-react-native";
 import DeckPickerModal from "../../../src/components/DeckPickerModal";
 import TextPromptModal from "../../../src/components/TextPromptModal";
+import { TITLE_MAX_LENGTH, DESCRIPTION_MAX_LENGTH } from "../../../src/lib/titleLimit";
 import { useTranslation } from "react-i18next";
 import {
   getFolder,
@@ -701,6 +702,8 @@ export default function FolderDetailScreen() {
           label={t("folderDetail.renamePrompt")}
           initialValue={currentTitle}
           confirmLabel={t("common.save")}
+          // Servergrenze für Ordnernamen (#612).
+          maxLength={TITLE_MAX_LENGTH}
           onCancel={() => setRenamePromptVisible(false)}
           onSubmit={handleRenameSubmit}
         />
@@ -718,6 +721,9 @@ export default function FolderDetailScreen() {
           // Freitext: mehrzeilig, und leer speichern löscht die Beschreibung.
           multiline
           allowEmpty
+          // Servergrenze der Beschreibung (#612) — vorher kam der Fehler erst
+          // beim Speichern.
+          maxLength={DESCRIPTION_MAX_LENGTH}
           onCancel={() => setDescriptionPromptVisible(false)}
           onSubmit={handleDescriptionSubmit}
         />
