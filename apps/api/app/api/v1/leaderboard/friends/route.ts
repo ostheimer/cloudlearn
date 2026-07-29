@@ -23,11 +23,15 @@ export async function GET(request: NextRequest) {
     // Include the current user in their own leaderboard
     const allIds = [auth.userId, ...friendIds];
 
+    // Zweitschlüssel wie beim globalen Board: bei LP-Gleichstand sonst
+    // wechselnde Reihenfolge je Aufruf (#612).
     const { data: profiles, error } = await db
       .from("profiles")
       .select("id, display_name, avatar_url, lp_balance, subscription_tier, current_streak")
       .in("id", allIds)
-      .order("lp_balance", { ascending: false });
+      .order("lp_balance", { ascending: false })
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true });
 
     if (error) throw new Error(`leaderboard/friends: ${error.message}`);
 

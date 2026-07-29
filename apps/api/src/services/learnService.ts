@@ -1,4 +1,4 @@
-import { countDueCards, listDueCards } from "@/lib/db";
+import { countDueCards, countDueCardsByDeck, listDueCards } from "@/lib/db";
 
 export async function getDueCards(
   userId: string,
@@ -12,4 +12,11 @@ export async function getDueCardCount(
   nowIso = new Date().toISOString()
 ) {
   return countDueCards(userId, nowIso);
+}
+
+export async function getDueCardCountsByDeck(
+  userId: string,
+  nowIso = new Date().toISOString()
+) {
+  return countDueCardsByDeck(userId, nowIso);
 }
