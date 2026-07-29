@@ -29,12 +29,18 @@ import { descendantFolders, folderPath } from "@/lib/folders";
 import { FolderCard, DeleteFolderModal } from "@/components/app/folder-ui";
 import { deckCountLabel } from "@/lib/deck-count-label";
 import {
+  SPEECH_LANGUAGES,
+  toSpeechLanguage,
+  type SpeechLanguage,
+} from "@/lib/speech-languages";
+import {
   Search,
   Layers,
   Folder as FolderIcon,
   MoreHorizontal,
   Play,
   Pencil,
+  Volume2,
   Copy,
   Share,
   Trash,
@@ -55,6 +61,7 @@ const TECH_TAGS = new Set(["scan", "auto", "auto-generated"]);
 type ModalState =
   | { type: "create" }
   | { type: "rename"; deck: Deck }
+  | { type: "speech"; deck: Deck }
   | { type: "delete"; deck: Deck }
   | { type: "share"; deck: Deck; url: string }
   | { type: "addToFolder"; deck: Deck }
@@ -417,6 +424,10 @@ export default function LibraryPage() {
                 setOpenMenu(null);
                 setModal({ type: "rename", deck });
               }}
+              onSpeechLanguages={() => {
+                setOpenMenu(null);
+                setModal({ type: "speech", deck });
+              }}
               onAddToFolder={() => {
                 setOpenMenu(null);
                 setModal({ type: "addToFolder", deck });
@@ -472,6 +483,17 @@ export default function LibraryPage() {
           onClose={() => setModal(null)}
           onSubmit={async (value) => {
             await updateDeck(modal.deck.id, { title: value });
+            setModal(null);
+            await loadDecks();
+          }}
+        />
+      )}
+
+      {modal?.type === "speech" && (
+        <SpeechLanguageModal
+          deck={modal.deck}
+          onClose={() => setModal(null)}
+          onSaved={async () => {
             setModal(null);
             await loadDecks();
           }}
@@ -601,12 +623,105 @@ export default function LibraryPage() {
   );
 }
 
+/**
+ * Vorlese-Sprachen eines Decks (#571) — getrennt für Vorder- und Rückseite,
+ * weil Vokabelkarten zweisprachig sind: vorne „les données", hinten „die
+ * Daten". Eine Sprache fürs ganze Deck würde immer eine der beiden Seiten
+ * falsch aussprechen.
+ *
+ * Zwei `select` statt Chips wie in der App: Im Browser ist das die Bedienform,
+ * die auf Handy und Rechner gleichermaßen funktioniert und die Tastatur-
+ * Bedienung geschenkt mitbringt.
+ */
+function SpeechLanguageModal({
+  deck,
+  onClose,
+  onSaved,
+}: {
+  deck: Deck;
+  onClose: () => void;
+  onSaved: () => void | Promise<void>;
+}) {
+  const [front, setFront] = useState<SpeechLanguage>(toSpeechLanguage(deck.speechLangFront));
+  const [back, setBack] = useState<SpeechLanguage>(toSpeechLanguage(deck.speechLangBack));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const options = SPEECH_LANGUAGES.map((l) => (
+    <option key={l.code} value={l.code}>
+      {l.label}
+    </option>
+  ));
+
+  return (
+    <Modal title="Sprache zum Vorlesen" onClose={onClose}>
+      <p className="muted" style={{ marginTop: 0 }}>
+        Bestimmt, in welcher Sprache der Lautsprecher die jeweilige Seite von „{deck.title}"
+        vorliest. Bei Vokabeln also vorne die Fremdsprache, hinten Deutsch.
+      </p>
+
+      <div className="field" style={{ marginBottom: 14 }}>
+        <label htmlFor="speech-front">Vorderseite</label>
+        <select
+          id="speech-front"
+          className="select"
+          value={front}
+          onChange={(e) => setFront(e.target.value as SpeechLanguage)}
+          disabled={saving}
+        >
+          {options}
+        </select>
+      </div>
+
+      <div className="field">
+        <label htmlFor="speech-back">Rückseite</label>
+        <select
+          id="speech-back"
+          className="select"
+          value={back}
+          onChange={(e) => setBack(e.target.value as SpeechLanguage)}
+          disabled={saving}
+        >
+          {options}
+        </select>
+      </div>
+
+      {error && <p className="form-error">{error}</p>}
+
+      <div className="modal__actions">
+        <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>
+          Abbrechen
+        </button>
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={saving}
+          onClick={async () => {
+            setSaving(true);
+            setError("");
+            try {
+              await updateDeck(deck.id, { speechLangFront: front, speechLangBack: back });
+              await onSaved();
+            } catch {
+              setError("Speichern fehlgeschlagen.");
+              setSaving(false);
+            }
+          }}
+        >
+          {saving ? "Speichern …" : "Speichern"}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
 function DeckCard({
   deck,
   due,
   menuOpen,
   onToggleMenu,
   onRename,
+  onSpeechLanguages,
   onAddToFolder,
   onDuplicate,
   onShare,
@@ -617,6 +732,7 @@ function DeckCard({
   menuOpen: boolean;
   onToggleMenu: (e: React.MouseEvent) => void;
   onRename: () => void;
+  onSpeechLanguages: () => void;
   onAddToFolder: () => void;
   onDuplicate: () => void;
   onShare: () => void;
@@ -671,6 +787,9 @@ function DeckCard({
             </Link>
             <button type="button" onClick={onRename}>
               <Pencil size={15} /> Umbenennen
+            </button>
+            <button type="button" onClick={onSpeechLanguages}>
+              <Volume2 size={15} /> Sprache zum Vorlesen
             </button>
             <button type="button" onClick={onAddToFolder}>
               <FolderIcon size={15} /> Zu Ordner hinzufügen

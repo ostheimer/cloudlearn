@@ -16,6 +16,7 @@ import {
 } from "@/lib/db";
 import { randomUUID } from "node:crypto";
 import { HttpError } from "@/lib/http";
+import { speechLangSchema, type SpeechLanguage } from "@/lib/speechLanguages";
 import { getSubscriptionStatus } from "./subscriptionService";
 import { assertDeckLimit, assertEntitlement } from "@/lib/limits";
 
@@ -30,6 +31,10 @@ const updateDeckSchema = z.object({
   deckId: z.string().uuid(),
   title: z.string().min(1).optional(),
   tags: z.array(z.string()).optional(),
+  // Vorlese-Sprachen (#571): `null` löscht die Einstellung, ein fehlendes Feld
+  // lässt sie unangetastet. Siehe speechLangSchema.
+  speechLangFront: speechLangSchema,
+  speechLangBack: speechLangSchema,
 });
 
 async function assertCanCreateDeck(userId: string): Promise<void> {
@@ -50,9 +55,18 @@ export async function listDecksForUser(userId: string) {
 
 export async function updateDeckForUser(input: unknown) {
   const parsed = updateDeckSchema.parse(input);
-  const updates: Partial<{ title: string; tags: string[] }> = {};
+  const updates: Partial<{
+    title: string;
+    tags: string[];
+    speechLangFront: SpeechLanguage | null;
+    speechLangBack: SpeechLanguage | null;
+  }> = {};
   if (parsed.title !== undefined) updates.title = parsed.title;
   if (parsed.tags !== undefined) updates.tags = parsed.tags;
+  // Auf `undefined` prüfen, nicht auf Falsy: `null` ist hier eine echte Angabe
+  // („Sprache wieder entfernen") und muss durchgereicht werden.
+  if (parsed.speechLangFront !== undefined) updates.speechLangFront = parsed.speechLangFront;
+  if (parsed.speechLangBack !== undefined) updates.speechLangBack = parsed.speechLangBack;
   return updateDeck(parsed.deckId, parsed.userId, updates);
 }
 

@@ -11,6 +11,7 @@
 //   der Seite einfach weiter.
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { DEFAULT_SPEECH_LANGUAGE } from "./speech-languages";
 
 export function useSpeech() {
   const [supported, setSupported] = useState(false);
@@ -33,7 +34,9 @@ export function useSpeech() {
     setSpeaking(false);
   }, []);
 
-  const speak = useCallback((text: string) => {
+  // `lang` ist ein BCP-47-Code aus der Deck-Einstellung (#571). Ohne Angabe
+  // bleibt es bei Deutsch — dem Verhalten, das es vor der Einstellung gab.
+  const speak = useCallback((text: string, lang: string = DEFAULT_SPEECH_LANGUAGE) => {
     if (!("speechSynthesis" in window)) return;
     const synth = window.speechSynthesis;
     synth.cancel();
@@ -44,8 +47,14 @@ export function useSpeech() {
       return;
     }
     const utterance = new SpeechSynthesisUtterance(trimmed);
-    utterance.lang = "de-DE";
-    const voice = synth.getVoices().find((v) => v.lang.toLowerCase().startsWith("de"));
+    utterance.lang = lang;
+    // Nach dem Sprachteil vergleichen ("fr" aus "fr-FR"): Browser liefern die
+    // Stimme oft unter einer anderen Region aus (fr-CA statt fr-FR), und eine
+    // französische Stimme aus Kanada ist unendlich viel besser als eine
+    // deutsche. Findet sich gar nichts, entscheidet der Browser anhand von
+    // `utterance.lang` selbst.
+    const base = lang.split("-")[0]?.toLowerCase() ?? "de";
+    const voice = synth.getVoices().find((v) => v.lang.toLowerCase().startsWith(base));
     if (voice) utterance.voice = voice;
     const settle = () => {
       if (utteranceRef.current === utterance) setSpeaking(false);

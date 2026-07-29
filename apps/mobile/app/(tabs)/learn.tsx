@@ -52,9 +52,15 @@ import {
   getDueCards,
   getStats,
   listCardsInDeck,
+  listDecks,
   reviewCard,
   updateCard,
 } from "../../src/lib/api";
+import {
+  DEFAULT_SPEECH_LANGUAGE,
+  toSpeechLanguage,
+  type SpeechLanguage,
+} from "../../src/lib/speechLanguages";
 import { setLastUsedDeck } from "../../src/lib/lastUsedDeck";
 import { useDisplayName } from "../../src/lib/useDisplayName";
 import { useUsageStore } from "../../src/store/usageStore";
@@ -345,7 +351,14 @@ function AuthenticatedLearnScreen({
         loaded.forEach((card) => { starMap[card.id] = card.starred ?? false; });
         setStarredMap(starMap);
         start(
-          loaded.map((card) => ({ id: card.id, front: card.front, back: card.back, starred: card.starred })),
+          loaded.map((card) => ({
+            id: card.id,
+            front: card.front,
+            back: card.back,
+            starred: card.starred,
+            // Fürs Vorlesen: sagt, welche Deck-Sprachen für diese Karte gelten.
+            deckId: card.deckId,
+          })),
           initialIndex ?? 0,
           // Herkunft an die Karten heften, damit dieser Bildschirm sie beim
           // nächsten Fokus als seine erkennt — und fremde nicht (#282).
@@ -520,13 +533,42 @@ function AuthenticatedLearnScreen({
     }, 350);
   };
 
+  // ─── Vorlese-Sprachen je Deck (#571) ──────────────────────────────────────
+  // Im Lern-Tab liegen Karten aus vielen Decks gemischt — deshalb eine Zuordnung
+  // Deck → Sprachen statt einer Sprache für die ganze Sitzung. Einmal geladen;
+  // ein Fehler ist unkritisch, ohne Eintrag wird Deutsch gesprochen wie bisher.
+  const [deckLangs, setDeckLangs] = useState<
+    Record<string, { front: SpeechLanguage; back: SpeechLanguage }>
+  >({});
+  useEffect(() => {
+    let cancelled = false;
+    listDecks(userId)
+      .then(({ decks }) => {
+        if (cancelled) return;
+        const map: Record<string, { front: SpeechLanguage; back: SpeechLanguage }> = {};
+        for (const d of decks) {
+          map[d.id] = {
+            front: toSpeechLanguage(d.speechLangFront),
+            back: toSpeechLanguage(d.speechLangBack),
+          };
+        }
+        setDeckLangs(map);
+      })
+      .catch(() => {
+        /* Ohne Zuordnung bleibt es bei Deutsch — Vorlesen muss trotzdem gehen */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
   // ─── TTS ──────────────────────────────────────────────────────────────────
   const [speaking, setSpeaking] = useState(false);
-  const speakText = async (text: string) => {
+  const speakText = async (text: string, language: SpeechLanguage) => {
     if (speaking) { await Speech.stop(); setSpeaking(false); return; }
     setSpeaking(true);
     Speech.speak(text, {
-      language: "de-DE",
+      language,
       onDone: () => setSpeaking(false),
       onStopped: () => setSpeaking(false),
       onError: () => setSpeaking(false),
@@ -645,7 +687,7 @@ function AuthenticatedLearnScreen({
   useEffect(() => {
     if (!autoPlaying || !current) return;
     const text = revealed ? displayBack : speechFront;
-    if (text) Speech.speak(text, { language: "de-DE" });
+    if (text) Speech.speak(text, { language: revealed ? backSideLang : frontSideLang });
     return () => { Speech.stop(); };
   }, [autoPlaying, revealed, index]);
 
@@ -746,6 +788,17 @@ function AuthenticatedLearnScreen({
   // Fürs Vorlesen der Vorderseite: die Lücke wird zur Sprech-Pause ("…") statt
   // zur Lösung — Parität zum Web (speechTexts in apps/web/src/lib/speech-text.ts).
   const speechFront = normalizedFront.replace(/\{\{c\d+::.+?\}\}/g, "…");
+  // Sprache folgt dem TEXT, nicht der Position: „Richtung tauschen"
+  // (showBackFirst) zeigt die Rückseite zuerst, und dann muss auch deren Sprache
+  // zuerst gesprochen werden. Ohne diese Drehung läse die App bei getauschter
+  // Richtung jede Seite in der Sprache der jeweils anderen vor.
+  const cardLangs = current?.deckId ? deckLangs[current.deckId] : undefined;
+  const frontSideLang: SpeechLanguage = showBackFirst
+    ? (cardLangs?.back ?? DEFAULT_SPEECH_LANGUAGE)
+    : (cardLangs?.front ?? DEFAULT_SPEECH_LANGUAGE);
+  const backSideLang: SpeechLanguage = showBackFirst
+    ? (cardLangs?.front ?? DEFAULT_SPEECH_LANGUAGE)
+    : (cardLangs?.back ?? DEFAULT_SPEECH_LANGUAGE);
   const frontImage = mediaSummary.frontImages[0] ?? mediaSummary.primaryImage;
   const backImage = mediaSummary.backImages[0] ?? mediaSummary.primaryImage;
   const isStarred = current ? !!starredMap[current.id] : false;
@@ -1195,7 +1248,12 @@ function AuthenticatedLearnScreen({
 
                 <View style={{ flexDirection: "row", gap: spacing.lg, alignItems: "center" }}>
                   <TouchableOpacity
-                    onPress={() => speakText(revealed ? displayBack : speechFront)}
+                    onPress={() =>
+                      speakText(
+                        revealed ? displayBack : speechFront,
+                        revealed ? backSideLang : frontSideLang
+                      )
+                    }
                     activeOpacity={0.6}
                     hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
                     style={{ width: 44, height: 44, justifyContent: "center", alignItems: "center" }}
