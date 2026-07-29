@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Image,
   ScrollView,
   Text,
@@ -11,6 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { GestureDetector, Gesture } from "react-native-gesture-handler";
+import { useNavigation, usePreventRemove } from "@react-navigation/native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
@@ -105,6 +107,58 @@ export default function OcclusionEditorScreen() {
   const existingPathRef = useRef<string | null>(null);
   const replaceCardIdsRef = useRef<string[]>([]);
 
+  // ─── Nachfrage vor Kästchen-Verlust (#608) ────────────────────────────────
+  // Beim Bearbeiten sind die Kästchen der bestehenden Karten vorbefüllt —
+  // erst eine ABWEICHUNG davon ist verlorene Arbeit. Beim Neuanlegen ist der
+  // Startstand leer, da zählt jedes gezeichnete Kästchen.
+  const navigation = useNavigation();
+  const initialRegionsRef = useRef<OcclusionRegion[]>([]);
+  const regionsDirty =
+    JSON.stringify(regions) !== JSON.stringify(initialRegionsRef.current);
+  // Ein getauschtes Bild (base64 gefüllt) ist beim Bearbeiten ebenfalls
+  // ungesicherte Arbeit, selbst wenn noch kein Kästchen neu gezeichnet wurde.
+  const imageSwapped = isEditing && image !== null && image.base64 !== "";
+  const editorDirty = regionsDirty || imageSwapped;
+
+  /**
+   * Zurück-Taste und Header-Zurück abfangen, solange ungesicherte Kästchen da
+   * sind (Vorbild: test.tsx). Während des Speicherns ist die Sperre AUS —
+   * so darf das erfolgreiche save() selbst per router.back() hinaus, und wer
+   * mittendrin abbricht, verliert nichts, was nicht ohnehin gesichert wird.
+   */
+  usePreventRemove(editorDirty && !saving, ({ data }) => {
+    Alert.alert(
+      "Änderungen verwerfen?",
+      "Deine gezeichneten Kästchen gehen sonst verloren.",
+      [
+        // „Weiter zeichnen" ist der cancel-Knopf: Wer aus Versehen zurück
+        // wischt oder tippt, kommt am leichtesten zurück in den Editor.
+        { text: "Weiter zeichnen", style: "cancel" },
+        {
+          text: "Verwerfen",
+          style: "destructive",
+          onPress: () => navigation.dispatch(data.action),
+        },
+      ],
+    );
+  });
+
+  /** Bildwechsel wirft alle Kästchen weg — mit Kästchen erst nachfragen. */
+  function confirmDiscardRegionsThen(action: () => void) {
+    if (regions.length === 0) {
+      action();
+      return;
+    }
+    Alert.alert(
+      "Änderungen verwerfen?",
+      "Deine gezeichneten Kästchen gehen sonst verloren.",
+      [
+        { text: "Weiter zeichnen", style: "cancel" },
+        { text: "Verwerfen", style: "destructive", onPress: action },
+      ],
+    );
+  }
+
   // Fit the image into a fixed box → the viewport matches the image aspect, so
   // at zoom 1 the image fills it with no letterbox and coordinates map cleanly.
   const viewport = useMemo(
@@ -168,7 +222,11 @@ export default function OcclusionEditorScreen() {
         existingPathRef.current = editPath;
         replaceCardIdsRef.current = safeParseIds(replaceCardIds);
         setImage({ uri: url, base64: "", width: size.w || 1, height: size.h || 1, mime: "image/jpeg" });
-        setRegions(safeParseRegions(editRegions));
+        const prefilled = safeParseRegions(editRegions);
+        // Vorbefüllte Kästchen sind der gesicherte Ausgangsstand — erst eine
+        // Abweichung davon löst die Verwerfen-Nachfrage aus (#608).
+        initialRegionsRef.current = prefilled;
+        setRegions(prefilled);
       } catch {
         if (!cancelled) setError("Bild konnte nicht geladen werden.");
       } finally {
@@ -465,7 +523,7 @@ export default function OcclusionEditorScreen() {
 
           <View style={{ flexDirection: "row", gap: spacing.sm }}>
             <TouchableOpacity
-              onPress={pickFromGallery}
+              onPress={() => confirmDiscardRegionsThen(() => void pickFromGallery())}
               disabled={processing}
               activeOpacity={0.8}
               style={{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, backgroundColor: colors.surfaceSecondary, paddingVertical: spacing.md, borderRadius: radius.md, opacity: processing ? 0.5 : 1 }}
@@ -476,7 +534,7 @@ export default function OcclusionEditorScreen() {
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={takePhoto}
+              onPress={() => confirmDiscardRegionsThen(() => void takePhoto())}
               disabled={processing}
               activeOpacity={0.8}
               style={{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, backgroundColor: colors.surfaceSecondary, paddingVertical: spacing.md, borderRadius: radius.md, opacity: processing ? 0.5 : 1 }}
