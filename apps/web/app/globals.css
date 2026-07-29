@@ -1021,6 +1021,23 @@ ul.reset {
   opacity: 0.65;
 }
 
+/* Deck-Name klein am oberen Kartenrand — nur bei Runden über mehrere Decks
+   (globale fällige Runde, Ordner-Runde), damit klar ist, wo man gerade ist
+   (#609, Laras Bedingung gegen das Vermischen). Absolut positioniert, damit
+   die mittige Frage nicht verrutscht. */
+.flip__deck {
+  position: absolute;
+  top: 12px;
+  left: 28px;
+  right: 28px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  opacity: 0.55;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .flip__q {
   font-size: 1.35rem;
   font-weight: 700;

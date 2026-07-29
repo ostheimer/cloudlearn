@@ -37,6 +37,13 @@ export const resources = {
       "review.lpEarned": "+{{count}} LP verdient!",
       "review.saveError": "Antwort konnte nicht gespeichert werden.",
 
+      // Home: Lern-Einstieg zur globalen fälligen Runde (#609)
+      "home.learnNow": "Jetzt lernen",
+      "home.dueCardsOne": "1 Karte fällig",
+      "home.dueCardsMany": "{{count}} Karten fällig",
+      "home.nothingDue": "Nichts fällig — gut gemacht",
+      "home.nothingDueHint": "Alle Wiederholungen für heute sind erledigt.",
+
       // LP (Lernpunkte)
       "lp.balance": "{{count}} LP",
       "lp.notEnough": "Nicht genug LP. Benötigt: {{cost}}, Vorhanden: {{balance}}.",
@@ -504,6 +511,13 @@ export const resources = {
       "review.done": "Done",
       "review.lpEarned": "+{{count}} LP earned!",
       "review.saveError": "Answer couldn't be saved.",
+
+      // Home: learn entry into the global due round (#609)
+      "home.learnNow": "Learn now",
+      "home.dueCardsOne": "1 card due",
+      "home.dueCardsMany": "{{count}} cards due",
+      "home.nothingDue": "Nothing due — well done",
+      "home.nothingDueHint": "All reviews for today are done.",
 
       // LP (Lernpunkte)
       "lp.balance": "{{count}} LP",

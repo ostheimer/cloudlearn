@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState, type CSSProperties } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState, type CSSProperties, type MouseEvent } from "react";
 import {
   getStats,
   getLpBalance,
@@ -36,6 +37,7 @@ import {
 // Deck und der Scan-Einstieg. Alles aus vorhandenen Daten — kein neues Backend.
 export default function HomePage() {
   const { userId } = useAuth();
+  const router = useRouter();
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [lp, setLp] = useState<number | null>(null);
   const [friendStreaks, setFriendStreaks] = useState<FriendStreak[]>([]);
@@ -506,7 +508,26 @@ export default function HomePage() {
           </span>
           <span style={tileNum}>{decks}</span>
           <span style={tileLabel}>Decks</span>
-          <span style={badge(due > 0)}>{due > 0 ? `${due} fällig ›` : "Bibliothek ›"}</span>
+          {/* Die Pille führt bei fälligen Karten in die Lernrunde statt in die
+              Bibliothek (#609) — die Kachel drumherum bleibt der Bibliothek
+              treu. Verschachtelte Links sind ungültiges HTML, deshalb ein
+              Klick-Abfang auf der Pille selbst. */}
+          <span
+            style={{ ...badge(due > 0), ...(due > 0 ? { cursor: "pointer" } : {}) }}
+            {...(due > 0
+              ? {
+                  role: "link",
+                  "aria-label": `${due} fällige Karten jetzt lernen`,
+                  onClick: (e: MouseEvent) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    router.push("/dashboard/learn");
+                  },
+                }
+              : {})}
+          >
+            {due > 0 ? `${due} fällig ›` : "Bibliothek ›"}
+          </span>
         </Link>
 
         <Link href="/dashboard/stats" style={tileStyle}>
@@ -574,10 +595,68 @@ export default function HomePage() {
         </Link>
       )}
 
-      {/* Haupt-Aktion */}
+      {/* Lern-Einstieg (#609, Variante A): Bei fälligen Karten ist "Jetzt
+          lernen" der große violette Hauptknopf und startet die globale Runde
+          Deck für Deck; der Scan-Knopf tritt in den Rahmen-Stil zurück. Ohne
+          fällige Karten bleibt eine ruhige "gut gemacht"-Fläche stehen und
+          Scannen ist wieder die Haupt-Aktion — alles Laras Entscheidungen. */}
+      {due > 0 ? (
+        <Link
+          href="/dashboard/learn"
+          className="btn btn-primary btn-lg btn-block"
+          style={{
+            marginTop: 4,
+            textDecoration: "none",
+            width: "100%",
+            maxWidth: 420,
+            marginLeft: "auto",
+            marginRight: "auto",
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
+            paddingTop: 12,
+            paddingBottom: 12,
+          }}
+        >
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+            <BookOpen size={18} /> Jetzt lernen
+          </span>
+          <span style={{ fontSize: "0.78rem", fontWeight: 600, opacity: 0.85 }}>
+            {due === 1 ? "1 Karte fällig" : `${due} Karten fällig`}
+          </span>
+        </Link>
+      ) : (
+        <div
+          style={{
+            marginTop: 4,
+            width: "100%",
+            maxWidth: 420,
+            marginLeft: "auto",
+            marginRight: "auto",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 2,
+            background: "var(--surface)",
+            border: "1px solid var(--line)",
+            borderRadius: 14,
+            padding: "13px 16px",
+          }}
+        >
+          <span style={{ fontWeight: 600, fontSize: "0.95rem", color: "var(--ink-3)" }}>
+            Nichts fällig — gut gemacht
+          </span>
+          <span style={{ fontSize: "0.8rem", color: "var(--ink-4)" }}>
+            Alle Wiederholungen für heute sind erledigt.
+          </span>
+        </div>
+      )}
+
+      {/* Haupt-Aktion Scannen — im Rahmen-Stil, solange Lernen der laute
+          Knopf ist; gleiche Größe wie zuvor (Layout bleibt stabil). */}
       <Link
         href="/dashboard/import"
-        className="btn btn-primary btn-lg btn-block"
+        className={`btn btn-lg btn-block${due > 0 ? "" : " btn-primary"}`}
         style={{
           marginTop: 4,
           textDecoration: "none",
@@ -585,6 +664,14 @@ export default function HomePage() {
           maxWidth: 420,
           marginLeft: "auto",
           marginRight: "auto",
+          ...(due > 0
+            ? {
+                background: "var(--surface)",
+                color: "var(--brand-600)",
+                border: "1.5px solid var(--brand)",
+                boxShadow: "none",
+              }
+            : {}),
         }}
       >
         <ScanLine size={18} /> Neuen Text scannen
