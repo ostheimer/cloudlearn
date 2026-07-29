@@ -50,8 +50,10 @@ export const resources = {
       // LP Insufficient Modal
       "lp.insufficientTitle": "Nicht genug LP",
       "lp.insufficientDetail": "Dieses Feature kostet {{cost}} LP. Du hast {{balance}} LP.",
-      "lp.insufficientHint": "Du hast {{balance}} LP. KI-Scan kostet {{cost}} LP. Lade LP auf!",
+      "lp.insufficientHint": "Du hast {{balance}} LP. KI-Scan kostet {{cost}} LP. Neue Lernpunkte bekommst du durchs Lernen.",
       "lp.earnMore": "Jetzt aufladen",
+      "lp.learnNow": "Jetzt lernen",
+      "lp.learnNowSubtitle": "+1 LP je gelernte Karte — gratis",
       "lp.watchAd": "Werbung ansehen",
       "lp.watchAdFull": "Werbung ansehen & LP verdienen",
       "lp.watchAdSubtitle": "+{{count}} LP sofort",
@@ -390,6 +392,9 @@ export const resources = {
       "onboarding.howSubtitle": "Wische nach links = „Nochmal“, nach rechts = „Gewusst“. Tippe auf die Karte zum Umdrehen.",
       "onboarding.scanTitle": "Karten aus Fotos",
       "onboarding.scanSubtitle": "Fotografiere deine Notizen oder lade ein PDF hoch — die KI macht daraus fertige Karteikarten. Du findest das jederzeit im Tab „Scan“.",
+      "onboarding.lpTitle": "Was sind Lernpunkte?",
+      "onboarding.lpSubtitle":
+        "Lernpunkte (LP) sind das Guthaben der App: Du verdienst sie durchs Lernen — 1 LP für jede gelernte Karte — und gibst sie aus, wenn die KI für dich arbeitet, zum Beispiel beim Scannen. Lernen selbst ist immer gratis.",
       "onboarding.startTitle": "Dein erstes Deck",
       "onboarding.startSubtitle": "Wir legen dir 3 Beispielkarten an. Danach kannst du sofort loslegen.",
       "onboarding.next": "Weiter",
@@ -525,8 +530,10 @@ export const resources = {
       // LP Insufficient Modal
       "lp.insufficientTitle": "Not enough LP",
       "lp.insufficientDetail": "This feature costs {{cost}} LP. You have {{balance}} LP.",
-      "lp.insufficientHint": "You have {{balance}} LP. AI scan costs {{cost}} LP. Top up!",
+      "lp.insufficientHint": "You have {{balance}} LP. AI scan costs {{cost}} LP. You earn new LP by studying.",
       "lp.earnMore": "Top up",
+      "lp.learnNow": "Learn now",
+      "lp.learnNowSubtitle": "+1 LP per studied card — free",
       "lp.watchAd": "Watch ad",
       "lp.watchAdFull": "Watch ad & earn LP",
       "lp.watchAdSubtitle": "+{{count}} LP instantly",
@@ -863,6 +870,9 @@ export const resources = {
       "onboarding.howSubtitle": "Swipe left = \"Again\", right = \"Got it\". Tap the card to flip.",
       "onboarding.scanTitle": "Cards from photos",
       "onboarding.scanSubtitle": "Snap your notes or upload a PDF — AI turns them into ready-made flashcards. You'll find it anytime in the \"Scan\" tab.",
+      "onboarding.lpTitle": "What are learning points?",
+      "onboarding.lpSubtitle":
+        "Learning points (LP) are the app's balance: you earn them by studying — 1 LP per studied card — and spend them when AI works for you, for example when scanning. Studying itself is always free.",
       "onboarding.startTitle": "Your first deck",
       "onboarding.startSubtitle": "We'll create 3 sample cards for you. Then you can start right away.",
       "onboarding.next": "Next",

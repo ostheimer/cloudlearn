@@ -27,7 +27,8 @@ export function shouldShowOnboardingForDeckCount(deckCount: number): boolean {
 
 export const useOnboardingState = create<OnboardingState>((set, get) => ({
   step: 1,
-  totalSteps: 4,
+  // 5 seit #609: Schritt 4 erklärt die Lernpunkte, bevor die ersten weg sind.
+  totalSteps: 5,
   completed: false,
   nextStep: () => {
     const state = get();

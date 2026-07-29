@@ -1038,7 +1038,7 @@ export default function ScanScreen() {
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 2, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
                   <Zap size={13} color={colors.textInverse} />
                   <Text style={{ color: colors.textInverse, fontSize: typography.xs, fontWeight: typography.bold }}>
-                    {lpCostAiScan}
+                    {lpCostAiScan} LP
                   </Text>
                 </View>
               </>
@@ -1150,7 +1150,7 @@ export default function ScanScreen() {
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 2, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
                   <Zap size={13} color={colors.textInverse} />
                   <Text style={{ color: colors.textInverse, fontSize: typography.xs, fontWeight: typography.bold }}>
-                    {lpCostUrlImport}
+                    {lpCostUrlImport} LP
                   </Text>
                 </View>
               </>

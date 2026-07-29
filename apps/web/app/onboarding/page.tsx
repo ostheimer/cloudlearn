@@ -9,7 +9,7 @@ import {
   markOnboardingCompleted,
   rememberFreshWelcome,
 } from "@/lib/onboarding";
-import { GraduationCap, RotateCw, Sparkles, Layers } from "@/components/icons";
+import { GraduationCap, RotateCw, Sparkles, Layers, Zap } from "@/components/icons";
 
 // Gleiches Starter-Deck wie die App beim ersten Start anlegt.
 const SAMPLE_DECK_TITLE = "Erste Karten";
@@ -41,6 +41,15 @@ const STEPS: { Icon: typeof Layers; title: string; subtitle: string }[] = [
     title: "Karten aus Fotos",
     subtitle:
       "Fotografiere deine Notizen oder lade ein PDF hoch — die KI macht daraus fertige Karteikarten. Du findest das jederzeit unter „Scan“.",
+  },
+  {
+    // Lernpunkte erklären, bevor die ersten weg sind (#609, Laras Wortlaut) —
+    // gleicher Blitz wie die LP-Pille. Denselben Schritt hat auch die App
+    // (onboarding.lpTitle).
+    Icon: Zap,
+    title: "Was sind Lernpunkte?",
+    subtitle:
+      "Lernpunkte (LP) sind das Guthaben der App: Du verdienst sie durchs Lernen — 1 LP für jede gelernte Karte — und gibst sie aus, wenn die KI für dich arbeitet, zum Beispiel beim Scannen. Lernen selbst ist immer gratis.",
   },
   {
     Icon: Layers,
