@@ -148,9 +148,12 @@ export default function FriendAddPage() {
           <Gift size={22} style={{ color: "var(--green)", flex: "none" }} />
           <div>
             <div style={{ fontWeight: 600 }}>Zusammen lernen lohnt sich</div>
+            {/* Mit Zahlen wie in der App (#595), aus der Sicht der Einlöserin:
+                „du" löst den Code ein (25), der Code-Besitzer wirbt (50). */}
             <p className="muted" style={{ margin: "2px 0 0", fontSize: "0.88rem", lineHeight: 1.5 }}>
               Fügst du einen Freund oder eine Freundin per Code hinzu, bekommt ihr beim ersten Mal
-              beide Lernpunkte — und ihr könnt sofort einen gemeinsamen Streak starten.
+              Lernpunkte: du 25, dein Freund oder deine Freundin 50 — und ihr könnt sofort einen
+              gemeinsamen Streak starten.
             </p>
           </div>
         </div>

@@ -10,7 +10,7 @@
  * sie ehrlich neben der selbst vergebenen steht.
  */
 import { ListChecks } from "@/components/icons";
-import { accColor } from "./accuracy-by-kind";
+import { accColor } from "@/lib/accuracy-color";
 import type { TestAttemptSummary } from "@/lib/api";
 import {
   examPercentOverShown,
@@ -75,7 +75,9 @@ export function TestAttemptsPanel({
       {/* Vergleich: die gemessene Zahl betont, die selbst vergebene blass daneben. */}
       <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
         <div style={{ flex: 1, background: "var(--bg-soft)", borderRadius: 10, padding: "10px 12px" }}>
-          <div style={{ fontSize: "1.4rem", fontWeight: 500, color: accColor(examPct) }}>{examPct} %</div>
+          {/* accColor erwartet den Anteil 0..1 — der ganze Prozentwert machte
+              aus 1 % ein grünes „100 %" (#595). */}
+          <div style={{ fontSize: "1.4rem", fontWeight: 500, color: accColor(examPct / 100) }}>{examPct} %</div>
           <div className="muted" style={{ fontSize: "0.75rem" }}>in Prüfungen</div>
         </div>
         {selfPct != null && (
@@ -147,7 +149,7 @@ export function TestAttemptsPanel({
                 <div className="muted" style={{ fontSize: "0.75rem" }}>{relativeDay(attempt.submittedAt)}</div>
               </div>
               <div style={{ textAlign: "right", flex: "none" }}>
-                <div style={{ fontSize: "0.9rem", fontWeight: 500, color: accColor(pct) }}>{pct} %</div>
+                <div style={{ fontSize: "0.9rem", fontWeight: 500, color: accColor(pct / 100) }}>{pct} %</div>
                 <div className="muted" style={{ fontSize: "0.75rem" }}>
                   {attempt.correctCount} von {attempt.questionCount}
                 </div>

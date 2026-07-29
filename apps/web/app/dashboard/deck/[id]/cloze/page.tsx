@@ -551,8 +551,14 @@ export default function ClozePage() {
         >
           <X size={16} /> Beenden
         </button>
+        {/* Grün bei 100 % wie die App und die Lernansicht (#595). */}
         <div className="progress">
-          <i style={{ width: `${Math.max(progress * 100, 2)}%` }} />
+          <i
+            style={{
+              width: `${Math.max(progress * 100, 2)}%`,
+              ...(progress >= 1 ? { background: "var(--green)" } : {}),
+            }}
+          />
         </div>
         <span className="muted" style={{ fontWeight: 700, fontSize: "0.9rem" }}>
           Karte {idx + 1} von {round.length}

@@ -717,7 +717,7 @@ export default function TestPage() {
           </>
         ) : (
           <button type="button" className="btn btn-primary btn-block" onClick={() => void startTest()}>
-            <RotateCw size={18} /> Nochmal
+            <RotateCw size={18} /> Alle nochmal
           </button>
         )}
         <button

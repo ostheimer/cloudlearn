@@ -15,7 +15,8 @@ import {
 import { BarChart, ChevronRight, Flame, Lock, TrendingUp } from "@/components/icons";
 import { useCoarsePointer } from "@/lib/use-coarse-pointer";
 import { AccuracyRing, AccuracyTrendChart, ActivityBars } from "@/components/app/stats-charts";
-import { AccuracyByKindPanel, accColor } from "@/components/app/accuracy-by-kind";
+import { AccuracyByKindPanel } from "@/components/app/accuracy-by-kind";
+import { accColor } from "@/lib/accuracy-color";
 import { TestAttemptsPanel } from "@/components/app/test-attempts-panel";
 
 export default function StatsPage() {

@@ -513,8 +513,15 @@ export function LearnSession({
         >
           <X size={16} /> Beenden
         </button>
+        {/* Wie App und Lückentext (#595): das Umdrehen zählt schon als halber
+            Schritt, der 2-%-Sockel zeigt den Rundenstart, 100 % werden grün. */}
         <div className="progress">
-          <i style={{ width: `${(index / total) * 100}%` }} />
+          <i
+            style={{
+              width: `${Math.max(((index + (flipped ? 1 : 0)) / total) * 100, 2)}%`,
+              ...(index + (flipped ? 1 : 0) >= total ? { background: "var(--green)" } : {}),
+            }}
+          />
         </div>
         <span className="muted" style={{ fontWeight: 700, fontSize: "0.9rem" }}>
           Karte {index + 1} von {total}

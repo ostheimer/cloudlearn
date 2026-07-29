@@ -13,23 +13,15 @@
  * die Statistikseite — eine nachgebaute Kopie würde genau das Detail nicht
  * zeigen, das später bricht.
  */
+import { accColor } from "@/lib/accuracy-color";
+
+/** `rate` ist der Anteil 0..1, wie ihn der Server liefert. */
 export type AccuracyKind = { rate: number; answers: number };
 
 export type AccuracyByKind = {
   recall: AccuracyKind;
   recognition: AccuracyKind;
 };
-
-/** Die Ampel der Statistikseite: unter 60 rot, unter 80 gelb, sonst grün.
- *  Von hier aus geteilt, damit die Balken hier und die Deck-Liste nie
- *  verschiedene Schwellen benutzen — zwei Ampeln, die bei 61 % anders
- *  entscheiden, liest niemand als Fehler, sondern als Willkür. */
-export function accColor(rate: number): string {
-  const pct = rate <= 1 ? rate * 100 : rate;
-  if (pct < 60) return "#e2504a";
-  if (pct < 80) return "#d97706";
-  return "#16a34a";
-}
 
 // Die Lernmodi stehen im Klartext dabei: „Abruf" und „Wiedererkennen" sind die
 // Fachwörter, aber die Namen der Modi sind das, was man angetippt hat.

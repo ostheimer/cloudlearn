@@ -39,9 +39,9 @@ export interface SessionProgress {
   /** Kartenquelle der Runde ("all" | "starred" | "wobbly"). */
   source: string;
   /**
-   * Ob rückwärts (Rückseite zuerst) abgefragt wurde. Das Karteikarten-Lernen
-   * im Web tauscht (noch) nicht; das Feld hält das Format deckungsgleich zur
-   * App und trägt beim Lückentext die gewählte Richtung.
+   * Ob rückwärts (Rückseite zuerst) abgefragt wurde. Trägt in beiden
+   * Lernarten die gewählte Richtung — Karteikarten tauschen im Web seit #582
+   * ebenfalls; das Format bleibt deckungsgleich zur App.
    */
   reverse: boolean;
   /** Kartenzahl beim Speichern, für „Karte 9 von 40“. */
