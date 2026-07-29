@@ -2641,6 +2641,10 @@ a.mode-card:hover {
 .cl-input.no {
   border-color: #ef4444;
 }
+/* Gelbe „Fast"-Stufe (#610): nur die Groß-/Kleinschreibung weicht ab. */
+.cl-input.near {
+  border-color: #f59e0b;
+}
 .cl-fb {
   display: flex;
   gap: 10px;
@@ -2654,6 +2658,9 @@ a.mode-card:hover {
 .cl-fb.no {
   background: rgba(239, 68, 68, 0.12);
 }
+.cl-fb.near {
+  background: rgba(245, 158, 11, 0.14);
+}
 .cl-fb__ic {
   flex: none;
 }
@@ -2663,6 +2670,9 @@ a.mode-card:hover {
 .cl-fb.no .cl-fb__ic {
   color: #ef4444;
 }
+.cl-fb.near .cl-fb__ic {
+  color: #d97706;
+}
 .cl-fb b {
   display: block;
 }
@@ -2671,6 +2681,9 @@ a.mode-card:hover {
 }
 .cl-fb.no b {
   color: #b91c1c;
+}
+.cl-fb.near b {
+  color: #b45309;
 }
 .cl-fb__sol {
   color: var(--ink);
@@ -2721,6 +2734,9 @@ a.mode-card:hover {
   }
   .cl-fb.no b {
     color: #fca5a5;
+  }
+  .cl-fb.near b {
+    color: #fcd34d;
   }
 }
 

@@ -1,5 +1,32 @@
 import { describe, it, expect } from "vitest";
-import { normalizeAnswer, levenshtein, isAnswerCorrect } from "./answerCheck";
+import {
+  normalizeAnswer,
+  levenshtein,
+  isAnswerCorrect,
+  isCaseOnlyMismatch,
+} from "./answerCheck";
+
+describe("isCaseOnlyMismatch — the yellow 'Fast' state (#610)", () => {
+  it("detects a pure case mismatch, including alternatives", () => {
+    expect(isCaseOnlyMismatch("hund", "Hund")).toBe(true);
+    expect(isCaseOnlyMismatch("COUCH", "Couch/Sofa")).toBe(true);
+    expect(isCaseOnlyMismatch("élève", "Élève")).toBe(true);
+  });
+
+  it("stays silent for exact or entirely different answers", () => {
+    expect(isCaseOnlyMismatch("Hund", "Hund")).toBe(false);
+    expect(isCaseOnlyMismatch("Katze", "Hund")).toBe(false);
+  });
+
+  it("typos and accents are no 'Fast' — real mistakes in strict mode", () => {
+    expect(isCaseOnlyMismatch("hundd", "Hund")).toBe(false);
+    expect(isCaseOnlyMismatch("cafe", "Café")).toBe(false);
+  });
+
+  it("empty input is no 'Fast'", () => {
+    expect(isCaseOnlyMismatch("   ", "Hund")).toBe(false);
+  });
+});
 
 describe("normalizeAnswer", () => {
   it("lowercases and trims", () => {
