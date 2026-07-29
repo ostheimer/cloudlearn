@@ -1,4 +1,17 @@
 import { createSupabaseAdminClient } from "./supabase";
+import type { SubscriptionTier } from "./contracts";
+
+/**
+ * Requests-per-minute für einen Tarif. Jeder BEZAHLTE Tarif (pro UND lifetime)
+ * bekommt das Pro-Limit — die Import-/Scan-Routen prüften vorher wörtlich
+ * `plan === "pro"`, wodurch Lifetime-Käufer auf das Free-Limit fielen (#607).
+ */
+export function rateLimitPerMinuteForTier(
+  tier: SubscriptionTier,
+  env: { RATE_LIMIT_FREE_PER_MINUTE: number; RATE_LIMIT_PRO_PER_MINUTE: number }
+): number {
+  return tier === "free" ? env.RATE_LIMIT_FREE_PER_MINUTE : env.RATE_LIMIT_PRO_PER_MINUTE;
+}
 
 /**
  * Persistent, cross-instance rate limiting backed by Supabase Postgres.

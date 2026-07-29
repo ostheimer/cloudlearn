@@ -2,7 +2,7 @@ import { type NextRequest } from "next/server";
 import { getEnv } from "@/lib/env";
 import { jsonError, jsonOk, normalizeError } from "@/lib/http";
 import { createRequestContext, logError, logInfo } from "@/lib/observability";
-import { checkRateLimit } from "@/lib/rateLimit";
+import { checkRateLimit, rateLimitPerMinuteForTier } from "@/lib/rateLimit";
 import { getAuthUser } from "@/lib/auth";
 import { saveImportedCards } from "@/services/importSaveService";
 import { getSubscriptionStatus } from "@/services/subscriptionService";
@@ -27,8 +27,7 @@ export async function POST(request: NextRequest) {
 
     const { tier: plan } = await getSubscriptionStatus(userId);
     const env = getEnv();
-    const rateLimit =
-      plan === "pro" ? env.RATE_LIMIT_PRO_PER_MINUTE : env.RATE_LIMIT_FREE_PER_MINUTE;
+    const rateLimit = rateLimitPerMinuteForTier(plan, env);
     if (!(await checkRateLimit(`${userId}:${plan}`, rateLimit))) {
       return jsonError(requestId, "RATE_LIMITED", "Rate limit exceeded", 429);
     }

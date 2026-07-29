@@ -1181,7 +1181,12 @@ export async function getSubscriptionTier(
     .select("subscription_tier, subscription_expires_at")
     .eq("id", userId)
     .maybeSingle();
-  if (error || !data) return { tier: "free", expiresAt: null, isActive: true };
+  // Ein LESE-FEHLER darf nicht still zu "free" werden: an diesem Tier hängen
+  // LP-Preise, Tarifgrenzen, Rate-Limits und 402-Paywalls — ein Pro-Konto
+  // zahlte sonst bei jedem DB-Schluckauf Free-Preise (#607). Kein Profil
+  // (ohne Fehler) heißt dagegen wirklich free.
+  if (error) throw new Error(`getSubscriptionTier: ${error.message}`);
+  if (!data) return { tier: "free", expiresAt: null, isActive: true };
   const expiresAt = data.subscription_expires_at ?? null;
   const isActive = !expiresAt || new Date(expiresAt) > new Date();
   const tier: SubscriptionTier =

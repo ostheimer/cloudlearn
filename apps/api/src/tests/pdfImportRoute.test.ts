@@ -52,7 +52,10 @@ vi.mock("@/lib/http", () => {
 });
 
 vi.mock("@/lib/auth", () => ({ getAuthUser: vi.fn() }));
-vi.mock("@/lib/rateLimit", () => ({ checkRateLimit: vi.fn().mockResolvedValue(true) }));
+vi.mock("@/lib/rateLimit", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/rateLimit")>()),
+  checkRateLimit: vi.fn().mockResolvedValue(true),
+}));
 vi.mock("@/lib/env", () => ({
   getEnv: () => ({ RATE_LIMIT_FREE_PER_MINUTE: 20, RATE_LIMIT_PRO_PER_MINUTE: 60 }),
 }));
