@@ -2,6 +2,12 @@
 // apps/mobile/src/lib/quizQuestions.ts, ohne Bild-/Medienfragen). Erzeugt
 // Multiple-Choice- und Wahr/Falsch-Fragen aus den Karten eines Decks, gesteuert
 // über die im Setup gewählten Optionen (Richtung + Fragetypen).
+//
+// Kartentexte werden wie in der App vorab aufbereitet (#569): Bild-Markdown
+// raus, Übersetzungs-Zusätze raus, und der Lückensatz zeigt den Strich statt
+// {{cN::…}} — sonst stünde die Lösung sichtbar in der Frage.
+
+import { cleanTerm, formatCloze, summarizeCardMedia } from "./card-display";
 
 export interface QuizCardInput {
   id: string;
@@ -97,17 +103,23 @@ export function generateQuestions(
 
   const seenPairs = new Set<string>();
   const enriched = cards.flatMap((card) => {
-    const front = (card.front || "").trim();
-    const back = (card.back || "").trim();
+    // Aufbereitung wie die App: Bild-Markdown raus, Übersetzungs-Zusätze raus.
+    // Reine Bild-Karten haben danach keinen Text mehr und fallen weg — ohne
+    // Bildanzeige (Dateikopf) wäre ihre Frage nicht beantwortbar.
+    const media = summarizeCardMedia({ front: card.front || "", back: card.back || "" });
+    const front = cleanTerm(media.plainFront);
+    const back = cleanTerm(media.plainBack);
     if (!front || !back) return [];
     // Decks enthalten Karten manchmal doppelt (Doppel-Scans) — Duplikate raus.
+    // Der Schlüssel nutzt den Satz MIT {{cN::…}}: zwei Lückensätze, die sich
+    // nur in der Lösung unterscheiden, sind keine Duplikate.
     const key = `${front}|${back}`.toLowerCase();
     if (seenPairs.has(key)) return [];
     seenPairs.add(key);
     const fillIn = isFillIn(front);
     // Frage-/Antwortseite folgt der Richtung; Lücken-Karten zeigen immer ihren
-    // Lückensatz und erwarten das fehlende Wort.
-    const questionSide = fillIn || !reverse ? front : back;
+    // Lückensatz (mit Strich statt Lücken-Code) und erwarten das fehlende Wort.
+    const questionSide = fillIn ? formatCloze(front).display : reverse ? back : front;
     const answerSide = fillIn || !reverse ? back : front;
     return [
       {

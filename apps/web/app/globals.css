@@ -1033,6 +1033,22 @@ ul.reset {
   opacity: 0.6;
 }
 
+/* Bild einer Bild-Karte (#569) — wie die App: begrenzt und eingepasst.
+   Die Kartenflächen liegen absolut, ihre Höhe kommt allein von der
+   min-height des Rahmens — darum braucht eine Karte mit Bild mehr davon,
+   sonst liefe der Inhalt unten aus der Karte heraus. */
+.flip__img {
+  justify-self: center;
+  max-width: min(72%, 320px);
+  max-height: 200px;
+  border-radius: 12px;
+  object-fit: contain;
+}
+
+.flip--media .flip__inner {
+  min-height: 400px;
+}
+
 .rating-row {
   display: flex;
   gap: 8px;

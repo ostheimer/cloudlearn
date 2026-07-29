@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
 import { listCardsInDeck, reviewCard, earnLp, isApiError, type Card } from "@/lib/api";
 import { isAnswerCorrect } from "@/lib/answerCheck";
+import { buildPrompt, hasTypeable } from "@/lib/cloze-prompt";
 import { createReviewSendBuffer } from "@/lib/review-send-buffer";
 import { useDisplayName } from "@/lib/use-display-name";
 import { useWobblyIds } from "@/lib/use-wobbly-ids";
@@ -36,37 +37,7 @@ import {
   AlertTriangle,
 } from "@/components/icons";
 
-type Parsed = { prompt: string; answer: string; isCloze: boolean };
 type Result = { input: string; correct: boolean; overridden: boolean };
-
-// Baut die „Lücke zum Füllen" aus einer Karte:
-//   - Cloze-Karten ({{cN::x}}): Satz mit Lücke zeigen, Antwort ist x
-//     (die Lücke steckt fest im Text, Richtung ändert nichts)
-//   - normale Karten: eine Seite zeigen, die andere tippen; `reverse` tauscht.
-function buildPrompt(card: Card, reverse: boolean): Parsed {
-  const rf = (card.front || "").trim();
-  const rb = (card.back || "").trim();
-  const m = rf.match(/\{\{c\d+::(.+?)\}\}/);
-  if (m) {
-    return {
-      prompt: rf.replace(/\{\{c\d+::.+?\}\}/g, "______"),
-      answer: (m[1] ?? "").trim(),
-      isCloze: true,
-    };
-  }
-  return reverse
-    ? { prompt: rb, answer: rf, isCloze: false }
-    : { prompt: rf, answer: rb, isCloze: false };
-}
-
-// Nutzbar, wenn man in der gewählten Richtung etwas eintippen kann.
-function hasTypeable(card: Card): boolean {
-  const rf = (card.front || "").trim();
-  const rb = (card.back || "").trim();
-  const m = rf.match(/\{\{c\d+::(.+?)\}\}/);
-  if (m) return (m[1] ?? "").trim().length > 0;
-  return rf.length > 0 && rb.length > 0;
-}
 
 export default function ClozePage() {
   const params = useParams<{ id: string }>();
