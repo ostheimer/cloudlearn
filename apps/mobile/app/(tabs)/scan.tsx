@@ -73,6 +73,12 @@ import {
   removeCardAt,
 } from "../../src/lib/cardDraft";
 import {
+  clearScanDraft,
+  loadScanDraft,
+  saveScanDraft,
+  type ScanDraft,
+} from "../../src/features/capture/scanDraft";
+import {
   getStableImportAttemptKey,
   type ImportAttemptKey,
 } from "../../src/features/ocr/importAttemptIdempotency";
@@ -155,6 +161,44 @@ export default function ScanScreen() {
   const [sourceUrl, setSourceUrl] = useState("");
   const [pdfFileName, setPdfFileName] = useState("");
   const [pdfPageCount, setPdfPageCount] = useState<number | null>(null);
+  // #608: Ein auf diesem Gerät gemerkter, unfertiger Entwurf einer FRÜHEREN
+  // Sitzung. Wird im Auswahl-Menü nur ANGEBOTEN (Weitermachen/Verwerfen), nie
+  // automatisch angewendet — Muster wie das Weitermachen einer Lernrunde.
+  const [storedDraft, setStoredDraft] = useState<ScanDraft | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadScanDraft().then((d) => {
+      if (!cancelled) setStoredDraft(d);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // #608: Die Vorschau bei jeder Änderung auf dem Gerät ablegen — die Karten
+  // haben Lernpunkte gekostet; beendet das System die App im Hintergrund,
+  // darf sie das nicht mehr kosten. Der Ref unterscheidet „Vorschau leer
+  // geräumt" (Merker löschen) von „noch keine Vorschau" (gemerkten Entwurf
+  // einer früheren Sitzung in Ruhe lassen).
+  const hadPreviewRef = useRef(false);
+  useEffect(() => {
+    if (saved) {
+      // Erfolgreich gespeichert — der Entwurf ist am Ziel, der Merker weg.
+      if (hadPreviewRef.current) {
+        hadPreviewRef.current = false;
+        void clearScanDraft();
+      }
+      return;
+    }
+    if (cards.length > 0) {
+      hadPreviewRef.current = true;
+      void saveScanDraft({ cards, deckTitle, savedDeckId });
+    } else if (hadPreviewRef.current) {
+      hadPreviewRef.current = false;
+      void clearScanDraft();
+    }
+  }, [cards, deckTitle, savedDeckId, saved]);
 
   const cameraRef = useRef<CameraView>(null);
   const importAttemptRef = useRef<ImportAttemptKey | null>(null);
@@ -771,6 +815,40 @@ export default function ScanScreen() {
     importAttemptRef.current = null;
   };
 
+  // ─── #608: Gemerkten Entwurf einer früheren Sitzung fortsetzen/verwerfen ──
+  const resumeStoredDraft = () => {
+    if (!storedDraft) return;
+    setCards(storedDraft.cards);
+    setDeckTitle(storedDraft.deckTitle);
+    // Deck eines teil-gescheiterten Speicherversuchs weiterverwenden — sonst
+    // legte „Speichern" nach dem Fortsetzen ein zweites Deck an.
+    setSavedDeckId(storedDraft.savedDeckId);
+    setSaved(false);
+    setStoredDraft(null);
+  };
+
+  const discardStoredDraft = () => {
+    if (!storedDraft) return;
+    // Gleiche Nachfrage wie beim Verwerfen der offenen Vorschau (startNewScan):
+    // die gemerkten Karten sind genauso bezahlt.
+    Alert.alert(
+      "Karten verwerfen?",
+      `Du hast ${storedDraft.cards.length} gemerkte Karten, die noch nicht gespeichert ` +
+        `sind. Wenn du sie verwirfst, sind sie weg — die Lernpunkte kommen nicht zurück.`,
+      [
+        { text: "Abbrechen", style: "cancel" },
+        {
+          text: "Verwerfen",
+          style: "destructive",
+          onPress: () => {
+            void clearScanDraft();
+            setStoredDraft(null);
+          },
+        },
+      ]
+    );
+  };
+
   // #442: Seit der Vorschau speichert der Scan nicht mehr automatisch. „Neuen
   // Scan starten" würde die erzeugten Karten also verwerfen — und die dafür
   // gezahlten Lernpunkte kommen nicht zurück (die KI hat gearbeitet). Vorher
@@ -1104,6 +1182,73 @@ export default function ScanScreen() {
           {/* LP balance badge */}
           <LpBadge onPress={() => router.push("/lp-store")} />
         </View>
+
+        {/* #608: Ein gemerkter, unfertiger Entwurf wird angeboten, nie
+            automatisch geöffnet — wie das Weitermachen einer Lernrunde. */}
+        {storedDraft && cards.length === 0 && !loading && (
+          <View
+            style={{
+              backgroundColor: colors.surface,
+              borderWidth: 2,
+              borderColor: colors.primary,
+              borderRadius: radius.md,
+              padding: spacing.md,
+              gap: spacing.xs,
+            }}
+          >
+            <Text
+              style={{
+                color: colors.text,
+                fontSize: typography.base,
+                fontWeight: typography.semibold,
+              }}
+            >
+              Unfertiger Import
+            </Text>
+            <Text style={{ color: colors.textSecondary, fontSize: typography.sm }}>
+              {storedDraft.cards.length} erstellte{" "}
+              {storedDraft.cards.length === 1 ? "Karte wurde" : "Karten wurden"} noch nicht
+              gespeichert.
+            </Text>
+            <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs }}>
+              <TouchableOpacity
+                onPress={resumeStoredDraft}
+                activeOpacity={0.85}
+                style={{
+                  backgroundColor: colors.primary,
+                  paddingVertical: spacing.sm,
+                  paddingHorizontal: spacing.lg,
+                  borderRadius: radius.sm,
+                }}
+              >
+                <Text
+                  style={{
+                    color: "#ffffff",
+                    fontWeight: typography.semibold,
+                    fontSize: typography.sm,
+                  }}
+                >
+                  Weitermachen
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={discardStoredDraft}
+                activeOpacity={0.85}
+                style={{
+                  paddingVertical: spacing.sm,
+                  paddingHorizontal: spacing.lg,
+                  borderRadius: radius.sm,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                }}
+              >
+                <Text style={{ color: colors.textSecondary, fontSize: typography.sm }}>
+                  Verwerfen
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
         {/* LP insufficient hint */}
         {lpBalance < lpCostAiScan && cards.length === 0 && !loading && (
