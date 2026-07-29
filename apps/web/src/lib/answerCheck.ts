@@ -55,6 +55,22 @@ function splitAlternatives(expected: string): string[] {
     .filter((candidate) => candidate.length > 0);
 }
 
+/**
+ * Wahr, wenn die Antwort NUR an der Groß-/Kleinschreibung scheitert. Der
+ * Lückentext zeigt dann die gelbe „Fast"-Stufe statt rot (#610, Laras
+ * Entscheidung): Die Tastatur schreibt dort absichtlich klein, also wird
+ * ehrlich benannt, was fehlt — gezählt wird erst, wenn die Lernerin es
+ * selbst über „Trotzdem als richtig zählen" entscheidet. Tippfehler und
+ * Akzente bleiben bewusst außen vor: Die sind im strengen Modus echte Fehler.
+ */
+export function isCaseOnlyMismatch(input: string, expected: string): boolean {
+  const answer = input.trim();
+  if (!answer) return false;
+  return splitAlternatives(expected).some(
+    (candidate) => candidate !== answer && candidate.toLowerCase() === answer.toLowerCase()
+  );
+}
+
 export function isAnswerCorrect(
   input: string,
   expected: string,

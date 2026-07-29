@@ -16,6 +16,7 @@ import { useTranslation } from "react-i18next";
 import {
   CheckCircle2,
   XCircle,
+  AlertTriangle,
   ArrowLeft,
   ArrowRight,
   HelpCircle,
@@ -51,7 +52,7 @@ import { useUsageStore } from "../src/store/usageStore";
 import { excludeOcclusionCards } from "../src/lib/occlusion";
 import { summarizeCardMedia } from "../src/lib/cardMedia";
 import { formatCloze } from "../src/lib/cloze";
-import { isAnswerCorrect } from "../src/lib/answerCheck";
+import { isAnswerCorrect, isCaseOnlyMismatch } from "../src/lib/answerCheck";
 import { cleanTerm } from "../src/lib/cardTerms";
 import { fetchDeckStats } from "../src/lib/statsApi";
 import { useDisplayName } from "../src/lib/useDisplayName";
@@ -245,6 +246,13 @@ export default function ClozeScreen() {
   const wasCorrect = currentResult
     ? currentResult.correct || currentResult.overridden
     : false;
+  // Gelbe „Fast"-Stufe (#610, Laras Entscheidung): Die Antwort scheitert NUR
+  // an der Groß-/Kleinschreibung. Sie zählt nicht automatisch als richtig —
+  // der „Trotzdem als richtig zählen"-Knopf darunter entscheidet.
+  const nearMiss =
+    revealed && !wasCorrect && parsed
+      ? isCaseOnlyMismatch(currentResult?.input ?? "", parsed.answer)
+      : false;
   const displayedInput = currentResult ? currentResult.input : input;
 
   const setResultAt = (
@@ -1042,7 +1050,9 @@ export default function ClozeScreen() {
                   ? colors.border
                   : wasCorrect
                     ? colors.success
-                    : colors.error,
+                    : nearMiss
+                      ? colors.warning
+                      : colors.error,
                 borderRadius: radius.md,
                 paddingHorizontal: 14,
                 paddingVertical: 14,
@@ -1061,13 +1071,19 @@ export default function ClozeScreen() {
                     flexDirection: "row",
                     alignItems: "center",
                     gap: spacing.sm,
-                    backgroundColor: wasCorrect ? colors.successLight : colors.errorLight,
+                    backgroundColor: wasCorrect
+                      ? colors.successLight
+                      : nearMiss
+                        ? colors.warningLight
+                        : colors.errorLight,
                     borderRadius: radius.md,
                     padding: spacing.md,
                   }}
                 >
                   {wasCorrect ? (
                     <CheckCircle2 size={22} color={colors.success} />
+                  ) : nearMiss ? (
+                    <AlertTriangle size={22} color={colors.warning} />
                   ) : (
                     <XCircle size={22} color={colors.error} />
                   )}
@@ -1076,10 +1092,18 @@ export default function ClozeScreen() {
                       style={{
                         fontSize: typography.base,
                         fontWeight: typography.bold,
-                        color: wasCorrect ? colors.success : colors.error,
+                        color: wasCorrect
+                          ? colors.success
+                          : nearMiss
+                            ? colors.warning
+                            : colors.error,
                       }}
                     >
-                      {wasCorrect ? "Richtig" : "Falsch"}
+                      {wasCorrect
+                        ? "Richtig"
+                        : nearMiss
+                          ? "Fast — achte auf die Großschreibung"
+                          : "Falsch"}
                     </Text>
                     <Text
                       style={{

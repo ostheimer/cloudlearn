@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
 import { listCardsInDeck, reviewCard, earnLp, isApiError, type Card } from "@/lib/api";
-import { isAnswerCorrect } from "@/lib/answerCheck";
+import { isAnswerCorrect, isCaseOnlyMismatch } from "@/lib/answerCheck";
 import { buildPrompt, hasTypeable } from "@/lib/cloze-prompt";
 import { createReviewSendBuffer } from "@/lib/review-send-buffer";
 import {
@@ -152,6 +152,13 @@ export default function ClozePage() {
   const result = results[idx] ?? null;
   const revealed = result !== null;
   const wasCorrect = result ? result.correct || result.overridden : false;
+  // Gelbe „Fast"-Stufe (#610, Laras Entscheidung): Die Antwort scheitert NUR
+  // an der Groß-/Kleinschreibung. Sie zählt nicht automatisch als richtig —
+  // der „Trotzdem als richtig zählen"-Knopf darunter entscheidet.
+  const nearMiss =
+    revealed && !wasCorrect && parsed
+      ? isCaseOnlyMismatch(result?.input ?? "", parsed.answer)
+      : false;
 
   // Eingabefeld bei neuer, unbeantworteter Karte fokussieren.
   useEffect(() => {
@@ -679,7 +686,7 @@ export default function ClozePage() {
 
       <input
         ref={inputRef}
-        className={`cl-input${revealed ? (wasCorrect ? " ok" : " no") : ""}`}
+        className={`cl-input${revealed ? (wasCorrect ? " ok" : nearMiss ? " near" : " no") : ""}`}
         placeholder="Antwort eintippen…"
         value={revealed ? result?.input ?? "" : input}
         disabled={revealed}
@@ -697,12 +704,24 @@ export default function ClozePage() {
       />
 
       {revealed && (
-        <div className={`cl-fb ${wasCorrect ? "ok" : "no"}`}>
+        <div className={`cl-fb ${wasCorrect ? "ok" : nearMiss ? "near" : "no"}`}>
           <span className="cl-fb__ic" aria-hidden>
-            {wasCorrect ? <CheckCircle size={22} /> : <X size={22} />}
+            {wasCorrect ? (
+              <CheckCircle size={22} />
+            ) : nearMiss ? (
+              <AlertTriangle size={22} />
+            ) : (
+              <X size={22} />
+            )}
           </span>
           <div>
-            <b>{wasCorrect ? "Richtig" : "Falsch"}</b>
+            <b>
+              {wasCorrect
+                ? "Richtig"
+                : nearMiss
+                  ? "Fast — achte auf die Großschreibung"
+                  : "Falsch"}
+            </b>
             <div className="cl-fb__sol">Lösung: {parsed?.answer}</div>
           </div>
         </div>
