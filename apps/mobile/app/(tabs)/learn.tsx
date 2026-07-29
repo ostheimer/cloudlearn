@@ -962,20 +962,48 @@ function AuthenticatedLearnScreen({
                 <Text style={{ color: c.textSecondary, textAlign: "center", fontSize: typography.base }}>
                   {t("review.noCardsHint")}
                 </Text>
-                <TouchableOpacity
-                  onPress={loadDueCards}
-                  activeOpacity={0.8}
-                  style={{
-                    backgroundColor: c.primary, borderRadius: radius.md,
-                    paddingHorizontal: spacing.xxl, paddingVertical: 14,
-                    flexDirection: "row", gap: spacing.sm, alignItems: "center",
-                  }}
-                >
-                  <RotateCcw size={18} color="#fff" />
-                  <Text style={{ color: "#fff", fontWeight: typography.semibold, fontSize: typography.base }}>
-                    {t("review.reload")}
-                  </Text>
-                </TouchableOpacity>
+                {/* Auswege statt Sackgasse (#609): Der Hinweis riet zum Scannen,
+                    aber es gab keinen Knopf dorthin — nur "Neu laden". */}
+                <View style={{ width: "100%", maxWidth: 340, gap: spacing.sm }}>
+                  <TouchableOpacity
+                    onPress={() => router.push("/(tabs)/scan")}
+                    activeOpacity={0.8}
+                    style={{
+                      backgroundColor: c.primary, borderRadius: radius.md,
+                      paddingVertical: 14, alignItems: "center", justifyContent: "center",
+                    }}
+                  >
+                    <Text style={{ color: "#fff", fontWeight: typography.semibold, fontSize: typography.base }}>
+                      {t("review.emptyScan")}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => router.push("/(tabs)/decks")}
+                    activeOpacity={0.8}
+                    style={{
+                      backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
+                      borderRadius: radius.md, paddingVertical: 14,
+                      alignItems: "center", justifyContent: "center",
+                    }}
+                  >
+                    <Text style={{ color: c.text, fontWeight: typography.semibold, fontSize: typography.base }}>
+                      {t("review.emptyLibrary")}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={loadDueCards}
+                    activeOpacity={0.8}
+                    style={{
+                      paddingVertical: 12, flexDirection: "row", gap: spacing.sm,
+                      alignItems: "center", justifyContent: "center",
+                    }}
+                  >
+                    <RotateCcw size={16} color={c.textSecondary} />
+                    <Text style={{ color: c.textSecondary, fontWeight: typography.semibold, fontSize: typography.base }}>
+                      {t("review.reload")}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             ) : (
               // Result: how many known + re-study only the missed ones. Same

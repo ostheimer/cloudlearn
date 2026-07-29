@@ -38,6 +38,7 @@ import {
 } from "lucide-react-native";
 import { useSessionStore } from "../../src/store/sessionStore";
 import { useOcrEditorState } from "../../src/features/ocr/ocrEditorState";
+import { normalizeOcrText } from "../../src/features/ocr/normalizeOcrText";
 import {
   importPdf,
   importFromUrl,
@@ -530,7 +531,9 @@ export default function ScanScreen() {
     setPdfFileName("");
     setPdfPageCount(null);
     try {
-      const text = editedText.trim();
+      // Aufräumen erst hier statt bei jedem Tastendruck (#609) — die Eingabe
+      // selbst bleibt unangetastet, sonst frisst der Editor Leerzeichen.
+      const text = normalizeOcrText(editedText);
       const idempotencyKey = getImportAttemptKey(`scan:${text}`, "scan");
       // #442: preview — Deck entsteht erst beim „Speichern".
       const result = await scanText(userId, text, "de", idempotencyKey, true);
