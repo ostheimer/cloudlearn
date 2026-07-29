@@ -121,6 +121,10 @@
 html {
   -webkit-text-size-adjust: 100%;
   scroll-behavior: smooth;
+  /* Die Kopfzeile klebt oben (sticky) — automatisches Scrollen (Fokus per
+     Tab-Taste, scrollIntoView, Anker) muss Ziele unterhalb davon absetzen,
+     sonst landen sie verdeckt hinter der Leiste. */
+  scroll-padding-top: 76px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1636,7 +1640,14 @@ ul.reset {
     display: none;
   }
   .app-main {
-    padding-bottom: 84px;
+    padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  }
+  /* Die Tab-Leiste liegt fix über dem Seitenende — ohne Scroll-Freiraum
+     scrollt der Browser z. B. den Starten-Knopf der Lernmodus-Setups nur
+     bis an die Viewport-Unterkante und ein Tipp trifft die Navigation
+     statt des Knopfs. */
+  html {
+    scroll-padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
   }
   .app-tabbar {
     position: fixed;
