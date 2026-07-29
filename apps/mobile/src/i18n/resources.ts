@@ -148,6 +148,25 @@ export const resources = {
       "scan.urlHint": "Webseite inkl. Bilder",
       "scan.generateBtn": "Flashcards generieren",
       "scan.analyzeBtn": "URL analysieren",
+      "scan.charCount": "{{current}} / {{max}} Zeichen",
+
+      // Verständliche Fehlermeldungen beim Scannen (#609, Laras Wortlaute) —
+      // die Zuordnung Fehler → Schlüssel liegt in src/lib/importErrors.ts.
+      "scanError.title": "Das hat nicht geklappt",
+      "scanError.imageTooLarge":
+        "Das Bild ist zu groß. Bitte versuch es mit einem kleineren Bild oder mach das Foto neu.",
+      "scanError.pdfTooLarge": "Die PDF ist zu groß. Bitte wähle eine kleinere Datei.",
+      "scanError.pdfNoText":
+        "Diese PDF enthält keinen lesbaren Text — reine Scans werden noch nicht unterstützt. Bitte eine PDF mit echtem Text wählen.",
+      "scanError.pdfFailed":
+        "Die PDF konnte nicht verarbeitet werden. Bitte versuch es mit einer anderen Datei.",
+      "scanError.generic":
+        "Beim Erstellen der Karten ist etwas schiefgegangen. Versuch es noch einmal — meist hilft ein zweiter Anlauf.",
+      "scanError.offline": "Keine Verbindung. Prüfe dein Internet und versuch es noch einmal.",
+      "scanError.url":
+        "Diese Seite konnte nicht gelesen werden. Prüfe die Adresse oder versuch es mit einer anderen Seite.",
+      "scanError.save":
+        "Speichern hat nicht geklappt. Versuch es noch einmal — deine Karten bleiben solange hier.",
       "quiz.trueLabel": "Richtig",
       "quiz.falseLabel": "Falsch",
       "quiz.trueFalsePrompt": "Stimmt diese Zuordnung?",
@@ -630,6 +649,23 @@ export const resources = {
       "scan.urlHint": "Website incl. images",
       "scan.generateBtn": "Generate flashcards",
       "scan.analyzeBtn": "Analyze URL",
+      "scan.charCount": "{{current}} / {{max}} characters",
+
+      // Friendly scan error messages (#609) — mapping lives in
+      // src/lib/importErrors.ts.
+      "scanError.title": "That didn't work",
+      "scanError.imageTooLarge":
+        "The image is too large. Try a smaller image or take the photo again.",
+      "scanError.pdfTooLarge": "The PDF is too large. Please pick a smaller file.",
+      "scanError.pdfNoText":
+        "This PDF contains no readable text — pure scans aren't supported yet. Please pick a PDF with real text.",
+      "scanError.pdfFailed": "The PDF couldn't be processed. Please try a different file.",
+      "scanError.generic":
+        "Something went wrong while creating your cards. Try again — a second attempt usually works.",
+      "scanError.offline": "No connection. Check your internet and try again.",
+      "scanError.url":
+        "This page couldn't be read. Check the address or try a different page.",
+      "scanError.save": "Saving didn't work. Try again — your cards stay right here.",
       "quiz.trueLabel": "True",
       "quiz.falseLabel": "False",
       "quiz.trueFalsePrompt": "Is this pairing correct?",
