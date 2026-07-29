@@ -9,7 +9,7 @@ import { getSubscriptionTier, updateSubscriptionTier } from "@/lib/db";
 export async function getSubscriptionStatus(
   userId: string
 ): Promise<SubscriptionStatus> {
-  const { tier, expiresAt, isActive } = await getSubscriptionTier(userId);
+  const { tier, expiresAt, isActive, billingIssueAt } = await getSubscriptionTier(userId);
   const paidTier = tier !== "free";
   const effectiveIsActive = paidTier && isActive;
   const effectiveTier = effectiveIsActive ? tier : "free";
@@ -19,6 +19,9 @@ export async function getSubscriptionStatus(
     tier: effectiveTier,
     isActive: effectiveIsActive,
     expiresAt: effectiveIsActive ? expiresAt : null,
+    // Nur für wirklich aktive Bezahl-Abos: ein abgelaufenes Konto ist free,
+    // da wäre ein „Zahlungsproblem"-Banner irreführend (#607).
+    billingIssueAt: effectiveIsActive ? billingIssueAt : null,
   };
 }
 
@@ -33,6 +36,7 @@ export async function updateSubscriptionStatus(
           tier: "free",
           isActive: false,
           expiresAt: null,
+          billingIssueAt: null,
         }
       : parsed;
 
@@ -40,7 +44,8 @@ export async function updateSubscriptionStatus(
     normalized.userId,
     normalized.tier,
     normalized.isActive,
-    normalized.expiresAt
+    normalized.expiresAt,
+    normalized.billingIssueAt ?? null
   );
   return normalized;
 }

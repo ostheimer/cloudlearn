@@ -1174,11 +1174,16 @@ export async function getLastStudiedDeck(
 
 export async function getSubscriptionTier(
   userId: string
-): Promise<{ tier: SubscriptionTier; expiresAt: string | null; isActive: boolean }> {
+): Promise<{
+  tier: SubscriptionTier;
+  expiresAt: string | null;
+  isActive: boolean;
+  billingIssueAt: string | null;
+}> {
   const db = getDb();
   const { data, error } = await db
     .from("profiles")
-    .select("subscription_tier, subscription_expires_at")
+    .select("subscription_tier, subscription_expires_at, billing_issue_at")
     .eq("id", userId)
     .maybeSingle();
   // Ein LESE-FEHLER darf nicht still zu "free" werden: an diesem Tier hängen
@@ -1186,7 +1191,7 @@ export async function getSubscriptionTier(
   // zahlte sonst bei jedem DB-Schluckauf Free-Preise (#607). Kein Profil
   // (ohne Fehler) heißt dagegen wirklich free.
   if (error) throw new Error(`getSubscriptionTier: ${error.message}`);
-  if (!data) return { tier: "free", expiresAt: null, isActive: true };
+  if (!data) return { tier: "free", expiresAt: null, isActive: true, billingIssueAt: null };
   const expiresAt = data.subscription_expires_at ?? null;
   const isActive = !expiresAt || new Date(expiresAt) > new Date();
   const tier: SubscriptionTier =
@@ -1197,6 +1202,7 @@ export async function getSubscriptionTier(
     tier,
     expiresAt,
     isActive,
+    billingIssueAt: data.billing_issue_at ?? null,
   };
 }
 
@@ -1204,7 +1210,11 @@ export async function updateSubscriptionTier(
   userId: string,
   tier: SubscriptionTier,
   isActive: boolean,
-  expiresAt: string | null
+  expiresAt: string | null,
+  // #607: RevenueCat BILLING_ISSUE. Wird bei JEDEM Abo-Schreibvorgang
+  // mitgeschrieben (null = kein Zahlungsproblem), damit ein erledigtes
+  // Problem nicht als Banner kleben bleibt.
+  billingIssueAt: string | null
 ): Promise<void> {
   const db = getDb();
   await db
@@ -1212,6 +1222,7 @@ export async function updateSubscriptionTier(
     .update({
       subscription_tier: tier,
       subscription_expires_at: expiresAt,
+      billing_issue_at: billingIssueAt,
       updated_at: new Date().toISOString(),
     })
     .eq("id", userId);

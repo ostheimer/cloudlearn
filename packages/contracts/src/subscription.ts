@@ -7,7 +7,11 @@ export const subscriptionStatusSchema = z.object({
   userId: z.string().uuid(),
   tier: subscriptionTierSchema,
   isActive: z.boolean(),
-  expiresAt: z.string().datetime().nullable()
+  expiresAt: z.string().datetime().nullable(),
+  // #607: Zeitpunkt des letzten RevenueCat-BILLING_ISSUE (Zahlungsproblem,
+  // z. B. abgelaufene Karte). null/fehlend = keins. Optional, damit
+  // bestehende Clients und gespeicherte Statusobjekte weiter passen.
+  billingIssueAt: z.string().datetime().nullable().optional()
 });
 
 export type SubscriptionStatus = z.infer<typeof subscriptionStatusSchema>;
