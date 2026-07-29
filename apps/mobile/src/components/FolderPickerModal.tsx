@@ -13,7 +13,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { X, Plus, Folder as FolderIcon, Check } from "lucide-react-native";
+import { X, Plus, Folder as FolderIcon, Check, Search } from "lucide-react-native";
 import { useColors, spacing, radius, typography } from "../theme";
 import { useTranslation } from "react-i18next";
 import {
@@ -22,6 +22,7 @@ import {
   addDeckToFolder,
   type Folder,
 } from "../lib/api";
+import { PICKER_SEARCH_THRESHOLD, filterByTitle } from "../lib/pickerSearch";
 
 interface FolderPickerModalProps {
   visible: boolean;
@@ -40,23 +41,29 @@ export default function FolderPickerModal({
   const { t } = useTranslation();
   const [folders, setFolders] = useState<Folder[]>([]);
   const [loading, setLoading] = useState(true);
+  // Netzfehler getrennt von "wirklich keine Ordner" (#612): vorher zeigte ein
+  // Verbindungsfehler dieselbe "Noch keine Ordner"-Leere wie ein neues Konto.
+  const [loadError, setLoadError] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newTitle, setNewTitle] = useState("");
+  const [search, setSearch] = useState("");
   const [adding, setAdding] = useState<string | null>(null);
 
   useEffect(() => {
     if (visible) {
+      setSearch("");
       loadFolders();
     }
   }, [visible]);
 
   const loadFolders = async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const { folders: fetched } = await listFolders();
       setFolders(fetched);
     } catch {
-      // Silently fail
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -88,6 +95,8 @@ export default function FolderPickerModal({
       setAdding(null);
     }
   };
+
+  const shownFolders = filterByTitle(folders, search);
 
   return (
     <Modal
@@ -175,10 +184,58 @@ export default function FolderPickerModal({
           </View>
         )}
 
+        {/* Suchfeld erst ab mehreren Ordnern (#612) — darunter nur Rauschen. */}
+        {!loading && !loadError && folders.length >= PICKER_SEARCH_THRESHOLD && (
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: spacing.sm,
+              marginHorizontal: spacing.lg,
+              marginTop: spacing.lg,
+              paddingHorizontal: spacing.md,
+              borderWidth: 1,
+              borderColor: colors.border,
+              borderRadius: radius.md,
+              backgroundColor: colors.surface,
+            }}
+          >
+            <Search size={16} color={colors.textTertiary} />
+            <TextInput
+              value={search}
+              onChangeText={setSearch}
+              placeholder={t("folder.searchPlaceholder")}
+              placeholderTextColor={colors.textTertiary}
+              style={{ flex: 1, paddingVertical: spacing.md, fontSize: typography.base, color: colors.text }}
+            />
+          </View>
+        )}
+
         {/* Folder list */}
         {loading ? (
           <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
             <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        ) : loadError ? (
+          <View style={{ alignItems: "center", paddingTop: 40, gap: spacing.md, padding: spacing.lg }}>
+            <FolderIcon size={40} color={colors.textTertiary} />
+            <Text style={{ color: colors.textSecondary, textAlign: "center", fontSize: typography.base }}>
+              {t("folder.loadError")}
+            </Text>
+            <TouchableOpacity
+              onPress={() => void loadFolders()}
+              style={{
+                borderWidth: 1,
+                borderColor: colors.border,
+                borderRadius: radius.md,
+                paddingVertical: spacing.sm,
+                paddingHorizontal: spacing.lg,
+              }}
+            >
+              <Text style={{ color: colors.primary, fontSize: typography.base, fontWeight: typography.medium }}>
+                {t("common.retry")}
+              </Text>
+            </TouchableOpacity>
           </View>
         ) : (
           <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.sm }}>
@@ -189,8 +246,19 @@ export default function FolderPickerModal({
                   {t("folder.empty")}
                 </Text>
               </View>
+            ) : shownFolders.length === 0 ? (
+              <Text
+                style={{
+                  color: colors.textSecondary,
+                  textAlign: "center",
+                  fontSize: typography.base,
+                  paddingTop: 40,
+                }}
+              >
+                {t("folder.searchEmpty")}
+              </Text>
             ) : (
-              folders.map((folder) => (
+              shownFolders.map((folder) => (
                 <TouchableOpacity
                   key={folder.id}
                   onPress={() => handleAddToFolder(folder)}
@@ -219,7 +287,12 @@ export default function FolderPickerModal({
                   >
                     <FolderIcon size={18} color={folder.color ? colors.textInverse : colors.warning} />
                   </View>
-                  <Text style={{ flex: 1, fontSize: typography.base, fontWeight: typography.medium, color: colors.text }}>
+                  {/* Einzeilig (#612): ein Monster-Titel soll die Zeile kürzen,
+                      nicht das Fenster sprengen. */}
+                  <Text
+                    numberOfLines={1}
+                    style={{ flex: 1, fontSize: typography.base, fontWeight: typography.medium, color: colors.text }}
+                  >
                     {folder.title}
                   </Text>
                   {adding === folder.id && <ActivityIndicator size="small" color={colors.primary} />}

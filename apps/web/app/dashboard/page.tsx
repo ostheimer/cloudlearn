@@ -54,6 +54,11 @@ import {
 
 type TabKey = "decks" | "folders";
 
+// Ab dieser Listenlänge zeigen Auswahl-Fenster (Ordner-/Deck-Picker) ein
+// Suchfeld (#612) — darunter wäre es nur Rauschen. Gleicher Wert im
+// Ordner-Deck-Picker und in den App-Pickern (FolderPickerModal/DeckPickerModal).
+const PICKER_SEARCH_THRESHOLD = 6;
+
 // Interne Etiketten, die die API beim KI-Import ans Deck hängt — in der
 // Datenbank bleiben sie erhalten (Suche/App nutzen sie), angezeigt werden sie nicht.
 const TECH_TAGS = new Set(["scan", "auto", "auto-generated"]);
@@ -850,10 +855,20 @@ function AddToFolderModal({
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
   const sorted = useMemo(
     () => [...folders].sort((a, b) => a.title.localeCompare(b.title, "de")),
     [folders]
   );
+  // Gefiltert wird über den vollen Pfad ("Schule / Bio"), damit die Suche auch
+  // Unterordner über den Namen des Elternordners findet.
+  const shown = useMemo(() => {
+    const q = search.trim().toLocaleLowerCase("de");
+    if (!q) return sorted;
+    return sorted.filter((f) =>
+      [...folderPath(f, folders), f.title].join(" / ").toLocaleLowerCase("de").includes(q)
+    );
+  }, [sorted, folders, search]);
 
   return (
     <Modal title="Zu Ordner hinzufügen" onClose={onClose}>
@@ -868,8 +883,25 @@ function AddToFolderModal({
           </button>
         </>
       ) : (
-        <div style={{ display: "grid", gap: 8 }}>
-          {sorted.map((f) => {
+        <>
+        {sorted.length >= PICKER_SEARCH_THRESHOLD && (
+          <div className="input-icon">
+            <span aria-hidden>
+              <Search size={16} />
+            </span>
+            <input
+              className="input"
+              placeholder="Ordner suchen..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+        )}
+        {shown.length === 0 && (
+          <p className="muted">Kein Ordner passt zu deiner Suche.</p>
+        )}
+        <div className="modal__scroll" style={{ display: "grid", gap: 8 }}>
+          {shown.map((f) => {
             const path = folderPath(f, folders);
             return (
               <button
@@ -902,6 +934,7 @@ function AddToFolderModal({
             );
           })}
         </div>
+        </>
       )}
       {error && (
         <div className="form-error" role="alert">
