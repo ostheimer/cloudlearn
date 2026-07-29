@@ -21,6 +21,7 @@ import {
   type Folder,
 } from "@/lib/api";
 import { descendantFolders, folderPath } from "@/lib/folders";
+import { handleMenuKey } from "@/lib/menu-keys";
 import { FolderCard, DeleteFolderModal, FolderNameModal } from "@/components/app/folder-ui";
 import { deckCountLabel } from "@/lib/deck-count-label";
 import {
@@ -150,12 +151,18 @@ export default function FolderDetailPage() {
     load();
   }, [load]);
 
-  // Klick irgendwo schließt ein offenes Unterordner-Menü (wie in der Bibliothek).
+  // Klick irgendwo schließt ein offenes Unterordner-Menü (wie in der Bibliothek);
+  // Escape und Pfeiltasten wie dort (#613).
   useEffect(() => {
     if (!openSubMenu) return;
     const close = () => setOpenSubMenu(null);
+    const onKey = (e: KeyboardEvent) => handleMenuKey(e, close);
     document.addEventListener("click", close);
-    return () => document.removeEventListener("click", close);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("click", close);
+      document.removeEventListener("keydown", onKey);
+    };
   }, [openSubMenu]);
 
   const folder = useMemo(() => folders.find((f) => f.id === folderId), [folders, folderId]);

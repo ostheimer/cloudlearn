@@ -4991,3 +4991,45 @@ a.lp-way:hover {
 .onboarding__creating p {
   margin: 0;
 }
+
+/* ---------- Barrierefreiheit (#613) ---------- */
+/* Nur für Screenreader: unsichtbar, nimmt keinen Platz weg, wird aber
+   vorgelesen (klassisches "sr-only"-Muster). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Sichtbares Richtig/Falsch unterm Quiz — Farbtöne wie beim Lückentext-
+   Urteil (.cl-fb), der Text trägt die Information. */
+.quiz-verdict {
+  margin: 0 0 12px;
+  font-weight: 800;
+}
+.quiz-verdict.ok {
+  color: #047857;
+}
+.quiz-verdict.no {
+  color: #b91c1c;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .quiz-verdict.ok {
+    color: #6ee7b7;
+  }
+  :root:not([data-theme="light"]) .quiz-verdict.no {
+    color: #fca5a5;
+  }
+}
+:root[data-theme="dark"] .quiz-verdict.ok {
+  color: #6ee7b7;
+}
+:root[data-theme="dark"] .quiz-verdict.no {
+  color: #fca5a5;
+}

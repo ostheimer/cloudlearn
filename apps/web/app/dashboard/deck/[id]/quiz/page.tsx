@@ -512,6 +512,8 @@ export default function QuizPage() {
                 : null;
               return (
                 <div key={i} className={`quiz-sum__row ${ok ? "ok" : "no"}`}>
+                  {/* Häkchen/Kreuz sind aria-hidden — das Wort sagt es (#613). */}
+                  <span className="sr-only">{ok ? "Richtig:" : "Falsch:"}</span>
                   <span
                     aria-hidden
                     style={{ color: ok ? "var(--green)" : "#ef4444", flex: "none" }}
@@ -655,8 +657,24 @@ export default function QuizPage() {
         })}
       </div>
 
-      {answered && (
+      {/* Sichtbares Urteil + Live-Region (#613): Farbe und stumme Icons allein
+          erreichen weder Farbenblinde noch Screenreader-Nutzer. Die Region ist
+          dauerhaft da, weil Screenreader nur Änderungen in einer schon
+          vorhandenen Region zuverlässig vorlesen. */}
+      <div className="sr-only" role="status">
+        {answered && q
+          ? picked === q.correctIndex
+            ? "Richtig."
+            : q.type === "trueFalse"
+              ? "Falsch."
+              : `Falsch. Richtige Antwort: ${q.options[q.correctIndex] ?? ""}`
+          : ""}
+      </div>
+      {answered && q && (
         <div className="center" style={{ marginTop: 20 }}>
+          <p className={`quiz-verdict ${picked === q.correctIndex ? "ok" : "no"}`}>
+            {picked === q.correctIndex ? "Richtig!" : "Leider falsch."}
+          </p>
           <button type="button" className="btn btn-primary btn-lg" onClick={next}>
             {index + 1 >= total ? "Ergebnis" : "Weiter"}
           </button>

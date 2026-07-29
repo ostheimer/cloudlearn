@@ -26,6 +26,7 @@ import {
   type CardSearchResult,
 } from "@/lib/api";
 import { descendantFolders, folderPath } from "@/lib/folders";
+import { handleMenuKey } from "@/lib/menu-keys";
 import { FolderCard, DeleteFolderModal } from "@/components/app/folder-ui";
 import { deckCountLabel } from "@/lib/deck-count-label";
 import {
@@ -147,8 +148,14 @@ export default function LibraryPage() {
   useEffect(() => {
     if (!openMenu) return;
     const close = () => setOpenMenu(null);
+    // Escape schließt (Fokus zurück zum Auslöser), Pfeiltasten wandern (#613).
+    const onKey = (e: KeyboardEvent) => handleMenuKey(e, close);
     document.addEventListener("click", close);
-    return () => document.removeEventListener("click", close);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("click", close);
+      document.removeEventListener("keydown", onKey);
+    };
   }, [openMenu]);
 
   // Karten-Suche: entprellt (300 ms), damit nicht jeder Tastendruck eine
@@ -354,6 +361,7 @@ export default function LibraryPage() {
           <input
             className="input"
             placeholder="Suchen..."
+            aria-label="Suchen"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -775,6 +783,7 @@ function DeckCard({
           type="button"
           className="icon-btn"
           aria-label="Deck-Optionen"
+          aria-haspopup="menu"
           aria-expanded={menuOpen}
           onClick={onToggleMenu}
         >
@@ -785,22 +794,22 @@ function DeckCard({
             <Link href={`/dashboard/deck/${deck.id}`} role="menuitem">
               <Play size={15} /> Lernen
             </Link>
-            <button type="button" onClick={onRename}>
+            <button type="button" role="menuitem" onClick={onRename}>
               <Pencil size={15} /> Umbenennen
             </button>
-            <button type="button" onClick={onSpeechLanguages}>
+            <button type="button" role="menuitem" onClick={onSpeechLanguages}>
               <Volume2 size={15} /> Sprache zum Vorlesen
             </button>
-            <button type="button" onClick={onAddToFolder}>
+            <button type="button" role="menuitem" onClick={onAddToFolder}>
               <FolderIcon size={15} /> Zu Ordner hinzufügen
             </button>
-            <button type="button" onClick={onDuplicate}>
+            <button type="button" role="menuitem" onClick={onDuplicate}>
               <Copy size={15} /> Duplizieren
             </button>
-            <button type="button" onClick={onShare}>
+            <button type="button" role="menuitem" onClick={onShare}>
               <Share size={15} /> Teilen
             </button>
-            <button type="button" className="danger" onClick={onDelete}>
+            <button type="button" role="menuitem" className="danger" onClick={onDelete}>
               <Trash size={15} /> Löschen
             </button>
           </div>
