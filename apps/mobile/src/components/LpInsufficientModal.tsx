@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { Zap, PlayCircle, ShoppingBag, X } from "lucide-react-native";
+import { Zap, PlayCircle, ShoppingBag, X, BookOpen } from "lucide-react-native";
 import { useColors, spacing, radius, typography, shadows } from "../theme";
 import { useRewardedAd } from "../features/ads/useRewardedAd";
 import { resolveRewardedAdOutcome } from "../features/ads/resolveRewardedAdOutcome";
@@ -120,7 +120,36 @@ export function LpInsufficientModal({
             </Text>
           </View>
 
-          {/* Option 1: Watch ad — nur Free (#607) */}
+          {/* Erste Option (#609, Laras Entscheidung): der Gratis-Weg zuerst.
+              Führt in die globale fällige Runde — Lernen bringt 1 LP je Karte. */}
+          <TouchableOpacity
+            onPress={() => {
+              onClose();
+              router.push("/(tabs)/learn");
+            }}
+            activeOpacity={0.8}
+            style={{
+              backgroundColor: colors.primary,
+              borderRadius: radius.lg,
+              padding: spacing.lg,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: spacing.md,
+              ...shadows.sm,
+            }}
+          >
+            <BookOpen size={24} color={colors.textInverse} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.textInverse, fontSize: typography.base, fontWeight: typography.bold }}>
+                {t("lp.learnNow")}
+              </Text>
+              <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: typography.sm, marginTop: 2 }}>
+                {t("lp.learnNowSubtitle")}
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* Option 2: Watch ad — nur Free (#607) */}
           {showWatchAd ? (
             <TouchableOpacity
               onPress={handleWatchAd}
@@ -173,7 +202,7 @@ export function LpInsufficientModal({
             </Text>
           ) : null}
 
-          {/* Option 2: Buy LP pack */}
+          {/* Option 3: Buy LP pack */}
           <TouchableOpacity
             onPress={() => { onClose(); router.push("/lp-store"); }}
             activeOpacity={0.8}
@@ -199,7 +228,7 @@ export function LpInsufficientModal({
             </View>
           </TouchableOpacity>
 
-          {/* Option 3: Upgrade to Pro — nur Free (#607) */}
+          {/* Option 4: Upgrade to Pro — nur Free (#607) */}
           {showUpgrade ? (
             <TouchableOpacity
               onPress={() => { onClose(); router.push("/paywall"); }}
