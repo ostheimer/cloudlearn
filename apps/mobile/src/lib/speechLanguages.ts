@@ -11,12 +11,34 @@
  * da und täte nichts.
  */
 
+// Erst die fünf Schulsprachen — die trifft es in fast allen Fällen und niemand
+// soll dafür scrollen —, danach der Rest alphabetisch nach der deutschen
+// Beschriftung. Dieselbe Reihenfolge steht im Web.
 export const SPEECH_LANGUAGES = [
   { code: "de-DE", label: "Deutsch" },
   { code: "en-US", label: "Englisch" },
   { code: "fr-FR", label: "Französisch" },
   { code: "es-ES", label: "Spanisch" },
   { code: "it-IT", label: "Italienisch" },
+  { code: "ar-SA", label: "Arabisch" },
+  { code: "zh-CN", label: "Chinesisch" },
+  { code: "da-DK", label: "Dänisch" },
+  { code: "fi-FI", label: "Finnisch" },
+  { code: "el-GR", label: "Griechisch" },
+  { code: "hi-IN", label: "Hindi" },
+  { code: "ja-JP", label: "Japanisch" },
+  { code: "ko-KR", label: "Koreanisch" },
+  { code: "hr-HR", label: "Kroatisch" },
+  { code: "nl-NL", label: "Niederländisch" },
+  { code: "nb-NO", label: "Norwegisch" },
+  { code: "pl-PL", label: "Polnisch" },
+  { code: "pt-PT", label: "Portugiesisch" },
+  { code: "ro-RO", label: "Rumänisch" },
+  { code: "ru-RU", label: "Russisch" },
+  { code: "sv-SE", label: "Schwedisch" },
+  { code: "cs-CZ", label: "Tschechisch" },
+  { code: "tr-TR", label: "Türkisch" },
+  { code: "hu-HU", label: "Ungarisch" },
 ] as const;
 
 export type SpeechLanguage = (typeof SPEECH_LANGUAGES)[number]["code"];

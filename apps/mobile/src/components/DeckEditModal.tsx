@@ -14,12 +14,13 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { X, Check } from "lucide-react-native";
+import { X, Check, ChevronDown, ChevronUp } from "lucide-react-native";
 import { useColors, spacing, radius, typography } from "../theme";
 import { useTranslation } from "react-i18next";
 import { getDeckDetails, updateDeck } from "../lib/api";
 import {
   SPEECH_LANGUAGES,
+  speechLanguageLabel,
   toSpeechLanguage,
   type SpeechLanguage,
 } from "../lib/speechLanguages";
@@ -51,6 +52,8 @@ export default function DeckEditModal({
   // selbst. Das kostet genau dann eine Anfrage, wenn jemand wirklich bearbeitet.
   const [langFront, setLangFront] = useState<SpeechLanguage>("de-DE");
   const [langBack, setLangBack] = useState<SpeechLanguage>("de-DE");
+  // Welche Sprachliste gerade aufgeklappt ist — immer höchstens eine.
+  const [openPicker, setOpenPicker] = useState<"front" | "back" | null>(null);
 
   useEffect(() => {
     if (!visible) return;
@@ -105,42 +108,87 @@ export default function DeckEditModal({
     letterSpacing: 0.5,
   };
 
-  /** Sprachwahl als Reihe von Chips — bei fünf Einträgen die kürzeste Geste. */
-  const languageChips = (
+  /**
+   * Sprachwahl als aufklappbare Zeile statt als Chips: Bei 24 Sprachen mal zwei
+   * Seiten wären Chips eine Kachel-Wand, durch die man erst suchen müsste.
+   * Zugeklappt steht die gewählte Sprache da — der Normalfall braucht also gar
+   * keine Geste. Es ist immer nur eine Liste offen, damit das Fenster nicht auf
+   * die doppelte Länge springt.
+   */
+  const languagePicker = (
+    which: "front" | "back",
     value: SpeechLanguage,
     onPick: (code: SpeechLanguage) => void
-  ) => (
-    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm }}>
-      {SPEECH_LANGUAGES.map((lang) => {
-        const active = lang.code === value;
-        return (
-          <TouchableOpacity
-            key={lang.code}
-            onPress={() => onPick(lang.code)}
-            activeOpacity={0.7}
-            style={{
-              paddingVertical: spacing.sm,
-              paddingHorizontal: spacing.md,
-              borderRadius: radius.full,
-              borderWidth: 1,
-              borderColor: active ? colors.primary : colors.border,
-              backgroundColor: active ? colors.primary : colors.surface,
-            }}
-          >
-            <Text
-              style={{
-                fontSize: typography.sm,
-                fontWeight: active ? typography.semibold : typography.normal,
-                color: active ? colors.textInverse : colors.text,
-              }}
-            >
-              {lang.label}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
-    </View>
-  );
+  ) => {
+    const open = openPicker === which;
+    return (
+      <View
+        style={{
+          borderWidth: 1,
+          borderColor: colors.border,
+          borderRadius: radius.md,
+          backgroundColor: colors.surface,
+          overflow: "hidden",
+        }}
+      >
+        <TouchableOpacity
+          onPress={() => setOpenPicker(open ? null : which)}
+          activeOpacity={0.7}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: 14,
+          }}
+        >
+          <Text style={{ fontSize: typography.base, color: colors.text }}>
+            {speechLanguageLabel(value)}
+          </Text>
+          {open ? (
+            <ChevronUp size={18} color={colors.textSecondary} />
+          ) : (
+            <ChevronDown size={18} color={colors.textSecondary} />
+          )}
+        </TouchableOpacity>
+
+        {open &&
+          SPEECH_LANGUAGES.map((lang) => {
+            const active = lang.code === value;
+            return (
+              <TouchableOpacity
+                key={lang.code}
+                onPress={() => {
+                  onPick(lang.code);
+                  setOpenPicker(null);
+                }}
+                activeOpacity={0.7}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  paddingVertical: 12,
+                  paddingHorizontal: 14,
+                  borderTopWidth: 1,
+                  borderTopColor: colors.borderLight,
+                  backgroundColor: active ? colors.primaryLight : colors.surface,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: typography.base,
+                    fontWeight: active ? typography.semibold : typography.normal,
+                    color: active ? colors.primary : colors.text,
+                  }}
+                >
+                  {lang.label}
+                </Text>
+                {active && <Check size={16} color={colors.primary} />}
+              </TouchableOpacity>
+            );
+          })}
+      </View>
+    );
+  };
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
@@ -261,12 +309,12 @@ export default function DeckEditModal({
                 falsch aussprechen. */}
             <View style={{ gap: spacing.sm }}>
               <Text style={sectionLabelStyle}>Vorlesen: Vorderseite</Text>
-              {languageChips(langFront, setLangFront)}
+              {languagePicker("front", langFront, setLangFront)}
             </View>
 
             <View style={{ gap: spacing.sm }}>
               <Text style={sectionLabelStyle}>Vorlesen: Rückseite</Text>
-              {languageChips(langBack, setLangBack)}
+              {languagePicker("back", langBack, setLangBack)}
               <Text style={{ color: colors.textTertiary, fontSize: typography.xs }}>
                 Bestimmt, in welcher Sprache der Lautsprecher die jeweilige Seite
                 vorliest. Bei Vokabeln also vorne die Fremdsprache, hinten Deutsch.
