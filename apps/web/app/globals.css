@@ -768,7 +768,10 @@ p {
   justify-content: center;
   gap: clamp(20px, 5vw, 52px);
   padding-block: 26px;
-  color: var(--ink-4);
+  /* #613: --ink-4 als Textfarbe schafft auf Weiß nur ~2,6:1 Kontrast —
+     Textstellen nutzen deshalb durchgehend --ink-3 (AA, 4,7:1). Rahmen und
+     Hintergründe behalten --ink-4. */
+  color: var(--ink-3);
   font-weight: 700;
   font-size: 0.95rem;
 }
@@ -1265,7 +1268,7 @@ ul.reset {
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--ink-4);
+  color: var(--ink-3);
   margin-bottom: 14px;
 }
 
@@ -1334,7 +1337,7 @@ ul.reset {
 
 .input::placeholder,
 .textarea::placeholder {
-  color: var(--ink-4);
+  color: var(--ink-3);
 }
 
 .input:focus,
@@ -1360,7 +1363,7 @@ ul.reset {
   left: 13px;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--ink-4);
+  color: var(--ink-3);
   pointer-events: none;
 }
 
@@ -1458,7 +1461,7 @@ ul.reset {
   display: flex;
   align-items: center;
   gap: 12px;
-  color: var(--ink-4);
+  color: var(--ink-3);
   font-size: 0.82rem;
   font-weight: 600;
 }
@@ -1743,8 +1746,14 @@ a.mode-card:hover {
   color: var(--brand);
   flex: none;
 }
-.mode-card--soon {
+/* #613: Deckkraft nur aufs Symbol statt auf die ganze Kachel — sonst rutscht
+   ausgerechnet der Erklärsatz („Braucht mindestens N Karten") unter die
+   Lesbarkeitsgrenze. Inaktiv-Optik: blasses Symbol + grauer Titel. */
+.mode-card--soon .mode-card__ic {
   opacity: 0.6;
+}
+.mode-card--soon .mode-card__title {
+  color: var(--ink-3);
 }
 .mode-card__badge {
   font-size: 0.68rem;
@@ -2698,13 +2707,22 @@ a.mode-card:hover {
   opacity: 0.3;
   cursor: default;
 }
+/* #613: galt vorher nur für System-Dunkel — der manuelle Dunkel-Umschalter
+   (data-theme) ließ die dunklen Urteilstöne aus und fiel auf die hellen,
+   auf Dunkel unlesbaren Farben zurück. */
 @media (prefers-color-scheme: dark) {
-  .cl-fb.ok b {
+  :root:not([data-theme="light"]) .cl-fb.ok b {
     color: #6ee7b7;
   }
-  .cl-fb.no b {
+  :root:not([data-theme="light"]) .cl-fb.no b {
     color: #fca5a5;
   }
+}
+:root[data-theme="dark"] .cl-fb.ok b {
+  color: #6ee7b7;
+}
+:root[data-theme="dark"] .cl-fb.no b {
+  color: #fca5a5;
 }
 
 /* ---------- Menus & modals ---------- */
@@ -2902,6 +2920,12 @@ a.mode-card:hover {
   color: var(--ink);
   line-height: 1.3;
   overflow-wrap: anywhere;
+  /* #613: Extremtitel nach 2 Zeilen mit „…" klemmen (App: numberOfLines);
+     der volle Titel steht auf der Deck-Seite. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .deck-card__meta {
@@ -3070,7 +3094,7 @@ a.mode-card:hover {
 }
 
 .card-row__num {
-  color: var(--ink-4);
+  color: var(--ink-3);
   font-weight: 800;
   font-size: 0.85rem;
 }
@@ -3160,6 +3184,11 @@ a.mode-card:hover {
   font-weight: 700;
   color: var(--ink);
   overflow-wrap: anywhere;
+  /* #613: wie die App (numberOfLines=2) — Extremtexte sprengen sonst die Liste. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .card-row__back {
@@ -3167,6 +3196,10 @@ a.mode-card:hover {
   overflow-wrap: anywhere;
   border-left: 2px solid var(--line);
   padding-left: 12px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 @media (max-width: 640px) {
@@ -3828,7 +3861,7 @@ a.lp-pill:hover {
   align-items: center;
   gap: 6px;
   font-size: 0.75rem;
-  color: var(--ink-4);
+  color: var(--ink-3);
   font-weight: 700;
 }
 /* #427: Ziehgriff zum Sortieren. touch-action:none, damit der Browser am Griff
@@ -4509,7 +4542,14 @@ a.lp-way:hover {
 }
 .lb-row__rank { min-width: 22px; color: var(--ink-3); font-weight: 700; }
 .lb-row--me .lb-row__rank { color: var(--brand-600); }
-.lb-row__name { flex: 1; overflow-wrap: anywhere; }
+/* #613: eine Zeile mit „…" wie die App (numberOfLines=1) und die Rangliste. */
+.lb-row__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .lb-row__streak {
   display: inline-flex;
   align-items: center;
@@ -4800,7 +4840,7 @@ a.lp-way:hover {
   }
 }
 .cal-day--future {
-  color: var(--ink-4);
+  color: var(--ink-3);
 }
 .cal-day--learned {
   background: var(--cal-mark-bg);
