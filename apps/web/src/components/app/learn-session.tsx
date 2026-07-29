@@ -293,6 +293,43 @@ export function LearnSession({
     }
   }, [done, total, startIndex, awardSession, flushReview]);
 
+  // ─── Verlassen ohne „Beenden"-Knopf (#608) ───────────────────────────────
+  // Browser-Zurück oder ein Link unmountet die Ansicht, ohne dass quit() je
+  // läuft — die zurückgehaltene Bewertung und die Runden-LP gingen verloren.
+  // Der Aufräum-Effekt macht beim Unmount dasselbe wie quit(); die Wächter in
+  // beginSessionAward und im Puffer-flush verhindern jede Doppel-Abrechnung,
+  // wenn vorher doch der Knopf gedrückt wurde. Über den Ref sieht der
+  // Unmount-Zeitpunkt immer den letzten Stand statt des ersten Renders.
+  const leaveRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    leaveRef.current = () => {
+      flushReview();
+      void awardSession(
+        getSessionReviewedCount(index - startIndex, pendingReviewsRef.current.length)
+      );
+    };
+  });
+  useEffect(() => () => leaveRef.current(), []);
+
+  // Tab schließen oder neu laden: Hier können wir nur noch mit dem
+  // Browser-eigenen Fenster warnen — zuverlässig nachsenden lässt sich nichts
+  // mehr (Begründung in test/page.tsx). Gewarnt wird nur, solange wirklich
+  // etwas zu verlieren ist: eine zurückgehaltene Bewertung oder noch nicht
+  // abgerechnete Runden-LP.
+  useEffect(() => {
+    if (done) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      const hasUnsaved =
+        reviewBufferRef.current.hasPending() ||
+        (!awardStateRef.current.finalized && index - startIndex > 0);
+      if (!hasUnsaved) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [done, index, startIndex]);
+
   // ─── Merken, wo eine unterbrochene Runde stand (Weitermachen) ────────────
   // Bei jedem Kartenwechsel geschrieben statt beim Verlassen: Ein Tab lässt
   // sich schließen, ohne dass irgendein Aufräum-Code läuft. Das Rundenende
