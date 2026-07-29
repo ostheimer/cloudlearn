@@ -36,7 +36,7 @@ export interface SessionProgress {
   index: number;
   /** Id der Karte an `index` beim Speichern — siehe isProgressUsable. */
   cardId: string;
-  /** Kartenquelle der Runde ("all" | "starred" | "wobbly"). */
+  /** Kartenquelle der Runde ("all" | "starred" | "wobbly" | "due"). */
   source: string;
   /**
    * Ob rückwärts (Rückseite zuerst) abgefragt wurde. Trägt in beiden

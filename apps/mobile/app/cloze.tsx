@@ -59,6 +59,7 @@ import { useDisplayName } from "../src/lib/useDisplayName";
 import {
   CardSourcePicker,
   filterBySource,
+  isCardDue,
   type CardSource,
 } from "../src/components/cardSourcePicker";
 import { useColors, spacing, radius, typography, shadows } from "../src/theme";
@@ -217,6 +218,7 @@ export default function ClozeScreen() {
   // The chosen source decides which cards this round draws from.
   const starredCount = allCards.filter((c) => c.starred).length;
   const wobblyCount = allCards.filter((c) => wobblyIds.has(c.id)).length;
+  const dueCount = allCards.filter((c) => isCardDue(c)).length;
   const studyPool = filterBySource(allCards, source, wobblyIds);
 
   const setupRestoredRef = useRef(false);
@@ -224,15 +226,18 @@ export default function ClozeScreen() {
     if (setupRestoredRef.current || loading || storedSetup === undefined) return;
     if (phase !== "setup") return;
     setupRestoredRef.current = true;
-    if (!storedSetup) return;
-    if (storedSetup.strict !== undefined) setStrict(storedSetup.strict);
-    if (storedSetup.reverse !== undefined) setReverse(storedSetup.reverse);
-    const wanted = resolveSource(storedSetup.source, {
+    if (storedSetup?.strict !== undefined) setStrict(storedSetup.strict);
+    if (storedSetup?.reverse !== undefined) setReverse(storedSetup.reverse);
+    const wanted = resolveSource(storedSetup?.source, {
       starred: starredCount,
       wobbly: wobblyCount,
+      due: dueCount,
     });
     if (wanted) setSource(wanted);
-  }, [loading, storedSetup, phase, starredCount, wobblyCount]);
+    // Ohne gemerkte Wahl ist das Tagespensum die Voreinstellung (#610):
+    // „Nur fällige", sobald es gerade welche gibt.
+    else if (!storedSetup?.source && dueCount > 0) setSource("due");
+  }, [loading, storedSetup, phase, starredCount, wobblyCount, dueCount]);
 
   const canResume =
     saved !== null && isProgressUsable(saved, studyPool.map((card) => card.id), source);
@@ -783,6 +788,7 @@ export default function ClozeScreen() {
                 allCount={allCards.length}
                 starredCount={starredCount}
                 wobblyCount={wobblyCount}
+                dueCount={dueCount}
               />
             </View>
 

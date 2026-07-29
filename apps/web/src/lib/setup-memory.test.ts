@@ -102,16 +102,18 @@ describe("encodeCount / resolveCount", () => {
 
 describe("resolveSource", () => {
   it("übernimmt eine Quelle nur, wenn sie wieder Karten hätte", () => {
-    expect(resolveSource("starred", { starred: 3, wobbly: 0 })).toBe("starred");
-    expect(resolveSource("starred", { starred: 0, wobbly: 5 })).toBeNull();
-    expect(resolveSource("wobbly", { starred: 0, wobbly: 5 })).toBe("wobbly");
-    expect(resolveSource("wobbly", { starred: 3, wobbly: 0 })).toBeNull();
-    expect(resolveSource("all", { starred: 0, wobbly: 0 })).toBe("all");
+    expect(resolveSource("starred", { starred: 3, wobbly: 0, due: 0 })).toBe("starred");
+    expect(resolveSource("starred", { starred: 0, wobbly: 5, due: 5 })).toBeNull();
+    expect(resolveSource("wobbly", { starred: 0, wobbly: 5, due: 0 })).toBe("wobbly");
+    expect(resolveSource("wobbly", { starred: 3, wobbly: 0, due: 3 })).toBeNull();
+    expect(resolveSource("due", { starred: 0, wobbly: 0, due: 2 })).toBe("due");
+    expect(resolveSource("due", { starred: 3, wobbly: 3, due: 0 })).toBeNull();
+    expect(resolveSource("all", { starred: 0, wobbly: 0, due: 0 })).toBe("all");
   });
 
   it("lässt Unbekanntes auf den Standard fallen", () => {
-    expect(resolveSource("due", { starred: 3, wobbly: 3 })).toBeNull();
-    expect(resolveSource(undefined, { starred: 3, wobbly: 3 })).toBeNull();
+    expect(resolveSource("irgendwann-mal", { starred: 3, wobbly: 3, due: 3 })).toBeNull();
+    expect(resolveSource(undefined, { starred: 3, wobbly: 3, due: 3 })).toBeNull();
   });
 });
 
