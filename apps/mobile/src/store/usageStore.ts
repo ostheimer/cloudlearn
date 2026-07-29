@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { LpBalanceResponse } from "../lib/api";
 
 // Mirrors the API response from GET /api/v1/usage.
 export interface UsageState {
@@ -13,10 +14,14 @@ export interface UsageState {
   lpCostPdfImport: number;
   periodStart: string | null;
   // Tarif-Grenzen (#411): der Scan-Tab muss sie kennen, BEVOR Lernpunkte
-  // ausgegeben werden. Die Vorbelegung entspricht dem Gratis-Tarif und wird
-  // beim ersten /usage-Abruf durch die Server-Werte ersetzt.
-  maxDecks: number;
-  maxCardsPerDeck: number;
+  // ausgegeben werden. `null` heißt „unbekannt" — und unbekannte Grenzen
+  // sperren NICHTS (#603, wie im Web): Die alte Vorbelegung mit den
+  // Gratis-Werten zwang Pro-Konten die 20/150-Grenzen auf, weil die Startseite
+  // den Store ohne Grenzen lud und der Scan-Tab dann nie nachlud.
+  maxDecks: number | null;
+  maxCardsPerDeck: number | null;
+  // „Kontostand einmal geladen" — sagt NICHTS darüber, ob die Grenzen dabei
+  // waren. Wer die Grenzen braucht, prüft sie selbst auf null (#603).
   isLoaded: boolean;
 
   // Optimistically deduct LP after a successful feature use
@@ -44,8 +49,8 @@ const INITIAL_STATE: Omit<UsageState, "deductLp" | "addLp" | "setUsage" | "reset
   lpCostUrlImport: 15,
   lpCostPdfImport: 20,
   periodStart: null,
-  maxDecks: 20,
-  maxCardsPerDeck: 150,
+  maxDecks: null,
+  maxCardsPerDeck: null,
   isLoaded: false,
 };
 
@@ -68,3 +73,32 @@ export const useUsageStore = create<UsageState>((set, get) => ({
 
   reset: () => set({ ...INITIAL_STATE, isLoaded: false }),
 }));
+
+/**
+ * Übersetzt die /usage-Antwort in den Store — an EINER Stelle, damit kein
+ * Aufrufer die Tarif-Grenzen vergisst (#603): LpBadge, der LP-Laden und die
+ * Paywall kopierten die Felder einzeln ab und ließen `limits` dabei weg; der
+ * Scan-Tab hielt den Store daraufhin für fertig geladen und Pro-Konten
+ * behielten die Gratis-Grenzen.
+ */
+export function usageFromBalanceResponse(
+  res: LpBalanceResponse
+): Partial<Omit<UsageState, "isLoaded" | "deductLp" | "addLp" | "setUsage" | "reset">> {
+  return {
+    tier: res.tier,
+    lpBalance: res.lpBalance,
+    lpEarnedToday: res.lpEarnedToday,
+    lpAdsToday: res.lpAdsToday,
+    lpEarnCapToday: res.lpEarnCapToday,
+    lpAdCapToday: res.lpAdCapToday,
+    lpCostAiScan: res.lpCostAiScan,
+    lpCostUrlImport: res.lpCostUrlImport,
+    lpCostPdfImport: res.lpCostPdfImport,
+    periodStart: res.periodStart,
+    // Grenzen nur übernehmen, wenn der Server sie mitschickt (ältere Server
+    // tun das nicht) — sonst bleibt „unbekannt" stehen und nichts sperrt.
+    ...(res.limits
+      ? { maxDecks: res.limits.maxDecks, maxCardsPerDeck: res.limits.maxCardsPerDeck }
+      : {}),
+  };
+}

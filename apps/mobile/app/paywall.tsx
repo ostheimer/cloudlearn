@@ -22,7 +22,7 @@ import { filterSubscriptionOffers } from "../src/features/paywall/subscriptionOf
 import { type SubscriptionTier } from "../src/features/paywall/subscriptionMapping";
 import { getSubscriptionStatus, getLpBalance } from "../src/lib/api";
 import { useSessionStore } from "../src/store/sessionStore";
-import { useUsageStore } from "../src/store/usageStore";
+import { usageFromBalanceResponse, useUsageStore } from "../src/store/usageStore";
 import { radius, shadows, spacing, typography, useColors } from "../src/theme";
 
 const BACKEND_SYNC_MAX_RETRIES = 6;
@@ -93,7 +93,10 @@ export default function PaywallScreen() {
         ]);
         if (isMounted) {
           setTier(status.status.tier);
-          if (usageData) setUsage(usageData);
+          // Über den Übersetzer statt der rohen Antwort: nimmt die
+          // Tarif-Grenzen mit und hält fremde Felder (limits-Objekt) aus dem
+          // Store heraus (#603).
+          if (usageData) setUsage(usageFromBalanceResponse(usageData));
         }
 
         const availability = await getRevenueCatAvailability();

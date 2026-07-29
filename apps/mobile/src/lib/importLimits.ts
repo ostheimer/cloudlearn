@@ -31,13 +31,23 @@ export interface DeckLike {
  * Server beim Durchsetzen der Grenze ebenfalls jede lebende Karte zählt.
  * Ein Deck, das die Grenze schon überschreitet (die gibt es in Produktion),
  * liefert 0 — seine Karten bleiben unangetastet, es kommen nur keine dazu.
+ * `maxCardsPerDeck` ist `null`, solange der Server die Grenze nicht geliefert
+ * hat (#603): Dann wird `null` zurückgegeben — nichts behauptet, nichts
+ * gesperrt (wie `freeSlots` in apps/web/src/lib/import-limits.ts).
  */
-export function freeCardSlots(deck: DeckLike, maxCardsPerDeck: number): number {
+export function freeCardSlots(deck: DeckLike, maxCardsPerDeck: number | null): number | null {
+  if (typeof maxCardsPerDeck !== "number") return null;
   const used = (deck.cardCount ?? 0) + (deck.imageCardCount ?? 0);
   return Math.max(0, maxCardsPerDeck - used);
 }
 
-export function isDeckLimitReached(deckCount: number, maxDecks: number): boolean {
+/**
+ * `maxDecks` ist `null`, solange die Grenze unbekannt ist — dann wird NICHTS
+ * gesperrt (#603): Lieber einmal zu wenig vorgewarnt als ein Pro-Konto mit den
+ * Gratis-Werten ausgesperrt; der Server lehnt notfalls ab.
+ */
+export function isDeckLimitReached(deckCount: number, maxDecks: number | null): boolean {
+  if (typeof maxDecks !== "number") return false;
   return deckCount >= maxDecks;
 }
 
@@ -66,11 +76,12 @@ export function deckLimitMessage(deckCount: number, maxDecks: number): string {
  * einer festen Rest-Schwelle. Bei 27 freien Plätzen und 5 Karten kommt also
  * keine Frage mehr; bei 40 freien Plätzen und 60 Karten sehr wohl.
  * `null` bedeutet: alles passt, keine Rückfrage nötig. Ein volles Deck (0 frei)
- * hat seinen eigenen, härteren Dialog und liefert hier ebenfalls `null`.
+ * hat seinen eigenen, härteren Dialog und liefert hier ebenfalls `null` —
+ * genau wie eine unbekannte Grenze (`freeSlots === null`, #603).
  * Wortgleich mit `deckOverflowWarning` in apps/web/src/lib/import-limits.ts.
  */
-export function deckOverflowWarning(freeSlots: number, cardCount: number): string | null {
-  if (freeSlots <= 0) return null;
+export function deckOverflowWarning(freeSlots: number | null, cardCount: number): string | null {
+  if (freeSlots === null || freeSlots <= 0) return null;
   if (cardCount <= freeSlots) return null;
   return (
     `Von deinen ${cardCount} Karten passen nur noch ${freeSlots} in dieses Deck — ` +
@@ -79,8 +90,13 @@ export function deckOverflowWarning(freeSlots: number, cardCount: number): strin
   );
 }
 
-/** Beschriftung eines Decks in der Auswahl: „Biologie (12 Plätze frei)". */
-export function deckSlotsLabel(title: string, freeSlots: number): string {
+/**
+ * Beschriftung eines Decks in der Auswahl: „Biologie (12 Plätze frei)".
+ * Bei unbekannter Grenze (`null`, #603) steht nur der Titel — wie
+ * `deckOptionLabel` im Web.
+ */
+export function deckSlotsLabel(title: string, freeSlots: number | null): string {
+  if (freeSlots === null) return title;
   if (freeSlots <= 0) return `${title} (voll)`;
   if (freeSlots === 1) return `${title} (1 Platz frei)`;
   if (freeSlots < NEARLY_FULL_THRESHOLD) return `${title} (${freeSlots} Plätze frei)`;
@@ -96,6 +112,24 @@ export function savedSummary(generatedCount: number, savedCount: number): string
     return `${savedCount} Karten gespeichert.`;
   }
   return `${generatedCount} Karten erkannt, ${savedCount} gespeichert — Deck voll.`;
+}
+
+/**
+ * Wie viele der `pendingCount` neuen Karten gespeichert werden dürfen (#603).
+ *
+ * Nur wenn BEIDES bekannt ist — der Kartenbestand des Ziel-Decks UND die echte
+ * Server-Grenze — wird gerechnet. Fehlt eines, werden alle Karten
+ * durchgelassen und der Server entscheidet: Die App darf niemals auf Basis
+ * geratener Grenzen Karten wegwerfen (Pro-Konten verloren so still Karten,
+ * „163 erkannt, 10 gespeichert").
+ */
+export function roomForNewCards(
+  pendingCount: number,
+  existingCount: number | null,
+  maxCardsPerDeck: number | null
+): number {
+  if (existingCount === null || typeof maxCardsPerDeck !== "number") return pendingCount;
+  return Math.min(pendingCount, Math.max(0, maxCardsPerDeck - existingCount));
 }
 
 /**

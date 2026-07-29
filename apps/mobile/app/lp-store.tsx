@@ -12,7 +12,7 @@ import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, ChevronRight, Zap, PlayCircle, Shield, ShoppingBag, TrendingUp, Star } from "lucide-react-native";
 import { useColors, spacing, radius, typography, shadows } from "../src/theme";
-import { useUsageStore } from "../src/store/usageStore";
+import { usageFromBalanceResponse, useUsageStore } from "../src/store/usageStore";
 import { useRewardedAd } from "../src/features/ads/useRewardedAd";
 import { REAL_ADS_ENABLED } from "../src/features/ads/adsMode";
 import { buyStreakFreeze, getLpBalance, getStats, grantLpPackPurchase, isApiError } from "../src/lib/api";
@@ -69,18 +69,9 @@ export default function LpStoreScreen() {
 
     try {
       const res = await getLpBalance();
-      setUsage({
-        tier: res.tier,
-        lpBalance: res.lpBalance,
-        lpEarnedToday: res.lpEarnedToday,
-        lpAdsToday: res.lpAdsToday,
-        lpEarnCapToday: res.lpEarnCapToday,
-        lpAdCapToday: res.lpAdCapToday,
-        lpCostAiScan: res.lpCostAiScan,
-        lpCostUrlImport: res.lpCostUrlImport,
-        lpCostPdfImport: res.lpCostPdfImport,
-        periodStart: res.periodStart,
-      });
+      // Gemeinsamer Übersetzer statt Feld-für-Feld-Kopie: nimmt die
+      // Tarif-Grenzen mit, die hier früher fehlten (#603).
+      setUsage(usageFromBalanceResponse(res));
     } catch { /* best-effort */ } finally {
       try {
         const res = await getStats();
