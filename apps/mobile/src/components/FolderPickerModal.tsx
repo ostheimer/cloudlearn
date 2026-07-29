@@ -90,7 +90,13 @@ export default function FolderPickerModal({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      // Android-Zurueck-Taste schliesst das Fenster (#608) — vorher tat sie nichts.
+      onRequestClose={onClose}
+    >
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
         {/* Header */}
         <View
