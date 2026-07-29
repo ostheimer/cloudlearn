@@ -517,7 +517,10 @@ export default function HomePage() {
             {...(due > 0
               ? {
                   role: "link",
-                  "aria-label": `${due} fällige Karten jetzt lernen`,
+                  "aria-label":
+                    due === 1
+                      ? "1 fällige Karte jetzt lernen"
+                      : `${due} fällige Karten jetzt lernen`,
                   onClick: (e: MouseEvent) => {
                     e.preventDefault();
                     e.stopPropagation();
