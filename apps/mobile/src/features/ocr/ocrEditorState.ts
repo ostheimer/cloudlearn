@@ -16,6 +16,10 @@ export const useOcrEditorState = create<OcrEditorState>((set) => ({
     const normalized = normalizeOcrText(text);
     set({ originalText: normalized, editedText: normalized });
   },
-  setEditedText: (text) => set({ editedText: normalizeOcrText(text) }),
+  // Beim TIPPEN unverändert speichern (#609): Die Normalisierung schluckte
+  // nach jedem Tastendruck das Leerzeichen am Ende — man konnte keine zwei
+  // Wörter schreiben. Aufgeräumt wird erst beim Absenden (scanPayload bzw.
+  // handleGenerateFromText), wo es keinen Cursor mehr stört.
+  setEditedText: (text) => set({ editedText: text }),
   reset: () => set({ originalText: "", editedText: "" })
 }));

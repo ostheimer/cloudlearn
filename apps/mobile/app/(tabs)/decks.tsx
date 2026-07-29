@@ -527,7 +527,7 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
     </TouchableOpacity>
   );
 
-  const renderEmpty = (icon: React.ReactNode, message: string) => (
+  const renderEmpty = (icon: React.ReactNode, message: string, action?: React.ReactNode) => (
     <View style={{ alignItems: "center", paddingTop: 40, gap: spacing.md }}>
       <View
         style={{
@@ -544,6 +544,7 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
       <Text style={{ fontSize: typography.base, color: colors.textSecondary, textAlign: "center", lineHeight: 22 }}>
         {message}
       </Text>
+      {action}
     </View>
   );
 
@@ -641,7 +642,26 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
       if (filteredDecks.length === 0 && !cardSection) {
         return renderEmpty(
           <Layers size={28} color={colors.textTertiary} />,
-          decks.length === 0 ? t("library.emptyDecks") : t("library.noMatchDecks")
+          decks.length === 0 ? t("library.emptyDecks") : t("library.noMatchDecks"),
+          // Der Text rät zum Scannen — der Knopf führt auch hin (#609). Nur im
+          // wirklich leeren Zustand, nicht bei einer erfolglosen Suche.
+          decks.length === 0 ? (
+            <TouchableOpacity
+              onPress={() => router.push("/(tabs)/scan")}
+              activeOpacity={0.8}
+              style={{
+                backgroundColor: colors.primary,
+                borderRadius: radius.md,
+                paddingHorizontal: spacing.xxl,
+                paddingVertical: 14,
+                marginTop: spacing.sm,
+              }}
+            >
+              <Text style={{ color: "#fff", fontWeight: typography.semibold, fontSize: typography.base }}>
+                {t("library.scanCta")}
+              </Text>
+            </TouchableOpacity>
+          ) : undefined
         );
       }
       return (
