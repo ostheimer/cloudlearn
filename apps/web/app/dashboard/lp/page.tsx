@@ -238,7 +238,10 @@ export default function LpPage() {
                   <span className="lp-way__t">
                     Belohn-Werbung
                     <span className="lp-tag">
-                      {REAL_ADS_ENABLED ? "nur in der App" : "noch nicht aktiv"}
+                      {/* Kurzform derselben Aussage (#571) — ein Abzeichen hat
+                          keinen Platz für den ganzen Satz, aber „App" allein
+                          war die fünfte Variante im Web. */}
+                      {REAL_ADS_ENABLED ? "in der clearn-App" : "noch nicht aktiv"}
                     </span>
                   </span>
                   <span className="lp-way__s">
@@ -255,21 +258,28 @@ export default function LpPage() {
         {/* Pakete: im Browser noch nicht kaufbar, aber sichtbar */}
         <h2 className="lp-sec">
           <Zap size={17} style={{ color: "var(--amber)" }} /> Lernpunkte-Pakete
-          <span className="lp-sec__hint">Kauf im Browser kommt noch — in der App geht es schon</span>
+          <span className="lp-sec__hint">
+            Kauf im Browser kommt noch — in der clearn-App geht es schon
+          </span>
         </h2>
         <div className="lp-packs">
           {LP_PACKS.map((pack) => (
             <div key={pack.lp} className={pack.popular ? "lp-pack is-best" : "lp-pack"}>
+              {/* „Beliebt": ein Wort für das hervorgehobene Paket (#571) — das
+                  Web sagte „Bester Wert", die App „Beliebt" und die Abo-Karte
+                  nochmal etwas Drittes. */}
               {pack.popular ? (
-                <span className="lp-pack__badge">Bester Wert</span>
+                <span className="lp-pack__badge">Beliebt</span>
               ) : (
                 <Zap size={18} style={{ color: "var(--amber)" }} />
               )}
               <div className="lp-pack__lp">{pack.lp.toLocaleString("de-DE")} LP</div>
+              {/* Wortlaut der App (#571): die Tilde sagt, dass es ein Richtwert
+                  ist — die Zahl hängt daran, was man scannt. */}
               <div className="lp-pack__hint">
-                {Math.floor(pack.lp / usage.lpCostAiScan)} Foto-Scans
+                ~{Math.floor(pack.lp / usage.lpCostAiScan)} KI-Scans
               </div>
-              <div className="lp-pack__where">In der App</div>
+              <div className="lp-pack__where">In der clearn-App</div>
             </div>
           ))}
         </div>

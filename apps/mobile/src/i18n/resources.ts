@@ -95,7 +95,10 @@ export const resources = {
       "lp.upgradePro": "Auf Pro upgraden",
 
       // LP Store
-      "lp.storeTitle": "LP-Shop",
+      // Wortlaut des Webs (#571): „LP-Shop" klang nach Kaufen, dabei verdient
+      // man Lernpunkte meistens durchs Lernen.
+      "lp.storeTitle": "Lernpunkte",
+      "lp.storeSubtitle": "Womit du neue Karten erstellst — und wie du sie verdienst.",
       "lp.availableBalance": "Verfügbare Lernpunkte",
       "lp.dailyEarnTitle": "Täglicher Fortschritt",
       "lp.earnByLearning": "Durch Lernen",
@@ -137,6 +140,11 @@ export const resources = {
       "lp.freezeErrorGeneric": "Kauf fehlgeschlagen. Versuch es später noch einmal.",
 
       // Streak calendar
+      // Überschrift und Untertitel wie im Web (#571) — die App sagte „Deine
+      // Statistik" und hatte gar keinen Untertitel.
+      "stats.title": "Statistik",
+      "stats.subtitle": "Dein Lernfortschritt auf einen Blick",
+
       "streakCal.title": "Streak-Kalender",
       "streakCal.current": "Aktuell",
       "streakCal.freezes": "Vorrat",
@@ -522,13 +530,27 @@ export const resources = {
       "paywall.urlImports": "URL-Importe",
       "paywall.unlimited": "Inklusive",
       "paywall.featuresTitle": "Was du mit Pro bekommst",
-      "paywall.feature.scans": "Bis zu 500 Decks mit 2.000 Karten je Deck",
-      "paywall.feature.url": "Günstigere LP-Kosten für KI-Funktionen",
+      // Dieselben acht Vorteile wie im Web, in derselben Reihenfolge und mit
+      // denselben Zahlen (#571). Vorher waren es sechs ohne Zahlen; „Mehr pro
+      // Tag verdienen" und „Erweiterte Statistik" fehlten ganz.
+      "paywall.feature.aiCosts": "Günstigere KI-Kosten",
+      "paywall.feature.aiCostsText": "Scan 5 statt 10 LP, Link 8 statt 15, PDF 12 statt 20",
+      "paywall.feature.monthlyLp": "300 LP jeden Monat",
+      "paywall.feature.monthlyLpText": "Kommen automatisch aufs Konto",
+      "paywall.feature.earnMore": "Mehr pro Tag verdienen",
+      "paywall.feature.earnMoreText": "Bis 100 LP durchs Lernen statt 30",
+      "paywall.feature.space": "Mehr Platz",
+      "paywall.feature.spaceText": "500 Decks mit je 2.000 Karten statt 20 mit 150",
       "paywall.feature.adfree": "Werbefrei",
+      "paywall.feature.adfreeText": "Keine Werbung in der App",
       "paywall.feature.occlusion": "Image Occlusion",
-      "paywall.feature.offline": "Offline-Download",
-      "paywall.feature.decks": "300 LP pro Monat inklusive",
-      "paywall.bestValue": "Bestes Preis-Leistungs-Verhältnis",
+      "paywall.feature.occlusionText": "Teile eines Bildes abdecken und abfragen",
+      "paywall.feature.stats": "Erweiterte Statistik",
+      "paywall.feature.statsText": "Deck-Vergleich und Verlauf",
+      "paywall.feature.offline": "Offline lernen",
+      "paywall.feature.offlineText": "Decks in der App aufs Gerät laden",
+      // Ein Wort für das hervorgehobene Angebot, wie beim LP-Paket (#571).
+      "paywall.bestValue": "Beliebt",
 
       // Onboarding (D8)
       "onboarding.welcomeTitle": "Willkommen bei clearn",
@@ -723,7 +745,8 @@ export const resources = {
       "lp.upgradePro": "Upgrade to Pro",
 
       // LP Store
-      "lp.storeTitle": "LP Shop",
+      "lp.storeTitle": "Learning Points",
+      "lp.storeSubtitle": "What you build new cards with — and how you earn them.",
       "lp.availableBalance": "Available Learning Points",
       "lp.dailyEarnTitle": "Daily Progress",
       "lp.earnByLearning": "By learning",
@@ -763,6 +786,9 @@ export const resources = {
       "lp.freezeErrorGeneric": "Purchase failed. Please try again later.",
 
       // Streak calendar
+      "stats.title": "Statistics",
+      "stats.subtitle": "Your learning progress at a glance",
+
       "streakCal.title": "Streak calendar",
       "streakCal.current": "Current",
       "streakCal.freezes": "Freezes",
@@ -1126,13 +1152,23 @@ export const resources = {
       "paywall.urlImports": "URL Imports",
       "paywall.unlimited": "Included",
       "paywall.featuresTitle": "What you get with Pro",
-      "paywall.feature.scans": "500 decks, 2000 cards/deck",
-      "paywall.feature.url": "Discounted LP costs for AI features",
+      "paywall.feature.aiCosts": "Cheaper AI costs",
+      "paywall.feature.aiCostsText": "Scan 5 instead of 10 LP, link 8 instead of 15, PDF 12 instead of 20",
+      "paywall.feature.monthlyLp": "300 LP every month",
+      "paywall.feature.monthlyLpText": "Added to your account automatically",
+      "paywall.feature.earnMore": "Earn more per day",
+      "paywall.feature.earnMoreText": "Up to 100 LP from learning instead of 30",
+      "paywall.feature.space": "More space",
+      "paywall.feature.spaceText": "500 decks with 2,000 cards each instead of 20 with 150",
       "paywall.feature.adfree": "Ad-free",
+      "paywall.feature.adfreeText": "No ads in the app",
       "paywall.feature.occlusion": "Image Occlusion",
-      "paywall.feature.offline": "Offline download",
-      "paywall.feature.decks": "300 LP/month included",
-      "paywall.bestValue": "Best value",
+      "paywall.feature.occlusionText": "Cover parts of an image and quiz yourself",
+      "paywall.feature.stats": "Advanced statistics",
+      "paywall.feature.statsText": "Deck comparison and history",
+      "paywall.feature.offline": "Offline learning",
+      "paywall.feature.offlineText": "Load decks onto your device in the app",
+      "paywall.bestValue": "Popular",
 
       // Onboarding (D8)
       "onboarding.welcomeTitle": "Welcome to clearn",

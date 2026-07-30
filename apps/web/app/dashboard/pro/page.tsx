@@ -99,7 +99,9 @@ export default function ProPage() {
           <div className="info-note" style={{ marginTop: 0 }}>
             <Smartphone size={16} />
             <span>
-              Pro buchen geht derzeit nur in der clearn-App. Im Browser kommt es später dazu.
+              {/* Ein Satzbau für alle App-Hinweise (#571): „… gibt es in der
+                  clearn-App." Vorher standen im Web fünf Varianten nebeneinander. */}
+              Pro gibt es in der clearn-App. Im Browser kommt es später dazu.
             </span>
           </div>
         )}

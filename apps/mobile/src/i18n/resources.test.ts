@@ -43,16 +43,16 @@ describe("i18n resources", () => {
   });
 
   it("does not promise unlimited Pro usage in paywall copy", () => {
-    const paywallCopy = [
-      resources.de.translation["paywall.unlimited"],
-      resources.de.translation["paywall.feature.scans"],
-      resources.de.translation["paywall.feature.url"],
-      resources.de.translation["paywall.feature.decks"],
-      resources.en.translation["paywall.unlimited"],
-      resources.en.translation["paywall.feature.scans"],
-      resources.en.translation["paywall.feature.url"],
-      resources.en.translation["paywall.feature.decks"],
-    ].join("\n");
+    // Jeder paywall.*-Schlüssel statt einer Handvoll namentlich genannter
+    // (#571): Die Liste hing an drei Namen und wäre beim Umbenennen still
+    // durchgerutscht — genau dann, wenn neue Versprechen dazukommen.
+    const paywallCopy = [resources.de.translation, resources.en.translation]
+      .flatMap((t) =>
+        Object.entries(t)
+          .filter(([key]) => key.startsWith("paywall."))
+          .map(([, value]) => value)
+      )
+      .join("\n");
 
     expect(paywallCopy).not.toMatch(/\b(unlimited|unbegrenzt|unbegrenzte)\b/i);
   });
