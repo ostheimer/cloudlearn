@@ -164,8 +164,10 @@ export default function StreakCalendarPage() {
             <Shield size={16} style={{ color: "var(--amber)" }} />
             <b>{stats ? streakFreezes : "–"}</b>
           </span>
+          {/* „Vorrat" wie in der App (#571) — deutsch und ausgeschrieben; das
+              englische „Freezes" war das einzige Fremdwort in der Zeile. */}
           <span className="muted" style={{ fontSize: "0.75rem" }}>
-            Freezes
+            Vorrat
           </span>
         </div>
         <div className="cal-chip">
@@ -267,12 +269,18 @@ export default function StreakCalendarPage() {
           <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
             <span className="cal-dot cal-dot--learned" /> Gelernt
           </span>
+          {/* „Schutz verwendet" statt „Durch Freeze geschützt" (#571): Das
+              Fremdwort ist mit dem Chip „Vorrat" ohnehin verschwunden, und die
+              App sagt es so. */}
           <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-            <span className="cal-dot cal-dot--frozen" /> Durch Freeze geschützt
+            <span className="cal-dot cal-dot--frozen" /> Schutz verwendet
           </span>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
             <span className="cal-dot cal-dot--today" /> Heute
           </span>
+          {/* Fehlte im Web (#571) — ein leerer Tag war die einzige Markierung
+              ohne Erklärung. */}
+          <span>leer = nicht gelernt</span>
         </div>
       </div>
 

@@ -67,7 +67,11 @@ export default function ProfilePage() {
   const [copied, setCopied] = useState(false);
   const [pwSent, setPwSent] = useState(false);
   const [pwErr, setPwErr] = useState<string | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  // Zweistufig wie in der App (#571): 0 = zu, 1 = erste Nachfrage samt
+  // Abo-Warnung, 2 = letzte Nachfrage. Ein einziger Klick hat hier alles
+  // gelöscht — und niemand erfuhr, dass ein laufendes Abo davon nicht endet
+  // und weiter abgebucht wird.
+  const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -471,8 +475,8 @@ export default function ProfilePage() {
 
         {/* Konto löschen + Abmelden */}
         <div className="pf-bottom">
-          {!confirmDelete ? (
-            <button type="button" className="pf-danger" onClick={() => setConfirmDelete(true)}>
+          {deleteStep === 0 ? (
+            <button type="button" className="pf-danger" onClick={() => setDeleteStep(1)}>
               <span className="pf-ic pf-ic--danger" aria-hidden>
                 <Trash size={18} />
               </span>
@@ -482,24 +486,47 @@ export default function ProfilePage() {
               </div>
             </button>
           ) : (
+            // Wortlaute aus der App (resources.ts, profile.deleteAccount*) —
+            // dort ist der Ablauf seit jeher zweistufig und nennt das Abo.
             <div className="danger-confirm">
               <div className="danger-confirm__head">
-                <AlertTriangle size={18} /> Konto wirklich löschen?
+                <AlertTriangle size={18} />{" "}
+                {deleteStep === 1 ? "Konto endgültig löschen?" : "Wirklich jetzt löschen?"}
               </div>
-              <p className="muted">
-                Dein Konto und alle Decks werden dauerhaft gelöscht. Das kann nicht rückgängig
-                gemacht werden.
-              </p>
+              {deleteStep === 1 ? (
+                <>
+                  <p className="muted">
+                    Dein Konto, alle Decks, Karten, Lernstände und Synchronisierungsdaten werden
+                    sofort dauerhaft gelöscht. Dieser Schritt kann nicht rückgängig gemacht werden.
+                  </p>
+                  {/* Der Kauf läuft über Apple bzw. Google, nicht über uns — die
+                      Kontolöschung beendet ihn also nicht. Ohne diesen Satz wird
+                      nach dem Löschen weiter abgebucht. */}
+                  <p className="muted">
+                    Wichtiger Hinweis: Ein aktives Apple- oder Google-Abo wird dadurch nicht
+                    automatisch beendet und muss separat im jeweiligen Store verwaltet werden.
+                  </p>
+                </>
+              ) : (
+                <p className="muted">
+                  Wenn du fortfährst, wird dein clearn-Konto sofort und endgültig entfernt.
+                </p>
+              )}
               {deleteError && <p className="form-error">{deleteError}</p>}
               <div className="danger-confirm__actions">
-                <button type="button" className="btn btn-danger" onClick={handleDelete} disabled={deleting}>
-                  {deleting ? "Wird gelöscht…" : "Endgültig löschen"}
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  onClick={deleteStep === 1 ? () => setDeleteStep(2) : handleDelete}
+                  disabled={deleting}
+                >
+                  {deleting ? "Wird gelöscht…" : deleteStep === 1 ? "Weiter" : "Endgültig löschen"}
                 </button>
                 <button
                   type="button"
                   className="btn btn-ghost"
                   onClick={() => {
-                    setConfirmDelete(false);
+                    setDeleteStep(0);
                     setDeleteError(null);
                   }}
                   disabled={deleting}

@@ -142,9 +142,13 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
           </div>
           <h1 className="h3">Fast geschafft!</h1>
         </div>
+        {/* Der Hinweis auf Spam/Werbung stand bisher nur in der App (#571) —
+            genau dort landet die Mail am häufigsten, und ohne den Satz sucht
+            man im Posteingang vergeblich. */}
         <p className="muted center">
           Wir haben dir eine Bestätigungs-E-Mail an <strong>{email}</strong> geschickt. Klicke
           den Link darin, um dein Konto zu aktivieren — danach bist du automatisch angemeldet.
+          Schau auch im Spam- oder Werbung-Ordner nach.
         </p>
         <Link href="/login" className="btn btn-ghost btn-block">
           Zurück zur Anmeldung

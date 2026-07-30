@@ -329,9 +329,16 @@ export default function ProfileScreen() {
         style={{ flex: 1 }}
         contentContainerStyle={{ gap: spacing.lg, padding: spacing.lg, paddingBottom: spacing.xxl }}
       >
-        <Text style={{ fontSize: typography.xxl, fontWeight: typography.bold, color: c.text }}>
-          {t("profileTab")}
-        </Text>
+        {/* Überschrift und Untertitel wie im Web (#571) — die App sagte nur
+            „Profil" und liess offen, was hier alles zu finden ist. */}
+        <View>
+          <Text style={{ fontSize: typography.xxl, fontWeight: typography.bold, color: c.text }}>
+            {t("profile.screenTitle")}
+          </Text>
+          <Text style={{ fontSize: typography.base, color: c.textSecondary, marginTop: 4 }}>
+            {t("profile.screenSubtitle")}
+          </Text>
+        </View>
 
         {/* Account info card */}
         <View style={{
