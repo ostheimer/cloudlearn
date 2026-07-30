@@ -630,8 +630,6 @@ export default function DeckDetailPage() {
               )}
             </>
           ) : (
-            {/* Der Satz steht in card-display.ts, wortgleich mit der App (#571) —
-                dort ist mit dem Papierkorb auch die Endgültigkeit korrigiert. */}
             <p className="muted">{cardDeleteQuestion(modal.card)}</p>
           )}
           <div className="modal__actions">
