@@ -4444,6 +4444,15 @@ a.lp-way:hover {
   transition: border-color 0.15s ease;
 }
 .pf-card--link:hover { border-color: var(--brand); }
+/* Block-Knöpfe in den Profil-Karten dürfen umbrechen. „Freund oder Freundin
+   hinzufügen" braucht auf einer Zeile rund 276px, im Kasten sind am 375er-Handy
+   nur rund 240px frei — mit dem von .btn geerbten „white-space: nowrap" meldete
+   der Knopf trotzdem seine ganze Zeilenbreite als Mindestbreite und blähte
+   damit die Rasterspalte über den Bildschirmrand hinaus (siehe .pf-grid2). */
+.pf-card--pad .btn-block {
+  white-space: normal;
+  text-align: center;
+}
 .pf-card__more {
   display: inline-flex;
   align-items: center;
@@ -4472,8 +4481,12 @@ a.lp-way:hover {
 .pf-ic--amber { background: rgba(245, 158, 11, 0.17); color: #f59e0b; }
 .pf-ic--danger { background: rgba(239, 68, 68, 0.13); color: #ef4444; }
 
-.pf-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
-@media (max-width: 760px) { .pf-grid2 { grid-template-columns: 1fr; } }
+/* minmax(0, 1fr) statt 1fr: eine reine 1fr-Spur ist mindestens so breit wie die
+   intrinsische Mindestbreite ihrer Kinder — die Container-Breite ist ihr egal.
+   Ein Kind mit „white-space: nowrap" (hier der Einladen-Knopf) hat damit die
+   Spalte am Handy über den Bildschirmrand geschoben. Siehe auch PR #545. */
+.pf-grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 760px) { .pf-grid2 { grid-template-columns: minmax(0, 1fr); } }
 
 .pf-navrow {
   display: flex; align-items: center; gap: 14px; padding: 14px 0;
