@@ -25,6 +25,7 @@ import { useSessionStore } from "../../src/store/sessionStore";
 import {
   listDecks,
   getDueCountsByDeck,
+  getLastLearnedByDeck,
   searchCards,
   type CardSearchResult,
   updateDeck,
@@ -54,6 +55,13 @@ import {
   sortFolders,
   type FolderSort,
 } from "../../src/lib/folderSort";
+import {
+  DEFAULT_DECK_SORT,
+  loadDeckSort,
+  saveDeckSort,
+  sortDecks,
+  type DeckSort,
+} from "../../src/lib/deckSort";
 
 type TabKey = "decks" | "folders";
 
@@ -192,7 +200,47 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
     }, [loadDecks, loadFolders])
   );
 
-  const filteredDecks = useMemo(() => searchDecks(decks, query), [decks, query]);
+  // Deck-Reihenfolge (#614): Neueste (Voreinstellung, die bisherige Ordnung) /
+  // A–Z / Fällige zuerst / Zuletzt gelernt. Web-Gegenstück: deck-sort.ts.
+  const [deckSort, setDeckSort] = useState<DeckSort>(DEFAULT_DECK_SORT);
+  useEffect(() => {
+    let active = true;
+    void loadDeckSort().then((stored) => {
+      if (active) setDeckSort(stored);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Nur „Zuletzt gelernt" braucht die Zeitstempel — erst holen, wenn diese
+  // Reihenfolge gewählt ist, und dann einmal statt bei jedem Umschalten.
+  const [lastLearnedByDeck, setLastLearnedByDeck] = useState<Record<string, string> | null>(null);
+  useEffect(() => {
+    if (deckSort !== "learned" || lastLearnedByDeck !== null) return;
+    let active = true;
+    void getLastLearnedByDeck()
+      .then(({ lastLearnedByDeck: fetched }) => {
+        if (active) setLastLearnedByDeck(fetched);
+      })
+      .catch(() => {
+        // Scheitert die Abfrage, wird nach Titel weiter sortiert statt die
+        // Liste zu verweigern.
+        if (active) setLastLearnedByDeck({});
+      });
+    return () => {
+      active = false;
+    };
+  }, [deckSort, lastLearnedByDeck]);
+
+  const filteredDecks = useMemo(
+    () =>
+      sortDecks(searchDecks(decks, query), deckSort, {
+        dueByDeck,
+        lastLearnedByDeck: lastLearnedByDeck ?? {},
+      }),
+    [decks, query, deckSort, dueByDeck, lastLearnedByDeck]
+  );
 
   // Card search: from 2+ characters the query also searches card fronts/backs
   // server-side (debounced so we don't fire a request per keystroke).
@@ -712,6 +760,62 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
       return (
         <>
           {cardSection}
+          {/* Deck-Reihenfolge umschalten (#614) — erst ab zwei Decks, und im
+              gleichen Aussehen wie die Ordner-Umschaltung aus #612. */}
+          {filteredDecks.length > 1 && (
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: spacing.xs,
+                marginBottom: spacing.sm,
+              }}
+              accessibilityRole="radiogroup"
+            >
+              <ArrowUpDown size={15} color={colors.textTertiary} />
+              {(
+                [
+                  ["created", t("library.sortDeckCreated")],
+                  ["alpha", t("library.sortDeckAlpha")],
+                  ["due", t("library.sortDeckDue")],
+                  ["learned", t("library.sortDeckLearned")],
+                ] as const
+              ).map(([value, label]) => {
+                const active = deckSort === value;
+                return (
+                  <TouchableOpacity
+                    key={value}
+                    onPress={() => {
+                      setDeckSort(value);
+                      void saveDeckSort(value);
+                    }}
+                    activeOpacity={0.7}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: active }}
+                    style={{
+                      paddingVertical: 4,
+                      paddingHorizontal: spacing.md,
+                      borderRadius: radius.full ?? 999,
+                      borderWidth: 1,
+                      borderColor: active ? colors.primary : colors.border,
+                      backgroundColor: active ? colors.primaryLight : colors.surface,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: typography.sm,
+                        fontWeight: typography.semibold,
+                        color: active ? colors.primary : colors.textSecondary,
+                      }}
+                    >
+                      {label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
           {filteredDecks.map(renderDeckItem)}
         </>
       );

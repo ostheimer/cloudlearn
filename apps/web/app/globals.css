@@ -2945,6 +2945,10 @@ a.mode-card:hover {
   align-items: center;
   gap: 6px;
   margin: 0 0 14px;
+  /* Vier Deck-Reihenfolgen (#614) passen bei 375px nicht in eine Zeile. Lieber
+     die REIHE umbrechen als die Beschriftungen: gequetscht stand da „A–\nZ"
+     und „Fällige\nzuerst". Bei zwei Ordner-Chips ändert das nichts. */
+  flex-wrap: wrap;
 }
 
 .folder-sort__icon {
@@ -2963,6 +2967,7 @@ a.mode-card:hover {
   padding: 4px 12px;
   border-radius: var(--r-pill);
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .folder-sort__chip:hover {

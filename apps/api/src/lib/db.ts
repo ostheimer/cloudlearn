@@ -633,6 +633,61 @@ export async function countDueCardsByDeck(
   return counts;
 }
 
+/**
+ * Wann wurde in jedem Deck zuletzt gelernt? (#614, Sortierung „zuletzt gelernt")
+ *
+ * Der Zeitpunkt steckt nur in `review_logs`; am Deck selbst gibt es ihn nicht.
+ * `updated_at` taugt nicht als Ersatz — das ändert sich beim Umbenennen und
+ * beim Bearbeiten von Karten, also auch ohne eine einzige Antwort.
+ *
+ * Aggregiert wird im Client-Code über die Zeilen, nicht per SQL-Gruppierung:
+ * PostgREST kann kein `group by`, und die Alternative wäre eine Datenbank-
+ * Funktion — für eine Sortierreihenfolge zu viel. Übertragen werden nur zwei
+ * Spalten, und `selectAllRows` blättert über die stille 1000er-Kappung hinweg
+ * (#612), sonst wären ausgerechnet die NEUESTEN Tage abgeschnitten.
+ *
+ * `decks!inner` mit Liveness-Filter (#495): weich gelöschte Decks und Karten
+ * zählen nicht, sonst stünde ein Deck aus dem Papierkorb in der Sortierung.
+ * Decks ohne jede Antwort fehlen im Ergebnis — Clients lesen fehlend als „noch
+ * nie gelernt".
+ */
+export async function getLastLearnedByDeck(
+  userId: string
+): Promise<Record<string, string>> {
+  const db = getDb();
+  const rows = await selectAllRows<Record<string, unknown>>(
+    (from, to) =>
+      db
+        .from("review_logs")
+        .select("reviewed_at, cards!inner(deck_id, deleted_at, decks!inner(deleted_at))")
+        .eq("user_id", userId)
+        .is("cards.deleted_at", null)
+        .is("cards.decks.deleted_at", null)
+        // Deterministisch blättern: ohne feste Ordnung dürfen sich Seiten
+        // überlappen oder Zeilen auslassen.
+        .order("id", { ascending: true })
+        .range(from, to),
+    "getLastLearnedByDeck"
+  );
+
+  const latest: Record<string, string> = {};
+  for (const row of rows) {
+    // Die eingebettete Beziehung kommt als Objekt zurück, wird von den
+    // PostgREST-Typen aber als Array beschrieben — beide Formen lesen, statt
+    // sich auf eine zu verlassen.
+    const embedded = (row as { cards?: unknown }).cards;
+    const card = (Array.isArray(embedded) ? embedded[0] : embedded) as
+      | { deck_id?: string }
+      | undefined;
+    const deckId = card?.deck_id;
+    const reviewedAt = row.reviewed_at as string | undefined;
+    if (!deckId || !reviewedAt) continue;
+    const known = latest[deckId];
+    if (!known || reviewedAt > known) latest[deckId] = reviewedAt;
+  }
+  return latest;
+}
+
 export interface CardSearchResult {
   cardId: string;
   deckId: string;

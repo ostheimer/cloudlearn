@@ -20,6 +20,7 @@ import {
   listDecksInFolder,
   addDeckToFolder,
   getDueCountsByDeck,
+  getLastLearnedByDeck,
   getDeckCountsByFolder,
   searchCards,
   isApiError,
@@ -66,6 +67,14 @@ import {
   sortFolders,
   type FolderSort,
 } from "@/lib/folder-sort";
+import {
+  DECK_SORT_LABELS,
+  DEFAULT_DECK_SORT,
+  loadDeckSort,
+  saveDeckSort,
+  sortDecks,
+  type DeckSort,
+} from "@/lib/deck-sort";
 
 type TabKey = "decks" | "folders";
 
@@ -118,6 +127,32 @@ export default function LibraryPage() {
   useEffect(() => {
     setFolderSort(loadFolderSort());
   }, []);
+  // Deck-Reihenfolge (#614): Neueste / A–Z / Fällige zuerst / Zuletzt gelernt.
+  // Gleiche Hydrierungs-Regel wie oben: erst nach dem Mount aus dem Speicher.
+  const [deckSort, setDeckSort] = useState<DeckSort>(DEFAULT_DECK_SORT);
+  useEffect(() => {
+    setDeckSort(loadDeckSort());
+  }, []);
+  // Wann wurde in jedem Deck zuletzt geantwortet? Nur für „Zuletzt gelernt"
+  // nötig, deshalb erst geholt, wenn diese Reihenfolge gewählt ist — und dann
+  // einmal, nicht bei jedem Umschalten zurück und vor.
+  const [lastLearnedByDeck, setLastLearnedByDeck] = useState<Record<string, string> | null>(null);
+  useEffect(() => {
+    if (!userId || deckSort !== "learned" || lastLearnedByDeck !== null) return;
+    let active = true;
+    void getLastLearnedByDeck()
+      .then(({ lastLearnedByDeck: fetched }) => {
+        if (active) setLastLearnedByDeck(fetched);
+      })
+      .catch(() => {
+        // Scheitert die Abfrage, bleibt `null`: sortDecks sortiert dann nach
+        // dem Titel weiter, statt die Liste zu verweigern.
+        if (active) setLastLearnedByDeck({});
+      });
+    return () => {
+      active = false;
+    };
+  }, [userId, deckSort, lastLearnedByDeck]);
   // Tarif-Grenzen für den Füllstand (#611). Der /usage-Endpunkt liefert sie
   // seit #411 mit, diese Seite fragte sie nur nie ab — deshalb war die
   // Deck-Grenze unsichtbar, bis sie riss. `undefined` heißt „unbekannt"
@@ -239,13 +274,21 @@ export default function LibraryPage() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return decks;
-    return decks.filter(
-      (d) =>
-        d.title.toLowerCase().includes(q) ||
-        d.tags.some((t) => t.toLowerCase().includes(q))
-    );
-  }, [decks, query]);
+    const matching = !q
+      ? decks
+      : decks.filter(
+          (d) =>
+            d.title.toLowerCase().includes(q) ||
+            d.tags.some((t) => t.toLowerCase().includes(q))
+        );
+    // Reihenfolge (#614) gilt auch für Suchtreffer — eine gefilterte Liste in
+    // einer anderen Ordnung als die ungefilterte wäre eine zweite Reihenfolge
+    // im selben Bildschirm.
+    return sortDecks(matching, deckSort, {
+      dueByDeck,
+      lastLearnedByDeck: lastLearnedByDeck ?? {},
+    });
+  }, [decks, query, deckSort, dueByDeck, lastLearnedByDeck]);
 
   // How many folders sit directly inside each folder — the "N Unterordner" hint
   // on a top-level card so people know the tree continues below it.
@@ -505,6 +548,31 @@ export default function LibraryPage() {
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 16 }}>
           {cardSection}
+          {/* Reihenfolge der Decks umschalten (#614). Erst ab zwei Decks —
+              darunter gibt es nichts zu sortieren, genau wie bei den Ordnern.
+              Die Ordner-Liste kann das seit #612, die Deck-Liste zeigte bisher
+              immer nur die Server-Ordnung. */}
+          {filtered.length > 1 && (
+            <div className="folder-sort" role="group" aria-label="Reihenfolge der Decks">
+              <span className="folder-sort__icon" aria-hidden>
+                <ArrowsSort size={15} />
+              </span>
+              {(["created", "alpha", "due", "learned"] as const).map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={`folder-sort__chip${deckSort === value ? " active" : ""}`}
+                  aria-pressed={deckSort === value}
+                  onClick={() => {
+                    setDeckSort(value);
+                    saveDeckSort(value);
+                  }}
+                >
+                  {DECK_SORT_LABELS[value]}
+                </button>
+              ))}
+            </div>
+          )}
           {filtered.length > 0 && (
         <div className="deck-grid">
           {filtered.map((deck) => (
