@@ -64,6 +64,7 @@ import {
   type SpeechLanguage,
 } from "../../src/lib/speechLanguages";
 import { formatCloze } from "../../src/lib/cloze";
+import { groupCardsByDeck } from "../../src/lib/groupByDeck";
 import { setLastUsedDeck } from "../../src/lib/lastUsedDeck";
 import { useDisplayName } from "../../src/lib/useDisplayName";
 import { useUsageStore } from "../../src/store/usageStore";
@@ -362,10 +363,14 @@ function AuthenticatedLearnScreen({
       const fetched = excludeOcclusionCards(raw);
       // Deck setup may restrict the session to a chosen source (all / starred /
       // wobbly). The global tab (no deckId/source) always studies the full pile.
-      const loaded =
+      // Global mode runs deck by deck instead of shuffled across decks (#609,
+      // Laras Entscheidung gegen das Vermischen) — the card faces show the
+      // deck name so the learner always knows which deck they are in.
+      const filtered =
         deckId && source
           ? filterBySource(fetched, source, new Set(wobblyIds ?? []))
           : fetched;
+      const loaded = deckId ? filtered : groupCardsByDeck(filtered);
       if (loaded.length > 0) {
         const starMap: Record<string, boolean> = {};
         loaded.forEach((card) => { starMap[card.id] = card.starred ?? false; });
@@ -566,19 +571,26 @@ function AuthenticatedLearnScreen({
   const [deckLangs, setDeckLangs] = useState<
     Record<string, { front: SpeechLanguage; back: SpeechLanguage }>
   >({});
+  // Deck-Titel für die kleine Beschriftung auf der Karte (#609): Die globale
+  // Runde läuft Deck für Deck, und jede Karte sagt, zu welchem Deck sie
+  // gehört — Laras Bedingung gegen das Vermischen.
+  const [deckTitles, setDeckTitles] = useState<Record<string, string>>({});
   useEffect(() => {
     let cancelled = false;
     listDecks(userId)
       .then(({ decks }) => {
         if (cancelled) return;
         const map: Record<string, { front: SpeechLanguage; back: SpeechLanguage }> = {};
+        const titles: Record<string, string> = {};
         for (const d of decks) {
           map[d.id] = {
             front: toSpeechLanguage(d.speechLangFront),
             back: toSpeechLanguage(d.speechLangBack),
           };
+          titles[d.id] = d.title;
         }
         setDeckLangs(map);
+        setDeckTitles(titles);
       })
       .catch(() => {
         /* Ohne Zuordnung bleibt es bei Deutsch — Vorlesen muss trotzdem gehen */
@@ -811,6 +823,10 @@ function AuthenticatedLearnScreen({
   // zuerst gesprochen werden. Ohne diese Drehung läse die App bei getauschter
   // Richtung jede Seite in der Sprache der jeweils anderen vor.
   const cardLangs = current?.deckId ? deckLangs[current.deckId] : undefined;
+  // Deck-Name auf der Karte nur im globalen Modus (#609) — beim Ein-Deck-
+  // Lernen nennt die Kopfzeile das Deck bereits.
+  const currentDeckTitle =
+    !deckId && current?.deckId ? deckTitles[current.deckId] : undefined;
   const frontSideLang: SpeechLanguage = showBackFirst
     ? (cardLangs?.back ?? DEFAULT_SPEECH_LANGUAGE)
     : (cardLangs?.front ?? DEFAULT_SPEECH_LANGUAGE);
@@ -962,20 +978,48 @@ function AuthenticatedLearnScreen({
                 <Text style={{ color: c.textSecondary, textAlign: "center", fontSize: typography.base }}>
                   {t("review.noCardsHint")}
                 </Text>
-                <TouchableOpacity
-                  onPress={loadDueCards}
-                  activeOpacity={0.8}
-                  style={{
-                    backgroundColor: c.primary, borderRadius: radius.md,
-                    paddingHorizontal: spacing.xxl, paddingVertical: 14,
-                    flexDirection: "row", gap: spacing.sm, alignItems: "center",
-                  }}
-                >
-                  <RotateCcw size={18} color="#fff" />
-                  <Text style={{ color: "#fff", fontWeight: typography.semibold, fontSize: typography.base }}>
-                    {t("review.reload")}
-                  </Text>
-                </TouchableOpacity>
+                {/* Auswege statt Sackgasse (#609): Der Hinweis riet zum Scannen,
+                    aber es gab keinen Knopf dorthin — nur "Neu laden". */}
+                <View style={{ width: "100%", maxWidth: 340, gap: spacing.sm }}>
+                  <TouchableOpacity
+                    onPress={() => router.push("/(tabs)/scan")}
+                    activeOpacity={0.8}
+                    style={{
+                      backgroundColor: c.primary, borderRadius: radius.md,
+                      paddingVertical: 14, alignItems: "center", justifyContent: "center",
+                    }}
+                  >
+                    <Text style={{ color: "#fff", fontWeight: typography.semibold, fontSize: typography.base }}>
+                      {t("review.emptyScan")}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => router.push("/(tabs)/decks")}
+                    activeOpacity={0.8}
+                    style={{
+                      backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
+                      borderRadius: radius.md, paddingVertical: 14,
+                      alignItems: "center", justifyContent: "center",
+                    }}
+                  >
+                    <Text style={{ color: c.text, fontWeight: typography.semibold, fontSize: typography.base }}>
+                      {t("review.emptyLibrary")}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={loadDueCards}
+                    activeOpacity={0.8}
+                    style={{
+                      paddingVertical: 12, flexDirection: "row", gap: spacing.sm,
+                      alignItems: "center", justifyContent: "center",
+                    }}
+                  >
+                    <RotateCcw size={16} color={c.textSecondary} />
+                    <Text style={{ color: c.textSecondary, fontWeight: typography.semibold, fontSize: typography.base }}>
+                      {t("review.reload")}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             ) : (
               // Result: how many known + re-study only the missed ones. Same
@@ -1133,6 +1177,19 @@ function AuthenticatedLearnScreen({
                         },
                       ]}
                     >
+                      {/* Deck-Name klein am oberen Rand — nur globale Runde (#609) */}
+                      {currentDeckTitle ? (
+                        <Text
+                          numberOfLines={1}
+                          style={{
+                            position: "absolute", top: spacing.lg, left: spacing.xl, right: spacing.xl,
+                            textAlign: "center", fontSize: typography.xs,
+                            fontWeight: typography.semibold, color: c.textTertiary,
+                          }}
+                        >
+                          {currentDeckTitle}
+                        </Text>
+                      ) : null}
                       {/* Text content fades out on swipe */}
                       <Animated.View style={[cardTextOpacity, { alignItems: "center", gap: spacing.md }]}>
                         {frontImage ? (
@@ -1173,6 +1230,19 @@ function AuthenticatedLearnScreen({
                         },
                       ]}
                     >
+                      {/* Deck-Name klein am oberen Rand — nur globale Runde (#609) */}
+                      {currentDeckTitle ? (
+                        <Text
+                          numberOfLines={1}
+                          style={{
+                            position: "absolute", top: spacing.lg, left: spacing.xl, right: spacing.xl,
+                            textAlign: "center", fontSize: typography.xs,
+                            fontWeight: typography.semibold, color: c.textTertiary,
+                          }}
+                        >
+                          {currentDeckTitle}
+                        </Text>
+                      ) : null}
                       {/* Text content fades out on swipe */}
                       <Animated.View style={[cardTextOpacity, { alignItems: "center", gap: spacing.md }]}>
                         {backImage ? (

@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
 import { listCardsInDeck, reviewCard, earnLp, isApiError, type Card } from "@/lib/api";
-import { isAnswerCorrect } from "@/lib/answerCheck";
+import { isAnswerCorrect, isCaseOnlyMismatch } from "@/lib/answerCheck";
 import { buildPrompt, hasTypeable } from "@/lib/cloze-prompt";
 import { createReviewSendBuffer } from "@/lib/review-send-buffer";
 import {
@@ -15,7 +15,7 @@ import {
 } from "@/lib/unsaved-reviews";
 import { useDisplayName } from "@/lib/use-display-name";
 import { useWobblyIds } from "@/lib/use-wobbly-ids";
-import { filterBySource, type CardSource } from "@/lib/card-source";
+import { filterBySource, isCardDue, type CardSource } from "@/lib/card-source";
 import { loadSetup, resolveSource, saveSetup } from "@/lib/setup-memory";
 import { CardSourcePicker } from "@/components/app/card-source-picker";
 import {
@@ -131,11 +131,17 @@ export default function ClozePage() {
     if (sourceRestoredRef.current || sourceTouchedRef.current) return;
     if (phase !== "setup" || loading || !wobblySettled) return;
     sourceRestoredRef.current = true;
-    const wanted = resolveSource(loadSetup(deckId, "cloze")?.source, {
+    const stored = loadSetup(deckId, "cloze");
+    const counts = {
       starred: allCards.filter((c) => c.starred).length,
       wobbly: allCards.filter((c) => wobblyIds.has(c.id)).length,
-    });
+      due: allCards.filter((c) => isCardDue(c)).length,
+    };
+    const wanted = resolveSource(stored?.source, counts);
     if (wanted) setSource(wanted);
+    // Ohne gemerkte Wahl ist das Tagespensum die Voreinstellung (#610):
+    // „Nur fällige", sobald es gerade welche gibt.
+    else if (!stored?.source && counts.due > 0) setSource("due");
   }, [deckId, phase, loading, wobblySettled, allCards, wobblyIds]);
 
   const studyPool = filterBySource(allCards, source, wobblyIds);
@@ -152,6 +158,13 @@ export default function ClozePage() {
   const result = results[idx] ?? null;
   const revealed = result !== null;
   const wasCorrect = result ? result.correct || result.overridden : false;
+  // Gelbe „Fast"-Stufe (#610, Laras Entscheidung): Die Antwort scheitert NUR
+  // an der Groß-/Kleinschreibung. Sie zählt nicht automatisch als richtig —
+  // der „Trotzdem als richtig zählen"-Knopf darunter entscheidet.
+  const nearMiss =
+    revealed && !wasCorrect && parsed
+      ? isCaseOnlyMismatch(result?.input ?? "", parsed.answer)
+      : false;
 
   // Eingabefeld bei neuer, unbeantworteter Karte fokussieren.
   useEffect(() => {
@@ -507,6 +520,7 @@ export default function ClozePage() {
           allCount={allCards.length}
           starredCount={allCards.filter((c) => c.starred).length}
           wobblyCount={allCards.filter((c) => wobblyIds.has(c.id)).length}
+          dueCount={allCards.filter((c) => isCardDue(c)).length}
         />
 
         {/* Weitermachen — nur solange eine unterbrochene Runde noch passt */}
@@ -679,7 +693,7 @@ export default function ClozePage() {
 
       <input
         ref={inputRef}
-        className={`cl-input${revealed ? (wasCorrect ? " ok" : " no") : ""}`}
+        className={`cl-input${revealed ? (wasCorrect ? " ok" : nearMiss ? " near" : " no") : ""}`}
         placeholder="Antwort eintippen…"
         value={revealed ? result?.input ?? "" : input}
         disabled={revealed}
@@ -697,12 +711,24 @@ export default function ClozePage() {
       />
 
       {revealed && (
-        <div className={`cl-fb ${wasCorrect ? "ok" : "no"}`}>
+        <div className={`cl-fb ${wasCorrect ? "ok" : nearMiss ? "near" : "no"}`}>
           <span className="cl-fb__ic" aria-hidden>
-            {wasCorrect ? <CheckCircle size={22} /> : <X size={22} />}
+            {wasCorrect ? (
+              <CheckCircle size={22} />
+            ) : nearMiss ? (
+              <AlertTriangle size={22} />
+            ) : (
+              <X size={22} />
+            )}
           </span>
           <div>
-            <b>{wasCorrect ? "Richtig" : "Falsch"}</b>
+            <b>
+              {wasCorrect
+                ? "Richtig"
+                : nearMiss
+                  ? "Fast — achte auf die Großschreibung"
+                  : "Falsch"}
+            </b>
             <div className="cl-fb__sol">Lösung: {parsed?.answer}</div>
           </div>
         </div>

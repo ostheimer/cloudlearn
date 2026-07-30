@@ -54,6 +54,20 @@ function splitAlternatives(expected: string): string[] {
     .filter((candidate) => candidate.length > 0);
 }
 
+// True when the answer fails ONLY on upper/lower case. The Lückentext then
+// shows the yellow "Fast" state instead of red (#610, Lara's decision): the
+// keyboard deliberately types lowercase there, so the feedback names what is
+// actually missing — it only counts once the learner taps "Trotzdem als
+// richtig zählen" herself. Typos and accents stay out on purpose: in strict
+// mode those are real mistakes.
+export function isCaseOnlyMismatch(input: string, expected: string): boolean {
+  const answer = input.trim();
+  if (!answer) return false;
+  return splitAlternatives(expected).some(
+    (candidate) => candidate !== answer && candidate.toLowerCase() === answer.toLowerCase()
+  );
+}
+
 export function isAnswerCorrect(
   input: string,
   expected: string,

@@ -824,7 +824,9 @@ export default function AuthScreen() {
                 </TouchableOpacity>
               ) : null}
 
-              {mode === "login" ? (
+              {/* Face ID/Touch ID gibt es nur bei Apple — auf Android und im
+                  Browser wäre der Satz eine leere Behauptung (#609). */}
+              {mode === "login" && Platform.OS === "ios" ? (
                 <Text
                   style={{
                     color: brandTextTertiary,

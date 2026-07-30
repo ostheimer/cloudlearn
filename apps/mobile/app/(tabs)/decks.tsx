@@ -23,7 +23,7 @@ import { useTranslation } from "react-i18next";
 import { useSessionStore } from "../../src/store/sessionStore";
 import {
   listDecks,
-  getDueCards,
+  getDueCountsByDeck,
   searchCards,
   type CardSearchResult,
   updateDeck,
@@ -112,16 +112,14 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
     setDecksError(false);
     try {
       // The badge is best-effort: a failing due lookup must not break the list.
-      const [{ decks: fetched }, due] = await Promise.all([
+      // Gezählt wird auf dem Server (#612): getDueCards überträgt den ganzen
+      // Rückstand mit Kartentext und wird ab 1000 Karten still gekappt.
+      const [{ decks: fetched }, { dueByDeck: due }] = await Promise.all([
         listDecks(userId),
-        getDueCards(userId).catch(() => ({ cards: [] })),
+        getDueCountsByDeck().catch(() => ({ dueByDeck: {} })),
       ]);
       setDecks(fetched);
-      const counts: Record<string, number> = {};
-      for (const card of due.cards) {
-        counts[card.deckId] = (counts[card.deckId] ?? 0) + 1;
-      }
-      setDueByDeck(counts);
+      setDueByDeck(due);
     } catch {
       // Distinguish a load failure (offline / server error) from a genuinely
       // empty library so we can offer a retry instead of "noch keine Decks".
@@ -527,7 +525,7 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
     </TouchableOpacity>
   );
 
-  const renderEmpty = (icon: React.ReactNode, message: string) => (
+  const renderEmpty = (icon: React.ReactNode, message: string, action?: React.ReactNode) => (
     <View style={{ alignItems: "center", paddingTop: 40, gap: spacing.md }}>
       <View
         style={{
@@ -544,6 +542,7 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
       <Text style={{ fontSize: typography.base, color: colors.textSecondary, textAlign: "center", lineHeight: 22 }}>
         {message}
       </Text>
+      {action}
     </View>
   );
 
@@ -641,7 +640,26 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
       if (filteredDecks.length === 0 && !cardSection) {
         return renderEmpty(
           <Layers size={28} color={colors.textTertiary} />,
-          decks.length === 0 ? t("library.emptyDecks") : t("library.noMatchDecks")
+          decks.length === 0 ? t("library.emptyDecks") : t("library.noMatchDecks"),
+          // Der Text rät zum Scannen — der Knopf führt auch hin (#609). Nur im
+          // wirklich leeren Zustand, nicht bei einer erfolglosen Suche.
+          decks.length === 0 ? (
+            <TouchableOpacity
+              onPress={() => router.push("/(tabs)/scan")}
+              activeOpacity={0.8}
+              style={{
+                backgroundColor: colors.primary,
+                borderRadius: radius.md,
+                paddingHorizontal: spacing.xxl,
+                paddingVertical: 14,
+                marginTop: spacing.sm,
+              }}
+            >
+              <Text style={{ color: "#fff", fontWeight: typography.semibold, fontSize: typography.base }}>
+                {t("library.scanCta")}
+              </Text>
+            </TouchableOpacity>
+          ) : undefined
         );
       }
       return (

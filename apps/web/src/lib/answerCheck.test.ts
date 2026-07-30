@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { isAnswerCorrect, normalizeAnswer } from "./answerCheck";
+import { isAnswerCorrect, isCaseOnlyMismatch, normalizeAnswer } from "./answerCheck";
 
 describe("nachsichtiger Modus", () => {
   it("verlangt unter 8 Buchstaben die exakte Schreibung — maus zählt nicht für haus (#564)", () => {
@@ -34,6 +34,28 @@ describe("strenger Modus", () => {
     expect(isAnswerCorrect("ohnegleichen", "beispiellos/ohnegleichen", { strict: true })).toBe(
       true
     );
+  });
+});
+
+describe("isCaseOnlyMismatch — die gelbe Fast-Stufe (#610)", () => {
+  it("erkennt reine Groß/klein-Abweichung, auch bei Alternativen", () => {
+    expect(isCaseOnlyMismatch("hund", "Hund")).toBe(true);
+    expect(isCaseOnlyMismatch("COUCH", "Couch/Sofa")).toBe(true);
+    expect(isCaseOnlyMismatch("élève", "Élève")).toBe(true);
+  });
+
+  it("meldet nichts bei exakter oder ganz anderer Antwort", () => {
+    expect(isCaseOnlyMismatch("Hund", "Hund")).toBe(false);
+    expect(isCaseOnlyMismatch("Katze", "Hund")).toBe(false);
+  });
+
+  it("Tippfehler und Akzente sind kein Fast — im strengen Modus echte Fehler", () => {
+    expect(isCaseOnlyMismatch("hundd", "Hund")).toBe(false);
+    expect(isCaseOnlyMismatch("cafe", "Café")).toBe(false);
+  });
+
+  it("leere Eingabe ist kein Fast", () => {
+    expect(isCaseOnlyMismatch("   ", "Hund")).toBe(false);
   });
 });
 
