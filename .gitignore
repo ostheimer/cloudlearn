@@ -44,3 +44,12 @@ apps/mobile/testflight-readiness.local.json
 # Stray root work artifacts (issue #91)
 /expo-qr.png
 /ss-check-initial.png
+
+# Kurzlebige Anmelde-Dateien fuers Web-Testen: Um den eingeloggten Bereich zu
+# pruefen, wird die Supabase-Session per curl geholt und unter apps/web/public
+# abgelegt, damit die Seite sie selbst lesen kann (sonst muesste das Token durch
+# ein Werkzeug-Argument und damit in ein Protokoll wandern). Sie enthaelt ein
+# echtes Zugangs-Token und wird danach geloescht — aber bisher hing das allein
+# an der Disziplin, sie nicht mitzucommitten. Das Muster deckt auch kuenftige
+# Namensvarianten ab (__session.json, session-probe.json, ...).
+apps/web/public/*session*.json
