@@ -74,7 +74,8 @@ test.describe("cloudlearn auth preview", () => {
         request.method() === "POST" &&
         request.url().includes("/auth/v1/token")
     );
-    await page.getByPlaceholder("deine@email.de").fill("test@example.com");
+    // Platzhalter seit #571 wortgleich mit dem Web (vorher „deine@email.de").
+    await page.getByPlaceholder("du@beispiel.de").fill("test@example.com");
     await page.getByPlaceholder("••••••••").fill("secret123");
     await page.getByPlaceholder("••••••••").press("Enter");
     await submitRequest;
