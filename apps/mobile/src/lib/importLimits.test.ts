@@ -4,6 +4,7 @@ import {
   NEARLY_FULL_THRESHOLD,
   deckLimitMessage,
   deckSlotsLabel,
+  deckSlotsHint,
   freeCardSlots,
   isDeckLimitReached,
   isPlanLimitError,
@@ -110,6 +111,17 @@ describe("Rückfrage vor dem Speichern (#570, Variante 3)", () => {
     expect(deckSlotsLabel("Biologie", 0)).toBe("Biologie (voll)");
     expect(deckSlotsLabel("Biologie", NEARLY_FULL_THRESHOLD)).toBe("Biologie");
     expect(deckSlotsLabel("Biologie", 90)).toBe("Biologie");
+  });
+
+  it("gibt dem Ziel-Deck-Picker denselben Platz-Hinweis ohne Titel (#612)", () => {
+    // Gleiche Staffel wie deckSlotsLabel: erst kurz vor voll ein Hinweis,
+    // unbekannte Grenze (#603) heisst "nichts anzeigen, nie sperren".
+    expect(deckSlotsHint(null)).toBeNull();
+    expect(deckSlotsHint(90)).toBeNull();
+    expect(deckSlotsHint(NEARLY_FULL_THRESHOLD)).toBeNull();
+    expect(deckSlotsHint(12)).toBe("12 Plätze frei");
+    expect(deckSlotsHint(1)).toBe("1 Platz frei");
+    expect(deckSlotsHint(0)).toBe("voll — kein Platz mehr");
   });
 });
 

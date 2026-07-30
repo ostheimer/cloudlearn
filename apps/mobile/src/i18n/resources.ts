@@ -301,6 +301,9 @@ export const resources = {
       "folder.searchEmpty": "Kein Ordner passt zu deiner Suche.",
       "folder.searchDecksPlaceholder": "Deck suchen...",
       "folder.searchDecksEmpty": "Kein Deck passt zu deiner Suche.",
+      "scanSave.pickDeck": "Deck wählen",
+      "scanSave.addCountOne": "1 Karte hinzufügen zu:",
+      "scanSave.addCountMany": "{{count}} Karten hinzufügen zu:",
 
       // Deck edit
       "deckEdit.title": "Deck bearbeiten",
@@ -813,6 +816,9 @@ export const resources = {
       "folder.searchEmpty": "No folder matches your search.",
       "folder.searchDecksPlaceholder": "Search decks...",
       "folder.searchDecksEmpty": "No deck matches your search.",
+      "scanSave.pickDeck": "Choose deck",
+      "scanSave.addCountOne": "Add 1 card to:",
+      "scanSave.addCountMany": "Add {{count}} cards to:",
 
       // Deck edit
       "deckEdit.title": "Edit deck",

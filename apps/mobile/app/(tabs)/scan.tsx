@@ -56,7 +56,6 @@ import {
 import {
   DECK_LIMIT_LABEL,
   deckLimitMessage,
-  deckSlotsLabel,
   freeCardSlots,
   isDeckLimitReached,
   deckOverflowWarning,
@@ -92,6 +91,7 @@ import {
 import { usageFromBalanceResponse, useUsageStore } from "../../src/store/usageStore";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
 import { LpInsufficientModal } from "../../src/components/LpInsufficientModal";
+import TargetDeckPickerModal from "../../src/components/TargetDeckPickerModal";
 import { AuthPromptCard } from "../../src/components/AuthPromptCard";
 import { LpBadge } from "../../src/components/LpBadge";
 
@@ -191,6 +191,9 @@ export default function ScanScreen() {
   }, [userId, setUsage, limitsKnown]);
 
   // Deckliste für die Grenz-Prüfung VOR dem Ausgeben von Lernpunkten (#411).
+  // Ziel-Deck-Auswahl fürs Speichern in ein bestehendes Deck (#612).
+  const [deckPickerVisible, setDeckPickerVisible] = useState(false);
+
   // Schlägt sie fehl, bleibt `decksLoaded` false und es wird nichts gesperrt —
   // der Server lehnt dann notfalls ab und bucht die Lernpunkte zurück.
   const [decks, setDecks] = useState<Deck[]>([]);
@@ -826,13 +829,10 @@ export default function ScanScreen() {
         );
         return;
       }
-      const buttons = existingDecks.slice(0, 8).map((d: Deck) => ({
-        // Freie Plätze stehen am Deck, damit die Wahl vorher informiert ist.
-        text: deckSlotsLabel(d.title, freeCardSlots(d, maxCardsPerDeck)),
-        onPress: () => confirmSaveToDeck(d),
-      }));
-      buttons.push({ text: "Abbrechen", onPress: () => {} });
-      Alert.alert("Deck wählen", `${nonEmptyCards(cards).length} Karten hinzufügen zu:`, buttons);
+      // Eigenes Auswahl-Fenster statt Alert (#612, #571-Teil-C): der Alert
+      // zeigte höchstens 8 Decks (Android real ~2–3), ohne Scrollen und ohne
+      // Suche — Deck Nr. 9+ war als Ziel unerreichbar.
+      setDeckPickerVisible(true);
     } catch {
       Alert.alert(t(IMPORT_ERROR_TITLE_KEY), "Decks konnten nicht geladen werden.");
     }
@@ -1398,6 +1398,20 @@ export default function ScanScreen() {
           feature={lpModalFeature}
           onClose={() => setLpModalVisible(false)}
           onAdRewarded={(newBalance) => setUsage({ lpBalance: newBalance })}
+        />
+
+        {/* Ziel-Deck wählen (#612) — die Platz-Nachfragen übernimmt weiterhin
+            confirmSaveToDeck, das Fenster wählt nur aus. */}
+        <TargetDeckPickerModal
+          visible={deckPickerVisible}
+          cardCount={nonEmptyCards(cards).length}
+          decks={decks}
+          maxCardsPerDeck={maxCardsPerDeck}
+          onClose={() => setDeckPickerVisible(false)}
+          onSelect={(deck) => {
+            setDeckPickerVisible(false);
+            confirmSaveToDeck(deck);
+          }}
         />
 
         {/* Loading overlay */}
