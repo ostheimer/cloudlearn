@@ -4,6 +4,7 @@ import { HttpError } from "@/lib/http";
 import type { DeckRecord } from "@/lib/db";
 
 const dbMocks = vi.hoisted(() => ({
+  countCardsInDeck: vi.fn(),
   createDeck: vi.fn(),
   listDecks: vi.fn(),
   listCardsForDeck: vi.fn(),
@@ -23,6 +24,7 @@ const subscriptionMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/db", () => ({
+  countCardsInDeck: dbMocks.countCardsInDeck,
   createDeck: dbMocks.createDeck,
   listDecks: dbMocks.listDecks,
   listCardsForDeck: dbMocks.listCardsForDeck,
@@ -71,6 +73,10 @@ describe("deckService plan limits", () => {
       isActive: false,
       expiresAt: null,
     });
+    // Default: das Quell-Deck ist klein genug. Die Karten-Grenze ist erst seit
+    // #611 überhaupt im Spiel, die Deck-Grenz-Tests unten sollen sie nicht
+    // versehentlich mit auslösen.
+    dbMocks.countCardsInDeck.mockResolvedValue(3);
   });
 
   it("blocks duplicating a deck when the user is at the deck limit", async () => {
@@ -99,5 +105,102 @@ describe("deckService plan limits", () => {
     } satisfies Partial<HttpError>);
 
     expect(dbMocks.duplicateDeck).not.toHaveBeenCalled();
+  });
+});
+
+describe("Kopieren umgeht die Karten-Grenze nicht mehr (#611)", () => {
+  const maxCards = getLimitsForTier("free").maxCardsPerDeck;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    subscriptionMocks.getSubscriptionStatus.mockResolvedValue({
+      userId,
+      tier: "free",
+      isActive: false,
+      expiresAt: null,
+    });
+    dbMocks.listDecks.mockResolvedValue(existingDecks(2));
+    dbMocks.getDeck.mockResolvedValue(sourceDeck);
+    dbMocks.getDeckByShareToken.mockResolvedValue(sourceDeck);
+  });
+
+  it("lehnt ein geteiltes Deck ab, das groesser ist als der eigene Tarif erlaubt", async () => {
+    // Der eigentliche Missbrauchsweg: Ein Pro-Konto teilt ein 2000-Karten-Deck,
+    // ein Gratis-Konto uebernimmt es und hat legal Karten, die es selbst nie
+    // haette anlegen duerfen.
+    dbMocks.countCardsInDeck.mockResolvedValue(2000);
+
+    await expect(importSharedDeck(userId, "share-token")).rejects.toMatchObject({
+      status: 409,
+      code: "DECK_FULL",
+    } satisfies Partial<HttpError>);
+
+    expect(dbMocks.duplicateDeck).not.toHaveBeenCalled();
+  });
+
+  it("lehnt das Duplizieren eines Decks ab, das schon ueber der Grenze liegt", async () => {
+    // Solche Decks gibt es in Produktion (Pro-Zeit, Direkt-Eintraege in die DB).
+    // Sie bleiben unangetastet — nur vervielfaeltigen kann man sie nicht mehr.
+    dbMocks.countCardsInDeck.mockResolvedValue(762);
+
+    await expect(duplicateDeckForUser(userId, sourceDeckId)).rejects.toMatchObject({
+      status: 409,
+      code: "DECK_FULL",
+    } satisfies Partial<HttpError>);
+
+    expect(dbMocks.duplicateDeck).not.toHaveBeenCalled();
+  });
+
+  it("nennt beide Zahlen und den Ausweg, statt nur abzulehnen", async () => {
+    dbMocks.countCardsInDeck.mockResolvedValue(762);
+
+    await expect(duplicateDeckForUser(userId, sourceDeckId)).rejects.toThrow(
+      `Dieses Deck hat 762 Karten — dein Tarif erlaubt ${maxCards} pro Deck. Mit Pro hast du deutlich mehr Platz.`
+    );
+  });
+
+  it("verspricht Pro-Konten KEIN Upgrade, das ihnen nichts brächte", async () => {
+    subscriptionMocks.getSubscriptionStatus.mockResolvedValue({
+      userId,
+      tier: "pro",
+      isActive: true,
+      expiresAt: null,
+    });
+    dbMocks.countCardsInDeck.mockResolvedValue(getLimitsForTier("pro").maxCardsPerDeck + 1);
+
+    await expect(duplicateDeckForUser(userId, sourceDeckId)).rejects.toThrow(
+      /Kopieren ist deshalb nicht möglich\./
+    );
+  });
+
+  it("kopiert ein Deck, das genau auf der Grenze liegt", async () => {
+    // Grenzfall: `maxCardsPerDeck` Karten passen exakt. Erst die naechste
+    // Karte von Hand lehnt assertCardLimit ab — wie bisher.
+    dbMocks.countCardsInDeck.mockResolvedValue(maxCards);
+    dbMocks.duplicateDeck.mockResolvedValue({ ...sourceDeck, id: "neu" });
+
+    await expect(duplicateDeckForUser(userId, sourceDeckId)).resolves.toMatchObject({
+      id: "neu",
+    });
+    expect(dbMocks.duplicateDeck).toHaveBeenCalledTimes(1);
+  });
+
+  it("laesst normale Decks unbehelligt durch", async () => {
+    dbMocks.countCardsInDeck.mockResolvedValue(42);
+    dbMocks.duplicateDeck.mockResolvedValue({ ...sourceDeck, id: "neu" });
+
+    await expect(importSharedDeck(userId, "share-token")).resolves.toMatchObject({
+      deck: { id: "neu" },
+    });
+    expect(dbMocks.duplicateDeck).toHaveBeenCalledTimes(1);
+  });
+
+  it("zaehlt die Karten des QUELL-Decks, nicht die des Konten-Bestands", async () => {
+    dbMocks.countCardsInDeck.mockResolvedValue(42);
+    dbMocks.duplicateDeck.mockResolvedValue({ ...sourceDeck, id: "neu" });
+
+    await duplicateDeckForUser(userId, sourceDeckId);
+
+    expect(dbMocks.countCardsInDeck).toHaveBeenCalledWith(sourceDeckId);
   });
 });
