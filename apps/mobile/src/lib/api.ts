@@ -1007,6 +1007,35 @@ export async function importSharedDeck(shareToken: string): Promise<{ deck: Deck
   });
 }
 
+/** Geteilte Decks nachziehen (#614) — habe ich von diesem Deck schon eine Kopie? */
+export interface SharedDeckSyncPreview {
+  existingDeck: { id: string; title: string } | null;
+  newCardCount: number;
+  skipped: number;
+}
+
+export async function previewSharedDeckSync(
+  shareToken: string
+): Promise<SharedDeckSyncPreview> {
+  return requestAuthenticated<SharedDeckSyncPreview>(
+    `/api/v1/decks/share/${shareToken}/sync`
+  );
+}
+
+/**
+ * „Aktualisieren": nur die fehlenden Karten in die eigene Kopie legen. Es wird
+ * nie gelöscht oder überschrieben; `added`/`skipped` sind die ehrlichen Zahlen.
+ */
+export async function syncSharedDeck(
+  shareToken: string
+): Promise<{ deck: { id: string; title: string }; added: number; skipped: number }> {
+  return requestAuthenticated<{
+    deck: { id: string; title: string };
+    added: number;
+    skipped: number;
+  }>(`/api/v1/decks/share/${shareToken}/sync`, { method: "POST" });
+}
+
 export interface DeckDetails {
   id: string;
   userId: string;

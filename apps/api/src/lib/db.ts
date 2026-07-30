@@ -1758,6 +1758,61 @@ export async function duplicateDeck(
   return mapDeckRow(deckData);
 }
 
+// ─── Geteilte Decks nachziehen (#614) ────────────────────────────────────────
+
+/**
+ * Eigene, lebende Kopien eines geteilten Decks — erkannt an `source_deck_id`.
+ *
+ * Die Spalte wird von `duplicateDeck` seit immer geschrieben und war bis hier
+ * nie gelesen worden. Genau deshalb entstand bei einem zweiten Klick auf
+ * denselben Link still eine ZWEITE Kopie, ohne Hinweis.
+ *
+ * Neueste zuerst: Gibt es doch mehrere Kopien (etwa aus der Zeit vor diesem
+ * Abgleich), ist die jüngste die, mit der gerade gelernt wird.
+ */
+export async function findDeckCopiesOfSource(
+  userId: string,
+  sourceDeckId: string
+): Promise<DeckRecord[]> {
+  const db = getDb();
+  const { data, error } = await db
+    .from("decks")
+    .select()
+    .eq("user_id", userId)
+    .eq("source_deck_id", sourceDeckId)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(`findDeckCopiesOfSource: ${error.message}`);
+  return (data ?? []).map((row) => mapDeckRow(row));
+}
+
+/**
+ * Vorder- und Rückseiten ALLER Karten eines Decks — auch der weich gelöschten.
+ *
+ * Für den Abgleich ist genau das der Punkt: Eine Karte, die die Nutzerin
+ * absichtlich weggeworfen hat, darf beim Nachziehen nicht wiederkommen (Laras
+ * Regel zu Fall 8). `listCardsForDeck` blendet Gelöschtes aus und wäre hier
+ * also falsch — der Abgleich hielte die Karte für „fehlt noch".
+ */
+export async function listCardTextsIncludingDeleted(
+  userId: string,
+  deckId: string
+): Promise<Array<{ front: string; back: string }>> {
+  const db = getDb();
+  const rows = await selectAllRows<{ front: string | null; back: string | null }>(
+    (from, to) =>
+      db
+        .from("cards")
+        .select("front, back")
+        .eq("user_id", userId)
+        .eq("deck_id", deckId)
+        .order("id", { ascending: true })
+        .range(from, to),
+    "listCardTextsIncludingDeleted"
+  );
+  return rows.map((row) => ({ front: row.front ?? "", back: row.back ?? "" }));
+}
+
 // ─── Deck / Card Limit Checks ────────────────────────────────────────────────
 
 export async function countUserDecks(userId: string): Promise<number> {

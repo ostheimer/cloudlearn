@@ -592,7 +592,8 @@ Die initiale Migration oben ist nur das Basisschema. Die vollständige, maßgebl
 │   ├── POST   /:id/share    # Share-Link/Deep-Link generieren (bestehenden Token wiederverwenden)
 │   ├── DELETE /:id/share    # Share-Link deaktivieren (#519); danach mintet POST einen neuen Token
 │   ├── POST   /:id/tests    # Abgegebene Prüfung protokollieren (test_attempts; keine LP)
-│   └── GET    /share/:token # Geteiltes Deck samt Karten abrufen
+│   ├── GET    /share/:token # Geteiltes Deck samt Karten abrufen
+│   └── GET|POST /share/:token/sync # Eigene Kopie erkennen + neue Karten nachziehen (#614)
 ├── /cards
 │   ├── POST   /             # Karte(n) erstellen
 │   ├── PATCH  /:id          # Karte bearbeiten
