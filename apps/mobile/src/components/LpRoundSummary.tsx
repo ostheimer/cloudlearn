@@ -9,6 +9,8 @@ interface LpRoundSummaryProps {
   earned: number | null;
   /** Sagte der Server, dass der Tagesdeckel greift? */
   capReached: boolean;
+  /** Fertiger Text wie "Tagesziel: 28/30 — noch 2" (#610), `null`/`undefined` = noch nicht geladen oder kein Ziel gesetzt. */
+  dailyGoalText?: string | null;
 }
 
 /**
@@ -30,35 +32,52 @@ interface LpRoundSummaryProps {
  *  - 0 ohne Deckel    → nichts. Dann wurde nichts gelernt (leere Runde) oder die
  *                       Abrechnung läuft noch; eine Meldung wäre hier Rauschen.
  */
-export function LpRoundSummary({ earned, capReached }: LpRoundSummaryProps) {
+export function LpRoundSummary({ earned, capReached, dailyGoalText }: LpRoundSummaryProps) {
   const { t } = useTranslation();
   const colors = useColors();
   const lpEarnCapToday = useUsageStore((state) => state.lpEarnCapToday);
 
+  // Tagesziel-Zeile (#610): unabhängig vom LP-Fall, deshalb unten an jeden der
+  // drei Zweige angehängt statt ein vierter eigener Fall zu werden.
+  const goalLine = dailyGoalText ? (
+    <Text
+      style={{
+        color: colors.textTertiary,
+        fontSize: typography.xs,
+        textAlign: "center",
+      }}
+    >
+      {dailyGoalText}
+    </Text>
+  ) : null;
+
   if (earned !== null && earned > 0) {
     return (
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          gap: spacing.xs,
-          alignSelf: "center",
-          backgroundColor: colors.successLight,
-          borderRadius: radius.full,
-          paddingHorizontal: spacing.md,
-          paddingVertical: 6,
-        }}
-      >
-        <Zap size={15} color={colors.success} />
-        <Text
+      <View style={{ gap: spacing.xs, alignItems: "center" }}>
+        <View
           style={{
-            color: colors.success,
-            fontSize: typography.sm,
-            fontWeight: typography.semibold,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: spacing.xs,
+            alignSelf: "center",
+            backgroundColor: colors.successLight,
+            borderRadius: radius.full,
+            paddingHorizontal: spacing.md,
+            paddingVertical: 6,
           }}
         >
-          {t("lp.earnedThisRound", { count: earned })}
-        </Text>
+          <Zap size={15} color={colors.success} />
+          <Text
+            style={{
+              color: colors.success,
+              fontSize: typography.sm,
+              fontWeight: typography.semibold,
+            }}
+          >
+            {t("lp.earnedThisRound", { count: earned })}
+          </Text>
+        </View>
+        {goalLine}
       </View>
     );
   }
@@ -87,9 +106,10 @@ export function LpRoundSummary({ earned, capReached }: LpRoundSummaryProps) {
         >
           {t("lp.earnToday", { count: lpEarnCapToday, cap: lpEarnCapToday })}
         </Text>
+        {goalLine}
       </View>
     );
   }
 
-  return null;
+  return goalLine;
 }

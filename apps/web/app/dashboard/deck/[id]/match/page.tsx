@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
-import { earnLp, listCardsInDeck, reviewCard, isApiError, type Card } from "@/lib/api";
+import { earnLp, listCardsInDeck, reviewCard, getStats, isApiError, type Card } from "@/lib/api";
+import { dailyGoalLine } from "@/lib/daily-goal-line";
 import { useDisplayName } from "@/lib/use-display-name";
 import { useWobblyIds } from "@/lib/use-wobbly-ids";
 import { filterBySource, isCardDue, type CardSource } from "@/lib/card-source";
@@ -65,6 +66,7 @@ export default function MatchPage() {
   // Endgültig verlorene Bewertungen (#605) fürs Ergebnis — hier reicht State,
   // weil Zählen und Abrechnen im selben Ablauf nach dem Speichern passieren.
   const [unsavedCount, setUnsavedCount] = useState(0);
+  const [dailyGoalText, setDailyGoalText] = useState<string | null>(null);
 
   const [cards, setCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,6 +89,21 @@ export default function MatchPage() {
   // („nicht gewusst"). Für die Wiederholung nur dieser Paare.
   const [missedIds, setMissedIds] = useState<Set<string>>(new Set());
 
+  // Tagesziel im Rundenergebnis (#610): jede Karte wurde schon während der
+  // Runde einzeln ans Backend gemeldet, `reviewsToday` ist beim Abschluss also
+  // schon aktuell.
+  useEffect(() => {
+    if (phase !== "finished") return;
+    let cancelled = false;
+    getStats()
+      .then(({ stats }) => {
+        if (!cancelled) setDailyGoalText(dailyGoalLine(stats.dailyGoal, stats.reviewsToday));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [phase]);
 
   const load = useCallback(async () => {
     if (!deckId) return;
@@ -487,6 +504,11 @@ export default function MatchPage() {
           {earned === 0 && earnCapReached && (
             <p className="muted" style={{ fontSize: "0.9rem" }}>
               Heutiges Lernpunkte-Limit erreicht — morgen gibt es wieder welche.
+            </p>
+          )}
+          {dailyGoalText && (
+            <p className="muted" style={{ fontSize: "0.9rem" }}>
+              {dailyGoalText}
             </p>
           )}
           <div style={{ display: "grid", gap: 8, width: "100%", maxWidth: 320 }}>

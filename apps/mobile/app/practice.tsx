@@ -11,7 +11,8 @@ import {
 } from "../src/features/review/reviewSession";
 import { useSessionStore } from "../src/store/sessionStore";
 import { useUsageStore } from "../src/store/usageStore";
-import { earnLp, reviewCard } from "../src/lib/api";
+import { earnLp, getStats, reviewCard } from "../src/lib/api";
+import { dailyGoalLine } from "../src/lib/dailyGoalLine";
 import {
   createReviewSyncOperation,
   useOfflineQueueStore,
@@ -65,6 +66,7 @@ export default function PracticeScreen() {
   // Punkte-Rückmeldung der Runde (#611): Zahlen aus der Server-Antwort.
   const [earnedLp, setEarnedLp] = useState(0);
   const [earnCapReached, setEarnCapReached] = useState(false);
+  const [dailyGoalText, setDailyGoalText] = useState<string | null>(null);
   const [saveError, setSaveError] = useState(false);
   // Disables the rating buttons while a review is being submitted, so rapid
   // taps can't rate the next (still unseen) cards. Mirrors the learn screen.
@@ -140,6 +142,22 @@ export default function PracticeScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [completed]);
 
+  // Tagesziel im Rundenergebnis (#610): jede Karte wurde schon während der
+  // Runde einzeln ans Backend gemeldet, `reviewsToday` ist beim Abschluss also
+  // schon aktuell.
+  useEffect(() => {
+    if (!completed) return;
+    let cancelled = false;
+    getStats()
+      .then(({ stats }) => {
+        if (!cancelled) setDailyGoalText(dailyGoalLine(stats.dailyGoal, stats.reviewsToday));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [completed]);
+
   /**
    * Eine Folgerunde vom Ergebnis aus. Nötig, seit bei „fertig" abgerechnet wird:
    * `finalized` steht dann auf true, und die Wiederholungsknöpfe starten ohne
@@ -156,6 +174,7 @@ export default function PracticeScreen() {
     sessionReviewsRef.current = 0;
     setEarnedLp(0);
     setEarnCapReached(false);
+    setDailyGoalText(null);
   }, [awardSession]);
 
   const handleRate = async (rating: ReviewRating) => {
@@ -303,7 +322,9 @@ export default function PracticeScreen() {
               // Bis #611 sagte dieser Bildschirm nichts zu den Punkten: Er
               // rechnete erst beim Verlassen ab, hier konnte also gar nichts
               // stehen.
-              accessory={<LpRoundSummary earned={earnedLp} capReached={earnCapReached} />}
+              accessory={
+                <LpRoundSummary earned={earnedLp} capReached={earnCapReached} dailyGoalText={dailyGoalText} />
+              }
               actions={[
                 ...(missedCards.length > 0
                   ? [

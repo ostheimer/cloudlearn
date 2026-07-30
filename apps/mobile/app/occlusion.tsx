@@ -16,7 +16,8 @@ import { StudyResult } from "../src/components/StudyResult";
 import { LpRoundSummary } from "../src/components/LpRoundSummary";
 import { useSessionStore } from "../src/store/sessionStore";
 import { useUsageStore } from "../src/store/usageStore";
-import { listCardsInDeck, earnLp, deleteCard } from "../src/lib/api";
+import { listCardsInDeck, earnLp, deleteCard, getStats } from "../src/lib/api";
+import { dailyGoalLine } from "../src/lib/dailyGoalLine";
 import { sendReview } from "../src/features/sync/sendReview";
 import {
   beginSessionAward,
@@ -73,6 +74,7 @@ export default function OcclusionStudyScreen() {
   const [wrong, setWrong] = useState<OcclusionStudyItem[]>([]);
   const [earned, setEarned] = useState<number | null>(null);
   const [earnCapReached, setEarnCapReached] = useState(false);
+  const [dailyGoalText, setDailyGoalText] = useState<string | null>(null);
   const awardStateRef = useRef<SessionAwardState>({ finalized: false, inFlight: null });
   const pendingReviewsRef = useRef<Promise<unknown>[]>([]);
   const allItemsRef = useRef<OcclusionStudyItem[]>([]);
@@ -159,6 +161,22 @@ export default function OcclusionStudyScreen() {
     if (done) void awardSession(total);
   }, [done, total, awardSession]);
 
+  // Tagesziel im Rundenergebnis (#610): jede Karte wurde schon während der
+  // Runde einzeln ans Backend gemeldet, `reviewsToday` ist beim Abschluss also
+  // schon aktuell.
+  useEffect(() => {
+    if (!done) return;
+    let cancelled = false;
+    getStats()
+      .then(({ stats }) => {
+        if (!cancelled) setDailyGoalText(dailyGoalLine(stats.dailyGoal, stats.reviewsToday));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [done]);
+
   function rate(known: boolean) {
     const item = items[index];
     if (!item || !userId) return;
@@ -181,6 +199,7 @@ export default function OcclusionStudyScreen() {
     pendingReviewsRef.current = [];
     setEarned(null);
     setEarnCapReached(false);
+    setDailyGoalText(null);
     setItems(allItemsRef.current);
     setIndex(0);
     setRevealed(false);
@@ -196,6 +215,7 @@ export default function OcclusionStudyScreen() {
     pendingReviewsRef.current = [];
     setEarned(null);
     setEarnCapReached(false);
+    setDailyGoalText(null);
     setItems(subset);
     setIndex(0);
     setRevealed(false);
@@ -323,7 +343,9 @@ export default function OcclusionStudyScreen() {
   if (done) {
     // Seit #611 in der geteilten Komponente: Der Wortlaut war hier hartkodiert
     // und dieser Modus der EINZIGE, der den Tagesdeckel überhaupt nannte.
-    const lpAccessory = <LpRoundSummary earned={earned} capReached={earnCapReached} />;
+    const lpAccessory = (
+      <LpRoundSummary earned={earned} capReached={earnCapReached} dailyGoalText={dailyGoalText} />
+    );
     return wrap(
       <StudyResult
         headline={`Runde geschafft${displayName ? `, ${displayName}` : ""}!`}

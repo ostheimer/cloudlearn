@@ -24,8 +24,9 @@ import {
   Star,
   Pencil,
 } from "lucide-react-native";
-import { earnLp, listCardsInDeck, updateCard, type Card } from "../src/lib/api";
+import { earnLp, getStats, listCardsInDeck, updateCard, type Card } from "../src/lib/api";
 import CardEditor from "../src/components/CardEditor";
+import { dailyGoalLine } from "../src/lib/dailyGoalLine";
 import { toggleCardStar } from "../src/lib/toggleCardStar";
 import { sendReview } from "../src/features/sync/sendReview";
 import { setLastUsedDeck } from "../src/lib/lastUsedDeck";
@@ -117,6 +118,23 @@ export default function QuizScreen() {
   // earn-Antwort mit und wurde hier weggeworfen — deshalb blieb offen, warum
   // eine Runde ohne Punkte endete.
   const [earnCapReached, setEarnCapReached] = useState(false);
+  const [dailyGoalText, setDailyGoalText] = useState<string | null>(null);
+
+  // Tagesziel im Rundenergebnis (#610): jede Karte wurde schon während der
+  // Runde einzeln ans Backend gemeldet, `reviewsToday` ist beim Abschluss also
+  // schon aktuell.
+  useEffect(() => {
+    if (!finished) return;
+    let cancelled = false;
+    getStats()
+      .then(({ stats }) => {
+        if (!cancelled) setDailyGoalText(dailyGoalLine(stats.dailyGoal, stats.reviewsToday));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [finished]);
 
   // LP-Abrechnung nach dem #397-Muster (wie Lernen/Lückentext): Antworten
   // werden sofort gemeldet, die eine Gutschrift je Runde wartet erst alle
@@ -311,6 +329,7 @@ export default function QuizScreen() {
     sessionReviewsRef.current = 0;
     setEarnedLp(0);
     setEarnCapReached(false);
+    setDailyGoalText(null);
     setQuestions(qs);
     // Stern-Stand für diese Runde (#610) — frisch aus den Karten, damit ein
     // Markieren in einer anderen Runde dazwischen nicht veraltet mitläuft.
@@ -843,7 +862,7 @@ export default function QuizScreen() {
             {/* Punkte-Rückmeldung, seit #611 geteilt: „+0 Lernpunkte" wird
                 weiterhin nicht behauptet — aber wenn der Tagesdeckel der Grund
                 ist, steht das jetzt da, statt die Frage offen zu lassen. */}
-            <LpRoundSummary earned={earnedLp} capReached={earnCapReached} />
+            <LpRoundSummary earned={earnedLp} capReached={earnCapReached} dailyGoalText={dailyGoalText} />
 
             {/* Answer summary */}
             <View style={{ width: "100%", gap: spacing.sm }}>

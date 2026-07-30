@@ -8,9 +8,11 @@ import {
   reviewCard,
   updateCard,
   earnLp,
+  getStats,
   type Card,
   type ReviewRating,
 } from "@/lib/api";
+import { dailyGoalLine } from "@/lib/daily-goal-line";
 import {
   DEFAULT_SPEECH_LANGUAGE,
   toSpeechLanguage,
@@ -323,6 +325,23 @@ export function LearnSession({
       void awardSession(total - startIndex);
     }
   }, [done, total, startIndex, awardSession, flushReview]);
+
+  // Tagesziel im Rundenergebnis (#610): jede Karte wurde schon während der
+  // Runde einzeln ans Backend gemeldet, `reviewsToday` ist beim Abschluss also
+  // schon aktuell.
+  const [dailyGoalText, setDailyGoalText] = useState<string | null>(null);
+  useEffect(() => {
+    if (!done) return;
+    let cancelled = false;
+    getStats()
+      .then(({ stats }) => {
+        if (!cancelled) setDailyGoalText(dailyGoalLine(stats.dailyGoal, stats.reviewsToday));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [done]);
 
   // ─── Verlassen ohne „Beenden"-Knopf (#608) ───────────────────────────────
   // Browser-Zurück oder ein Link unmountet die Ansicht, ohne dass quit() je
@@ -647,6 +666,11 @@ export function LearnSession({
           {earned === 0 && earnCapReached && (
             <p className="muted" style={{ fontSize: "0.9rem" }}>
               Heutiges Lernpunkte-Limit erreicht — morgen gibt es wieder welche.
+            </p>
+          )}
+          {dailyGoalText && (
+            <p className="muted" style={{ fontSize: "0.9rem" }}>
+              {dailyGoalText}
             </p>
           )}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>

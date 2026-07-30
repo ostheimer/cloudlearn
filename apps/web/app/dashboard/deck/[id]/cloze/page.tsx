@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
-import { listCardsInDeck, reviewCard, updateCard, earnLp, isApiError, type Card } from "@/lib/api";
+import { listCardsInDeck, reviewCard, updateCard, earnLp, getStats, isApiError, type Card } from "@/lib/api";
 import { CardEditor } from "@/components/app/card-editor";
+import { dailyGoalLine } from "@/lib/daily-goal-line";
 import { isAnswerCorrect, isCaseOnlyMismatch } from "@/lib/answerCheck";
 import { shouldAdvanceOnEnter } from "@/lib/learn-keys";
 import { buildPrompt, hasTypeable } from "@/lib/cloze-prompt";
@@ -90,6 +91,7 @@ export default function ClozePage() {
 
   const [earned, setEarned] = useState<number | null>(null);
   const [earnCapReached, setEarnCapReached] = useState(false);
+  const [dailyGoalText, setDailyGoalText] = useState<string | null>(null);
   const awardStateRef = useRef<SessionAwardState>({ finalized: false, inFlight: null });
   const pendingReviewsRef = useRef<Promise<unknown>[]>([]);
   // Endgültig verlorene Bewertungen (#605): Ref für die Abrechnung, State für
@@ -386,6 +388,22 @@ export default function ClozePage() {
     // Abhängigkeiten stehen — der Horcher wird pro Karte einmal neu gesetzt.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, revealed, idx, round.length, floor]);
+
+  // Tagesziel im Rundenergebnis (#610): jede Karte wurde schon während der
+  // Runde einzeln ans Backend gemeldet, `reviewsToday` ist beim Abschluss also
+  // schon aktuell.
+  useEffect(() => {
+    if (phase !== "summary") return;
+    let cancelled = false;
+    getStats()
+      .then(({ stats }) => {
+        if (!cancelled) setDailyGoalText(dailyGoalLine(stats.dailyGoal, stats.reviewsToday));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [phase]);
 
   // ─── Merken, wo eine unterbrochene Runde stand (Weitermachen) ────────────
   // Bei jedem Kartenwechsel geschrieben statt beim Verlassen: Ein Tab lässt
@@ -708,6 +726,11 @@ export default function ClozePage() {
           {earned === 0 && earnCapReached && (
             <p className="muted" style={{ fontSize: "0.9rem" }}>
               Heutiges Lernpunkte-Limit erreicht — morgen gibt es wieder welche.
+            </p>
+          )}
+          {dailyGoalText && (
+            <p className="muted" style={{ fontSize: "0.9rem" }}>
+              {dailyGoalText}
             </p>
           )}
           <div style={{ display: "grid", gap: 8, width: "100%", maxWidth: 320 }}>

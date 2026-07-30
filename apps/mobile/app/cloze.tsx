@@ -24,8 +24,9 @@ import {
   Pencil,
   Star,
 } from "lucide-react-native";
-import { listCardsInDeck, reviewCard, updateCard, earnLp, type Card } from "../src/lib/api";
+import { listCardsInDeck, reviewCard, updateCard, earnLp, getStats, type Card } from "../src/lib/api";
 import CardEditor from "../src/components/CardEditor";
+import { dailyGoalLine } from "../src/lib/dailyGoalLine";
 import { toggleCardStar } from "../src/lib/toggleCardStar";
 import { setLastUsedDeck } from "../src/lib/lastUsedDeck";
 import {
@@ -154,6 +155,7 @@ export default function ClozeScreen() {
   // Server-Antwort, nie aus eigener Rechnung.
   const [earnedLp, setEarnedLp] = useState(0);
   const [earnCapReached, setEarnCapReached] = useState(false);
+  const [dailyGoalText, setDailyGoalText] = useState<string | null>(null);
   const [round, setRound] = useState<Card[]>([]);
   // Stern-Stand der laufenden Runde, für sofort sichtbares Markieren (#610).
   const [starredMap, setStarredMap] = useState<Record<string, boolean>>({});
@@ -421,6 +423,7 @@ export default function ClozeScreen() {
     // die neue Runde eine Gutschrift behaupten, die noch nicht erfolgt ist.
     setEarnedLp(0);
     setEarnCapReached(false);
+    setDailyGoalText(null);
 
     // `startAt` resumes an interrupted round (sessionProgress.ts). The floor
     // travels with it: the skipped cards were answered and sent last time, so
@@ -512,6 +515,22 @@ export default function ClozeScreen() {
   // Written per card rather than on leaving: the app can be killed from the
   // task switcher without any teardown running. The summary clears the entry —
   // a finished round has nothing to resume.
+  // Tagesziel im Rundenergebnis (#610): jede Karte wurde schon während der
+  // Runde einzeln ans Backend gemeldet, `reviewsToday` ist beim Abschluss also
+  // schon aktuell.
+  useEffect(() => {
+    if (phase !== "summary") return;
+    let cancelled = false;
+    getStats()
+      .then(({ stats }) => {
+        if (!cancelled) setDailyGoalText(dailyGoalLine(stats.dailyGoal, stats.reviewsToday));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [phase]);
+
   useEffect(() => {
     if (!deckId || round.length === 0) return;
     if (phase === "summary") {
@@ -993,7 +1012,7 @@ export default function ClozeScreen() {
                   </Text>
                   {/* Bis #611 sagte dieser Modus kein Wort zu den Punkten —
                       obwohl er längst abrechnet. */}
-                  <LpRoundSummary earned={earnedLp} capReached={earnCapReached} />
+                  <LpRoundSummary earned={earnedLp} capReached={earnCapReached} dailyGoalText={dailyGoalText} />
                 </View>
               }
               actions={[

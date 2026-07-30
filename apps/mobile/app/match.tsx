@@ -21,7 +21,8 @@ import {
   CheckCircle2,
   Zap,
 } from "lucide-react-native";
-import { earnLp, listCardsInDeck, type Card } from "../src/lib/api";
+import { earnLp, getStats, listCardsInDeck, type Card } from "../src/lib/api";
+import { dailyGoalLine } from "../src/lib/dailyGoalLine";
 import { sendReview } from "../src/features/sync/sendReview";
 import { setLastUsedDeck } from "../src/lib/lastUsedDeck";
 import { useDisplayName } from "../src/lib/useDisplayName";
@@ -125,6 +126,23 @@ export default function MatchScreen() {
   const [earnedLp, setEarnedLp] = useState(0);
   // Tagesdeckel des Servers (#611) — kam bisher an und wurde verworfen.
   const [earnCapReached, setEarnCapReached] = useState(false);
+  const [dailyGoalText, setDailyGoalText] = useState<string | null>(null);
+
+  // Tagesziel im Rundenergebnis (#610): jede Karte wurde schon während der
+  // Runde einzeln ans Backend gemeldet, `reviewsToday` ist beim Abschluss also
+  // schon aktuell.
+  useEffect(() => {
+    if (phase !== "finished") return;
+    let cancelled = false;
+    getStats()
+      .then(({ stats }) => {
+        if (!cancelled) setDailyGoalText(dailyGoalLine(stats.dailyGoal, stats.reviewsToday));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [phase]);
   // Verhindert doppeltes Abrechnen: der Abschluss-Effekt kann mehrfach feuern.
   const awardedRef = useRef(false);
   const [elapsed, setElapsed] = useState(0);
@@ -247,6 +265,7 @@ export default function MatchScreen() {
     awardedRef.current = false;
     setEarnedLp(0);
     setEarnCapReached(false);
+    setDailyGoalText(null);
     setPhase("playing");
 
     // The stopwatch only runs in timed (Challenge) mode.
@@ -742,7 +761,7 @@ export default function MatchScreen() {
             {/* Punkte-Rückmeldung, seit #611 geteilt: „+0 Lernpunkte" wird
                 weiterhin nicht behauptet — aber wenn der Tagesdeckel der Grund
                 ist, steht das jetzt da. */}
-            <LpRoundSummary earned={earnedLp} capReached={earnCapReached} />
+            <LpRoundSummary earned={earnedLp} capReached={earnCapReached} dailyGoalText={dailyGoalText} />
 
             <View style={{ flexDirection: "row", gap: spacing.sm }}>
               {[0, 1, 2].map((i) => (
