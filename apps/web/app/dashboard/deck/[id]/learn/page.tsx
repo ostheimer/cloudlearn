@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { LearnSession } from "@/components/app/learn-session";
 import { listCardsInDeck, isApiError, type Card } from "@/lib/api";
 import { useWobblyIds } from "@/lib/use-wobbly-ids";
-import { filterBySource, type CardSource } from "@/lib/card-source";
+import { filterBySource, isCardDue, type CardSource } from "@/lib/card-source";
 import { loadSetup, resolveSource, saveSetup } from "@/lib/setup-memory";
 import { CardSourcePicker } from "@/components/app/card-source-picker";
 import {
@@ -91,11 +91,17 @@ export default function LearnPage() {
     if (setupRestoredRef.current || setupTouchedRef.current) return;
     if (phase !== "setup" || !studyable || !wobblySettled) return;
     setupRestoredRef.current = true;
-    const wanted = resolveSource(loadSetup(deckId, "flashcards")?.source, {
+    const stored = loadSetup(deckId, "flashcards");
+    const counts = {
       starred: studyable.filter((c) => c.starred).length,
       wobbly: studyable.filter((c) => wobblyIds.has(c.id)).length,
-    });
+      due: studyable.filter((c) => isCardDue(c)).length,
+    };
+    const wanted = resolveSource(stored?.source, counts);
     if (wanted) setSource(wanted);
+    // Ohne gemerkte Wahl ist das Tagespensum die Voreinstellung (#610):
+    // „Nur fällige", sobald es gerade welche gibt.
+    else if (!stored?.source && counts.due > 0) setSource("due");
   }, [deckId, phase, studyable, wobblyIds, wobblySettled]);
 
   // Nur anbieten, solange der Stand wirklich brauchbar ist: gleiche
@@ -202,6 +208,7 @@ export default function LearnPage() {
         allCount={studyable.length}
         starredCount={studyable.filter((c) => c.starred).length}
         wobblyCount={studyable.filter((c) => wobblyIds.has(c.id)).length}
+        dueCount={studyable.filter((c) => isCardDue(c)).length}
       />
 
       {/* Weitermachen — nur solange eine unterbrochene Runde noch passt */}

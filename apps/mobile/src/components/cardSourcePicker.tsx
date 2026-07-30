@@ -2,10 +2,24 @@ import { Text, TouchableOpacity, View } from "react-native";
 import { useColors, spacing, radius, typography, shadows } from "../theme";
 
 // Which subset of a deck's cards a learning mode should study.
+//   due     — only cards whose scheduled review time has arrived (same rule
+//             the server uses to count "N fällig": fsrs_due <= now, #610)
 //   all     — every usable card (the default)
 //   starred — only cards the learner flagged (card.starred === true)
 //   wobbly  — only the deck's most-often-wrong cards (from deck stats)
-export type CardSource = "all" | "starred" | "wobbly";
+export type CardSource = "all" | "starred" | "wobbly" | "due";
+
+// Is this card due? Due means the scheduler's planned review time has
+// arrived — new cards are due immediately (their fsrsDue is creation time).
+// Cards without a due date (slimmed-down card objects) never count as due.
+export function isCardDue(
+  card: { fsrsDue?: string },
+  now: number = Date.now()
+): boolean {
+  if (!card.fsrsDue) return false;
+  const due = new Date(card.fsrsDue).getTime();
+  return Number.isFinite(due) && due <= now;
+}
 
 /**
  * Filter a card list down to the chosen source.
@@ -13,14 +27,17 @@ export type CardSource = "all" | "starred" | "wobbly";
  * Pure helper (no React / theme) so it can be unit-tested directly. `wobblyIds`
  * is the set of the deck's wobbly card ids (see fetchDeckStats → wobblyCards);
  * pass an empty set when stats are unavailable and "wobbly" simply yields none.
+ * `now` exists only so tests can pin the clock.
  */
-export function filterBySource<T extends { id: string; starred?: boolean }>(
+export function filterBySource<T extends { id: string; starred?: boolean; fsrsDue?: string }>(
   cards: T[],
   source: CardSource,
-  wobblyIds: Set<string>
+  wobblyIds: Set<string>,
+  now: number = Date.now()
 ): T[] {
   if (source === "starred") return cards.filter((c) => c.starred === true);
   if (source === "wobbly") return cards.filter((c) => wobblyIds.has(c.id));
+  if (source === "due") return cards.filter((c) => isCardDue(c, now));
   return cards;
 }
 
@@ -30,12 +47,15 @@ interface CardSourcePickerProps {
   allCount: number;
   starredCount: number;
   wobblyCount: number;
+  dueCount: number;
 }
 
 /**
- * Shared "Kartenquelle" picker: three radio-style rows letting the learner pick
- * which cards a mode studies. The starred / wobbly rows are disabled and dimmed
- * when their count is 0. Styling mirrors the setup cards used across the modes.
+ * Shared "Kartenquelle" picker: four radio-style rows letting the learner pick
+ * which cards a mode studies. "Nur fällige" sits on top — it is the everyday
+ * pick (#610): the cards the scheduler wants repeated today. Rows other than
+ * "Alle" are disabled and dimmed when their count is 0. Styling mirrors the
+ * setup cards used across the modes.
  */
 export function CardSourcePicker({
   value,
@@ -43,10 +63,12 @@ export function CardSourcePicker({
   allCount,
   starredCount,
   wobblyCount,
+  dueCount,
 }: CardSourcePickerProps) {
   const colors = useColors();
 
   const rows: { key: CardSource; label: string; count: number; disabled: boolean }[] = [
+    { key: "due", label: "Nur fällige", count: dueCount, disabled: dueCount === 0 },
     { key: "all", label: "Alle Karten", count: allCount, disabled: allCount === 0 },
     {
       key: "starred",
