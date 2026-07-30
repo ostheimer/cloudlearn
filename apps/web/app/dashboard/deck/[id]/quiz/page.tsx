@@ -17,7 +17,7 @@ import {
 } from "@/lib/setup-memory";
 import { CardSourcePicker } from "@/components/app/card-source-picker";
 import { QuestionCountPicker } from "@/components/app/question-count-picker";
-import { generateQuestions, type QuizQuestion } from "@/lib/quizQuestions";
+import { countQuizableCards, generateQuestions, type QuizQuestion } from "@/lib/quizQuestions";
 import {
   beginSessionAward,
   getSessionReviewedCount,
@@ -104,12 +104,11 @@ export default function QuizPage() {
     () => filterBySource(cards, source, wobblyIds),
     [cards, source, wobblyIds]
   );
-  // Obergrenze der Anzahl-Auswahl: wie die Prüfung nur Karten mit beiden
-  // Seiten — leere ergeben keine Frage, „Alle (N)" soll nicht mehr versprechen.
-  const usableCount = useMemo(
-    () => sourced.filter((c) => (c.front || "").trim() && (c.back || "").trim()).length,
-    [sourced]
-  );
+  // Obergrenze der Anzahl-Auswahl: EXAKT die Pool-Regel der Fragen-Erzeugung
+  // (#612) — nach der Aufbereitung leere Seiten fallen raus, Doppel-Scans
+  // zählen einmal. Die alte reine Text-Prüfung versprach „Alle (12)" und
+  // lieferte dann 10 Fragen.
+  const usableCount = useMemo(() => countQuizableCards(sourced), [sourced]);
 
   // Schrumpft der Pool (andere Kartenquelle), darf die gewählte Anzahl nicht
   // darüber liegen; nur klemmen, nie zurückwachsen (10 bleibt der Standard).

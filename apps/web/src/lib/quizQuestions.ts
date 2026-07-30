@@ -90,19 +90,16 @@ function kindOf(type: string | undefined, fillIn: boolean): string {
   return `${base}|${fillIn ? "fill" : "plain"}`;
 }
 
-export function generateQuestions(
-  cards: QuizCardInput[],
-  opts: GenerateOptions = {},
-  randomFn: () => number = Math.random
-): QuizQuestion[] {
-  const reverse = opts.reverse ?? false;
-  const allowMc = opts.allowMc ?? true;
-  const allowTrueFalse = opts.allowTrueFalse ?? true;
-  const count = opts.count ?? Infinity;
-  if (cards.length < 2 || (!allowMc && !allowTrueFalse)) return [];
-
+/**
+ * Der Fragen-Pool hinter generateQuestions: beide Seiten nach der Aufbereitung
+ * nicht leer, Duplikate einmal. Herausgelöst, damit die Anzahl-Auswahl im
+ * Setup („Alle (N)", #612) mit EXAKT derselben Regel zählt — vorher prüfte sie
+ * nur rohen Text: Karten, deren Seite nach der Aufbereitung leer ist (reines
+ * Bild-Markdown), zählten mit, Doppel-Scans zählten doppelt.
+ */
+function buildQuestionPool(cards: QuizCardInput[], reverse: boolean) {
   const seenPairs = new Set<string>();
-  const enriched = cards.flatMap((card) => {
+  return cards.flatMap((card) => {
     // Aufbereitung wie die App: Bild-Markdown raus, Übersetzungs-Zusätze raus.
     // Reine Bild-Karten haben danach keinen Text mehr und fallen weg — ohne
     // Bildanzeige (Dateikopf) wäre ihre Frage nicht beantwortbar.
@@ -132,6 +129,29 @@ export function generateQuestions(
       },
     ];
   });
+}
+
+/**
+ * Wie viele Fragen „Alle (N)" höchstens verspricht (#612) — dieselbe Regel,
+ * mit der generateQuestions seinen Pool baut. Die Richtung spielt für die
+ * Anzahl keine Rolle.
+ */
+export function countQuizableCards(cards: QuizCardInput[]): number {
+  return buildQuestionPool(cards, false).length;
+}
+
+export function generateQuestions(
+  cards: QuizCardInput[],
+  opts: GenerateOptions = {},
+  randomFn: () => number = Math.random
+): QuizQuestion[] {
+  const reverse = opts.reverse ?? false;
+  const allowMc = opts.allowMc ?? true;
+  const allowTrueFalse = opts.allowTrueFalse ?? true;
+  const count = opts.count ?? Infinity;
+  if (cards.length < 2 || (!allowMc && !allowTrueFalse)) return [];
+
+  const enriched = buildQuestionPool(cards, reverse);
 
   const questions: QuizQuestion[] = [];
   for (const current of shuffle(enriched, randomFn)) {

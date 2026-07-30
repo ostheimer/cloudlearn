@@ -474,6 +474,15 @@ export async function getDueCards(
 }
 
 /**
+ * Fällige Karten je Deck, nur als Zahlen (#612). Für die "N fällig"-Abzeichen —
+ * getDueCards würde den ganzen Rückstand mit Kartentext übertragen und wird ab
+ * 1000 Karten still gekappt. Decks ohne fällige Karten fehlen im Objekt.
+ */
+export async function getDueCountsByDeck(): Promise<{ dueByDeck: Record<string, number> }> {
+  return requestAuthenticated<{ dueByDeck: Record<string, number> }>("/api/v1/stats/due-by-deck");
+}
+
+/**
  * Woher eine Wiederholung stammt. Der Server entscheidet daran, was sie
  * auslöst: Abruf-Modi bewegen den Lernplan, "test" gibt keine Lernpunkte,
  * "quiz"/"match" geben Punkte, rühren den Plan aber nur bei Fehlern an.
@@ -864,7 +873,10 @@ export interface DeckDetails {
   userId: string;
   title: string;
   tags: string[];
+  /** Text-Karten — gleiche Zähl-Regel wie die Deck-Liste (#612). */
   cardCount: number;
+  /** Bild-Occlusion-Karten, getrennt gezählt wie überall sonst. */
+  imageCardCount?: number;
   folders: Folder[];
   /** Vorlese-Sprachen je Seite (#571); `null` = nicht eingestellt → Deutsch. */
   speechLangFront?: string | null;

@@ -10,6 +10,7 @@ import { getCardImages, occlusionTarget, type CardImage } from "@/lib/card-image
 import { cardListPreview } from "@/lib/card-display";
 import { deckCountLabel } from "@/lib/deck-count-label";
 import { useCoarsePointer } from "@/lib/use-coarse-pointer";
+import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
 import {
   getDeckDetails,
   listCardsInDeck,
@@ -104,6 +105,10 @@ export default function DeckDetailPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Nach dem Lernen am Handy zeigte die offene Deck-Seite am Laptop weiter den
+  // alten Stand (#610) — auch Karten, die inzwischen woanders geändert wurden.
+  useRefreshOnFocus(load);
 
   // Bilder nachladen, sobald die Karten da sind — die Liste soll darauf nicht
   // warten. Die Abhängigkeit ist die Menge der Pfade (dedupliziert, sortiert),
@@ -219,7 +224,9 @@ export default function DeckDetailPage() {
 
       <div className="detail-head">
         <div>
-          <h1 style={{ fontSize: "clamp(1.5rem, 4vw, 2rem)", fontWeight: 800 }}>
+          {/* overflowWrap: ein Titel ohne Leerzeichen darf die Seite nicht
+              horizontal aufschieben (#612). */}
+          <h1 style={{ fontSize: "clamp(1.5rem, 4vw, 2rem)", fontWeight: 800, overflowWrap: "anywhere" }}>
             {details?.title}
           </h1>
           {cardCountLabel && (

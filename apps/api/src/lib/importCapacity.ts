@@ -11,6 +11,7 @@ import {
 } from "@/lib/db";
 import { getLimitsForTier } from "@/lib/featureGates";
 import { HttpError } from "@/lib/http";
+import { clampTitle } from "@/lib/titleLimit";
 
 /**
  * Plan limits for the three AI import paths — scan, PDF import, URL import
@@ -139,7 +140,9 @@ async function createDeckWithinLimit(
   tags: string[]
 ): Promise<DeckRecord> {
   const { maxDecks } = getLimitsForTier(tier);
-  const deck = await createDeck(userId, title, tags);
+  // KI-Titel können beliebig lang ausfallen — gleiche Kappung wie beim
+  // manuellen Anlegen (deckService, #612), damit kein Weg die Grenze umgeht.
+  const deck = await createDeck(userId, clampTitle(title), tags);
 
   const deckIds = await listDeckIdsForUser(userId);
   const position = deckIds.indexOf(deck.id);

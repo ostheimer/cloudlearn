@@ -14,6 +14,7 @@ import {
 } from "@/lib/api";
 import { BarChart, ChevronRight, Flame, Lock, TrendingUp } from "@/components/icons";
 import { useCoarsePointer } from "@/lib/use-coarse-pointer";
+import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
 import { AccuracyRing, AccuracyTrendChart, ActivityBars } from "@/components/app/stats-charts";
 import { AccuracyByKindPanel } from "@/components/app/accuracy-by-kind";
 import { accColor } from "@/lib/accuracy-color";
@@ -69,6 +70,11 @@ export default function StatsPage() {
       statsRequestSeq.current++; // in-flight Antworten nach dem Verlassen verfallen
     };
   }, [loadStats]);
+
+  // Nach dem Lernen am Handy stand die Statistik im offenen Laptop-Tab weiter
+  // auf dem alten Stand (#610). Im gerade gewählten Fenster nachladen — der
+  // Spinner bleibt weg, weil er nur ohne vorhandene Daten erscheint.
+  useRefreshOnFocus(() => loadStats(rangeDays));
 
   // Der Tarif steuert nur noch Schloss + Hinweis am 30-Tage-Knopf. Welches
   // Fenster die Daten haben, sagt die Stats-Antwort selbst — früher setzte

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
+import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
 import { Modal } from "@/components/app/modal";
 import {
   listDecks,
@@ -18,7 +19,7 @@ import {
   deleteFolder,
   listDecksInFolder,
   addDeckToFolder,
-  getDueCards,
+  getDueCountsByDeck,
   searchCards,
   isApiError,
   type Deck,
@@ -53,6 +54,11 @@ import {
 } from "@/components/icons";
 
 type TabKey = "decks" | "folders";
+
+// Ab dieser Listenlänge zeigen Auswahl-Fenster (Ordner-/Deck-Picker) ein
+// Suchfeld (#612) — darunter wäre es nur Rauschen. Gleicher Wert im
+// Ordner-Deck-Picker und in den App-Pickern (FolderPickerModal/DeckPickerModal).
+const PICKER_SEARCH_THRESHOLD = 6;
 
 // Interne Etiketten, die die API beim KI-Import ans Deck hängt — in der
 // Datenbank bleiben sie erhalten (Suche/App nutzen sie), angezeigt werden sie nicht.
@@ -96,16 +102,14 @@ export default function LibraryPage() {
     try {
       // Das Abzeichen ist best-effort: eine scheiternde Fällig-Abfrage darf
       // die Bibliothek nicht brechen (gleiche Logik wie im App-Deck-Tab).
-      const [{ decks: fetched }, due] = await Promise.all([
+      // Gezählt wird auf dem Server (#612): getDueCards überträgt den ganzen
+      // Rückstand mit Kartentext und wird ab 1000 Karten still gekappt.
+      const [{ decks: fetched }, { dueByDeck: due }] = await Promise.all([
         listDecks(userId),
-        getDueCards(userId).catch(() => ({ cards: [] })),
+        getDueCountsByDeck().catch(() => ({ dueByDeck: {} })),
       ]);
       setDecks(fetched);
-      const counts: Record<string, number> = {};
-      for (const card of due.cards) {
-        counts[card.deckId] = (counts[card.deckId] ?? 0) + 1;
-      }
-      setDueByDeck(counts);
+      setDueByDeck(due);
       setPageError(null);
     } catch (e) {
       setPageError(
@@ -143,6 +147,12 @@ export default function LibraryPage() {
     loadDecks();
     loadFolders();
   }, [loadDecks, loadFolders]);
+
+  // Nach dem Lernen am Handy standen die „N fällig"-Abzeichen im offenen
+  // Laptop-Tab weiter auf dem alten Stand (#610). Nur die Decks nachladen —
+  // die Ordner-Zählung macht eine Anfrage je Ordner und ändert sich beim
+  // Lernen nicht.
+  useRefreshOnFocus(loadDecks);
 
   useEffect(() => {
     if (!openMenu) return;
@@ -850,10 +860,20 @@ function AddToFolderModal({
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
   const sorted = useMemo(
     () => [...folders].sort((a, b) => a.title.localeCompare(b.title, "de")),
     [folders]
   );
+  // Gefiltert wird über den vollen Pfad ("Schule / Bio"), damit die Suche auch
+  // Unterordner über den Namen des Elternordners findet.
+  const shown = useMemo(() => {
+    const q = search.trim().toLocaleLowerCase("de");
+    if (!q) return sorted;
+    return sorted.filter((f) =>
+      [...folderPath(f, folders), f.title].join(" / ").toLocaleLowerCase("de").includes(q)
+    );
+  }, [sorted, folders, search]);
 
   return (
     <Modal title="Zu Ordner hinzufügen" onClose={onClose}>
@@ -868,8 +888,25 @@ function AddToFolderModal({
           </button>
         </>
       ) : (
-        <div style={{ display: "grid", gap: 8 }}>
-          {sorted.map((f) => {
+        <>
+        {sorted.length >= PICKER_SEARCH_THRESHOLD && (
+          <div className="input-icon">
+            <span aria-hidden>
+              <Search size={16} />
+            </span>
+            <input
+              className="input"
+              placeholder="Ordner suchen..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+        )}
+        {shown.length === 0 && (
+          <p className="muted">Kein Ordner passt zu deiner Suche.</p>
+        )}
+        <div className="modal__scroll" style={{ display: "grid", gap: 8 }}>
+          {shown.map((f) => {
             const path = folderPath(f, folders);
             return (
               <button
@@ -902,6 +939,7 @@ function AddToFolderModal({
             );
           })}
         </div>
+        </>
       )}
       {error && (
         <div className="form-error" role="alert">

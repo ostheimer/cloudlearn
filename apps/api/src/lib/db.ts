@@ -197,17 +197,24 @@ export async function listDecks(userId: string): Promise<DeckRecord[]> {
   // Bild-Karten separat zählen. Sie im eingebetteten Zähler mitzuzählen ginge
   // nicht: PostgREST kann dieselbe eingebettete Beziehung nicht zweimal
   // unterschiedlich filtern. Deshalb EINE zusätzliche schlanke Abfrage (nicht
-  // pro Deck — kein N+1), die anschließend zugeordnet wird.
-  const { data: imageRows, error: imageError } = await db
-    .from("cards")
-    .select("deck_id")
-    .eq("user_id", userId)
-    .eq("card_type", "occlusion")
-    .is("deleted_at", null);
-  if (imageError) throw new Error(`listDecks (Bild-Karten): ${imageError.message}`);
+  // pro Deck — kein N+1), die anschließend zugeordnet wird. Seitenweise (#612):
+  // ab 1000 Bild-Karten im Konto kappte PostgREST die Liste still und die
+  // Zähler logen.
+  const imageRows = await selectAllRows<{ deck_id: string | null }>(
+    (from, to) =>
+      db
+        .from("cards")
+        .select("deck_id")
+        .eq("user_id", userId)
+        .eq("card_type", "occlusion")
+        .is("deleted_at", null)
+        .order("id", { ascending: true })
+        .range(from, to),
+    "listDecks (Bild-Karten)"
+  );
 
   const imagesByDeck = new Map<string, number>();
-  for (const row of (imageRows ?? []) as Array<{ deck_id: string | null }>) {
+  for (const row of imageRows) {
     if (!row.deck_id) continue;
     imagesByDeck.set(row.deck_id, (imagesByDeck.get(row.deck_id) ?? 0) + 1);
   }
@@ -417,21 +424,29 @@ export async function listCardsForDeck(
   deckId: string
 ): Promise<CardRecord[]> {
   const db = getDb();
-  const { data, error } = await db
-    .from("cards")
-    .select()
-    .eq("user_id", userId)
-    .eq("deck_id", deckId)
-    .is("deleted_at", null)
-    // Stabiler Zweitschlüssel: Scan-/Import-Karten teilen sich denselben
-    // created_at (ein Batch-Insert). Ohne zweite Sortierspalte darf Postgres
-    // sie bei jedem Aufruf anders anordnen — nach dem Lernen sprang so die
-    // Karten-Reihenfolge auf der Deck-Seite (#499). id ist eindeutig und macht
-    // die Reihenfolge deterministisch, ohne die Erstellungs-Ordnung zu ändern.
-    .order("created_at", { ascending: true })
-    .order("id", { ascending: true });
-  if (error) throw new Error(`listCardsForDeck: ${error.message}`);
-  return (data ?? []).map(mapCardRow);
+  // Seitenweise laden: ein Pro-Deck darf 2.000 Karten haben, PostgREST liefert
+  // aber höchstens 1000 Zeilen pro Anfrage und schweigt über den Rest — Karte
+  // 1001+ war damit unsichtbar und unlernbar (#612). Die deterministische
+  // Sortierung unten macht das Blättern zugleich lückenlos.
+  const rows = await selectAllRows<Record<string, unknown>>(
+    (from, to) =>
+      db
+        .from("cards")
+        .select()
+        .eq("user_id", userId)
+        .eq("deck_id", deckId)
+        .is("deleted_at", null)
+        // Stabiler Zweitschlüssel: Scan-/Import-Karten teilen sich denselben
+        // created_at (ein Batch-Insert). Ohne zweite Sortierspalte darf Postgres
+        // sie bei jedem Aufruf anders anordnen — nach dem Lernen sprang so die
+        // Karten-Reihenfolge auf der Deck-Seite (#499). id ist eindeutig und macht
+        // die Reihenfolge deterministisch, ohne die Erstellungs-Ordnung zu ändern.
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to),
+    "listCardsForDeck"
+  );
+  return rows.map(mapCardRow);
 }
 
 export async function getCard(
@@ -581,6 +596,41 @@ export async function countDueCards(userId: string, nowIso: string): Promise<num
     .lte("fsrs_due", nowIso);
   if (error) throw new Error(`countDueCards: ${error.message}`);
   return count ?? 0;
+}
+
+/**
+ * Due counts grouped by deck — the "N fällig" badges in the library and folder
+ * views. Same filter set as listDueCards/countDueCards (live deck via inner
+ * join, card not deleted, occlusion excluded, fsrs_due <= now); a filter added
+ * to one but not the others makes the badge promise cards the learn round
+ * won't serve. PostgREST can't GROUP BY without an RPC, so this fetches only
+ * the deck_id column (a few bytes per row instead of full card text) through
+ * selectAllRows and groups here — a backlog past the row cap still counts.
+ */
+export async function countDueCardsByDeck(
+  userId: string,
+  nowIso: string
+): Promise<Record<string, number>> {
+  const db = getDb();
+  const rows = await selectAllRows<{ deck_id: string }>(
+    (from, to) =>
+      db
+        .from("cards")
+        .select("deck_id, decks!inner(deleted_at)")
+        .eq("user_id", userId)
+        .is("deleted_at", null)
+        .is("decks.deleted_at", null)
+        .neq("card_type", "occlusion")
+        .lte("fsrs_due", nowIso)
+        // Ohne deterministische Sortierung dürfen sich Seiten überlappen oder
+        // Zeilen auslassen — id ist eindeutig, das reicht fürs Blättern.
+        .order("id", { ascending: true })
+        .range(from, to),
+    "countDueCardsByDeck"
+  );
+  const counts: Record<string, number> = {};
+  for (const row of rows) counts[row.deck_id] = (counts[row.deck_id] ?? 0) + 1;
+  return counts;
 }
 
 export interface CardSearchResult {
@@ -1700,7 +1750,10 @@ export async function softDeleteCardsByIds(
   return (data ?? []).length;
 }
 
-export async function getDeckWithCardCount(deckId: string, userId: string): Promise<(DeckRecord & { cardCount: number }) | null> {
+export async function getDeckWithCardCount(
+  deckId: string,
+  userId: string
+): Promise<(DeckRecord & { cardCount: number; imageCardCount: number }) | null> {
   const db = getDb();
   const { data: deck, error: deckError } = await db
     .from("decks")
@@ -1711,13 +1764,30 @@ export async function getDeckWithCardCount(deckId: string, userId: string): Prom
     .maybeSingle();
   if (deckError || !deck) return null;
 
-  const { count } = await db
-    .from("cards")
-    .select("*", { count: "exact", head: true })
-    .eq("deck_id", deckId)
-    .is("deleted_at", null);
+  // Gleiche Zähl-Regel wie listDecks (#612): cardCount sind die Text-Karten,
+  // Bild-Occlusion-Karten stehen getrennt. Vorher zählte diese Funktion alles
+  // in einen Topf — "Details" sagte "30 Karten", während der Deck-Kopf
+  // "20 Karten · 10 Bild-Karten" zeigte.
+  const [textResult, imageResult] = await Promise.all([
+    db
+      .from("cards")
+      .select("*", { count: "exact", head: true })
+      .eq("deck_id", deckId)
+      .neq("card_type", "occlusion")
+      .is("deleted_at", null),
+    db
+      .from("cards")
+      .select("*", { count: "exact", head: true })
+      .eq("deck_id", deckId)
+      .eq("card_type", "occlusion")
+      .is("deleted_at", null),
+  ]);
 
-  return { ...mapDeckRow(deck), cardCount: count ?? 0 };
+  return {
+    ...mapDeckRow(deck),
+    cardCount: textResult.count ?? 0,
+    imageCardCount: imageResult.count ?? 0,
+  };
 }
 
 // ─── Per-deck review stats (#246) ────────────────────────────────────────────
