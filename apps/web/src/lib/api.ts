@@ -239,6 +239,8 @@ export interface DeckDetails {
   title: string;
   tags: string[];
   cardCount: number;
+  speechLangFront?: string | null;
+  speechLangBack?: string | null;
 }
 
 export function getDeckDetails(deckId: string): Promise<{ details: DeckDetails }> {
