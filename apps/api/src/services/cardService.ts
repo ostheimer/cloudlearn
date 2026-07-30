@@ -7,7 +7,15 @@ import {
 } from "@/lib/contracts";
 import { z } from "zod";
 import type { CardRecord } from "@/lib/db";
-import { createCard, getCard, getDeck, listCardsForDeck, softDeleteCard, updateCard } from "@/lib/db";
+import {
+  createCard,
+  getCard,
+  getDeck,
+  listCardsForDeck,
+  softDeleteCard,
+  softDeleteCardsByIds,
+  updateCard,
+} from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import { getSubscriptionStatus } from "./subscriptionService";
 import { assertCardLimit, assertEntitlement } from "@/lib/limits";
@@ -99,4 +107,32 @@ export async function updateCardForUser(input: unknown) {
 
 export async function deleteCardForUser(userId: string, cardId: string): Promise<boolean> {
   return softDeleteCard(cardId, userId);
+}
+
+/**
+ * Mehrere Karten eines Decks in einem Zug löschen — die Mehrfachauswahl der
+ * Kartenliste (#614).
+ *
+ * Bewusst EINE Anfrage statt einer je Karte: zwanzig einzelne DELETEs sind
+ * genau das N+1-Muster, das #612 reihenweise abgebaut hat, und ein Abbruch in
+ * der Mitte hätte die Liste in einem halb gelöschten Zustand hinterlassen.
+ *
+ * `softDeleteCardsByIds` filtert selbst auf `user_id` und `deck_id`, fremde
+ * oder deckfremde IDs können also nichts treffen (Deck-Ownership-Muster).
+ * Zurück kommt die WIRKLICH getroffene Anzahl — wer eine schon gelöschte Karte
+ * mitschickt, bekommt sie nicht mitgezählt, statt eine zu hohe Zahl zu lesen.
+ */
+const deleteCardsSchema = z.object({
+  userId: z.string().uuid(),
+  deckId: z.string().uuid(),
+  // Obergrenze = das größte Deck, das der teuerste Tarif zulässt. Höher wäre
+  // keine echte Auswahl mehr, sondern ein Versehen oder ein fremder Aufrufer.
+  cardIds: z.array(z.string().uuid()).min(1).max(2000),
+});
+
+export async function deleteCardsForUser(input: unknown): Promise<number> {
+  const parsed = deleteCardsSchema.parse(input);
+  const deck = await getDeck(parsed.deckId, parsed.userId);
+  if (!deck) throw new HttpError("Deck not found", 404, "DECK_NOT_FOUND");
+  return softDeleteCardsByIds(parsed.userId, parsed.deckId, parsed.cardIds);
 }

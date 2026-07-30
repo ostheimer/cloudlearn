@@ -5455,3 +5455,48 @@ a.lp-way:hover {
   cursor: default;
   text-decoration: none;
 }
+
+/* Mehrfachauswahl in der Kartenliste (#614). Laras Bedienung: „Auswählen"
+   antippen, Kästchen ankreuzen, „N löschen" — kein Ziehen, denn zwei Karten
+   weit auseinander lassen sich nicht sinnvoll zusammenziehen. */
+.card-select-toggle {
+  background: none;
+  border: none;
+  padding: 4px 2px;
+  min-height: 32px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--brand-600);
+}
+
+.card-select-toggle:hover {
+  text-decoration: underline;
+}
+
+/* Die Zeile behält ihr Raster (28px | 1fr | auto) — das Kästchen sitzt genau
+   dort, wo sonst die Nummer steht, damit beim Umschalten nichts springt. */
+.card-row--select {
+  cursor: pointer;
+}
+
+.card-row--select.is-picked {
+  border-color: var(--brand);
+  background: var(--bg-soft);
+}
+
+.card-row__check {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--brand);
+  cursor: pointer;
+  /* Trefferfläche über die 18px hinaus, ohne die Spalte zu verbreitern. */
+  margin: 7px 5px;
+}
+
+.card-select-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
