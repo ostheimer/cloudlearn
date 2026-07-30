@@ -310,6 +310,8 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         <Link href="/privacy">Datenschutz</Link>
         <span aria-hidden>·</span>
         <Link href="/impressum">Impressum</Link>
+        <span aria-hidden>·</span>
+        <Link href="/terms">Nutzungsbedingungen</Link>
       </div>
     </div>
   );
