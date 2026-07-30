@@ -4,14 +4,17 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
-import { earnLp, listCardsInDeck, reviewCard, getStats, isApiError, type Card } from "@/lib/api";
+import { earnLp, listCardsInDeck, reviewCard, updateCard, getStats, isApiError, type Card } from "@/lib/api";
 import { dailyGoalLine } from "@/lib/daily-goal-line";
 import { useDisplayName } from "@/lib/use-display-name";
 import { useWobblyIds } from "@/lib/use-wobbly-ids";
 import { filterBySource, isCardDue, type CardSource } from "@/lib/card-source";
 import { loadSetup, resolveSource, saveSetup } from "@/lib/setup-memory";
 import { matchTileTexts } from "@/lib/match-tiles";
+import { cardListPreview } from "@/lib/card-display";
+import { toggleCardStar } from "@/lib/toggle-card-star";
 import { CardSourcePicker } from "@/components/app/card-source-picker";
+import { CardEditor } from "@/components/app/card-editor";
 import {
   isCardGone,
   persistedReviewCount,
@@ -26,6 +29,7 @@ import {
   RotateCw,
   Star,
   StarFilled,
+  Pencil,
   Zap,
   AlertTriangle,
 } from "@/components/icons";
@@ -88,6 +92,10 @@ export default function MatchPage() {
   // Karten-IDs der Paare, die mindestens einmal falsch zugeordnet wurden
   // („nicht gewusst"). Für die Wiederholung nur dieser Paare.
   const [missedIds, setMissedIds] = useState<Set<string>>(new Set());
+  // Stern + Stift NUR im Ergebnis, nicht während der Runde (Laras Entscheidung,
+  // #610): der Zeit-Modus soll nicht durchs Bearbeiten unterbrochen werden.
+  const [starredMap, setStarredMap] = useState<Record<string, boolean>>({});
+  const [editingCard, setEditingCard] = useState<Card | null>(null);
 
   // Tagesziel im Rundenergebnis (#610): jede Karte wurde schon während der
   // Runde einzeln ans Backend gemeldet, `reviewsToday` ist beim Abschluss also
@@ -203,6 +211,7 @@ export default function MatchPage() {
       setUnsavedCount(0);
       awardedRef.current = false;
       setTimed(withTimer);
+      setStarredMap(Object.fromEntries(selectedCards.map(({ card }) => [card.id, card.starred ?? false])));
       setPhase("playing");
     },
     []
@@ -511,6 +520,78 @@ export default function MatchPage() {
               {dailyGoalText}
             </p>
           )}
+          {/* Stern + Stift NUR hier im Ergebnis (Laras Entscheidung, #610) —
+              nicht live während der Runde, damit der Zeit-Modus nicht durch
+              Bearbeiten unterbrochen wird. Reihenfolge nach erstem Auftreten
+              der Kacheln, nicht neu gemischt. */}
+          {(() => {
+            const seen = new Set<string>();
+            const roundCards = tiles.flatMap((tile) => {
+              if (seen.has(tile.cardId)) return [];
+              seen.add(tile.cardId);
+              const card = cards.find((c) => c.id === tile.cardId);
+              return card ? [card] : [];
+            });
+            if (roundCards.length === 0) return null;
+            return (
+              <div style={{ width: "100%", textAlign: "left" }}>
+                <div
+                  className="muted"
+                  style={{
+                    fontSize: "0.78rem",
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                    marginBottom: 8,
+                  }}
+                >
+                  Karten dieser Runde
+                </div>
+                <div style={{ display: "grid", gap: 8 }}>
+                  {roundCards.map((card) => {
+                    const preview = cardListPreview(card);
+                    const missed = missedIds.has(card.id);
+                    return (
+                      <div
+                        key={card.id}
+                        className="card-row"
+                        style={missed ? { borderColor: "var(--amber)", background: "var(--amber-50)" } : undefined}
+                      >
+                        <div className="card-row__faces">
+                          <div className="card-row__front">{preview.front}</div>
+                          <div className="card-row__back">{preview.back}</div>
+                        </div>
+                        <div className="card-row__actions">
+                          <button
+                            type="button"
+                            className="icon-btn"
+                            aria-label={starredMap[card.id] ? "Markierung entfernen" : "Markieren"}
+                            onClick={() => toggleCardStar(card.id, starredMap, setStarredMap)}
+                            style={starredMap[card.id] ? { color: "var(--amber)" } : undefined}
+                          >
+                            {starredMap[card.id] ? <StarFilled size={17} /> : <Star size={17} />}
+                          </button>
+                          <button
+                            type="button"
+                            className="icon-btn"
+                            aria-label="Karte bearbeiten"
+                            onClick={() => setEditingCard(card)}
+                          >
+                            <Pencil size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {missedIds.size > 0 && (
+                  <p className="muted" style={{ fontSize: "0.78rem", marginTop: 8 }}>
+                    Orange umrandet: beim Zuordnen nicht auf Anhieb gewusst.
+                  </p>
+                )}
+              </div>
+            );
+          })()}
           <div style={{ display: "grid", gap: 8, width: "100%", maxWidth: 320 }}>
             {showSubset && (
               <button
@@ -546,6 +627,17 @@ export default function MatchPage() {
             </Link>
           </div>
         </div>
+        {editingCard && (
+          <CardEditor
+            initial={editingCard}
+            onClose={() => setEditingCard(null)}
+            onSubmit={async (front, back) => {
+              const { card: updated } = await updateCard(editingCard.id, { front, back });
+              setCards((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+              setEditingCard(null);
+            }}
+          />
+        )}
       </div>
     );
   }
