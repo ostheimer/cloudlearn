@@ -14,7 +14,7 @@ import {
 } from "@/lib/api";
 import { useDisplayName } from "@/lib/use-display-name";
 import { useWobblyIds } from "@/lib/use-wobbly-ids";
-import { filterBySource, type CardSource } from "@/lib/card-source";
+import { filterBySource, isCardDue, type CardSource } from "@/lib/card-source";
 import {
   encodeCount,
   loadSetup,
@@ -229,12 +229,19 @@ export default function TestPage() {
     if (phase !== "setup" || loading || !wobblySettled) return;
     setupRestoredRef.current = true;
     const stored = loadSetup(deckId, "test");
-    if (!stored) return;
-    const wanted = resolveSource(stored.source, {
+    const counts = {
       starred: cards.filter((c) => c.starred).length,
       wobbly: cards.filter((c) => wobblyIds.has(c.id)).length,
-    });
+      due: cards.filter((c) => isCardDue(c)).length,
+    };
+    // Ohne gemerkte Wahl ist das Tagespensum die Voreinstellung (#610).
+    if (!stored) {
+      if (counts.due > 0) setSource("due");
+      return;
+    }
+    const wanted = resolveSource(stored.source, counts);
     if (wanted) setSource(wanted);
+    else if (!stored.source && counts.due > 0) setSource("due");
     // Obergrenze der Anzahl ist der Vorrat der Quelle, die ab jetzt gilt —
     // der Klemm-Effekt oben zieht sie bei Quellenwechseln weiter mit.
     const pool = filterBySource(cards, wanted ?? source, wobblyIds);
@@ -571,6 +578,7 @@ export default function TestPage() {
           allCount={cards.length}
           starredCount={cards.filter((c) => c.starred).length}
           wobblyCount={cards.filter((c) => wobblyIds.has(c.id)).length}
+          dueCount={cards.filter((c) => isCardDue(c)).length}
         />
 
         {/* Anzahl Fragen — gemeinsamer Baustein mit dem Quiz, wie die

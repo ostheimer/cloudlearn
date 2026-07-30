@@ -17,11 +17,12 @@ import {
   Modal,
   ScrollView,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { X, Layers, Check } from "lucide-react-native";
+import { X, Layers, Check, Search } from "lucide-react-native";
 import { useColors, spacing, radius, typography } from "../theme";
 import { useTranslation } from "react-i18next";
 import {
@@ -31,6 +32,7 @@ import {
   type Deck,
 } from "../lib/api";
 import { toggleSelection } from "../lib/deckSelection";
+import { PICKER_SEARCH_THRESHOLD, filterByTitle } from "../lib/pickerSearch";
 
 interface DeckPickerModalProps {
   visible: boolean;
@@ -63,6 +65,9 @@ export default function DeckPickerModal({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  // Nur die Anzeige wird gefiltert — die Auswahl (und ihre Nummern-Reihenfolge)
+  // bleibt erhalten, auch wenn ein gewähltes Deck nicht zur Suche passt.
+  const [search, setSearch] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -83,9 +88,12 @@ export default function DeckPickerModal({
   useEffect(() => {
     if (visible) {
       setSelectedIds([]);
+      setSearch("");
       void load();
     }
   }, [visible, load]);
+
+  const shownDecks = filterByTitle(decks, search);
 
   const handleConfirm = async () => {
     setBusy(true);
@@ -151,6 +159,33 @@ export default function DeckPickerModal({
           <View style={{ width: 64 }} />
         </View>
 
+        {/* Suchfeld erst ab mehreren Decks (#612) — darunter nur Rauschen. */}
+        {!loading && decks.length >= PICKER_SEARCH_THRESHOLD && (
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: spacing.sm,
+              marginHorizontal: spacing.lg,
+              marginTop: spacing.lg,
+              paddingHorizontal: spacing.md,
+              borderWidth: 1,
+              borderColor: colors.border,
+              borderRadius: radius.md,
+              backgroundColor: colors.surface,
+            }}
+          >
+            <Search size={16} color={colors.textTertiary} />
+            <TextInput
+              value={search}
+              onChangeText={setSearch}
+              placeholder={t("folder.searchDecksPlaceholder")}
+              placeholderTextColor={colors.textTertiary}
+              style={{ flex: 1, paddingVertical: spacing.md, fontSize: typography.base, color: colors.text }}
+            />
+          </View>
+        )}
+
         {loading ? (
           <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
             <ActivityIndicator size="large" color={colors.primary} />
@@ -164,8 +199,19 @@ export default function DeckPickerModal({
                   {t("folder.noDecks")}
                 </Text>
               </View>
+            ) : shownDecks.length === 0 ? (
+              <Text
+                style={{
+                  color: colors.textSecondary,
+                  textAlign: "center",
+                  fontSize: typography.base,
+                  paddingTop: 40,
+                }}
+              >
+                {t("folder.searchDecksEmpty")}
+              </Text>
             ) : (
-              decks.map((deck) => {
+              shownDecks.map((deck) => {
                 const isIn = alreadyIn.has(deck.id);
                 // Position in der Antipp-Reihenfolge; −1 = nicht ausgewählt.
                 const order = selectedIds.indexOf(deck.id);
@@ -202,7 +248,12 @@ export default function DeckPickerModal({
                       <Layers size={18} color={colors.primary} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: typography.base, fontWeight: typography.medium, color: colors.text }}>
+                      {/* Einzeilig (#612): ein Monster-Titel soll die Zeile
+                          kürzen, nicht das Fenster sprengen. */}
+                      <Text
+                        numberOfLines={1}
+                        style={{ fontSize: typography.base, fontWeight: typography.medium, color: colors.text }}
+                      >
                         {deck.title}
                       </Text>
                       <Text style={{ fontSize: typography.sm, color: colors.textSecondary }}>

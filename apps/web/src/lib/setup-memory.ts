@@ -112,11 +112,12 @@ export function resolveCount(stored: StoredSetup["count"], max: number): number 
  */
 export function resolveSource(
   stored: string | undefined,
-  counts: { starred: number; wobbly: number }
+  counts: { starred: number; wobbly: number; due: number }
 ): CardSource | null {
   if (stored === "all") return "all";
   if (stored === "starred") return counts.starred > 0 ? "starred" : null;
   if (stored === "wobbly") return counts.wobbly > 0 ? "wobbly" : null;
+  if (stored === "due") return counts.due > 0 ? "due" : null;
   return null;
 }
 

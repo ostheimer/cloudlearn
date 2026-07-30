@@ -109,6 +109,9 @@ function makeDbMock(table: ProfileRow[]) {
     error: null,
   }));
   const ownBalanceLookup = vi.fn();
+  // Recorded .order(...) calls of the board query — the tiebreaker contract
+  // (#612) is asserted against this list.
+  const orderCalls: unknown[][] = [];
 
   const from = vi.fn((_table: string) => ({
     select: (columns: string, options?: { count?: string; head?: boolean }) => {
@@ -126,12 +129,20 @@ function makeDbMock(table: ProfileRow[]) {
           }),
         };
       }
-      // top-50 board: .select(cols).order("lp_balance", ...).limit(PAGE_SIZE)
-      return { order: () => ({ limit }) };
+      // top-50 board: .select(cols).order(...).order(...).order(...).limit(PAGE_SIZE)
+      type BoardQuery = { order: (...args: unknown[]) => BoardQuery; limit: typeof limit };
+      const boardQuery: BoardQuery = {
+        order: (...args: unknown[]) => {
+          orderCalls.push(args);
+          return boardQuery;
+        },
+        limit,
+      };
+      return boardQuery;
     },
   }));
 
-  return { db: { from } as never, gt, limit, ownBalanceLookup };
+  return { db: { from } as never, gt, limit, ownBalanceLookup, orderCalls };
 }
 
 function getRequest() {
@@ -139,10 +150,10 @@ function getRequest() {
 }
 
 async function getBody(table: ProfileRow[]) {
-  const { db, ownBalanceLookup, gt } = makeDbMock(table);
+  const { db, ownBalanceLookup, gt, orderCalls } = makeDbMock(table);
   mockedCreateDb.mockReturnValue(db);
   const response = await GET(getRequest());
-  return { response, body: (await response.json()) as Body, ownBalanceLookup, gt };
+  return { response, body: (await response.json()) as Body, ownBalanceLookup, gt, orderCalls };
 }
 
 describe("GET /api/v1/leaderboard/global – myRank outside the top 50", () => {
@@ -289,6 +300,30 @@ describe("GET /api/v1/leaderboard/global – total reflects the entries returned
   });
 });
 
+describe("GET /api/v1/leaderboard/global – deterministic order on LP ties (#612)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedGetAuthUser.mockResolvedValue({ userId: AUTH_USER_ID, email: "lara@example.com" });
+  });
+
+  it("orders the board by LP, then account age, then id — never by LP alone", async () => {
+    // Postgres gives NO order guarantee among rows tied on the single sort
+    // key: two learners on the same balance could swap ranks on every reload.
+    // The unique trailing id key is what makes the board stable.
+    const { orderCalls } = await getBody([
+      profile("tie-a", 100),
+      profile(AUTH_USER_ID, 100),
+      profile("tie-b", 100),
+    ]);
+
+    expect(orderCalls).toEqual([
+      ["lp_balance", { ascending: false }],
+      ["created_at", { ascending: true }],
+      ["id", { ascending: true }],
+    ]);
+  });
+});
+
 describe("GET /api/v1/leaderboard/global – contract kept intact", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -385,13 +420,12 @@ describe("GET /api/v1/leaderboard/global – contract kept intact", () => {
   });
 
   it("surfaces a database error as a 500", async () => {
-    const from = vi.fn(() => ({
-      select: () => ({
-        order: () => ({
-          limit: async () => ({ data: null, error: { message: "connection lost" } }),
-        }),
-      }),
-    }));
+    type FailingQuery = { order: () => FailingQuery; limit: () => Promise<unknown> };
+    const failingQuery: FailingQuery = {
+      order: () => failingQuery,
+      limit: async () => ({ data: null, error: { message: "connection lost" } }),
+    };
+    const from = vi.fn(() => ({ select: () => failingQuery }));
     mockedCreateDb.mockReturnValue({ from } as never);
 
     const response = await GET(getRequest());

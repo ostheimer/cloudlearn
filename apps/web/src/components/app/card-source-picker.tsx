@@ -5,10 +5,12 @@ import type { CardSource } from "@/lib/card-source";
 
 /**
  * Auswahl der Kartenquelle vor dem Start eines Lernmodus — wie in der App
- * (apps/mobile/src/components/cardSourcePicker.tsx): drei Radio-Reihen mit
- * Anzahl in Klammern. „Nur markierte" und „Nur Wackelkandidaten" sind
- * ausgegraut und nicht wählbar, solange sie zu wenige Karten haben. „Nur
- * markierte" ist zugleich die Funktion des Sterns auf der Deck-Seite (#523).
+ * (apps/mobile/src/components/cardSourcePicker.tsx): vier Radio-Reihen mit
+ * Anzahl in Klammern. „Nur fällige" steht oben — das ist die Alltagswahl
+ * (#610): die Karten, die der Lernplan heute wiederholen will. Reihen außer
+ * „Alle" sind ausgegraut und nicht wählbar, solange sie zu wenige Karten
+ * haben. „Nur markierte" ist zugleich die Funktion des Sterns auf der
+ * Deck-Seite (#523).
  *
  * `minCount` ist die Mindestzahl Karten, die ein Modus zum Starten braucht
  * (Standard 1). Multiple Choice und Zuordnen setzen 2: dort ergibt eine
@@ -22,6 +24,7 @@ export function CardSourcePicker({
   allCount,
   starredCount,
   wobblyCount,
+  dueCount,
   minCount = 1,
 }: {
   value: CardSource;
@@ -29,9 +32,11 @@ export function CardSourcePicker({
   allCount: number;
   starredCount: number;
   wobblyCount: number;
+  dueCount: number;
   minCount?: number;
 }) {
   const rows: { key: CardSource; label: string; count: number; star?: boolean }[] = [
+    { key: "due", label: "Nur fällige", count: dueCount },
     { key: "all", label: "Alle Karten", count: allCount },
     { key: "starred", label: "Nur markierte", count: starredCount, star: true },
     { key: "wobbly", label: "Nur Wackelkandidaten", count: wobblyCount },

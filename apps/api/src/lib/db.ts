@@ -417,21 +417,29 @@ export async function listCardsForDeck(
   deckId: string
 ): Promise<CardRecord[]> {
   const db = getDb();
-  const { data, error } = await db
-    .from("cards")
-    .select()
-    .eq("user_id", userId)
-    .eq("deck_id", deckId)
-    .is("deleted_at", null)
-    // Stabiler Zweitschlüssel: Scan-/Import-Karten teilen sich denselben
-    // created_at (ein Batch-Insert). Ohne zweite Sortierspalte darf Postgres
-    // sie bei jedem Aufruf anders anordnen — nach dem Lernen sprang so die
-    // Karten-Reihenfolge auf der Deck-Seite (#499). id ist eindeutig und macht
-    // die Reihenfolge deterministisch, ohne die Erstellungs-Ordnung zu ändern.
-    .order("created_at", { ascending: true })
-    .order("id", { ascending: true });
-  if (error) throw new Error(`listCardsForDeck: ${error.message}`);
-  return (data ?? []).map(mapCardRow);
+  // Seitenweise laden: ein Pro-Deck darf 2.000 Karten haben, PostgREST liefert
+  // aber höchstens 1000 Zeilen pro Anfrage und schweigt über den Rest — Karte
+  // 1001+ war damit unsichtbar und unlernbar (#612). Die deterministische
+  // Sortierung unten macht das Blättern zugleich lückenlos.
+  const rows = await selectAllRows<Record<string, unknown>>(
+    (from, to) =>
+      db
+        .from("cards")
+        .select()
+        .eq("user_id", userId)
+        .eq("deck_id", deckId)
+        .is("deleted_at", null)
+        // Stabiler Zweitschlüssel: Scan-/Import-Karten teilen sich denselben
+        // created_at (ein Batch-Insert). Ohne zweite Sortierspalte darf Postgres
+        // sie bei jedem Aufruf anders anordnen — nach dem Lernen sprang so die
+        // Karten-Reihenfolge auf der Deck-Seite (#499). id ist eindeutig und macht
+        // die Reihenfolge deterministisch, ohne die Erstellungs-Ordnung zu ändern.
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to),
+    "listCardsForDeck"
+  );
+  return rows.map(mapCardRow);
 }
 
 export async function getCard(
@@ -581,6 +589,41 @@ export async function countDueCards(userId: string, nowIso: string): Promise<num
     .lte("fsrs_due", nowIso);
   if (error) throw new Error(`countDueCards: ${error.message}`);
   return count ?? 0;
+}
+
+/**
+ * Due counts grouped by deck — the "N fällig" badges in the library and folder
+ * views. Same filter set as listDueCards/countDueCards (live deck via inner
+ * join, card not deleted, occlusion excluded, fsrs_due <= now); a filter added
+ * to one but not the others makes the badge promise cards the learn round
+ * won't serve. PostgREST can't GROUP BY without an RPC, so this fetches only
+ * the deck_id column (a few bytes per row instead of full card text) through
+ * selectAllRows and groups here — a backlog past the row cap still counts.
+ */
+export async function countDueCardsByDeck(
+  userId: string,
+  nowIso: string
+): Promise<Record<string, number>> {
+  const db = getDb();
+  const rows = await selectAllRows<{ deck_id: string }>(
+    (from, to) =>
+      db
+        .from("cards")
+        .select("deck_id, decks!inner(deleted_at)")
+        .eq("user_id", userId)
+        .is("deleted_at", null)
+        .is("decks.deleted_at", null)
+        .neq("card_type", "occlusion")
+        .lte("fsrs_due", nowIso)
+        // Ohne deterministische Sortierung dürfen sich Seiten überlappen oder
+        // Zeilen auslassen — id ist eindeutig, das reicht fürs Blättern.
+        .order("id", { ascending: true })
+        .range(from, to),
+    "countDueCardsByDeck"
+  );
+  const counts: Record<string, number> = {};
+  for (const row of rows) counts[row.deck_id] = (counts[row.deck_id] ?? 0) + 1;
+  return counts;
 }
 
 export interface CardSearchResult {

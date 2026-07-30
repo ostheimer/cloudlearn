@@ -18,6 +18,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
+import * as ImageManipulator from "expo-image-manipulator";
 import {
   Camera,
   FileText,
@@ -38,6 +39,7 @@ import {
 } from "lucide-react-native";
 import { useSessionStore } from "../../src/store/sessionStore";
 import { useOcrEditorState } from "../../src/features/ocr/ocrEditorState";
+import { normalizeOcrText } from "../../src/features/ocr/normalizeOcrText";
 import {
   importPdf,
   importFromUrl,
@@ -58,11 +60,16 @@ import {
   freeCardSlots,
   isDeckLimitReached,
   deckOverflowWarning,
+  isPlanLimitError,
   roomForNewCards,
   savedSummary,
   selectEvenlySpread,
   shouldOpenLpModal,
 } from "../../src/lib/importLimits";
+import {
+  IMPORT_ERROR_TITLE_KEY,
+  importErrorKey,
+} from "../../src/lib/importErrors";
 import { summarizeCardMedia } from "../../src/lib/cardMedia";
 import {
   blankCard,
@@ -89,6 +96,64 @@ import { AuthPromptCard } from "../../src/components/AuthPromptCard";
 import { LpBadge } from "../../src/components/LpBadge";
 
 type InputMode = "choose" | "camera" | "text" | "url";
+
+// Dieselbe Grenze wie das Web-Textfeld (import/page.tsx MAX_TEXT) — der Server
+// lehnt längere Texte mit einem rohen Prüfbericht ab; hier stoppt die Eingabe
+// vorher und ein Zähler zeigt, wo man steht (#609).
+const MAX_TEXT = 20000;
+
+const getMimeType = (
+  uri: string
+): "image/jpeg" | "image/png" | "image/webp" => {
+  if (uri.toLowerCase().endsWith(".png")) return "image/png";
+  if (uri.toLowerCase().endsWith(".webp")) return "image/webp";
+  return "image/jpeg";
+};
+
+// Fotos vor dem Senden verkleinern (#609) — dasselbe Muster wie der
+// Occlusion-Editor: längste Seite auf 1600 Bildpunkte, JPEG mit 0,7. Ein
+// volles Handyfoto riss sonst die Sendegrenze des Servers ("API error 413");
+// für die Karten-Erzeugung reicht die kleine Fassung locker. Schlägt die
+// Verkleinerung fehl, geht das Original raus — Scannen bleibt möglich.
+const MAX_SCAN_IMAGE_DIM = 1600;
+async function shrinkImageForScan(asset: {
+  uri: string;
+  width?: number;
+  height?: number;
+  base64?: string | null;
+}): Promise<{
+  uri: string;
+  base64: string | null;
+  mime: "image/jpeg" | "image/png" | "image/webp";
+}> {
+  try {
+    const width = asset.width ?? 0;
+    const height = asset.height ?? 0;
+    const longSide = Math.max(width, height);
+    const actions: ImageManipulator.Action[] =
+      longSide > MAX_SCAN_IMAGE_DIM
+        ? [
+            {
+              resize:
+                width >= height
+                  ? { width: MAX_SCAN_IMAGE_DIM }
+                  : { height: MAX_SCAN_IMAGE_DIM },
+            },
+          ]
+        : [];
+    const out = await ImageManipulator.manipulateAsync(asset.uri, actions, {
+      compress: 0.7,
+      format: ImageManipulator.SaveFormat.JPEG,
+      base64: true,
+    });
+    if (out.base64) {
+      return { uri: out.uri, base64: out.base64, mime: "image/jpeg" };
+    }
+  } catch {
+    // Original weiterverwenden — lieber ein großer Upload als gar keiner.
+  }
+  return { uri: asset.uri, base64: asset.base64 ?? null, mime: getMimeType(asset.uri) };
+}
 
 export default function ScanScreen() {
   const router = useRouter();
@@ -314,12 +379,13 @@ export default function ScanScreen() {
     });
 
     if (!result.canceled && result.assets[0]) {
-      const asset = result.assets[0];
-      setImageUri(asset.uri);
-      setImageBase64(asset.base64 ?? null);
+      // Vor dem Senden verkleinern (#609) — verhindert "zu groß"-Abbrüche.
+      const shrunk = await shrinkImageForScan(result.assets[0]);
+      setImageUri(shrunk.uri);
+      setImageBase64(shrunk.base64);
       setMode("choose");
-      if (asset.base64) {
-        await processImage(asset.base64, getMimeType(asset.uri));
+      if (shrunk.base64) {
+        await processImage(shrunk.base64, shrunk.mime);
       }
     }
   };
@@ -332,15 +398,17 @@ export default function ScanScreen() {
         quality: 0.8,
       });
       if (photo) {
-        setImageUri(photo.uri);
-        setImageBase64(photo.base64 ?? null);
+        // Vor dem Senden verkleinern (#609) — verhindert "zu groß"-Abbrüche.
+        const shrunk = await shrinkImageForScan(photo);
+        setImageUri(shrunk.uri);
+        setImageBase64(shrunk.base64);
         setMode("choose");
-        if (photo.base64) {
-          await processImage(photo.base64, "image/jpeg");
+        if (shrunk.base64) {
+          await processImage(shrunk.base64, shrunk.mime);
         }
       }
     } catch (error) {
-      Alert.alert("Fehler", "Foto konnte nicht aufgenommen werden.");
+      Alert.alert(t(IMPORT_ERROR_TITLE_KEY), "Foto konnte nicht aufgenommen werden.");
     }
   };
 
@@ -359,14 +427,6 @@ export default function ScanScreen() {
   };
 
   // --- Processing ---
-
-  const getMimeType = (
-    uri: string
-  ): "image/jpeg" | "image/png" | "image/webp" => {
-    if (uri.toLowerCase().endsWith(".png")) return "image/png";
-    if (uri.toLowerCase().endsWith(".webp")) return "image/webp";
-    return "image/jpeg";
-  };
 
   const getImportAttemptKey = (signature: string, prefix: string): string => {
     const attempt = getStableImportAttemptKey(
@@ -428,8 +488,9 @@ export default function ScanScreen() {
       const fileBase64 = await readPickedPdfAsBase64(asset);
       await processPdf(fileBase64, asset.name);
     } catch (error: unknown) {
+      // Hier landen nur unsere eigenen deutschen Lese-Fehler (readPickedPdfAsBase64).
       const msg = error instanceof Error ? error.message : "PDF konnte nicht gelesen werden.";
-      Alert.alert("Fehler beim PDF-Import", msg);
+      Alert.alert(t(IMPORT_ERROR_TITLE_KEY), msg);
     }
   };
 
@@ -468,9 +529,7 @@ export default function ScanScreen() {
         setLpModalVisible(true);
         return;
       }
-      const msg =
-        error instanceof Error ? error.message : "Unbekannter Fehler";
-      Alert.alert("Fehler bei der Bildverarbeitung", msg);
+      Alert.alert(t(IMPORT_ERROR_TITLE_KEY), t(importErrorKey(error, "image")));
     } finally {
       setLoading(false);
     }
@@ -512,8 +571,7 @@ export default function ScanScreen() {
         setLpModalVisible(true);
         return;
       }
-      const msg = error instanceof Error ? error.message : "Unbekannter Fehler";
-      Alert.alert("Fehler beim PDF-Import", msg);
+      Alert.alert(t(IMPORT_ERROR_TITLE_KEY), t(importErrorKey(error, "pdf")));
     } finally {
       setLoading(false);
     }
@@ -530,7 +588,9 @@ export default function ScanScreen() {
     setPdfFileName("");
     setPdfPageCount(null);
     try {
-      const text = editedText.trim();
+      // Aufräumen erst hier statt bei jedem Tastendruck (#609) — die Eingabe
+      // selbst bleibt unangetastet, sonst frisst der Editor Leerzeichen.
+      const text = normalizeOcrText(editedText);
       const idempotencyKey = getImportAttemptKey(`scan:${text}`, "scan");
       // #442: preview — Deck entsteht erst beim „Speichern".
       const result = await scanText(userId, text, "de", idempotencyKey, true);
@@ -550,9 +610,7 @@ export default function ScanScreen() {
         setLpModalVisible(true);
         return;
       }
-      const msg =
-        error instanceof Error ? error.message : "Unbekannter Fehler";
-      Alert.alert("Fehler", msg);
+      Alert.alert(t(IMPORT_ERROR_TITLE_KEY), t(importErrorKey(error, "text")));
     } finally {
       setLoading(false);
     }
@@ -597,8 +655,7 @@ export default function ScanScreen() {
         setLpModalVisible(true);
         return;
       }
-      const msg = error instanceof Error ? error.message : "Unbekannter Fehler";
-      Alert.alert("Fehler beim URL-Import", msg);
+      Alert.alert(t(IMPORT_ERROR_TITLE_KEY), t(importErrorKey(error, "url")));
     } finally {
       setLoading(false);
     }
@@ -674,9 +731,13 @@ export default function ScanScreen() {
         ]
       );
     } catch (error: unknown) {
-      const msg =
-        error instanceof Error ? error.message : "Unbekannter Fehler";
-      Alert.alert("Fehler beim Speichern", msg);
+      // Tarifgrenzen (409) sprechen schon gutes Deutsch vom Server — die
+      // bleiben; alles andere übersetzt importErrors (#609).
+      if (isPlanLimitError(error) && error instanceof Error) {
+        Alert.alert(DECK_LIMIT_LABEL, error.message);
+      } else {
+        Alert.alert(t(IMPORT_ERROR_TITLE_KEY), t(importErrorKey(error, "save")));
+      }
     } finally {
       setSaving(false);
     }
@@ -709,9 +770,11 @@ export default function ScanScreen() {
       void reloadDecks();
       await saveCardsToDeck(deck.id, deck.title);
     } catch (error: unknown) {
-      const msg =
-        error instanceof Error ? error.message : "Unbekannter Fehler";
-      Alert.alert("Fehler beim Speichern", msg);
+      if (isPlanLimitError(error) && error instanceof Error) {
+        Alert.alert(DECK_LIMIT_LABEL, error.message);
+      } else {
+        Alert.alert(t(IMPORT_ERROR_TITLE_KEY), t(importErrorKey(error, "save")));
+      }
       setSaving(false);
     }
   };
@@ -771,7 +834,7 @@ export default function ScanScreen() {
       buttons.push({ text: "Abbrechen", onPress: () => {} });
       Alert.alert("Deck wählen", `${nonEmptyCards(cards).length} Karten hinzufügen zu:`, buttons);
     } catch {
-      Alert.alert("Fehler", "Decks konnten nicht geladen werden.");
+      Alert.alert(t(IMPORT_ERROR_TITLE_KEY), "Decks konnten nicht geladen werden.");
     }
   };
 
@@ -970,6 +1033,7 @@ export default function ScanScreen() {
             multiline
             value={editedText}
             onChangeText={setEditedText}
+            maxLength={MAX_TEXT}
             placeholder="Tippe oder füge hier deinen Lerntext ein..."
             placeholderTextColor={colors.textTertiary}
             style={{
@@ -983,6 +1047,20 @@ export default function ScanScreen() {
               textAlignVertical: "top",
             }}
           />
+          {/* Zeichen-Zähler wie im Web (#609) — die Grenze sieht man, bevor
+              sie zuschlägt. */}
+          <Text
+            style={{
+              alignSelf: "flex-end",
+              fontSize: typography.xs,
+              color: colors.textTertiary,
+            }}
+          >
+            {t("scan.charCount", {
+              current: editedText.length.toLocaleString("de-DE"),
+              max: MAX_TEXT.toLocaleString("de-DE"),
+            })}
+          </Text>
 
           {/* Example text */}
           {!editedText && (
@@ -1038,7 +1116,7 @@ export default function ScanScreen() {
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 2, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
                   <Zap size={13} color={colors.textInverse} />
                   <Text style={{ color: colors.textInverse, fontSize: typography.xs, fontWeight: typography.bold }}>
-                    {lpCostAiScan}
+                    {lpCostAiScan} LP
                   </Text>
                 </View>
               </>
@@ -1150,7 +1228,7 @@ export default function ScanScreen() {
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 2, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
                   <Zap size={13} color={colors.textInverse} />
                   <Text style={{ color: colors.textInverse, fontSize: typography.xs, fontWeight: typography.bold }}>
-                    {lpCostUrlImport}
+                    {lpCostUrlImport} LP
                   </Text>
                 </View>
               </>
