@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generateQuestions, type QuizCardInput } from "./quizQuestions";
+import { countQuizableCards, generateQuestions, type QuizCardInput } from "./quizQuestions";
 
 // Deterministischer Zufall, damit die Erzeugung im Test reproduzierbar ist.
 function seeded(seed: number): () => number {
@@ -232,5 +232,36 @@ describe("generateQuestions — Kartentexte werden aufbereitet (#569)", () => {
       const questions = generateQuestions(cards, {}, seeded(seed));
       expect(questions.find((q) => q.cardId === "img1")).toBeUndefined();
     }
+  });
+});
+
+describe("countQuizableCards — dieselbe Regel wie die Fragen-Erzeugung (#612)", () => {
+  it("zählt Karten mit beiden Seiten; einseitige fallen raus", () => {
+    expect(
+      countQuizableCards([
+        { id: "a", front: "la courbe", back: "die Kurve" },
+        { id: "b", front: "Nur Vorderseite", back: "" },
+        { id: "c", front: "   ", back: "nur Rückseite" },
+      ])
+    ).toBe(1);
+  });
+
+  it("zählt Doppel-Scans nur einmal — wie die Erzeugung sie dedupliziert", () => {
+    expect(
+      countQuizableCards([
+        { id: "a", front: "la courbe", back: "die Kurve" },
+        { id: "a2", front: "la courbe", back: "die Kurve" },
+        { id: "b", front: "le tableau", back: "die Tabelle" },
+      ])
+    ).toBe(2);
+  });
+
+  it("zählt Karten nach der Aufbereitung — reine Bild-Seiten ohne Text fallen wie in der Erzeugung raus", () => {
+    expect(
+      countQuizableCards([
+        { id: "i1", front: "![](https://example.com/zelle.png)", back: "Zellkern" },
+        { id: "a", front: "la courbe", back: "die Kurve" },
+      ])
+    ).toBe(1);
   });
 });

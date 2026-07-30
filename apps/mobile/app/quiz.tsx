@@ -37,6 +37,7 @@ import { useUsageStore } from "../src/store/usageStore";
 import { excludeOcclusionCards } from "../src/lib/occlusion";
 import {
   defaultQuizCopyDe,
+  countQuizableCards,
   generateQuestions,
   type QuizQuestion,
 } from "../src/lib/quizQuestions";
@@ -128,11 +129,10 @@ export default function QuizScreen() {
   const dueCount = cards.filter((c) => isCardDue(c)).length;
   const pool = filterBySource(cards, source, wobblyIds);
   const canStart = anyType && pool.length >= 2;
-  // Obergrenze der Auswahl: wie die Prüfung nur Karten mit beiden Seiten —
-  // leere ergeben keine Frage, und „Alle (N)" soll nicht mehr versprechen.
-  const usableCount = pool.filter(
-    (c) => (c.front ?? "").trim() && (c.back ?? "").trim()
-  ).length;
+  // Obergrenze der Auswahl: EXAKT die Pool-Regel der Fragen-Erzeugung (#612) —
+  // ein Bild zählt als Seite, Doppel-Scans zählen einmal. Die alte reine
+  // Text-Prüfung versprach „Alle (12)" und lieferte dann 10 Fragen.
+  const usableCount = countQuizableCards(pool);
 
   // Schrumpft der Pool (andere Kartenquelle), darf die gewählte Anzahl nicht
   // darüber liegen; nur klemmen, nie zurückwachsen (10 bleibt der Standard).
