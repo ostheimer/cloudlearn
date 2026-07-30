@@ -116,6 +116,28 @@ export function freeSlots(
   return Math.max(0, maxCardsPerDeck - cardCount - (imageCardCount ?? 0));
 }
 
+/**
+ * Füllstand der Bibliothek: „19 von 20 Decks belegt" — oder `null`, wenn nichts
+ * zu sagen ist (#611).
+ *
+ * Die Grenze war bisher unsichtbar, bis man sie riss: Der Endpunkt liefert
+ * `usage.limits` seit #411 mit, nur fragte keine Bibliothek sie ab. Wer beim
+ * 20. Deck „Deck-Grenze erreicht" liest, hat vorher nie erfahren, dass es
+ * überhaupt eine gibt.
+ *
+ * `null` bei unbekannter Grenze (älterer Server) und solange die Deckliste
+ * lädt — dieselbe Zurückhaltung wie `deckLimitNotice`.
+ *
+ * Wortgleich mit `deckSlotsSummary` in apps/mobile/src/lib/importLimits.ts.
+ */
+export function deckSlotsSummary(
+  deckCount: number | null,
+  maxDecks: number | undefined
+): string | null {
+  if (deckCount === null || typeof maxDecks !== "number") return null;
+  return `${deckCount} von ${maxDecks} Decks belegt`;
+}
+
 /** Beschriftung eines Decks in der Zielauswahl: „Datenbanken · 43 Plätze frei". */
 export function deckOptionLabel(title: string, free: number | null): string {
   if (free === null) return title;

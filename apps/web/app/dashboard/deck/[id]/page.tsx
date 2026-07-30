@@ -22,6 +22,7 @@ import {
   type Card,
   type DeckDetails,
 } from "@/lib/api";
+import { loadPlanLimits } from "@/lib/plan-limits";
 import {
   ArrowLeft,
   ChevronRight,
@@ -85,6 +86,22 @@ export default function DeckDetailPage() {
   const [cardImages, setCardImages] = useState<Record<string, CardImage | null>>({});
   const fetchedPaths = useRef<Set<string>>(new Set());
   const coarsePointer = useCoarsePointer();
+  // Kartengrenze für den Füllstand im Kopf (#611). Über loadPlanLimits, das den
+  // Wert je Sitzung EINMAL holt — die Deck-Seite wird oft geöffnet, und ein
+  // Abruf bei jedem Öffnen war der Einwand von #376. `undefined` heißt
+  // „unbekannt": dann bleibt die nackte Kartenzahl und nichts wird gesperrt.
+  const [maxCardsPerDeck, setMaxCardsPerDeck] = useState<number | undefined>(undefined);
+
+  useEffect(() => {
+    if (!userId) return;
+    let active = true;
+    void loadPlanLimits().then((limits) => {
+      if (active) setMaxCardsPerDeck(limits.maxCardsPerDeck);
+    });
+    return () => {
+      active = false;
+    };
+  }, [userId]);
 
   const load = useCallback(async () => {
     if (!deckId) return;
@@ -182,7 +199,16 @@ export default function DeckDetailPage() {
 
   // Dieselbe Regel wie Deck-Liste und Ordner-Seite (deck-count-label): Teile mit
   // null weglassen, leeres Deck → kein Label (der Leerzustand sagt es schon).
-  const cardCountLabel = deckCountLabel(textCards.length, occlusionCards.length);
+  // Ist die Tarif-Grenze bekannt, steht hier der Füllstand statt der nackten
+  // Anzahl: „142 von 150 Karten" (#611).
+  const cardCountLabel = deckCountLabel(
+    textCards.length,
+    occlusionCards.length,
+    maxCardsPerDeck
+  );
+  const deckIsFull =
+    typeof maxCardsPerDeck === "number" &&
+    textCards.length + occlusionCards.length >= maxCardsPerDeck;
 
   // Wie viele andere Karten hängen am selben Bild? Gezählt werden KARTEN, nicht
   // Regionen: extraData.regions führt gelöschte Stellen weiter mit, die Zahl
@@ -231,8 +257,15 @@ export default function DeckDetailPage() {
             {details?.title}
           </h1>
           {cardCountLabel && (
-            <p className="muted" style={{ marginTop: 4 }}>
-              {cardCountLabel}
+            <p
+              className="muted"
+              style={{
+                marginTop: 4,
+                // Am vollen Deck warnfarben — die Zahl IST die Nachricht (#611).
+                ...(deckIsFull ? { color: "var(--amber)" } : {}),
+              }}
+            >
+              {deckIsFull ? `${cardCountLabel} — voll` : cardCountLabel}
             </p>
           )}
         </div>
@@ -240,6 +273,11 @@ export default function DeckDetailPage() {
           type="button"
           className="btn btn-primary"
           onClick={() => setModal({ type: "add" })}
+          // Nichts anbieten, was der Server sicher ablehnt (#611): Am vollen Deck
+          // führte „+ Karte" bisher durch den ganzen Editor bis in eine
+          // Fehlermeldung. Der Grund steht als Füllstand direkt daneben.
+          disabled={deckIsFull}
+          title={deckIsFull ? "Dieses Deck ist voll" : undefined}
         >
           + Karte
         </button>

@@ -25,4 +25,33 @@ describe("buildDeckCountLabel", () => {
   it("treats a missing image count as none — older responses lack the field", () => {
     expect(buildDeckCountLabel(7, undefined)).toBe("7 Karten");
   });
+
+  describe("Füllstand im Deck-Kopf (#611)", () => {
+    it("zeigt den Füllstand, wenn die Grenze bekannt ist", () => {
+      expect(buildDeckCountLabel(142, 0, 150)).toBe("142 von 150 Karten");
+    });
+
+    it("zählt Bild-Karten in die Summe und weist sie zusätzlich aus", () => {
+      expect(buildDeckCountLabel(130, 12, 150)).toBe("142 von 150 Karten · 12 Bild-Karten");
+    });
+
+    it("sagt auch am leeren Deck, wie viel Platz da ist", () => {
+      expect(buildDeckCountLabel(0, 0, 150)).toBe("0 von 150 Karten");
+    });
+
+    it("nennt das volle Deck beim Namen", () => {
+      expect(buildDeckCountLabel(150, 0, 150)).toBe("150 von 150 Karten");
+    });
+
+    it("bleibt beim alten Label, solange die Grenze unbekannt ist", () => {
+      // Der Store liefert `null`, bis der Server die Grenzen mitgeschickt hat
+      // (#603) — dann wird nichts behauptet.
+      expect(buildDeckCountLabel(20, 10, null)).toBe("20 Karten · 10 Bild-Karten");
+      expect(buildDeckCountLabel(20, 10, undefined)).toBe("20 Karten · 10 Bild-Karten");
+    });
+
+    it("zeigt Decks über der Grenze ehrlich an, statt zu schummeln", () => {
+      expect(buildDeckCountLabel(762, 0, 150)).toBe("762 von 150 Karten");
+    });
+  });
 });
