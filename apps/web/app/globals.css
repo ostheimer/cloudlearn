@@ -2645,11 +2645,40 @@ a.mode-card:hover {
   margin-top: 10px;
 }
 .cl-prompt {
+  position: relative;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r-md);
   box-shadow: var(--shadow-sm);
   padding: 22px;
+}
+/* Stern-Markieren in Lückentext/Quiz/Prüfung (#610) — Gegenstück zu .star-btn,
+   aber relativ zur Prompt-Box statt zur Flip-Karte (die es hier nicht gibt).
+   Platz rechts freigehalten, damit der Fragetext nicht drunter verschwindet. */
+.prompt-star-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-3);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.prompt-star-btn.is-starred {
+  border-color: var(--amber);
+  color: var(--amber);
+}
+.prompt-star-btn.is-starred svg {
+  fill: var(--amber);
+}
+.cl-eyebrow,
+.quiz-eyebrow {
+  padding-right: 44px;
 }
 .cl-eyebrow {
   font-size: 0.7rem;

@@ -27,8 +27,10 @@ import {
   Check,
   Timer,
   FileText,
+  Star,
 } from "lucide-react-native";
 import { listCardsInDeck, recordTestAttempt, type Card } from "../src/lib/api";
+import { toggleCardStar } from "../src/lib/toggleCardStar";
 import { sendReview } from "../src/features/sync/sendReview";
 import { setLastUsedDeck } from "../src/lib/lastUsedDeck";
 import { useDisplayName } from "../src/lib/useDisplayName";
@@ -139,6 +141,8 @@ export default function TestScreen() {
   }, [deckId, deckTitle]);
 
   const [allCards, setAllCards] = useState<Card[]>([]);
+  // Stern-Stand der laufenden Runde, für sofort sichtbares Markieren (#610).
+  const [starredMap, setStarredMap] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [lastResult, setLastResult] = useState<number | null>(null);
@@ -338,6 +342,9 @@ export default function TestScreen() {
       });
 
     setQuestions(qs);
+    // Stern-Stand für diese Runde (#610) — frisch aus den Karten, damit ein
+    // Markieren in einer anderen Runde dazwischen nicht veraltet mitläuft.
+    setStarredMap(Object.fromEntries(pool.map((c) => [c.id, c.starred ?? false])));
     setAnswers(qs.map(() => ({ ...EMPTY_ANSWER })));
     setGraded([]);
     setIdx(0);
@@ -856,8 +863,20 @@ export default function TestScreen() {
             </View>
 
             {/* Prompt */}
-            <View style={{ ...cardStyle, padding: spacing.xl, gap: spacing.md }}>
-              <Text style={{ fontSize: typography.xs, color: colors.textTertiary, textTransform: "uppercase", letterSpacing: 0.5 }}>
+            <View style={{ ...cardStyle, position: "relative", padding: spacing.xl, gap: spacing.md }}>
+              <TouchableOpacity
+                onPress={() => toggleCardStar(q.cardId, starredMap, setStarredMap)}
+                activeOpacity={0.6}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={{ position: "absolute", top: spacing.md, right: spacing.md }}
+              >
+                <Star
+                  size={20}
+                  color={starredMap[q.cardId] ? colors.warning : colors.textTertiary}
+                  fill={starredMap[q.cardId] ? colors.warning : "none"}
+                />
+              </TouchableOpacity>
+              <Text style={{ fontSize: typography.xs, color: colors.textTertiary, textTransform: "uppercase", letterSpacing: 0.5, paddingRight: 28 }}>
                 {q.type === "written" ? "Antwort eintippen" : q.type === "mc" ? "Wähle die richtige Antwort" : "Stimmt diese Zuordnung?"}
               </Text>
               <Text style={{ fontSize: typography.xl, fontWeight: typography.semibold, color: colors.text, lineHeight: 30 }}>{q.prompt}</Text>
