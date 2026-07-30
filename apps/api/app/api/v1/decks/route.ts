@@ -11,7 +11,11 @@ export async function GET(request: NextRequest) {
     const auth = await getAuthUser(request);
     if (!auth) return jsonError(requestId, "UNAUTHORIZED", "Authentication required", 401);
 
-    const decks = await listDecksForUser(auth.userId);
+    // `?archived=1` liefert das Archiv statt der Bibliothek (#614). Ohne den
+    // Parameter bleibt alles wie bisher — archivierte Decks fehlen dann, genau
+    // dafür archiviert man sie.
+    const archived = new URL(request.url).searchParams.get("archived") === "1";
+    const decks = await listDecksForUser(auth.userId, { archived });
     return jsonOk(requestId, { requestId, decks });
   } catch (error) {
     const normalized = normalizeError(error);

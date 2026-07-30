@@ -7,6 +7,7 @@ const dbMocks = vi.hoisted(() => ({
   getDeletedDeck: vi.fn(),
   listCardsForDeck: vi.fn(),
   listDecks: vi.fn(),
+  countUserDecks: vi.fn(),
   listTrash: vi.fn(),
   purgeAllTrash: vi.fn(),
   purgeTrashCard: vi.fn(),
@@ -53,7 +54,8 @@ beforeEach(() => {
 
 describe("restoreDeckForUser", () => {
   it("holt das Deck zurück, wenn im Tarif Platz ist", async () => {
-    dbMocks.listDecks.mockResolvedValue(decks(3));
+    dbMocks.countUserDecks.mockResolvedValue(3);
+  dbMocks.listDecks.mockResolvedValue(decks(3));
     expect(await restoreDeckForUser(USER_ID, DECK_ID)).toBe(true);
     expect(dbMocks.restoreDeck).toHaveBeenCalledWith(DECK_ID, USER_ID);
   });
@@ -61,6 +63,7 @@ describe("restoreDeckForUser", () => {
   it("lehnt ehrlich ab, wenn die Deck-Grenze erreicht ist", async () => {
     // Ohne diese Prüfung wäre der Papierkorb ein Weg um die Tarifgrenze:
     // löschen, neu anlegen, alles zurückholen (#611 — ablehnen statt kappen).
+    dbMocks.countUserDecks.mockResolvedValue(getLimitsForTier("free").maxDecks);
     dbMocks.listDecks.mockResolvedValue(decks(getLimitsForTier("free").maxDecks));
 
     await expect(restoreDeckForUser(USER_ID, DECK_ID)).rejects.toMatchObject({

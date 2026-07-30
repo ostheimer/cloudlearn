@@ -130,9 +130,11 @@ describe("countDueCardsByDeck – grouped counts with the /learn/due filter set"
     await countDueCardsByDeck(USER_ID, NOW_ISO);
 
     // Only deck ids cross the wire, and the inner join keeps soft-deleted
-    // decks' cards out (#495).
+    // decks' cards out (#495). Seit #614 kommt `archived_at` dazu: ein
+    // archiviertes Deck soll aus dem Fällig-Stapel fallen — genau dafür
+    // archiviert man es.
     expect(calls.find((c) => c.method === "select")?.args[0]).toBe(
-      "deck_id, decks!inner(deleted_at)"
+      "deck_id, decks!inner(deleted_at, archived_at)"
     );
     expect(calls.filter((c) => c.method === "eq").map((c) => c.args)).toContainEqual([
       "user_id",
@@ -141,6 +143,10 @@ describe("countDueCardsByDeck – grouped counts with the /learn/due filter set"
     const isCalls = calls.filter((c) => c.method === "is").map((c) => c.args);
     expect(isCalls).toContainEqual(["deleted_at", null]);
     expect(isCalls).toContainEqual(["decks.deleted_at", null]);
+    // Dieselbe Zeile steht in listDueCards und countDueCards. Fehlt sie in
+    // einer der drei, verspricht das „N fällig"-Abzeichen Karten, die die
+    // Lernrunde nicht liefert.
+    expect(isCalls).toContainEqual(["decks.archived_at", null]);
     // Occlusion cards are learnable only in Bild-Abdecken, never in the
     // flashcard round the badge advertises.
     expect(calls.find((c) => c.method === "neq")?.args).toEqual(["card_type", "occlusion"]);

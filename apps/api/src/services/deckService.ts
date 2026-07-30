@@ -2,7 +2,9 @@ import { z } from "zod";
 import {
   countCardsInDeck,
   createDeck,
+  countUserDecks,
   listDecks,
+  setDeckArchived,
   listCardsForDeck,
   softDeleteDeck,
   updateDeck,
@@ -45,10 +47,15 @@ const updateDeckSchema = z.object({
   speechLangBack: speechLangSchema,
 });
 
+/**
+ * Gezählt wird über `countUserDecks`, NICHT über `listDecks`: seit dem
+ * Archivieren (#614) liefert `listDecks` nur die aktiven. Ein archiviertes
+ * Deck ist aber nicht weg — würde es nicht mitzählen, wäre Archivieren ein
+ * Weg um die Tarif-Grenze herum (archivieren, neu anlegen, wiederholen).
+ */
 async function assertCanCreateDeck(userId: string): Promise<void> {
   const { tier } = await getSubscriptionStatus(userId);
-  const existingDecks = await listDecks(userId);
-  assertDeckLimit(tier, existingDecks.length);
+  assertDeckLimit(tier, await countUserDecks(userId));
 }
 
 /**
@@ -66,8 +73,8 @@ async function assertCanCreateDeck(userId: string): Promise<void> {
  */
 async function assertCanCopyDeck(userId: string, sourceDeckId: string): Promise<void> {
   const { tier } = await getSubscriptionStatus(userId);
-  const existingDecks = await listDecks(userId);
-  assertDeckLimit(tier, existingDecks.length);
+  // Wie oben: archivierte Decks zählen mit (countUserDecks statt listDecks).
+  assertDeckLimit(tier, await countUserDecks(userId));
   assertDeckCopyFits(tier, await countCardsInDeck(sourceDeckId));
 }
 
@@ -77,8 +84,26 @@ export async function createDeckForUser(input: unknown) {
   return createDeck(parsed.userId, parsed.title, parsed.tags);
 }
 
-export async function listDecksForUser(userId: string) {
-  return listDecks(userId);
+export async function listDecksForUser(userId: string, options: { archived?: boolean } = {}) {
+  return listDecks(userId, options);
+}
+
+/**
+ * Deck archivieren oder zurückholen (#614, Laras Auswahl aus Punkt 9).
+ *
+ * „Alt-Schuljahr raus, ohne es zu löschen." Beim Zurückholen wird KEINE
+ * Deck-Grenze geprüft: das Deck hat seinen Platz nie freigegeben — es zählte
+ * auch archiviert mit (siehe assertCanCreateDeck). Eine Prüfung hier könnte
+ * jemanden dauerhaft von den eigenen Karten aussperren.
+ */
+export async function setDeckArchivedForUser(
+  userId: string,
+  deckId: string,
+  archived: boolean
+) {
+  const deck = await setDeckArchived(deckId, userId, archived);
+  if (!deck) throw new HttpError("Deck not found", 404, "DECK_NOT_FOUND");
+  return { deck };
 }
 
 export async function updateDeckForUser(input: unknown) {

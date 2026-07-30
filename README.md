@@ -581,8 +581,10 @@ Die initiale Migration oben ist nur das Basisschema. Die vollständige, maßgebl
 ├── /export
 │   └── POST   /anki         # Anki-Export (.apkg), Body: { "deckId": "uuid" } (Mock-Content, CL-D04)
 ├── /decks
-│   ├── GET    /             # Alle Decks des Nutzers
+│   ├── GET    /             # Decks des Nutzers; ?archived=1 liefert das Archiv statt der Bibliothek (#614)
 │   ├── POST   /             # Neues Deck erstellen
+│   ├── POST   /:id/archive  # Deck archivieren (#614) — raus aus Bibliothek und Fällig-Stapel, nichts gelöscht
+│   ├── DELETE /:id/archive  # Deck aus dem Archiv zurückholen
 │   ├── PATCH  /:id          # Deck bearbeiten
 │   ├── DELETE /:id          # Deck löschen
 │   ├── GET    /:id/cards    # Alle Karten eines Decks

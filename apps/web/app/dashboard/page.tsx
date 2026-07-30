@@ -21,6 +21,7 @@ import {
   addDeckToFolder,
   getDueCountsByDeck,
   getLastLearnedByDeck,
+  setDeckArchived,
   getDeckCountsByFolder,
   searchCards,
   isApiError,
@@ -52,6 +53,7 @@ import {
   Copy,
   Share,
   Trash,
+  Archive,
   AlertTriangle,
   Sparkles,
   ScanLine,
@@ -158,6 +160,10 @@ export default function LibraryPage() {
   // Deck-Grenze unsichtbar, bis sie riss. `undefined` heißt „unbekannt"
   // (älterer Server oder Abfrage fehlgeschlagen): dann wird nichts behauptet.
   const [maxDecks, setMaxDecks] = useState<number | undefined>(undefined);
+  // Wie viele Decks im Archiv liegen (#614). Nur für den Einstieg unter der
+  // Liste — ohne archivierte Decks steht dort gar nichts, damit die
+  // Bibliothek nicht mit einem leeren Ort wirbt.
+  const [archivedCount, setArchivedCount] = useState(0);
   const deckSlotsLabel = deckSlotsSummary(loading ? null : decks.length, maxDecks);
   const decksAtLimit = isDeckLimitReached(decks.length, maxDecks);
 
@@ -221,6 +227,22 @@ export default function LibraryPage() {
     loadDecks();
     loadFolders();
   }, [loadDecks, loadFolders]);
+
+  useEffect(() => {
+    if (!userId) return;
+    let active = true;
+    void listDecks(userId, { archived: true })
+      .then(({ decks: archived }) => {
+        if (active) setArchivedCount(archived.length);
+      })
+      .catch(() => {
+        // Scheitert die Abfrage, bleibt der Einstieg aus — lieber nichts
+        // zeigen als eine Zahl behaupten.
+      });
+    return () => {
+      active = false;
+    };
+  }, [userId]);
 
   // Nach dem Lernen am Handy standen die „N fällig"-Abzeichen im offenen
   // Laptop-Tab weiter auf dem alten Stand (#610). Nur die Decks nachladen —
@@ -618,6 +640,20 @@ export default function LibraryPage() {
                   setPageError("Teilen fehlgeschlagen.");
                 }
               }}
+              onArchive={async () => {
+                setOpenMenu(null);
+                // Sofort aus der Liste nehmen — es IST danach nicht mehr in
+                // der Bibliothek. Geht es schief, holt loadDecks die Wahrheit.
+                setDecks((prev) => prev.filter((d) => d.id !== deck.id));
+                setArchivedCount((n) => n + 1);
+                try {
+                  await setDeckArchived(deck.id, true);
+                } catch (e) {
+                  setPageError(isApiError(e) ? e.message : "Archivieren fehlgeschlagen.");
+                  setArchivedCount((n) => Math.max(0, n - 1));
+                  await loadDecks();
+                }
+              }}
               onDelete={() => {
                 setOpenMenu(null);
                 setModal({ type: "delete", deck });
@@ -625,6 +661,28 @@ export default function LibraryPage() {
             />
           ))}
         </div>
+          )}
+          {/* Einstieg ins Archiv (#614) — nur, wenn dort etwas liegt. Er steht
+              unter der Liste und nicht im Profil: ein archiviertes Deck sucht
+              man in der Bibliothek, nicht in den Einstellungen. */}
+          {archivedCount > 0 && (
+            <Link
+              href="/dashboard/archive"
+              className="muted"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                justifySelf: "center",
+                padding: "8px 4px",
+                fontSize: "0.9rem",
+                fontWeight: 700,
+                textDecoration: "none",
+              }}
+            >
+              <Archive size={16} /> Archiv ·{" "}
+              {archivedCount === 1 ? "1 Deck" : `${archivedCount} Decks`}
+            </Link>
           )}
         </div>
       )}
@@ -895,6 +953,7 @@ function DeckCard({
   onAddToFolder,
   onDuplicate,
   onShare,
+  onArchive,
   onDelete,
 }: {
   deck: Deck;
@@ -906,6 +965,7 @@ function DeckCard({
   onAddToFolder: () => void;
   onDuplicate: () => void;
   onShare: () => void;
+  onArchive: () => void;
   onDelete: () => void;
 }) {
   // Bild-Karten müssen mitgenannt werden: Ohne sie meldete ein Deck, das nur
@@ -970,6 +1030,11 @@ function DeckCard({
             </button>
             <button type="button" role="menuitem" onClick={onShare}>
               <Share size={15} /> Teilen
+            </button>
+            {/* Archivieren (#614) steht VOR dem Löschen und ist nicht rot:
+                es ist der harmlose Weg, ein Deck loszuwerden. */}
+            <button type="button" role="menuitem" onClick={onArchive}>
+              <Archive size={15} /> Archivieren
             </button>
             <button type="button" role="menuitem" className="danger" onClick={onDelete}>
               <Trash size={15} /> Löschen

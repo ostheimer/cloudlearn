@@ -430,9 +430,28 @@ export async function createDeck(
 }
 
 export async function listDecks(
-  userId: string
+  userId: string,
+  options: { archived?: boolean } = {}
 ): Promise<{ decks: Deck[] }> {
-  return requestAuthenticated<{ decks: Deck[] }>(`/api/v1/decks?userId=${userId}`);
+  // `archived=1` liefert das Archiv statt der Bibliothek (#614).
+  const archived = options.archived ? "&archived=1" : "";
+  return requestAuthenticated<{ decks: Deck[] }>(
+    `/api/v1/decks?userId=${userId}${archived}`
+  );
+}
+
+/**
+ * Deck archivieren oder zurückholen (#614). Archiviert heißt: raus aus
+ * Bibliothek und Fällig-Stapel, aber nichts gelöscht — deshalb zählt es weiter
+ * gegen die Deck-Grenze. Web-Gegenstück: apps/web/src/lib/api.ts.
+ */
+export async function setDeckArchived(
+  deckId: string,
+  archived: boolean
+): Promise<{ deck: Deck }> {
+  return requestAuthenticated<{ deck: Deck }>(`/api/v1/decks/${deckId}/archive`, {
+    method: archived ? "POST" : "DELETE",
+  });
 }
 
 export async function createCard(

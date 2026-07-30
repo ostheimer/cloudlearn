@@ -23,8 +23,8 @@ import { z } from "zod";
 import {
   getDeletedCard,
   getDeletedDeck,
+  countUserDecks,
   listCardsForDeck,
-  listDecks,
   listTrash,
   purgeAllTrash,
   purgeTrashCard,
@@ -62,8 +62,9 @@ export async function restoreDeckForUser(userId: string, deckId: string): Promis
   if (!deck) return false;
 
   const { tier } = await getSubscriptionStatus(userId);
-  const liveDecks = await listDecks(userId);
-  assertDeckLimit(tier, liveDecks.length);
+  // countUserDecks statt listDecks: archivierte Decks zählen mit, seit es
+  // das Archiv gibt (#614) — sie sind nicht weg, nur ausgeblendet.
+  assertDeckLimit(tier, await countUserDecks(userId));
 
   return restoreDeck(deckId, userId);
 }

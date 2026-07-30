@@ -178,8 +178,26 @@ export interface StatsResponse {
 
 // ─── Decks ──────────────────────────────────────────────────────────────────
 
-export function listDecks(userId: string): Promise<{ decks: Deck[] }> {
-  return authed<{ decks: Deck[] }>(`/api/v1/decks?userId=${encodeURIComponent(userId)}`);
+export function listDecks(
+  userId: string,
+  options: { archived?: boolean } = {}
+): Promise<{ decks: Deck[] }> {
+  // `archived=1` liefert das Archiv statt der Bibliothek (#614).
+  const archived = options.archived ? "&archived=1" : "";
+  return authed<{ decks: Deck[] }>(
+    `/api/v1/decks?userId=${encodeURIComponent(userId)}${archived}`
+  );
+}
+
+/**
+ * Deck archivieren oder zurückholen (#614). Archiviert heißt: raus aus
+ * Bibliothek und Fällig-Stapel, aber nichts gelöscht — deshalb zählt es
+ * weiter gegen die Deck-Grenze.
+ */
+export function setDeckArchived(deckId: string, archived: boolean): Promise<{ deck: Deck }> {
+  return authed<{ deck: Deck }>(`/api/v1/decks/${deckId}/archive`, {
+    method: archived ? "POST" : "DELETE",
+  });
 }
 
 export function createDeck(
