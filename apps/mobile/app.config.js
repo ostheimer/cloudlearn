@@ -47,6 +47,11 @@ if (IS_PRODUCTION) {
 const FACE_ID_PERMISSION =
   "clearn verwendet Face ID, um deine eingeloggte App lokal zu entsperren.";
 
+// Absturzmeldung bleibt komplett aus, solange kein DSN gesetzt ist — dann
+// bekommt der native Build auch keinen Sentry-Plugin-Eintrag (kein
+// zusätzlicher nativer Code ohne bewusstes Opt-in). Siehe src/lib/crashReporting.ts.
+const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN?.trim();
+
 /** @type {import('@expo/config').ExpoConfig} */
 module.exports = ({ config }) => {
   const runtimeVersion = IS_PREVIEW
@@ -130,6 +135,7 @@ module.exports = ({ config }) => {
           ],
         },
       ],
+      ...(SENTRY_DSN ? ["@sentry/react-native"] : []),
     ],
   };
 
