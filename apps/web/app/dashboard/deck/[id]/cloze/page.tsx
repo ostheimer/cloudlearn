@@ -15,7 +15,7 @@ import {
 } from "@/lib/unsaved-reviews";
 import { useDisplayName } from "@/lib/use-display-name";
 import { useWobblyIds } from "@/lib/use-wobbly-ids";
-import { filterBySource, type CardSource } from "@/lib/card-source";
+import { filterBySource, isCardDue, type CardSource } from "@/lib/card-source";
 import { loadSetup, resolveSource, saveSetup } from "@/lib/setup-memory";
 import { CardSourcePicker } from "@/components/app/card-source-picker";
 import {
@@ -131,11 +131,17 @@ export default function ClozePage() {
     if (sourceRestoredRef.current || sourceTouchedRef.current) return;
     if (phase !== "setup" || loading || !wobblySettled) return;
     sourceRestoredRef.current = true;
-    const wanted = resolveSource(loadSetup(deckId, "cloze")?.source, {
+    const stored = loadSetup(deckId, "cloze");
+    const counts = {
       starred: allCards.filter((c) => c.starred).length,
       wobbly: allCards.filter((c) => wobblyIds.has(c.id)).length,
-    });
+      due: allCards.filter((c) => isCardDue(c)).length,
+    };
+    const wanted = resolveSource(stored?.source, counts);
     if (wanted) setSource(wanted);
+    // Ohne gemerkte Wahl ist das Tagespensum die Voreinstellung (#610):
+    // „Nur fällige", sobald es gerade welche gibt.
+    else if (!stored?.source && counts.due > 0) setSource("due");
   }, [deckId, phase, loading, wobblySettled, allCards, wobblyIds]);
 
   const studyPool = filterBySource(allCards, source, wobblyIds);
@@ -514,6 +520,7 @@ export default function ClozePage() {
           allCount={allCards.length}
           starredCount={allCards.filter((c) => c.starred).length}
           wobblyCount={allCards.filter((c) => wobblyIds.has(c.id)).length}
+          dueCount={allCards.filter((c) => isCardDue(c)).length}
         />
 
         {/* Weitermachen — nur solange eine unterbrochene Runde noch passt */}

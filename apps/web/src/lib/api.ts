@@ -302,6 +302,15 @@ export function getDueCards(userId: string): Promise<{ cards: Card[] }> {
 }
 
 /**
+ * Fällige Karten je Deck, nur als Zahlen (#612). Für die "N fällig"-Abzeichen —
+ * getDueCards würde den ganzen Rückstand mit Kartentext übertragen und wird ab
+ * 1000 Karten still gekappt. Decks ohne fällige Karten fehlen im Objekt.
+ */
+export function getDueCountsByDeck(): Promise<{ dueByDeck: Record<string, number> }> {
+  return authed<{ dueByDeck: Record<string, number> }>("/api/v1/stats/due-by-deck");
+}
+
+/**
  * Aus welchem Modus eine Wiederholung stammt. Der Server entscheidet daran, wer
  * sie mitzählt: Abruf-Modi bewegen den Lernplan, Rate-Modi nur bei Fehlern, und
  * „test" gibt keine Lernpunkte. Ohne Angabe gilt „flashcard".

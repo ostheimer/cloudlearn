@@ -1,13 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { filterBySource } from "./card-source";
+import { filterBySource, isCardDue } from "./card-source";
 
-type C = { id: string; starred?: boolean };
+type C = { id: string; starred?: boolean; fsrsDue?: string };
+
+const NOW = Date.parse("2026-07-29T12:00:00.000Z");
 
 const cards: C[] = [
-  { id: "a", starred: true },
-  { id: "b", starred: false },
-  { id: "c" }, // starred nicht gesetzt
-  { id: "d", starred: true },
+  { id: "a", starred: true, fsrsDue: "2026-07-29T08:00:00.000Z" }, // heute fällig
+  { id: "b", starred: false, fsrsDue: "2026-08-05T08:00:00.000Z" }, // erst nächste Woche
+  { id: "c" }, // starred/fsrsDue nicht gesetzt
+  { id: "d", starred: true, fsrsDue: "2026-07-29T12:00:00.000Z" }, // exakt jetzt = fällig
 ];
 
 describe("filterBySource", () => {
@@ -33,9 +35,26 @@ describe("filterBySource", () => {
     expect(filterBySource(cards, "wobbly", new Set())).toEqual([]);
   });
 
+  it("due: nur Karten, deren Fälligkeit erreicht ist (#610)", () => {
+    expect(filterBySource(cards, "due", new Set(), NOW).map((c) => c.id)).toEqual(["a", "d"]);
+  });
+
   it("ändert die Eingabeliste nicht", () => {
     const copy = [...cards];
     filterBySource(cards, "starred", new Set());
     expect(cards).toEqual(copy);
+  });
+});
+
+describe("isCardDue", () => {
+  it("fällig ab dem geplanten Zeitpunkt, nicht davor", () => {
+    expect(isCardDue({ fsrsDue: "2026-07-29T08:00:00.000Z" }, NOW)).toBe(true);
+    expect(isCardDue({ fsrsDue: "2026-07-29T12:00:00.000Z" }, NOW)).toBe(true);
+    expect(isCardDue({ fsrsDue: "2026-07-30T08:00:00.000Z" }, NOW)).toBe(false);
+  });
+
+  it("ohne oder mit kaputtem Datum nie fällig", () => {
+    expect(isCardDue({}, NOW)).toBe(false);
+    expect(isCardDue({ fsrsDue: "kein datum" }, NOW)).toBe(false);
   });
 });

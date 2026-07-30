@@ -15,11 +15,16 @@ export async function GET(request: NextRequest) {
     const db = createSupabaseAdminClient();
     if (!db) return jsonError(requestId, "DB_UNAVAILABLE", "Database not configured", 503);
 
-    // Top 50 users by LP balance
+    // Top 50 users by LP balance. Bei LP-Gleichstand entscheidet erst das
+    // ältere Konto, dann die (eindeutige) id — ohne diese Zweitschlüssel darf
+    // Postgres Gleichauf-Zeilen je Aufruf anders anordnen, und Ränge sprangen
+    // bei jedem Neuladen (#612, gleiches Muster wie der Karten-Fix #499).
     const { data: topUsers, error } = await db
       .from("profiles")
       .select("id, display_name, avatar_url, lp_balance, subscription_tier, current_streak")
       .order("lp_balance", { ascending: false })
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
       .limit(PAGE_SIZE);
 
     if (error) throw new Error(`leaderboard/global: ${error.message}`);

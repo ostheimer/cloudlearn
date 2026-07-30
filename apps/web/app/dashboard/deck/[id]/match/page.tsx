@@ -7,7 +7,7 @@ import { useAuth } from "@/components/app/auth-context";
 import { earnLp, listCardsInDeck, reviewCard, isApiError, type Card } from "@/lib/api";
 import { useDisplayName } from "@/lib/use-display-name";
 import { useWobblyIds } from "@/lib/use-wobbly-ids";
-import { filterBySource, type CardSource } from "@/lib/card-source";
+import { filterBySource, isCardDue, type CardSource } from "@/lib/card-source";
 import { loadSetup, resolveSource, saveSetup } from "@/lib/setup-memory";
 import { matchTileTexts } from "@/lib/match-tiles";
 import { CardSourcePicker } from "@/components/app/card-source-picker";
@@ -125,11 +125,19 @@ export default function MatchPage() {
     if (sourceRestoredRef.current || sourceTouchedRef.current) return;
     if (phase !== "setup" || loading || !wobblySettled) return;
     sourceRestoredRef.current = true;
-    const wanted = resolveSource(loadSetup(deckId, "match")?.source, {
-      starred: cards.filter((c) => c.starred).length,
-      wobbly: cards.filter((c) => wobblyIds.has(c.id)).length,
-    });
+    const stored = loadSetup(deckId, "match");
+    // Zuordnen braucht 2 Paare — eine Quelle mit weniger darf nie vorbelegt
+    // werden, sonst steht man vor gesperrtem Start.
+    const usable = (n: number) => (n >= 2 ? n : 0);
+    const counts = {
+      starred: usable(cards.filter((c) => c.starred).length),
+      wobbly: usable(cards.filter((c) => wobblyIds.has(c.id)).length),
+      due: usable(cards.filter((c) => isCardDue(c)).length),
+    };
+    const wanted = resolveSource(stored?.source, counts);
     if (wanted) setSource(wanted);
+    // Ohne gemerkte Wahl ist das Tagespensum die Voreinstellung (#610).
+    else if (!stored?.source && counts.due > 0) setSource("due");
   }, [deckId, phase, loading, wobblySettled, cards, wobblyIds]);
 
   // Die gewählte Kartenquelle (Alle / Nur markierte / Nur Wackelkandidaten).
@@ -350,6 +358,7 @@ export default function MatchPage() {
           allCount={cards.length}
           starredCount={cards.filter((c) => c.starred).length}
           wobblyCount={cards.filter((c) => wobblyIds.has(c.id)).length}
+          dueCount={cards.filter((c) => isCardDue(c)).length}
           minCount={2}
         />
 
