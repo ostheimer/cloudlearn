@@ -62,6 +62,7 @@ import DeckActionSheet from "../../../src/components/DeckActionSheet";
 import FolderPickerModal from "../../../src/components/FolderPickerModal";
 import { isOcclusionCard } from "../../../src/lib/occlusion";
 import { buildDeckCountLabel } from "../../../src/lib/deckCountLabel";
+import { difficultyLabel } from "../../../src/lib/cardLabels";
 import DeckEditModal from "../../../src/components/DeckEditModal";
 import DeckDetailsModal from "../../../src/components/DeckDetailsModal";
 
@@ -301,24 +302,15 @@ function CardEditor({
               </Text>
               <View style={{ flexDirection: "row", gap: spacing.sm }}>
                 {(["easy", "medium", "hard"] as const).map((d) => {
-                  const meta = {
-                    easy: {
-                      label: "Leicht",
-                      color: colors.success,
-                      bg: colors.successLight,
-                    },
-                    medium: {
-                      label: "Mittel",
-                      color: colors.warning,
-                      bg: colors.warningLight,
-                    },
-                    hard: {
-                      label: "Schwer",
-                      color: colors.error,
-                      bg: colors.errorLight,
-                    },
+                  // Wortlaut aus dem geteilten Helfer (#609), damit Deck-Ansicht
+                  // und Scan-Vorschau nie auseinanderlaufen; Farben bleiben hier.
+                  const tone = {
+                    easy: { color: colors.success, bg: colors.successLight },
+                    medium: { color: colors.warning, bg: colors.warningLight },
+                    hard: { color: colors.error, bg: colors.errorLight },
                   };
-                  const { label, color, bg } = meta[d];
+                  const label = difficultyLabel(d);
+                  const { color, bg } = tone[d];
                   return (
                     <TouchableOpacity
                       key={d}
@@ -730,14 +722,14 @@ export default function DeckDetailScreen() {
     }
   };
 
-  // Difficulty badge colors
+  // Difficulty badge colors — Wortlaut kommt aus dem geteilten Helfer (#609).
   const difficultyMeta: Record<
     string,
     { color: string; label: string }
   > = {
-    easy: { color: colors.success, label: "Leicht" },
-    medium: { color: colors.warning, label: "Mittel" },
-    hard: { color: colors.error, label: "Schwer" },
+    easy: { color: colors.success, label: difficultyLabel("easy") },
+    medium: { color: colors.warning, label: difficultyLabel("medium") },
+    hard: { color: colors.error, label: difficultyLabel("hard") },
   };
 
   // Shared styling for the "pick a study mode" rows shown above the card list.

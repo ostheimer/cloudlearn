@@ -69,6 +69,7 @@ import {
   IMPORT_ERROR_TITLE_KEY,
   importErrorKey,
 } from "../../src/lib/importErrors";
+import { cardTypeLabel, difficultyLabel } from "../../src/lib/cardLabels";
 import { summarizeCardMedia } from "../../src/lib/cardMedia";
 import {
   blankCard,
@@ -218,7 +219,9 @@ export default function ScanScreen() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [cards, setCards] = useState<Flashcard[]>([]);
-  const [model, setModel] = useState("");
+  // Notlösung statt KI? Der Server meldet das je Scan; nur dieser Zustand
+  // wird noch gebraucht — der Modellname selbst wird nicht mehr gezeigt (#609).
+  const [fallbackUsed, setFallbackUsed] = useState(false);
   const [deckTitle, setDeckTitle] = useState("");
   const [saved, setSaved] = useState(false);
   // Deck created for THIS scan. Kept so a retry after a partial save reuses the
@@ -517,7 +520,7 @@ export default function ScanScreen() {
       // „Speichern" (sonst zwei Decks je Scan).
       const result = await scanImage(userId, base64, mimeType, "de", idempotencyKey, true);
       setCards(result.cards);
-      setModel(result.model);
+      setFallbackUsed(result.fallbackUsed);
       setDeckTitle(result.deckTitle ?? "");
       if (result.usage) {
         deductLp(result.usage.lpSpent);
@@ -557,7 +560,7 @@ export default function ScanScreen() {
       // #442: preview — Deck entsteht erst beim „Speichern".
       const result = await importPdf(userId, fileName, fileBase64, "de", idempotencyKey, true);
       setCards(result.cards);
-      setModel(result.model);
+      setFallbackUsed(result.fallbackUsed);
       setDeckTitle(result.deckTitle ?? "");
       setPdfFileName(result.fileName);
       setPdfPageCount(result.pageCount);
@@ -598,7 +601,7 @@ export default function ScanScreen() {
       // #442: preview — Deck entsteht erst beim „Speichern".
       const result = await scanText(userId, text, "de", idempotencyKey, true);
       setCards(result.cards);
-      setModel(result.model);
+      setFallbackUsed(result.fallbackUsed);
       setDeckTitle(result.deckTitle ?? "");
       if (result.usage) {
         deductLp(result.usage.lpSpent);
@@ -643,7 +646,7 @@ export default function ScanScreen() {
       // #442: preview — Deck entsteht erst beim „Speichern".
       const result = await importFromUrl(userId, normalizedUrl, 4, "de", idempotencyKey, true);
       setCards(result.cards);
-      setModel(result.model);
+      setFallbackUsed(result.fallbackUsed);
       setDeckTitle(result.deckTitle ?? "");
       if (result.usage) {
         deductLp(result.usage.lpSpent);
@@ -864,7 +867,7 @@ export default function ScanScreen() {
 
   const resetAll = () => {
     setCards([]);
-    setModel("");
+    setFallbackUsed(false);
     setDeckTitle("");
     setSaved(false);
     setSavedDeckId(null);
@@ -1817,13 +1820,12 @@ export default function ScanScreen() {
               </Text>
             ) : null}
 
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
+            {/* Kopfzeile der Vorschau (#609): Der Modellname („via
+                gemini-2.0-flash", im Notfall „via heuristic-fallback") sagt
+                niemandem etwas und ist weg. Stattdessen der Satz aus dem Web,
+                der die wichtigste Frage beantwortet: Ist das schon gespeichert?
+                Nein — erst nach dem Speichern-Knopf. */}
+            <View style={{ gap: 2 }}>
               <Text
                 style={{
                   fontSize: typography.base,
@@ -1831,14 +1833,33 @@ export default function ScanScreen() {
                   color: colors.textSecondary,
                 }}
               >
-                {cards.length} Karten generiert
+                {cards.length === 1 ? "1 Karte erstellt" : `${cards.length} Karten erstellt`}
               </Text>
-              <Text
-                style={{ fontSize: typography.xs, color: colors.textTertiary }}
-              >
-                via {model}
+              <Text style={{ fontSize: typography.xs, color: colors.textTertiary }}>
+                Sieh sie dir an und ändere, was nicht passt — gespeichert wird erst danach.
               </Text>
             </View>
+
+            {/* Ehrlich bleiben, wenn die KI nicht erreichbar war: Dann hat eine
+                einfache Notlösung den Text nur grob zerteilt, und die Karten
+                sind spürbar schlechter. Der Server meldet das als
+                `fallbackUsed` — verlässlicher als der Modellname. */}
+            {fallbackUsed ? (
+              <View
+                style={{
+                  backgroundColor: colors.warningLight,
+                  borderWidth: 1,
+                  borderColor: colors.warning,
+                  borderRadius: radius.md,
+                  paddingHorizontal: spacing.md,
+                  paddingVertical: spacing.sm,
+                }}
+              >
+                <Text style={{ fontSize: typography.sm, color: colors.text }}>
+                  Ohne KI erstellt — die Karten sind nur grob aufgeteilt.
+                </Text>
+              </View>
+            ) : null}
 
             {cards.map((card, idx) => {
               const media = summarizeCardMedia(card);
@@ -2006,7 +2027,7 @@ export default function ScanScreen() {
                         overflow: "hidden",
                       }}
                     >
-                      {card.type}
+                      {cardTypeLabel(card.type)}
                     </Text>
                     <Text
                       style={{
@@ -2019,7 +2040,7 @@ export default function ScanScreen() {
                         overflow: "hidden",
                       }}
                     >
-                      {card.difficulty}
+                      {difficultyLabel(card.difficulty)}
                     </Text>
                   </View>
                   </View>
