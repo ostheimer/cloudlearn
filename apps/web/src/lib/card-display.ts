@@ -96,6 +96,29 @@ export function cardListPreview(card: { front: string; back: string }): {
   };
 }
 
+/**
+ * Nachfrage vor dem Löschen einer Karte (#571).
+ *
+ * Wortgleich mit `cardDeleteQuestion` in apps/mobile/src/lib/cardDisplay.ts:
+ * Laras Entscheidung war die Web-Satzform („Soll … wirklich gelöscht werden?
+ * Das lässt sich nicht rückgängig machen.") MIT dem zitierten Kartenanfang der
+ * App — nur so sieht man, welche Karte gemeint ist.
+ *
+ * Der Anfang kommt aus der aufbereiteten Anzeige, nie aus dem Rohtext: sonst
+ * stünde bei Bild- und Lückenkarten ![…](…) bzw. {{c1::…}} in der Nachfrage.
+ * Bleibt nichts Lesbares übrig (reines Bild ohne Bildunterschrift), fragen wir
+ * ohne Zitat.
+ */
+export const CARD_QUOTE_MAX = 50;
+
+export function cardDeleteQuestion(card: { front: string; back: string }): string {
+  const { front } = cardListPreview(card);
+  const text = front.trim();
+  if (!text) return "Soll diese Karte wirklich gelöscht werden? Das lässt sich nicht rückgängig machen.";
+  const quote = text.length > CARD_QUOTE_MAX ? `${text.slice(0, CARD_QUOTE_MAX).trimEnd()}…` : text;
+  return `Soll „${quote}" wirklich gelöscht werden? Das lässt sich nicht rückgängig machen.`;
+}
+
 // Zieht aus einer Übersetzungsfrage den bloßen Begriff heraus, damit gescannte
 // Vokabelkarten in jedem Lernmodus als saubere Paare auftreten
 // (le record <-> der Rekord).

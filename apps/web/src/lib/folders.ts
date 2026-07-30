@@ -53,3 +53,41 @@ export function joinTitles(titles: string[]): string {
   if (titles.length <= 1) return titles[0] ?? "";
   return `${titles.slice(0, -1).join(", ")} und ${titles[titles.length - 1]}`;
 }
+
+/**
+ * Kopfzeile eines Ordners: „2 Unterordner · 5 Decks · 143 Karten" (#571).
+ *
+ * Wortgleich mit `buildFolderCountLabel` in apps/mobile/src/lib/folders.ts.
+ * Die App zählte alles zu „7 Einträge" zusammen — das verriet weder, wie viel
+ * zu lernen ist, noch dass überhaupt Unterordner drinstecken. Leere Teile
+ * fallen weg; die Deck-Zahl steht immer da, auch bei 0, damit ein Ordner ohne
+ * Decks nicht ohne jede Zeile dasteht.
+ */
+export function buildFolderCountLabel(
+  subfolderCount: number,
+  deckCount: number,
+  cardCount: number
+): string {
+  const parts: string[] = [];
+  if (subfolderCount > 0) parts.push(`${subfolderCount} Unterordner`);
+  parts.push(`${deckCount} ${deckCount === 1 ? "Deck" : "Decks"}`);
+  if (cardCount > 0) parts.push(`${cardCount} ${cardCount === 1 ? "Karte" : "Karten"}`);
+  return parts.join(" · ");
+}
+
+/**
+ * Nachfrage vor dem Löschen eines Ordners (#571).
+ *
+ * Wortgleich mit `folderDeleteQuestion` in apps/mobile/src/lib/folders.ts.
+ * Laras Entscheidung: die Web-Fassung überall — als Frage gestellt, die
+ * mitgelöschten Unterordner beim Namen genannt (parent_id kaskadiert in der
+ * Datenbank, der Baum verrät das sonst nicht) und ausdrücklich gesagt, was
+ * bleibt. Die App ließ diesen Nachsatz auf der Ordnerseite ganz weg.
+ */
+export function folderDeleteQuestion(title: string, doomedTitles: string[]): string {
+  const doomed =
+    doomedTitles.length > 0
+      ? ` ${joinTitles(doomedTitles)} ${doomedTitles.length === 1 ? "wird" : "werden"} mitgelöscht.`
+      : "";
+  return `Soll „${title}" wirklich gelöscht werden?${doomed} Deine Decks und Karten bleiben erhalten.`;
+}

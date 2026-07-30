@@ -38,6 +38,7 @@ import {
   type Folder,
 } from "../../src/lib/api";
 import { searchDecks } from "../../src/lib/searchDecks";
+import { descendantFolders, folderDeleteQuestion } from "../../src/lib/folders";
 import { buildDeckCountLabel } from "../../src/lib/deckCountLabel";
 import { deckSlotsSummary, isDeckLimitReached } from "../../src/lib/importLimits";
 import { usageFromBalanceResponse, useUsageStore } from "../../src/store/usageStore";
@@ -296,7 +297,10 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
         onPress: () => {
           Alert.alert(
             t("library.deleteFolderTitle"),
-            t("library.deleteFolderMessage", { title: folder.title }),
+            folderDeleteQuestion(
+              folder.title,
+              descendantFolders(folder.id, folders).map((f) => f.title)
+            ),
             [
               { text: t("common.cancel"), style: "cancel" },
               {
