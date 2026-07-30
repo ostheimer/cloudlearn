@@ -2,7 +2,7 @@ import { type NextRequest } from "next/server";
 import { jsonError, jsonOk, normalizeError } from "@/lib/http";
 import { createRequestContext } from "@/lib/observability";
 import { getAuthUser } from "@/lib/auth";
-import { earnLp } from "@/services/lpService";
+import { awardSessionMilestones, earnLp } from "@/services/lpService";
 import { getSubscriptionStatus } from "@/services/subscriptionService";
 import { lpEarnRequestSchema } from "@/lib/contracts";
 
@@ -27,10 +27,26 @@ export async function POST(request: NextRequest) {
     // "session" — the schema rejects anything else.)
     const result = await earnLp(auth.userId, subscription.tier);
 
+    // Ende einer Lernsitzung — hier hängen „erste Lernsitzung" und die
+    // Streak-Stufen (#637). Diese Route ist der gemeinsame Abschluss ALLER
+    // punktenden Lernarten in beiden Clients (Karteikarten, Lückentext, Quiz,
+    // Zuordnen, Bildkarten); die Prüfung gibt keine Punkte und löst die
+    // Meilensteine deshalb auf ihrem eigenen Weg aus.
+    //
+    // Auch wenn `granted` 0 ist (Tageslimit erreicht) wurde gelernt — der
+    // Meilenstein hängt an der Sitzung, nicht an der Gutschrift.
+    const milestones = await awardSessionMilestones(auth.userId);
+
     return jsonOk(requestId, {
       granted: result.granted,
-      newBalance: result.newBalance,
+      // Die Meilenstein-Punkte fließen NACH der Sitzungs-Gutschrift, stehen in
+      // `result.newBalance` also noch nicht drin. Ohne diese Korrektur zeigte
+      // der Client einen Kontostand, der die gerade verkündeten Boni nicht
+      // enthält.
+      newBalance:
+        result.newBalance + milestones.reduce((sum, m) => sum + m.lpGranted, 0),
       capReached: result.capReached,
+      milestones,
     });
   } catch (error) {
     const normalized = normalizeError(error);

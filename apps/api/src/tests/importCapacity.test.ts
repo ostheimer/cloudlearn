@@ -22,6 +22,14 @@ const store = vi.hoisted(() => ({
   nextDeckId: 1,
 }));
 
+// Ein Import, der ein NEUES Deck anlegt, löst den „Erstes Deck"-Bonus aus
+// (#637). Ob er fließt, entscheidet der echte Dienst gegen die Datenbank; hier
+// interessiert nur, ob er an der richtigen Stelle angefragt und durchgereicht
+// wird.
+vi.mock("@/services/lpService", () => ({
+  awardFirstDeckMilestone: vi.fn(async () => [{ key: "first_deck", lpGranted: 10 }]),
+}));
+
 vi.mock("@/lib/db", () => ({
   getDeck: vi.fn(async (deckId: string) =>
     store.decks.some((deck) => deck.id === deckId && !deck.deleted)
@@ -88,6 +96,7 @@ import {
   storeImportedCards,
 } from "@/lib/importCapacity";
 import { listCardIdsForDeck, softDeleteCardsByIds } from "@/lib/db";
+import { awardFirstDeckMilestone } from "@/services/lpService";
 
 function card(index: number): Flashcard {
   return {
@@ -232,6 +241,40 @@ describe("storeImportedCards (#411)", () => {
 
     expect(await listCardIdsForDeck("u1", deckId)).toEqual(before);
     expect(vi.mocked(softDeleteCardsByIds)).not.toHaveBeenCalled();
+  });
+
+  it("löst den Erstes-Deck-Bonus aus, wenn der Import ein neues Deck anlegt (#637)", async () => {
+    const target = await reserveImportTarget({ userId: "u1", tier: "pro", deckId: undefined });
+
+    const stored = await storeImportedCards({
+      userId: "u1",
+      tier: "pro",
+      target,
+      title: "Aus dem Scan",
+      tags: ["scan"],
+      cards: cards(3),
+    });
+
+    expect(awardFirstDeckMilestone).toHaveBeenCalledWith("u1");
+    expect(stored.milestones).toEqual([{ key: "first_deck", lpGranted: 10 }]);
+  });
+
+  it("löst beim Anhängen an ein bestehendes Deck KEINEN Bonus aus (#637)", async () => {
+    // Es entsteht kein Deck — „Erstes Deck" wäre hier schlicht falsch.
+    const deckId = seedDeck(5);
+    const target = await reserveImportTarget({ userId: "u1", tier: "pro", deckId });
+
+    const stored = await storeImportedCards({
+      userId: "u1",
+      tier: "pro",
+      target,
+      title: "egal",
+      tags: ["scan"],
+      cards: cards(3),
+    });
+
+    expect(awardFirstDeckMilestone).not.toHaveBeenCalled();
+    expect(stored.milestones).toEqual([]);
   });
 
   it("keeps every card for pro", async () => {

@@ -5,8 +5,9 @@ import {
   recordTestAttempt,
   TEST_ATTEMPT_DECK_CONFLICT,
 } from "@/lib/db";
-import { testAttemptSubmitSchema } from "@/lib/contracts";
+import { testAttemptSubmitSchema, type MilestoneAward } from "@/lib/contracts";
 import { logInfo } from "@/lib/observability";
+import { awardSessionMilestones } from "@/services/lpService";
 
 export interface TestAttemptResult {
   requestId: string;
@@ -15,6 +16,8 @@ export interface TestAttemptResult {
   questionCount: number;
   correctCount: number;
   submittedAt: string;
+  /** Frisch gutgeschriebene Meilenstein-Boni dieser Sitzung (#637). */
+  milestones: MilestoneAward[];
 }
 
 /**
@@ -90,6 +93,12 @@ export async function submitTestAttempt(
     correctCount: row.correctCount,
   });
 
+  // Eine abgegebene Prüfung ist ein Sitzungs-Ende wie jedes andere (#637).
+  // Punkte gibt sie keine, läuft also nie über /lp/earn — ohne diese Zeile
+  // bliebe „erste Lernsitzung" für jemanden, der nur Prüfungen macht, ewig
+  // offen. Nach dem Protokollieren: der Bonus darf die Prüfung nicht gefährden.
+  const milestones = await awardSessionMilestones(userId);
+
   return {
     requestId,
     id: row.id,
@@ -97,5 +106,6 @@ export async function submitTestAttempt(
     questionCount: row.questionCount,
     correctCount: row.correctCount,
     submittedAt: row.submittedAt,
+    milestones,
   };
 }

@@ -1,4 +1,4 @@
-import type { Flashcard, SubscriptionTier } from "@/lib/contracts";
+import type { Flashcard, MilestoneAward, SubscriptionTier } from "@/lib/contracts";
 import {
   createDeck,
   getDeck,
@@ -12,6 +12,7 @@ import {
 import { getLimitsForTier } from "@/lib/featureGates";
 import { HttpError } from "@/lib/http";
 import { clampTitle } from "@/lib/titleLimit";
+import { awardFirstDeckMilestone } from "@/services/lpService";
 
 /**
  * Plan limits for the three AI import paths — scan, PDF import, URL import
@@ -50,6 +51,12 @@ export interface StoredImport {
   generatedCount: number;
   /** True when the deck could not take every generated card. */
   truncated: boolean;
+  /**
+   * Frisch gutgeschriebene Meilenstein-Boni (#637) — nur belegt, wenn hier ein
+   * NEUES Deck entstand und es das erste des Kontos war. Beim Anhängen an ein
+   * bestehendes Deck entsteht kein Deck und damit auch kein Bonus.
+   */
+  milestones: MilestoneAward[];
 }
 
 /**
@@ -219,6 +226,11 @@ export async function storeImportedCards(params: {
       ? target.deck
       : await createDeckWithinLimit(userId, tier, title, tags);
 
+  // „Erstes Deck erstellt" (#637). Hier statt in den vier Import-Diensten:
+  // Scan, PDF, URL und das Speichern einer Vorschau laufen alle durch diese
+  // eine Funktion, und ein fünfter Weg käme automatisch mit.
+  const milestones = target.kind === "new" ? await awardFirstDeckMilestone(userId) : [];
+
   const fitting = selectEvenlySpread(cards, Math.min(cards.length, target.freeSlots));
 
   let savedCards: Flashcard[];
@@ -241,5 +253,6 @@ export async function storeImportedCards(params: {
     savedCount: savedCards.length,
     generatedCount: cards.length,
     truncated: savedCards.length < cards.length,
+    milestones,
   };
 }

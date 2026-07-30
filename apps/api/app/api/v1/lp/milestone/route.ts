@@ -3,13 +3,19 @@ import { jsonError, jsonOk, normalizeError } from "@/lib/http";
 import { createRequestContext } from "@/lib/observability";
 import { getAuthUser } from "@/lib/auth";
 import { claimMilestoneReward } from "@/services/lpService";
+import { milestoneKeySchema } from "@/lib/contracts";
 import { z } from "zod";
 
 const bodySchema = z.object({
-  milestone: z.enum(["first_deck", "first_review", "streak_7", "streak_30", "streak_100"]),
+  milestone: milestoneKeySchema,
 });
 
 // POST /api/v1/lp/milestone — claim a one-time milestone reward (idempotent).
+//
+// Bleibt bestehen, ist aber seit #637 nicht mehr der einzige Weg: der Server
+// löst dieselben Meilensteine selbst ein, sobald sie entstehen. Ausgelieferte
+// App-Versionen rufen hier weiter an und bekommen dann `alreadyClaimed` — die
+// Gutschrift ist einmalig, egal wer zuerst fragt.
 export async function POST(request: NextRequest) {
   const { requestId } = createRequestContext(request.headers);
   try {

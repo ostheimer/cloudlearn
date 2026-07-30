@@ -1,4 +1,5 @@
 import { getSupabase } from "./supabase-browser";
+import { emitMilestones, parseMilestones } from "./milestones";
 
 /**
  * Web API client for the clearn backend. A focused port of the mobile
@@ -69,6 +70,14 @@ async function request<T>(
   }
 
   if (body === null) throw new ApiError("Leere API-Antwort", res.status);
+
+  // Meilenstein-Boni (#637): Der Server schreibt sie selbst gut und hängt sie
+  // an die Antwort, die sie ausgelöst hat — ein neues Deck, ein Sitzungsende,
+  // eine abgegebene Prüfung. Hier abgegriffen und nicht in jedem Bildschirm,
+  // weil genau das der Fehler war: Das Web hat nie irgendwo nachgefragt, und
+  // jede neue Seite hätte es wieder vergessen können.
+  emitMilestones(parseMilestones(body));
+
   return body as T;
 }
 

@@ -65,12 +65,19 @@ vi.mock("@/lib/rateLimit", () => ({ checkRateLimit: vi.fn() }));
 vi.mock("@/lib/observability", () => ({
   createRequestContext: () => ({ requestId: "req-test-attempt-1" }),
   logInfo: vi.fn(),
+  logError: vi.fn(),
 }));
 vi.mock("@/lib/db", () => ({
   getDeck: vi.fn(),
   getDeckCardIds: vi.fn(),
   recordTestAttempt: vi.fn(),
   TEST_ATTEMPT_DECK_CONFLICT: "test_attempt_deck_conflict",
+}));
+// Die Prüfung löst seit #637 die Sitzungs-Meilensteine aus. Hier ist nur
+// wichtig, dass sie die Prüfung nicht stören — was sie auszahlen, prüft
+// milestoneAwards.test.ts.
+vi.mock("@/services/lpService", () => ({
+  awardSessionMilestones: vi.fn(async () => []),
 }));
 
 import { POST } from "../../app/api/v1/decks/[id]/tests/route";

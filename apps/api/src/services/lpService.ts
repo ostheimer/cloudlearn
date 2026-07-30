@@ -1,7 +1,9 @@
 import { createSupabaseAdminClient } from "@/lib/supabase";
 import { getLimitsForTier, LP_EARN_RULES, lpCostForFeature, STREAK_FREEZE, STREAK_REPAIR } from "@/lib/featureGates";
 import { todayLocal } from "@/lib/localDay";
-import type { SubscriptionTier } from "@/lib/contracts";
+import { getStreakInfo } from "@/lib/db";
+import { logError } from "@/lib/observability";
+import type { MilestoneAward, MilestoneKey, SubscriptionTier } from "@/lib/contracts";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -312,12 +314,7 @@ export async function grantMonthlyLpToActiveSubscribers(
 
 // ─── Milestone Reward (idempotent) ───────────────────────────────────────────
 
-export type MilestoneKey =
-  | "first_deck"
-  | "first_review"
-  | "streak_7"
-  | "streak_30"
-  | "streak_100";
+export type { MilestoneKey };
 
 const MILESTONE_LP: Record<MilestoneKey, number> = {
   first_deck:    LP_EARN_RULES.firstDeck,
@@ -351,6 +348,99 @@ export async function claimMilestoneReward(
     granted: row?.granted ?? 0,
     alreadyClaimed: row?.already_claimed ?? false,
   };
+}
+
+// ─── Meilensteine automatisch einlösen (#637) ────────────────────────────────
+//
+// Bis hierher konnte der Server Meilensteine NUR auf Zuruf auszahlen, und im
+// Web rief das niemand — die auf der Lernpunkte-Seite beworbenen Boni kamen
+// dort also nie an, `first_deck` auf keiner Plattform. Statt jedem Client
+// beizubringen, an welchem Bildschirm er nachfragen muss (fünf Lernmodi, vier
+// Wege zu einem neuen Deck, zwei Clients), löst der Server sie jetzt selbst
+// ein — an den wenigen Stellen, an denen sie nachweislich entstehen.
+//
+// `claim_milestone_lp` ist je Meilenstein idempotent (#152): der zweite Aufruf
+// zahlt nichts und meldet `alreadyClaimed`. Ein doppelter Aufruf ist damit
+// harmlos, was diese Automatik überhaupt erst gefahrlos macht.
+
+/**
+ * Löst einen Meilenstein ein und meldet ihn nur, wenn dabei WIRKLICH etwas
+ * geflossen ist — ein längst eingelöster Bonus liefert `null` und darf keinen
+ * Hinweis auslösen.
+ *
+ * Wirft nie: ein Bonus ist eine Zugabe, keine Bedingung. Wer sein erstes Deck
+ * anlegt, soll das Deck bekommen, auch wenn die Gutschrift gerade klemmt — der
+ * nächste Auslöser holt sie nach, weil die Sperre erst mit der Gutschrift
+ * zusammen gesetzt wird (eine Transaktion, siehe claim_milestone_lp).
+ */
+export async function awardMilestone(
+  userId: string,
+  milestone: MilestoneKey
+): Promise<MilestoneAward | null> {
+  try {
+    const result = await claimMilestoneReward(userId, milestone);
+    if (result.alreadyClaimed || result.granted <= 0) return null;
+    return { key: milestone, lpGranted: result.granted };
+  } catch (error) {
+    logError("milestone_award_failed", {
+      userId,
+      milestone,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
+}
+
+/** „Erstes Deck erstellt" — für jeden Weg, auf dem ein Deck entsteht. */
+export async function awardFirstDeckMilestone(userId: string): Promise<MilestoneAward[]> {
+  const award = await awardMilestone(userId, "first_deck");
+  return award ? [award] : [];
+}
+
+const STREAK_MILESTONES: Array<{ streak: number; key: MilestoneKey }> = [
+  { streak: 7, key: "streak_7" },
+  { streak: 30, key: "streak_30" },
+  { streak: 100, key: "streak_100" },
+];
+
+/**
+ * Meilensteine am ENDE einer Lernsitzung: „erste Lernsitzung" und die
+ * Streak-Stufen 7/30/100.
+ *
+ * Aufgerufen wird das an den Sitzungs-Enden — beim Verrechnen der Lernpunkte
+ * (alle Lernmodi) und beim Abgeben einer Prüfung (die keine Punkte gibt und
+ * deshalb den anderen Weg nicht nimmt). Bewusst NICHT bei jeder einzelnen
+ * Wiederholung: das ist der heißeste Pfad der App, und ein einmaliger Bonus
+ * rechtfertigt dort keine zusätzliche Datenbank-Runde je Karte.
+ *
+ * Der Streak-Stand wird gelesen, nicht vom Client geglaubt. Verglichen wird auf
+ * GENAU 7/30/100 — dieselbe Regel, nach der die App ihre Feier zeigt; der
+ * Streak wächst je Lerntag um eins, überspringt also keine Stufe.
+ */
+export async function awardSessionMilestones(userId: string): Promise<MilestoneAward[]> {
+  const awards: MilestoneAward[] = [];
+
+  const firstReview = await awardMilestone(userId, "first_review");
+  if (firstReview) awards.push(firstReview);
+
+  let currentStreak = 0;
+  try {
+    ({ currentStreak } = await getStreakInfo(userId));
+  } catch (error) {
+    logError("milestone_streak_lookup_failed", {
+      userId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return awards;
+  }
+
+  for (const { streak, key } of STREAK_MILESTONES) {
+    if (currentStreak !== streak) continue;
+    const award = await awardMilestone(userId, key);
+    if (award) awards.push(award);
+  }
+
+  return awards;
 }
 
 // ─── Grant Add-on Pack (after successful purchase) ───────────────────────────

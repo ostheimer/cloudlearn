@@ -1,6 +1,11 @@
-import { useState, useCallback } from "react";
-import { claimMilestone } from "../../lib/api";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useUsageStore } from "../../store/usageStore";
+import {
+  isStreakMilestone,
+  onMilestones,
+  type MilestoneAward,
+  type MilestoneKey,
+} from "./milestoneBus";
 
 export interface MilestoneToast {
   key: string;
@@ -8,57 +13,80 @@ export interface MilestoneToast {
   label: string;
 }
 
-// Maps streak counts to milestone keys.
-const STREAK_MILESTONES: Array<{ streak: number; key: "streak_7" | "streak_30" | "streak_100" }> = [
-  { streak: 7,   key: "streak_7"   },
-  { streak: 30,  key: "streak_30"  },
-  { streak: 100, key: "streak_100" },
-];
-
 export interface UseMilestoneToastReturn {
   toast: MilestoneToast | null;
   dismissToast: () => void;
   // Full-screen celebration for streak milestones (7/30/100); stays until tapped.
   celebration: MilestoneToast | null;
   dismissCelebration: () => void;
-  checkStreakMilestones: (currentStreak: number) => Promise<void>;
-  claimOnceMilestone: (key: "first_deck" | "first_review") => Promise<void>;
 }
 
+const TOAST_MS = 4000;
+
+/**
+ * Zeigt Meilenstein-Boni an, die der SERVER gutgeschrieben hat (#637).
+ *
+ * Früher löste dieser Hook die Boni selbst ein — und zwar nur dort, wo jemand
+ * daran gedacht hatte, ihn aufzurufen: `first_review` im Karteikarten-Modus,
+ * `first_deck` nirgends, im Web gar nichts. Jetzt löst der Server ein, sobald
+ * ein Bonus entsteht, und dieser Hook hört nur noch zu.
+ *
+ * Die Punkte landen sofort im Kontostand (`addLp`), damit die LP-Pille nicht
+ * eine Zahl ohne den gerade verkündeten Bonus zeigt. Kommt gleich danach eine
+ * autoritative Zahl vom Server (die Lernsitzung setzt `lpBalance` aus der
+ * earn-Antwort, die den Bonus bereits enthält), gewinnt diese — sie läuft
+ * später, weil der Verteiler schon INNERHALB des fetch-Aufrufs feuert.
+ */
 export function useMilestoneToast(): UseMilestoneToastReturn {
-  const [toast, setToast] = useState<MilestoneToast | null>(null);
+  const [queue, setQueue] = useState<MilestoneAward[]>([]);
   const [celebration, setCelebration] = useState<MilestoneToast | null>(null);
   const addLp = useUsageStore((s) => s.addLp);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const showToast = useCallback((key: string, lpGranted: number) => {
-    setToast({ key, lpGranted, label: key });
-    // Auto-dismiss after 4 seconds
-    setTimeout(() => setToast(null), 4000);
-  }, []);
+  useEffect(
+    () =>
+      onMilestones((awards) => {
+        for (const award of awards) addLp(award.lpGranted);
+        // Anhängen statt ersetzen: Wer mit einer Sitzung die erste Runde
+        // abschliesst UND den 7-Tage-Streak knackt, soll beides sehen.
+        setQueue((current) => [...current, ...awards]);
+      }),
+    [addLp],
+  );
 
-  const checkStreakMilestones = useCallback(async (currentStreak: number) => {
-    for (const { streak, key } of STREAK_MILESTONES) {
-      if (currentStreak === streak) {
-        const result = await claimMilestone(key).catch(() => null);
-        if (result && !result.alreadyClaimed && result.granted > 0) {
-          addLp(result.granted);
-          // Streak milestones earn the big moment; smaller ones stay a toast.
-          setCelebration({ key, lpGranted: result.granted, label: key });
-        }
-      }
+  const head = queue[0] ?? null;
+  const headKey: MilestoneKey | null = head?.key ?? null;
+
+  useEffect(() => {
+    if (!head) return;
+
+    if (isStreakMilestone(head.key)) {
+      // Die grosse Feier bleibt stehen, bis sie angetippt wird — sie wird beim
+      // Wegtippen aus der Schlange genommen (dismissCelebration).
+      setCelebration({ key: head.key, lpGranted: head.lpGranted, label: head.key });
+      return;
     }
-  }, [addLp]);
 
-  const claimOnceMilestone = useCallback(async (key: "first_deck" | "first_review") => {
-    const result = await claimMilestone(key).catch(() => null);
-    if (result && !result.alreadyClaimed && result.granted > 0) {
-      addLp(result.granted);
-      showToast(key, result.granted);
-    }
-  }, [addLp, showToast]);
+    timerRef.current = setTimeout(() => setQueue((rest) => rest.slice(1)), TOAST_MS);
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+    // Am Schlüssel hängen, nicht am Objekt: Eine neue Liste mit demselben
+    // vordersten Bonus darf die laufende Anzeigedauer nicht neu starten.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [headKey]);
 
-  const dismissToast = useCallback(() => setToast(null), []);
-  const dismissCelebration = useCallback(() => setCelebration(null), []);
+  const advance = useCallback(() => setQueue((rest) => rest.slice(1)), []);
 
-  return { toast, dismissToast, celebration, dismissCelebration, checkStreakMilestones, claimOnceMilestone };
+  const dismissCelebration = useCallback(() => {
+    setCelebration(null);
+    advance();
+  }, [advance]);
+
+  const toast: MilestoneToast | null =
+    head && !isStreakMilestone(head.key)
+      ? { key: head.key, lpGranted: head.lpGranted, label: head.key }
+      : null;
+
+  return { toast, dismissToast: advance, celebration, dismissCelebration };
 }
