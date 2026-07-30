@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DECK_LIMIT_LABEL,
   NEARLY_FULL_THRESHOLD,
+  adviceForLimit,
   deckLimitMessage,
   deckSlotsLabel,
   deckSlotsHint,
@@ -189,5 +190,65 @@ describe("Lernpunkte-Fenster nur bei fehlenden Lernpunkten (#371)", () => {
   it("erkennt Grenz-Ablehnungen auch ohne Code", () => {
     expect(isPlanLimitError({ status: 409 })).toBe(true);
     expect(isPlanLimitError({ status: 402, code: "INSUFFICIENT_LP" })).toBe(false);
+  });
+});
+
+describe("Klartext statt Bitte-versuch-es-nochmal (#611)", () => {
+  it("reicht den Server-Satz durch — er kennt Tarif und Zahlen", () => {
+    expect(
+      adviceForLimit({
+        status: 409,
+        code: "DECK_LIMIT_REACHED",
+        message:
+          "Deck-Grenze erreicht: Dein Tarif erlaubt 20 Decks. Mit Pro hast du deutlich mehr Platz.",
+      })
+    ).toBe(
+      "Deck-Grenze erreicht: Dein Tarif erlaubt 20 Decks. Mit Pro hast du deutlich mehr Platz."
+    );
+  });
+
+  it("reicht auch den Pro-Rat durch, statt einen Kauf zu behaupten", () => {
+    // Wer schon Pro hat, dem hilft kein Kauf — der Server sagt das bereits,
+    // und genau dieser Halbsatz ging bisher verloren (#371).
+    const proText =
+      "Deck-Grenze erreicht: Dein Tarif erlaubt 500 Decks. " +
+      "Mehr sind nicht möglich — lösche ein Deck, um Platz zu schaffen.";
+    expect(adviceForLimit({ status: 409, code: "DECK_LIMIT_REACHED", message: proText })).toBe(
+      proText
+    );
+  });
+
+  it("schweigt bei allem, was keine Tarifgrenze ist", () => {
+    // Dann bleibt der bildschirmeigene Satz stehen.
+    expect(adviceForLimit({ status: 402, code: "INSUFFICIENT_LP", message: "Zu wenig LP" })).toBeNull();
+    expect(adviceForLimit({ status: 500, message: "Serverfehler" })).toBeNull();
+    expect(adviceForLimit(new Error("Netzwerk"))).toBeNull();
+    expect(adviceForLimit(null)).toBeNull();
+  });
+
+  it("geht NICHT über den Status — 409 heißt in dieser API auch anderes", () => {
+    // NO_INVITE, ALREADY_REFERRED und der Streak-Schutz antworten ebenfalls 409.
+    // isPlanLimitError darf das für die Scan-Ansicht pauschal nehmen, dieser
+    // Helfer nicht: Er läuft auf Bildschirmen mit vielen Endpunkten.
+    expect(adviceForLimit({ status: 409, code: "NO_INVITE", message: "Kein Einladungscode" })).toBeNull();
+  });
+
+  it("erfindet einen Satz, wenn der Server keinen mitschickt", () => {
+    expect(adviceForLimit({ status: 409, code: "DECK_FULL" })).toBe(
+      "Dieses Deck ist voll. Leg für weitere Karten ein zweites Deck an."
+    );
+    expect(adviceForLimit({ status: 409, code: "DECK_LIMIT_REACHED" })).toBe(
+      "Die Deck-Grenze deines Tarifs ist erreicht. Lösche ein Deck, um Platz zu schaffen."
+    );
+  });
+
+  it("zeigt niemals den technischen Platzhalter aus api.ts", () => {
+    // request() baut „API error 409", wenn der Server ohne Text antwortet.
+    expect(adviceForLimit({ status: 409, code: "DECK_FULL", message: "API error 409" })).toBe(
+      "Dieses Deck ist voll. Leg für weitere Karten ein zweites Deck an."
+    );
+    expect(adviceForLimit({ status: 409, code: "DECK_FULL", message: "   " })).toBe(
+      "Dieses Deck ist voll. Leg für weitere Karten ein zweites Deck an."
+    );
   });
 });

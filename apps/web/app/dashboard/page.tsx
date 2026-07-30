@@ -26,6 +26,7 @@ import {
   type Folder,
   type CardSearchResult,
 } from "@/lib/api";
+import { adviceForLimit } from "@/lib/import-limits";
 import { descendantFolders, folderPath } from "@/lib/folders";
 import { FolderCard, DeleteFolderModal } from "@/components/app/folder-ui";
 import { deckCountLabel } from "@/lib/deck-count-label";
@@ -494,8 +495,10 @@ export default function LibraryPage() {
                 try {
                   await duplicateDeck(deck.id);
                   await loadDecks();
-                } catch {
-                  setPageError("Duplizieren fehlgeschlagen.");
+                } catch (e) {
+                  // An der Deck-Grenze sagt der Server, woran es liegt und ob
+                  // ein Upgrade hilft (#611) — „fehlgeschlagen" verschwieg das.
+                  setPageError(adviceForLimit(e) ?? "Duplizieren fehlgeschlagen.");
                 }
               }}
               onShare={async () => {
@@ -1071,8 +1074,10 @@ function CreateOrRenameModal({
     setBusy(true);
     try {
       await onSubmit(value.trim());
-    } catch {
-      setError("Das hat nicht geklappt. Bitte versuche es erneut.");
+    } catch (e) {
+      // Bei erreichter Deck-Grenze hilft kein zweiter Versuch — dann steht
+      // hier der Klartext des Servers samt Ausweg (#611).
+      setError(adviceForLimit(e) ?? "Das hat nicht geklappt. Bitte versuche es erneut.");
       setBusy(false);
     }
   }

@@ -90,8 +90,9 @@ async function request<T>(
     // Vorher trugen auch "Deck voll" und "zu viele Decks" den Code
     // PAYWALL_REQUIRED, weshalb ein Pro-Nutzer mit vollem Deck aufgefordert
     // wurde, Pro zu kaufen (#371). Seit dem Server-Fix haben die Grenzen ihre
-    // eigenen Codes; ob dort ein Kauf hilft, entscheidet der Bildschirm über
-    // adviceForLimit() — der kennt den Tarif der Nutzerin.
+    // eigenen Codes; ob dort ein Kauf hilft, sagt die Server-Meldung selbst —
+    // der Bildschirm zeigt sie über adviceForLimit() aus lib/importLimits.ts
+    // (seit #611 gebaut; vorher war dieser Verweis ein leeres Versprechen).
     if (res.status === 402 && code === "PAYWALL_REQUIRED") {
       _paywallTrigger?.();
     }

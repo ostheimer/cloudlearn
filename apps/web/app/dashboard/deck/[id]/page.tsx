@@ -9,6 +9,7 @@ import { OcclusionShot } from "@/components/app/occlusion-shot";
 import { getCardImages, occlusionTarget, type CardImage } from "@/lib/card-images";
 import { cardListPreview } from "@/lib/card-display";
 import { deckCountLabel } from "@/lib/deck-count-label";
+import { adviceForLimit } from "@/lib/import-limits";
 import { useCoarsePointer } from "@/lib/use-coarse-pointer";
 import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
 import {
@@ -665,8 +666,10 @@ function CardEditor({
     setBusy(true);
     try {
       await onSubmit(front.trim(), back.trim());
-    } catch {
-      setError("Speichern fehlgeschlagen. Bitte versuche es erneut.");
+    } catch (e) {
+      // Am vollen Deck hilft kein zweiter Versuch — dann steht hier, wie viele
+      // Karten der Tarif erlaubt und was der Ausweg ist (#611).
+      setError(adviceForLimit(e) ?? "Speichern fehlgeschlagen. Bitte versuche es erneut.");
       setBusy(false);
     }
   }

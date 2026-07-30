@@ -48,6 +48,7 @@ import {
 } from "../../../src/lib/api";
 import { summarizeCardMedia } from "../../../src/lib/cardMedia";
 import { cardKindLabel } from "../../../src/lib/cardDisplay";
+import { adviceForLimit } from "../../../src/lib/importLimits";
 import {
   cardsFromOfflineDeckCache,
   offlineDeckStorageKey,
@@ -551,8 +552,15 @@ export default function DeckDetailScreen() {
         pathname: "/deck/[id]",
         params: { id: deck.id, title: deck.title },
       });
-    } catch {
-      Alert.alert(t("common.error"), t("deckAction.duplicateError"));
+    } catch (e) {
+      // An einer Tarifgrenze erklärt der Server, woran es liegt und ob ein
+      // Upgrade hilft (#611). „Duplizieren fehlgeschlagen" verschwieg beides.
+      const advice = adviceForLimit(e);
+      if (advice) {
+        Alert.alert(t("deckAction.duplicateBlockedTitle"), advice);
+      } else {
+        Alert.alert(t("common.error"), t("deckAction.duplicateError"));
+      }
     }
   };
 
@@ -708,8 +716,15 @@ export default function DeckDetailScreen() {
       }
       setEditorVisible(false);
       setEditingCard(null);
-    } catch {
-      Alert.alert("Fehler", "Karte konnte nicht gespeichert werden.");
+    } catch (e) {
+      // Am vollen Deck nennt der Server die erlaubte Kartenzahl und den
+      // Ausweg (#611) — vorher stand hier nur „konnte nicht gespeichert".
+      const advice = adviceForLimit(e);
+      if (advice) {
+        Alert.alert(t("deckAction.cardSaveBlockedTitle"), advice);
+      } else {
+        Alert.alert(t("common.error"), t("deckAction.cardSaveError"));
+      }
     } finally {
       setSaving(false);
     }
