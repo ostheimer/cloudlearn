@@ -21,6 +21,7 @@ import * as DocumentPicker from "expo-document-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import {
   Camera,
+  CheckCircle2,
   FileText,
   ImageIcon,
   PenLine,
@@ -238,6 +239,12 @@ export default function ScanScreen() {
   // Deck created for THIS scan. Kept so a retry after a partial save reuses the
   // same deck instead of creating another one (and re-inserting cards).
   const [savedDeckId, setSavedDeckId] = useState<string | null>(null);
+  // #609: Der Erfolg steht auf dem Bildschirm statt in einem Dialog. Vorher
+  // war der einzige Weg ins Deck ein Alert-Knopf — den man auf Android durch
+  // Tippen daneben schließen kann, und dann war das Deck unerreichbar.
+  const [saveResult, setSaveResult] = useState<
+    { deckId: string; title: string; summary: string } | null
+  >(null);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [sourceUrl, setSourceUrl] = useState("");
@@ -736,17 +743,7 @@ export default function ScanScreen() {
       void reloadDecks();
 
       const savedCount = toSave.length + (savable.length - pending.length);
-      Alert.alert(
-        "Gespeichert!",
-        `${savedSummary(savable.length, savedCount)}\nDeck: "${title}"`,
-        [
-          {
-            text: "Deck öffnen",
-            onPress: () =>
-              router.push(`/deck/${deckId}?title=${encodeURIComponent(title)}`),
-          },
-        ]
-      );
+      setSaveResult({ deckId, title, summary: savedSummary(savable.length, savedCount) });
     } catch (error: unknown) {
       // Tarifgrenzen (409) sprechen schon gutes Deutsch vom Server — die
       // bleiben; alles andere übersetzt importErrors (#609).
@@ -852,7 +849,12 @@ export default function ScanScreen() {
     }
   };
 
-  const handleSaveAndLearn = () => {
+  /**
+   * #609 (Laras Entscheidung): Hieß früher „Speichern & Lernen", startete aber
+   * keine Lernrunde. Der Knopf heißt jetzt, was er tut — der Weg ins Lernen
+   * steht danach im Erfolgs-Feld.
+   */
+  const handleSaveCards = () => {
     if (!userId || cards.length === 0) return;
     // Die Dialog-Kette zählt nur nicht-leere Karten (#595): gespeichert wird
     // ohnehin nur `savable` (saveCardsToDeck), und die Platz-Rückfrage darunter
@@ -882,6 +884,7 @@ export default function ScanScreen() {
     setDeckTitle("");
     setSaved(false);
     setSavedDeckId(null);
+    setSaveResult(null);
     setImageUri(null);
     setImageBase64(null);
     setMode("choose");
@@ -901,6 +904,7 @@ export default function ScanScreen() {
     // legte „Speichern" nach dem Fortsetzen ein zweites Deck an.
     setSavedDeckId(storedDraft.savedDeckId);
     setSaved(false);
+    setSaveResult(null);
     setStoredDraft(null);
   };
 
@@ -2122,10 +2126,10 @@ export default function ScanScreen() {
               </TouchableOpacity>
             )}
 
-            {/* Save and learn */}
+            {/* Save */}
             {!saved && (
               <TouchableOpacity
-                onPress={handleSaveAndLearn}
+                onPress={handleSaveCards}
                 disabled={saving}
                 activeOpacity={0.8}
                 style={{
@@ -2147,9 +2151,105 @@ export default function ScanScreen() {
                     fontWeight: typography.bold,
                   }}
                 >
-                  Speichern & Lernen
+                  Karten speichern
                 </Text>
               </TouchableOpacity>
+            )}
+
+            {/* #609: Erfolg samt Weiterweg auf dem Bildschirm — nicht in einem
+                Dialog, den man auf Android neben dem Knopf wegtippen kann. */}
+            {saved && saveResult && (
+              <View style={{ gap: spacing.sm }}>
+                <View
+                  style={{
+                    backgroundColor: colors.successLight,
+                    borderRadius: radius.md,
+                    padding: spacing.lg,
+                    gap: spacing.xs,
+                  }}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+                    <CheckCircle2 size={20} color={colors.success} />
+                    <Text
+                      style={{
+                        flex: 1,
+                        color: colors.success,
+                        fontSize: typography.base,
+                        fontWeight: typography.bold,
+                      }}
+                    >
+                      {saveResult.summary}
+                    </Text>
+                  </View>
+                  <Text
+                    numberOfLines={2}
+                    style={{ color: colors.success, fontSize: typography.sm }}
+                  >
+                    Deck: {saveResult.title}
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  onPress={() =>
+                    router.push({
+                      pathname: "/deck-review/[id]",
+                      params: { id: saveResult.deckId, title: saveResult.title },
+                    })
+                  }
+                  activeOpacity={0.8}
+                  style={{
+                    backgroundColor: colors.success,
+                    borderRadius: radius.md,
+                    paddingVertical: 16,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: spacing.sm,
+                    ...shadows.md,
+                  }}
+                >
+                  <Layers size={18} color={colors.textInverse} />
+                  <Text
+                    style={{
+                      color: colors.textInverse,
+                      fontSize: typography.lg,
+                      fontWeight: typography.bold,
+                    }}
+                  >
+                    Jetzt lernen
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() =>
+                    router.push(
+                      `/deck/${saveResult.deckId}?title=${encodeURIComponent(saveResult.title)}`
+                    )
+                  }
+                  activeOpacity={0.8}
+                  style={{
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    borderRadius: radius.md,
+                    paddingVertical: 14,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: spacing.sm,
+                  }}
+                >
+                  <ChevronRight size={18} color={colors.text} />
+                  <Text
+                    style={{
+                      color: colors.text,
+                      fontSize: typography.base,
+                      fontWeight: typography.semibold,
+                    }}
+                  >
+                    Deck öffnen
+                  </Text>
+                </TouchableOpacity>
+              </View>
             )}
 
             {/* New scan */}
