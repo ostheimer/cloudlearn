@@ -31,12 +31,14 @@ import {
   ArrowLeft,
   ArrowLeftRight,
   Star,
+  Pencil,
   Trophy,
   Volume2,
   Play,
   Pause,
   Timer,
 } from "lucide-react-native";
+import CardEditor from "../../src/components/CardEditor";
 import * as Speech from "expo-speech";
 import {
   useReviewSession,
@@ -187,7 +189,7 @@ function AuthenticatedLearnScreen({
   const displayName = useDisplayName();
   const router = useRouter();
   const c = useColors();
-  const { cards, index, revealed, completed, swipedLeft, swipedRight, history, ratingHistory, presetToken, cardsOwner, startIndex, seededCount, start, reveal, rateCurrent, canGoBack, goBack } =
+  const { cards, index, revealed, completed, swipedLeft, swipedRight, history, ratingHistory, presetToken, cardsOwner, startIndex, seededCount, start, reveal, rateCurrent, canGoBack, goBack, patchCard } =
     useReviewSession();
 
   // Studying IS using the deck (#415). Only for a single-deck session — the
@@ -224,6 +226,9 @@ function AuthenticatedLearnScreen({
   const [reviewError, setReviewError] = useState(false);
   const [showBackFirst, setShowBackFirst] = useState(initialShowBackFirst ?? false);
   const [starredMap, setStarredMap] = useState<Record<string, boolean>>({});
+  // Stift-Knopf (#610): öffnet den Karten-Editor, ohne die Runde zu verlassen.
+  const [editingCard, setEditingCard] = useState(false);
+  const [savingCard, setSavingCard] = useState(false);
 
   const awardStateRef = useRef<SessionAwardState>({ finalized: false, inFlight: null });
   const pendingReviewsRef = useRef<Promise<unknown>[]>([]);
@@ -1428,12 +1433,42 @@ function AuthenticatedLearnScreen({
                   >
                     <Star size={22} color={isStarred ? c.warning : c.textTertiary} fill={isStarred ? c.warning : "none"} />
                   </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setEditingCard(true)}
+                    activeOpacity={0.6}
+                    hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+                    style={{ width: 44, height: 44, justifyContent: "center", alignItems: "center" }}
+                  >
+                    <Pencil size={22} color={c.textTertiary} />
+                  </TouchableOpacity>
                 </View>
               </View>
             </View>
           )}
         </View>
       </SafeAreaView>
+      <CardEditor
+        visible={editingCard}
+        card={current ? { front: current.front, back: current.back, difficulty: "medium" } : null}
+        saving={savingCard}
+        onCancel={() => setEditingCard(false)}
+        onSave={async ({ front, back }) => {
+          if (!current) return;
+          setSavingCard(true);
+          try {
+            const { card: updated } = await updateCard(current.id, { front, back });
+            // Nur die editierte Karte patchen (#610) — ein Neuladen der Runde
+            // würde Fortschritt, Index und Bewertungen dieser Sitzung zerstören.
+            patchCard(current.id, { front: updated.front, back: updated.back });
+            setEditingCard(false);
+          } catch {
+            // Speichern fehlgeschlagen — Editor bleibt offen, Lernerin kann es
+            // erneut versuchen, statt den Text kommentarlos zu verlieren.
+          } finally {
+            setSavingCard(false);
+          }
+        }}
+      />
       {/* Toast und Feier hängen seit #637 im Wurzel-Layout (MilestoneHost) —
           sie gehören zu ALLEN Lernarten, nicht nur zu den Karteikarten. */}
     </GestureHandlerRootView>

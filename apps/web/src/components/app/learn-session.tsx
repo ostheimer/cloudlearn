@@ -29,9 +29,11 @@ import {
   Timer,
   Volume2,
   Star,
+  Pencil,
   ArrowLeft,
   Repeat,
 } from "@/components/icons";
+import { CardEditor } from "@/components/app/card-editor";
 import {
   beginSessionAward,
   getSessionReviewedCount,
@@ -152,6 +154,8 @@ export function LearnSession({
   // Die Karte selbst — nach jeder Bewertung wandert der Tastatur-Fokus hierher
   // zurück (siehe rate).
   const cardRef = useRef<HTMLDivElement>(null);
+  // Stift-Knopf (#610): öffnet den Karten-Editor, ohne die Runde zu verlassen.
+  const [editing, setEditing] = useState(false);
 
   const total = cards.length;
   const current = cards[index];
@@ -674,6 +678,7 @@ export function LearnSession({
   const starred = current ? starredMap[current.id] ?? false : false;
 
   return (
+    <>
     <div className="study-wrap">
       <div className="study-top">
         <button
@@ -803,6 +808,18 @@ export function LearnSession({
         >
           <Star size={18} />
         </button>
+        <button
+          type="button"
+          className="edit-btn"
+          aria-label="Karte bearbeiten"
+          onClick={(e) => {
+            e.stopPropagation();
+            setEditing(true);
+          }}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
+          <Pencil size={17} />
+        </button>
         {supported && (
           <button
             type="button"
@@ -849,5 +866,19 @@ export function LearnSession({
         </button>
       </div>
     </div>
+    {editing && current && (
+      <CardEditor
+        initial={current}
+        onClose={() => setEditing(false)}
+        onSubmit={async (front, back) => {
+          const { card: updated } = await updateCard(current.id, { front, back });
+          // Nur die editierte Karte patchen (#610) — ein Neuladen der Runde
+          // würde Fortschritt, Index und Bewertungen dieser Sitzung zerstören.
+          setCards((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+          setEditing(false);
+        }}
+      />
+    )}
+    </>
   );
 }
