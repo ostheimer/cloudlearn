@@ -14,6 +14,7 @@ import {
   type FriendStreak,
 } from "@/lib/api";
 import { useDisplayName } from "@/lib/use-display-name";
+import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
 import { consumeFreshWelcome } from "@/lib/onboarding";
 import { useAuth } from "@/components/app/auth-context";
 import {
@@ -74,6 +75,11 @@ export default function HomePage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Nach dem Lernen am Handy zeigte der offene Laptop-Tab weiter die alten
+  // Zahlen (#610): Streak, Tagesziel und „N fällig" stimmten erst nach einem
+  // manuellen Neuladen. Jetzt lädt die Seite bei der Rückkehr selbst nach.
+  useRefreshOnFocus(load);
 
   // Freunde-Streaks best-effort — ein sozialer Fehler darf die Home nie brechen.
   useEffect(() => {

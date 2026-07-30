@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
+import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
 import { Modal } from "@/components/app/modal";
 import {
   listDecks,
@@ -143,6 +144,12 @@ export default function LibraryPage() {
     loadDecks();
     loadFolders();
   }, [loadDecks, loadFolders]);
+
+  // Nach dem Lernen am Handy standen die „N fällig"-Abzeichen im offenen
+  // Laptop-Tab weiter auf dem alten Stand (#610). Nur die Decks nachladen —
+  // die Ordner-Zählung macht eine Anfrage je Ordner und ändert sich beim
+  // Lernen nicht.
+  useRefreshOnFocus(loadDecks);
 
   useEffect(() => {
     if (!openMenu) return;
