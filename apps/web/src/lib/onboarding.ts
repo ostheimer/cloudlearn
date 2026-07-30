@@ -9,10 +9,20 @@
  * Konten: Wer schon Decks besitzt, bekommt den Haken still gesetzt
  * (Laras Entscheidung 27.07.). Sonst sähe jeder Bestandsnutzer die
  * Einführung einmal pro Browser und bekäme dabei ein überflüssiges
- * zweites „Erste Karten"-Deck — die Einführung hat kein Überspringen.
+ * zweites „Erste Karten"-Deck.
  */
 
 const ONBOARDING_STORAGE_KEY = "clearn_onboarding_completed";
+
+/**
+ * Kennzeichnet ein freiwilliges zweites Ansehen (#609): `/onboarding?erneut=1`
+ * aus dem Profil. Dabei entsteht kein weiteres Beispiel-Deck, und die
+ * Weiterleitung „Haken schon da → Dashboard" wird übersprungen.
+ */
+export const REPLAY_PARAM = "erneut";
+
+/** Adresse für „Einführung erneut ansehen". */
+export const onboardingReplayHref = `/onboarding?${REPLAY_PARAM}=1`;
 
 export function isOnboardingCompleted(): boolean {
   if (typeof window === "undefined") return true;

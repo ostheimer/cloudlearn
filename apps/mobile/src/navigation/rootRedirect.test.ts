@@ -120,6 +120,34 @@ describe("resolveRootRedirect", () => {
     ).toBe("/(tabs)");
   });
 
+  it("lässt fertige Konten die Einführung erneut ansehen (#609)", () => {
+    // Ohne den Merker würde die Regel oben sofort in die Tabs zurückschicken —
+    // „Einführung erneut ansehen" im Profil wäre ein Knopf, der nichts tut.
+    expect(
+      resolveRootRedirect({
+        isAuthenticated: true,
+        isLoading: false,
+        onboardingLoaded: true,
+        onboardingCompleted: true,
+        firstSegment: "onboarding",
+        onboardingReplay: true,
+      })
+    ).toBeNull();
+  });
+
+  it("der Merker gilt nur für die Einführung, nicht für andere Bildschirme (#609)", () => {
+    expect(
+      resolveRootRedirect({
+        isAuthenticated: true,
+        isLoading: false,
+        onboardingLoaded: true,
+        onboardingCompleted: true,
+        firstSegment: "auth",
+        onboardingReplay: true,
+      })
+    ).toBe("/(tabs)");
+  });
+
   it("keeps valid routes unchanged", () => {
     expect(
       resolveRootRedirect({

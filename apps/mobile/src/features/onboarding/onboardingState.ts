@@ -6,8 +6,20 @@ export interface OnboardingState {
   step: number;
   totalSteps: number;
   completed: boolean;
+  /**
+   * Die Einführung wird gerade freiwillig ein zweites Mal angesehen (#609,
+   * Profil → „Einführung erneut ansehen"). Dann darf am Ende KEIN zweites
+   * Beispiel-Deck entstehen, und die Weiterleitung im Wurzel-Layout darf
+   * nicht sofort zurück in die Tabs schicken. Bewusst nur im Speicher:
+   * Nach einem App-Neustart ist der Merker weg und niemand hängt fest.
+   */
+  replay: boolean;
   nextStep: () => void;
+  prevStep: () => void;
   reset: () => void;
+  /** Einführung freiwillig erneut ansehen — beginnt bei Schritt 1. */
+  startReplay: () => void;
+  endReplay: () => void;
   complete: () => void;
   /** Persist completed to storage and set state; call after creating sample deck. */
   completeAndPersist: () => Promise<void>;
@@ -30,12 +42,19 @@ export const useOnboardingState = create<OnboardingState>((set, get) => ({
   // 5 seit #609: Schritt 4 erklärt die Lernpunkte, bevor die ersten weg sind.
   totalSteps: 5,
   completed: false,
+  replay: false,
   nextStep: () => {
     const state = get();
     const next = Math.min(state.step + 1, state.totalSteps);
     set({ step: next });
   },
-  reset: () => set({ step: 1, completed: false }),
+  prevStep: () => {
+    const state = get();
+    set({ step: Math.max(state.step - 1, 1) });
+  },
+  reset: () => set({ step: 1, completed: false, replay: false }),
+  startReplay: () => set({ step: 1, replay: true }),
+  endReplay: () => set({ step: 1, replay: false }),
   complete: () => set({ completed: true }),
   completeAndPersist: async () => {
     const { default: AsyncStorage } = await import("@react-native-async-storage/async-storage");

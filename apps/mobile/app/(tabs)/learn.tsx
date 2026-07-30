@@ -300,7 +300,7 @@ function AuthenticatedLearnScreen({
     return { opacity, transform: [{ scale }] };
   });
 
-  // "GEMERKT" label (right swipe) - centered, gradual fade-in
+  // "GEWUSST" label (right swipe) - centered, gradual fade-in
   const labelRightStyle = useAnimatedStyle(() => {
     const progress = Math.abs(Math.max(translateX.value, 0)) / SWIPE_THRESHOLD;
     const opacity = interpolate(progress, [0, 0.2, 0.7, 1], [0, 0, 0.6, 1], Extrapolation.CLAMP);
@@ -1219,7 +1219,10 @@ function AuthenticatedLearnScreen({
                       </Text>
                     </Animated.View>
 
-                    {/* "GEMERKT" label - centered on card, fades in on right swipe */}
+                    {/* "GEWUSST" label - centered on card, fades in on right swipe.
+                        #609 (Laras Entscheidung): hieß "GEMERKT" und widersprach
+                        damit der Einführung und dem Ergebnis-Bildschirm, die beide
+                        von "gewusst" sprechen. */}
                     <Animated.View
                       style={[
                         labelRightStyle,
@@ -1233,7 +1236,7 @@ function AuthenticatedLearnScreen({
                       pointerEvents="none"
                     >
                       <Text style={{ color: "#fff", fontWeight: typography.extrabold, fontSize: 32, letterSpacing: 2 }}>
-                        GEMERKT
+                        GEWUSST
                       </Text>
                     </Animated.View>
 

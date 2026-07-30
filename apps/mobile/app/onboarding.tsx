@@ -28,9 +28,28 @@ export default function OnboardingScreen() {
   const colors = useColors();
   const userId = useSessionStore((state) => state.userId);
   const setDueCount = useSessionStore((state) => state.setDueCount);
-  const { step, totalSteps, nextStep, completeAndPersist } = useOnboardingState();
+  const { step, totalSteps, replay, nextStep, prevStep, endReplay, completeAndPersist } =
+    useOnboardingState();
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  /**
+   * #609: Überspringen legt bewusst KEINE Beispielkarten an — sonst wäre es
+   * kein Überspringen. Der Haken wird trotzdem gesetzt, damit die Einführung
+   * nicht beim nächsten Start wieder aufpoppt; über das Profil kann man sie
+   * jederzeit erneut ansehen.
+   */
+  const handleSkip = async () => {
+    if (creating) return;
+    await completeAndPersist();
+    router.replace("/(tabs)");
+  };
+
+  /** Zweites Ansehen: nichts anlegen, nichts speichern, einfach zurück. */
+  const handleFinishReplay = () => {
+    endReplay();
+    router.replace("/(tabs)");
+  };
 
   const handleStart = async () => {
     if (!userId) return;
@@ -71,19 +90,58 @@ export default function OnboardingScreen() {
         }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Progress dots */}
-        <View style={{ flexDirection: "row", gap: 8, alignSelf: "center", marginTop: spacing.md }}>
-          {Array.from({ length: totalSteps }).map((_, i) => (
-            <View
-              key={i}
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: 4,
-                backgroundColor: i + 1 <= step ? colors.primary : colors.border,
-              }}
-            />
-          ))}
+        {/* #609: Zurück links, Punkte in der Mitte, Überspringen rechts. Beide
+            Textknöpfe belegen immer ihren Platz (auch unsichtbar), damit die
+            Punkte nicht springen, wenn „Zurück" auf Schritt 1 fehlt. */}
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginTop: spacing.md,
+          }}
+        >
+          <TouchableOpacity
+            onPress={prevStep}
+            disabled={step === 1 || creating}
+            accessibilityRole="button"
+            accessibilityLabel={t("onboarding.back")}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={{ opacity: step === 1 ? 0 : 1 }}
+          >
+            <Text style={{ fontSize: typography.base, color: colors.textSecondary }}>
+              {t("onboarding.back")}
+            </Text>
+          </TouchableOpacity>
+
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            {Array.from({ length: totalSteps }).map((_, i) => (
+              <View
+                key={i}
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: 4,
+                  backgroundColor: i + 1 <= step ? colors.primary : colors.border,
+                }}
+              />
+            ))}
+          </View>
+
+          {/* Beim zweiten Ansehen sagt auf dem letzten Schritt schon der große
+              Knopf „Fertig" — oben nochmal wäre doppelt. */}
+          <TouchableOpacity
+            onPress={replay ? handleFinishReplay : () => void handleSkip()}
+            disabled={creating || (replay && isLastStep)}
+            accessibilityRole="button"
+            accessibilityLabel={replay ? t("onboarding.done") : t("onboarding.skip")}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={{ opacity: replay && isLastStep ? 0 : 1 }}
+          >
+            <Text style={{ fontSize: typography.base, color: colors.textSecondary }}>
+              {replay ? t("onboarding.done") : t("onboarding.skip")}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Step content */}
@@ -239,7 +297,8 @@ export default function OnboardingScreen() {
             </View>
           ) : isLastStep ? (
             <TouchableOpacity
-              onPress={handleStart}
+              // Beim zweiten Ansehen entsteht kein weiteres Beispiel-Deck (#609).
+              onPress={replay ? handleFinishReplay : handleStart}
               style={{
                 backgroundColor: colors.primary,
                 paddingVertical: spacing.lg,
@@ -255,7 +314,7 @@ export default function OnboardingScreen() {
                   color: "#fff",
                 }}
               >
-                {t("onboarding.start")}
+                {replay ? t("onboarding.done") : t("onboarding.start")}
               </Text>
             </TouchableOpacity>
           ) : (

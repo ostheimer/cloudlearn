@@ -70,6 +70,7 @@ export default function RootLayout() {
   const c = useColors();
   const themeMode = useResolvedThemeMode();
   const onboardingCompleted = useOnboardingState((state) => state.completed);
+  const onboardingReplay = useOnboardingState((state) => state.replay);
   const loadCompletedFromStorage = useOnboardingState(
     (state) => state.loadCompletedFromStorage
   );
@@ -233,6 +234,7 @@ export default function RootLayout() {
       onboardingLoaded,
       onboardingCompleted,
       firstSegment: segments[0],
+      onboardingReplay,
     });
 
     if (redirect) {
@@ -243,6 +245,7 @@ export default function RootLayout() {
     isLoading,
     onboardingLoaded,
     onboardingCompleted,
+    onboardingReplay,
     router,
     segments,
   ]);
