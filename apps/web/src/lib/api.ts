@@ -304,6 +304,21 @@ export function deleteCard(cardId: string): Promise<{ deleted: boolean }> {
   return authed<{ deleted: boolean }>(`/api/v1/cards/${cardId}`, { method: "DELETE" });
 }
 
+/**
+ * Mehrere Karten eines Decks in EINER Anfrage löschen (#614). `deleted` ist die
+ * wirklich getroffene Anzahl — eine inzwischen anderswo gelöschte Karte zählt
+ * nicht mit.
+ */
+export function deleteCards(
+  deckId: string,
+  cardIds: string[]
+): Promise<{ deleted: number }> {
+  return authed<{ deleted: number }>("/api/v1/cards/delete-many", {
+    method: "POST",
+    body: JSON.stringify({ deckId, cardIds }),
+  });
+}
+
 // ─── Learn / Review ───────────────────────────────────────────────────────────
 
 export function getDueCards(userId: string): Promise<{ cards: Card[] }> {

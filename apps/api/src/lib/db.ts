@@ -1858,6 +1858,26 @@ export async function listCardIdsForDeck(userId: string, deckId: string): Promis
  * repo-wide "nothing is ever really deleted" rule; every count filters
  * `deleted_at is null`, so the plan limit still adds up.
  */
+/**
+ * Wie viele IDs eine `in(...)`-Liste pro Anfrage tragen darf.
+ *
+ * PostgREST setzt die Liste in den Query-String; eine UUID kostet dort rund 39
+ * Zeichen, und über etwa 8 kB reißt die URL-Grenze. Bis zur Mehrfachauswahl
+ * (#614) kam hier nur die Import-Überzahl an (höchstens 150 Karten), jetzt
+ * dürfen es alle Karten eines Pro-Decks sein (2.000). 200 IDs ergeben ~8 kB
+ * Liste und lassen genug Luft für den Rest der Adresse.
+ */
+const IN_LIST_CHUNK = 200;
+
+/**
+ * Mehrere Karten eines Decks weich löschen; gibt zurück, wie viele es wirklich
+ * getroffen hat (schon Gelöschtes zählt nicht mit — `is deleted_at null`).
+ *
+ * Stückweise statt in einem Zug: siehe IN_LIST_CHUNK. Bricht ein Stück ab,
+ * bleiben die vorherigen gelöscht — der Aufrufer bekommt den Fehler und die
+ * Nutzerin sieht nach dem Neuladen, was durchging. Das ist besser als der
+ * stille Totalausfall, den eine zu lange Adresse erzeugt hätte.
+ */
 export async function softDeleteCardsByIds(
   userId: string,
   deckId: string,
@@ -1865,16 +1885,22 @@ export async function softDeleteCardsByIds(
 ): Promise<number> {
   if (cardIds.length === 0) return 0;
   const db = getDb();
-  const { data, error } = await db
-    .from("cards")
-    .update({ deleted_at: new Date().toISOString() })
-    .eq("user_id", userId)
-    .eq("deck_id", deckId)
-    .in("id", cardIds)
-    .is("deleted_at", null)
-    .select("id");
-  if (error) throw new Error(`softDeleteCardsByIds: ${error.message}`);
-  return (data ?? []).length;
+  const now = new Date().toISOString();
+  let deleted = 0;
+  for (let from = 0; from < cardIds.length; from += IN_LIST_CHUNK) {
+    const chunk = cardIds.slice(from, from + IN_LIST_CHUNK);
+    const { data, error } = await db
+      .from("cards")
+      .update({ deleted_at: now })
+      .eq("user_id", userId)
+      .eq("deck_id", deckId)
+      .in("id", chunk)
+      .is("deleted_at", null)
+      .select("id");
+    if (error) throw new Error(`softDeleteCardsByIds: ${error.message}`);
+    deleted += (data ?? []).length;
+  }
+  return deleted;
 }
 
 export async function getDeckWithCardCount(

@@ -18,6 +18,7 @@ import {
   createCard,
   updateCard,
   deleteCard,
+  deleteCards,
   isApiError,
   type Card,
   type DeckDetails,
@@ -65,6 +66,8 @@ type CardModal =
   | { type: "add" }
   | { type: "edit"; card: Card }
   | { type: "delete"; card: Card }
+  // Mehrfachauswahl (#614): löscht die angekreuzten Karten in EINEM Zug.
+  | { type: "deleteMany"; ids: string[] }
   | { type: "view"; card: Card }
   | null;
 
@@ -84,6 +87,10 @@ export default function DeckDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [modal, setModal] = useState<CardModal>(null);
   const [cardImages, setCardImages] = useState<Record<string, CardImage | null>>({});
+  // Mehrfachauswahl der Kartenliste (#614). Laras Entscheidung: nur Löschen —
+  // „Verschieben" fiel mit dem Karten-Verschieben weg, das sie abgelehnt hat.
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const fetchedPaths = useRef<Set<string>>(new Set());
   const coarsePointer = useCoarsePointer();
   // Kartengrenze für den Füllstand im Kopf (#611). Über loadPlanLimits, das den
@@ -159,6 +166,22 @@ export default function DeckDetailPage() {
       active = false;
     };
   }, [occlusionPaths]);
+
+  /**
+   * Auswahl-Modus verlassen und die Häkchen wegwerfen. Nach jedem Löschen und
+   * bei „Abbrechen" — eine stehen gebliebene Auswahl auf einer neu geladenen
+   * Liste zeigt auf Karten, die es nicht mehr gibt.
+   */
+  const leaveSelectMode = useCallback(() => {
+    setSelectMode(false);
+    setSelectedIds([]);
+  }, []);
+
+  const toggleSelected = useCallback((cardId: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(cardId) ? prev.filter((id) => id !== cardId) : [...prev, cardId]
+    );
+  }, []);
 
   async function toggleStar(card: Card) {
     setCards((prev) =>
@@ -412,9 +435,32 @@ export default function DeckDetailPage() {
         <>
           {textCards.length > 0 && (
           <>
-          <h2 className="h3" style={{ margin: "0 0 10px" }}>
-            Karten
-          </h2>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "baseline",
+              gap: 12,
+              margin: "0 0 10px",
+            }}
+          >
+            <h2 className="h3" style={{ margin: 0 }}>
+              {selectMode
+                ? `${selectedIds.length} ausgewählt`
+                : "Karten"}
+            </h2>
+            {/* Erst ab zwei Karten: bei einer einzigen ist der Papierkorb in
+                ihrer Zeile der kürzere Weg. */}
+            {textCards.length > 1 && (
+              <button
+                type="button"
+                className="card-select-toggle"
+                onClick={() => (selectMode ? leaveSelectMode() : setSelectMode(true))}
+              >
+                {selectMode ? "Abbrechen" : "Auswählen"}
+              </button>
+            )}
+          </div>
           <div className="card-list">
             {textCards.map((card, i) => {
               // Aufbereitet wie in den Lernmodi (#612): Lücken als Strich statt
@@ -422,44 +468,93 @@ export default function DeckDetailPage() {
               // Bild ohne Unterschrift) sagt das, statt leer zu bleiben.
               const preview = cardListPreview(card);
               const emptySide = preview.hasImage ? "(Bild)" : "";
+              const picked = selectedIds.includes(card.id);
               return (
-            <div key={card.id} className="card-row">
-              <span className="card-row__num">{i + 1}</span>
+            <div
+              key={card.id}
+              className={`card-row${selectMode ? " card-row--select" : ""}${
+                picked ? " is-picked" : ""
+              }`}
+              // Im Auswahl-Modus zählt die ganze Zeile als Trefferfläche, nicht
+              // nur das Kästchen — am Handy ist ein 18px-Kästchen zu klein.
+              // Klicks AUS dem Kästchen laufen über sein onChange, sonst würde
+              // ein Treffer doppelt zählen und sich selbst aufheben.
+              onClick={
+                selectMode
+                  ? (e) => {
+                      if ((e.target as HTMLElement).closest("input")) return;
+                      toggleSelected(card.id);
+                    }
+                  : undefined
+              }
+            >
+              {selectMode ? (
+                <input
+                  type="checkbox"
+                  className="card-row__check"
+                  checked={picked}
+                  onChange={() => toggleSelected(card.id)}
+                  aria-label={`Auswählen: ${preview.front || emptySide || `Karte ${i + 1}`}`}
+                />
+              ) : (
+                <span className="card-row__num">{i + 1}</span>
+              )}
               <div className="card-row__faces">
                 <div className="card-row__front">{preview.front || emptySide}</div>
                 <div className="card-row__back">{preview.back || emptySide}</div>
               </div>
-              <div className="card-row__actions">
-                <button
-                  type="button"
-                  className="icon-btn"
-                  aria-label={card.starred ? "Markierung entfernen" : "Markieren"}
-                  onClick={() => toggleStar(card)}
-                  style={card.starred ? { color: "var(--amber)" } : undefined}
-                >
-                  {card.starred ? <StarFilled size={17} /> : <Star size={17} />}
-                </button>
-                <button
-                  type="button"
-                  className="icon-btn"
-                  aria-label="Karte bearbeiten"
-                  onClick={() => setModal({ type: "edit", card })}
-                >
-                  <Pencil size={16} />
-                </button>
-                <button
-                  type="button"
-                  className="icon-btn"
-                  aria-label="Karte löschen"
-                  onClick={() => setModal({ type: "delete", card })}
-                >
-                  <Trash size={16} />
-                </button>
-              </div>
+              {/* Stern, Stift und Papierkorb bleiben im Auswahl-Modus weg: sie
+                  liegen in derselben Zeile, die jetzt auswählt, und ein
+                  Fehlgriff hätte gelöscht statt angekreuzt. */}
+              {!selectMode && (
+                <div className="card-row__actions">
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    aria-label={card.starred ? "Markierung entfernen" : "Markieren"}
+                    onClick={() => toggleStar(card)}
+                    style={card.starred ? { color: "var(--amber)" } : undefined}
+                  >
+                    {card.starred ? <StarFilled size={17} /> : <Star size={17} />}
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    aria-label="Karte bearbeiten"
+                    onClick={() => setModal({ type: "edit", card })}
+                  >
+                    <Pencil size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    aria-label="Karte löschen"
+                    onClick={() => setModal({ type: "delete", card })}
+                  >
+                    <Trash size={16} />
+                  </button>
+                </div>
+              )}
             </div>
               );
             })}
           </div>
+          {selectMode && (
+            <div className="card-select-bar">
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ background: "#dc2626", boxShadow: "none" }}
+                disabled={selectedIds.length === 0}
+                onClick={() => setModal({ type: "deleteMany", ids: selectedIds })}
+              >
+                <Trash size={16} />{" "}
+                {selectedIds.length === 0
+                  ? "Löschen"
+                  : `${selectedIds.length} löschen`}
+              </button>
+            </div>
+          )}
           </>
           )}
           {occlusionCards.length > 0 && (
@@ -648,6 +743,46 @@ export default function DeckDetailPage() {
                   await deleteCard(id);
                 } catch {
                   setError("Löschen fehlgeschlagen.");
+                  await load();
+                }
+              }}
+            >
+              Löschen
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {modal?.type === "deleteMany" && (
+        <Modal title="Karten löschen" onClose={() => setModal(null)}>
+          {/* Auch bei vielen Karten wird gefragt — dieselbe Regel wie bei einer
+              einzelnen, und die Zahl ist hier der wichtigste Teil der Frage. */}
+          <p className="muted">
+            {modal.ids.length === 1
+              ? "Soll die ausgewählte Karte wirklich gelöscht werden?"
+              : `Sollen ${modal.ids.length} ausgewählte Karten wirklich gelöscht werden?`}{" "}
+            Sie landen im Papierkorb und lassen sich von dort zurückholen.
+          </p>
+          <div className="modal__actions">
+            <button type="button" className="btn btn-ghost" onClick={() => setModal(null)}>
+              Abbrechen
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ background: "#dc2626", boxShadow: "none" }}
+              onClick={async () => {
+                const ids = modal.ids;
+                setModal(null);
+                leaveSelectMode();
+                // Erst aus der Liste nehmen, dann senden: das Löschen soll sich
+                // sofort anfühlen. Geht es schief, holt `load()` die Wahrheit
+                // zurück — genauso wie beim Löschen einer einzelnen Karte.
+                setCards((prev) => prev.filter((c) => !ids.includes(c.id)));
+                try {
+                  await deleteCards(deckId, ids);
+                } catch (e) {
+                  setError(isApiError(e) ? e.message : "Löschen fehlgeschlagen.");
                   await load();
                 }
               }}

@@ -597,6 +597,7 @@ Die initiale Migration oben ist nur das Basisschema. Die vollständige, maßgebl
 │   ├── POST   /             # Karte(n) erstellen
 │   ├── PATCH  /:id          # Karte bearbeiten
 │   ├── DELETE /:id          # Karte löschen
+│   ├── POST   /delete-many  # Mehrfachauswahl löschen, Body: { "deckId", "cardIds" } (#614)
 │   └── POST   /:id/review   # Review-Ergebnis speichern (FSRS-Update)
 ├── /trash
 │   ├── GET    /             # Papierkorb: gelöschte Decks + einzeln gelöschte Karten (#614)
