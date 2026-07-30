@@ -4528,6 +4528,11 @@ a.lp-way:hover {
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
 }
+/* Vier Geschlechts-Optionen (#609): „Sag ich nicht" ist deutlich länger als
+   die drei anderen und bekommt deshalb eine eigene Zeile — zu viert
+   nebeneinander wäre die Leiste am Handy gequetscht. */
+.seg--wrap { flex-wrap: wrap; }
+.seg__btn--row { flex-basis: 100%; }
 .seg__btn:hover { color: var(--ink-2); }
 .seg__btn.is-on {
   background: var(--surface);
