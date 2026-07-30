@@ -48,7 +48,7 @@ import {
   type Card,
 } from "../../../src/lib/api";
 import { summarizeCardMedia } from "../../../src/lib/cardMedia";
-import { cardKindLabel } from "../../../src/lib/cardDisplay";
+import { cardDeleteQuestion, cardKindLabel } from "../../../src/lib/cardDisplay";
 import { adviceForLimit } from "../../../src/lib/importLimits";
 import { usageFromBalanceResponse, useUsageStore } from "../../../src/store/usageStore";
 import {
@@ -376,8 +376,10 @@ export default function DeckDetailScreen() {
 
   const handleDeleteCard = (card: Card) => {
     Alert.alert(
-      "Karte löschen?",
-      `"${card.front.slice(0, 50)}${card.front.length > 50 ? "..." : ""}" wird dauerhaft gelöscht.`,
+      // Wortlaut und Satzform wie im Web (#571) — der zitierte Kartenanfang
+      // kommt aus dem gemeinsamen Helfer, damit beide Seiten gleich kürzen.
+      card.type === "occlusion" ? "Bild-Karte löschen" : "Karte löschen",
+      cardDeleteQuestion(card),
       [
         { text: "Abbrechen", style: "cancel" },
         {
@@ -816,13 +818,13 @@ export default function DeckDetailScreen() {
                       lineHeight: 22,
                     }}
                   >
-                    {/* Nur "+ Karte" nennen: Dieser Bildschirm hat keinen Weg
-                        zum Scannen — weder Knopf noch Menüeintrag. Der Hinweis
-                        stand hier, seit ein Deck noch von Hand angelegt werden
-                        konnte; heute entstehen Decks nur über den Scan
-                        (scan.tsx) oder das Onboarding, sodass man hier nur
-                        landet, wenn man alle Karten selbst gelöscht hat. */}
-                    Noch keine Karten in diesem Deck.{"\n"}Tippe "+ Karte".
+                    {/* Wortgleich zum Web (#571): Statt nur zu sagen, dass
+                        nichts da ist, erklärt der Satz, was eine Karte
+                        ausmacht. Der Weg dorthin ist der "+ Karte"-Knopf über
+                        dieser Fläche — dieser Bildschirm hat keinen Weg zum
+                        Scannen, weder Knopf noch Menüeintrag. */}
+                    Noch keine Karten{"\n"}Füge deine erste Karte hinzu — Vorderseite ist die
+                    Frage, Rückseite die Antwort.
                   </Text>
                 </View>
           ) : (

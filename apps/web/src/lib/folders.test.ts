@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { descendantFolders, folderPath, joinTitles } from "./folders";
+import {
+  buildFolderCountLabel,
+  descendantFolders,
+  folderDeleteQuestion,
+  folderPath,
+  joinTitles,
+} from "./folders";
 import type { Folder } from "./api";
 
 function folder(id: string, title: string, parentId: string | null = null): Folder {
@@ -72,5 +78,38 @@ describe("joinTitles", () => {
   it("joins the last two with und", () => {
     expect(joinTitles(["Mathematik", "Statistik"])).toBe("Mathematik und Statistik");
     expect(joinTitles(["A", "B", "C"])).toBe("A, B und C");
+  });
+});
+
+describe("buildFolderCountLabel", () => {
+  it("names subfolders, decks and cards", () => {
+    expect(buildFolderCountLabel(2, 5, 143)).toBe("2 Unterordner · 5 Decks · 143 Karten");
+  });
+
+  it("leaves out subfolders and cards when there are none, but keeps the deck count", () => {
+    expect(buildFolderCountLabel(0, 3, 0)).toBe("3 Decks");
+    expect(buildFolderCountLabel(0, 0, 0)).toBe("0 Decks");
+  });
+
+  it("uses the singular where German needs it", () => {
+    expect(buildFolderCountLabel(1, 1, 1)).toBe("1 Unterordner · 1 Deck · 1 Karte");
+  });
+});
+
+describe("folderDeleteQuestion", () => {
+  it("asks, names the doomed subfolders and says what survives", () => {
+    expect(folderDeleteQuestion("Schule", ["Bio", "Chemie"])).toBe(
+      "Soll „Schule\" wirklich gelöscht werden? Bio und Chemie werden mitgelöscht. Deine Decks und Karten bleiben erhalten."
+    );
+  });
+
+  it("uses the singular verb for a single subfolder", () => {
+    expect(folderDeleteQuestion("Schule", ["Bio"])).toContain("Bio wird mitgelöscht.");
+  });
+
+  it("skips the subfolder sentence when the folder has none", () => {
+    expect(folderDeleteQuestion("Schule", [])).toBe(
+      "Soll „Schule\" wirklich gelöscht werden? Deine Decks und Karten bleiben erhalten."
+    );
   });
 });

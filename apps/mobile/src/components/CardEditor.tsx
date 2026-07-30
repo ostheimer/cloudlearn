@@ -161,7 +161,9 @@ export default function CardEditor({
                   fontWeight: typography.bold,
                 }}
               >
-                {saving ? "Speichert …" : "Speichern"}
+                {/* Wie im Web (#571): eine NEUE Karte wird „hinzugefügt", eine
+                    bestehende „gespeichert". Vorher hieß beides „Speichern". */}
+                {saving ? "Speichert …" : card ? "Speichern" : "Hinzufügen"}
               </Text>
             </TouchableOpacity>
           </View>
@@ -185,8 +187,9 @@ export default function CardEditor({
               <TextInput
                 value={front}
                 onChangeText={setFront}
-                placeholder="Frage eingeben..."
-                placeholderTextColor={colors.textTertiary}
+                // Ohne Platzhalter wie im Web (#571): Die Beschriftung steht
+                // schon über dem Feld und bleibt beim Tippen stehen — der
+                // Platzhalter verschwand genau dann, wenn man ihn braucht.
                 multiline
                 style={{
                   borderWidth: 1,
@@ -218,8 +221,7 @@ export default function CardEditor({
               <TextInput
                 value={back}
                 onChangeText={setBack}
-                placeholder="Antwort eingeben..."
-                placeholderTextColor={colors.textTertiary}
+                // Ohne Platzhalter wie im Web (#571) — siehe Vorderseite.
                 multiline
                 style={{
                   borderWidth: 1,

@@ -69,13 +69,15 @@ describe("mobile deck screen – Ladefehler ist kein leeres Deck", () => {
     expect(errorView).toContain('t("common.retry")');
     expect(errorView).toContain("onPress={retryLoad}");
     // Und ausdrücklich NICHT die Leer-Meldung.
-    expect(errorView).not.toContain("Noch keine Karten in diesem Deck");
+    expect(errorView).not.toContain("Noch keine Karten");
   });
 
-  it("lässt den echten Leer-Zustand mit dem „+ Karte“-Hinweis unangetastet", () => {
+  it("lässt den echten Leer-Zustand mit seinem erklärenden Satz unangetastet", () => {
+    // Wortlaut seit #571 wortgleich zum Web — „Tippe „+ Karte"" ist bewusst
+    // weg, der Satz erklärt jetzt, was eine Karte ausmacht.
     const emptyView = source.slice(source.indexOf(") : cards.length === 0 ? ("));
-    expect(emptyView).toContain("Noch keine Karten in diesem Deck.");
-    expect(emptyView).toContain('Tippe "+ Karte"');
+    expect(emptyView).toContain("Noch keine Karten");
+    expect(emptyView).toContain("Füge deine erste Karte hinzu");
   });
 
   it("hält die Lernmodus-Knöpfe weiterhin an cards.length fest", () => {

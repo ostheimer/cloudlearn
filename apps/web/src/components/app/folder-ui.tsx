@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Modal } from "@/components/app/modal";
-import { descendantFolders, joinTitles } from "@/lib/folders";
+import { descendantFolders, folderDeleteQuestion } from "@/lib/folders";
 import type { Folder } from "@/lib/api";
 import {
   Folder as FolderIcon,
@@ -121,15 +121,10 @@ export function DeleteFolderModal({
   return (
     <Modal title="Ordner löschen" onClose={onClose}>
       <p className="muted">
-        Soll „{folder.title}" wirklich gelöscht werden?
-        {doomed.length > 0 && (
-          <>
-            {" "}
-            {joinTitles(doomed.map((f) => f.title))}{" "}
-            {doomed.length === 1 ? "wird" : "werden"} mitgelöscht.
-          </>
-        )}{" "}
-        Deine Decks und Karten bleiben erhalten.
+        {folderDeleteQuestion(
+          folder.title,
+          doomed.map((f) => f.title)
+        )}
       </p>
       <div className="modal__actions">
         <button type="button" className="btn btn-ghost" onClick={onClose}>
@@ -197,7 +192,9 @@ export function FolderNameModal({
             className="input"
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            placeholder="z. B. Statistik"
+            // Ein Beispiel für alle Ordner-Felder (#571): Vorher stand hier
+            // „z. B. Statistik" und in der Bibliothek „z. B. Schule".
+            placeholder="z. B. Schule"
             disabled={busy}
             maxLength={120}
           />

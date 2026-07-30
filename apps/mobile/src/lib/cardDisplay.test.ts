@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { cardKindLabel, cardSideTexts, matchTileTexts } from "./cardDisplay";
+import {
+  cardDeleteQuestion,
+  cardKindLabel,
+  cardSideTexts,
+  matchTileTexts,
+} from "./cardDisplay";
 
 describe("cardSideTexts (#592)", () => {
   it("lässt gewöhnliche Textkarten unverändert", () => {
@@ -90,5 +95,33 @@ describe("cardKindLabel — Bild-Karten heissen nicht mehr Basic (#612)", () => 
     expect(cardKindLabel("cloze")).toBe("Lückentext");
     expect(cardKindLabel("basic")).toBe("Basic");
     expect(cardKindLabel(undefined)).toBe("Basic");
+  });
+});
+
+// Muss zum Web passen (apps/web/src/lib/card-display.test.ts) — dieselben
+// Erwartungen stehen dort noch einmal (#571).
+describe("cardDeleteQuestion", () => {
+  it("quotes the card so you see which one is meant", () => {
+    expect(cardDeleteQuestion({ front: "Was ist ein Ribosom?", back: "Organell" })).toBe(
+      'Soll „Was ist ein Ribosom?" wirklich gelöscht werden? Das lässt sich nicht rückgängig machen.'
+    );
+  });
+
+  it("shortens a long front to 50 characters plus an ellipsis", () => {
+    const front = "A".repeat(80);
+    const q = cardDeleteQuestion({ front, back: "b" });
+    expect(q).toContain(`„${"A".repeat(50)}…"`);
+  });
+
+  it("shows the gap of a cloze card as a blank, never the raw {{c1::…}}", () => {
+    const q = cardDeleteQuestion({ front: "Die Hauptstadt ist {{c1::Wien}}", back: "" });
+    expect(q).not.toContain("{{c1::");
+    expect(q).not.toContain("Wien");
+  });
+
+  it("asks without a quote when the front is only an image without a caption", () => {
+    expect(cardDeleteQuestion({ front: "![](https://example.com/a.png)", back: "" })).toBe(
+      "Soll diese Karte wirklich gelöscht werden? Das lässt sich nicht rückgängig machen."
+    );
   });
 });

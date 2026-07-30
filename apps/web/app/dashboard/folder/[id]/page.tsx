@@ -21,7 +21,7 @@ import {
   type Deck,
   type Folder,
 } from "@/lib/api";
-import { descendantFolders, folderPath } from "@/lib/folders";
+import { buildFolderCountLabel, descendantFolders, folderPath } from "@/lib/folders";
 import { folderDeckCounts } from "@/lib/folder-deck-counts";
 import { handleMenuKey } from "@/lib/menu-keys";
 import { FolderCard, DeleteFolderModal, FolderNameModal } from "@/components/app/folder-ui";
@@ -291,10 +291,7 @@ export default function FolderDetailPage() {
             {folder?.title ?? "Ordner"}
           </h1>
           <p className="muted" style={{ marginTop: 4 }}>
-            {subfolders.length > 0 &&
-              `${subfolders.length} ${subfolders.length === 1 ? "Unterordner" : "Unterordner"} · `}
-            {decks.length} {decks.length === 1 ? "Deck" : "Decks"}
-            {totalCards > 0 && ` · ${totalCards} ${totalCards === 1 ? "Karte" : "Karten"}`}
+            {buildFolderCountLabel(subfolders.length, decks.length, totalCards)}
           </p>
           {folder &&
             (folder.description ? (
@@ -707,7 +704,10 @@ function AddDecksModal({
   }
 
   return (
-    <Modal title="Decks hinzufügen" onClose={onClose}>
+    // Überschrift und Knopf wie in der App (#571): dort heißt das Fenster
+    // „Decks auswählen" und der Knopf nennt die Einheit mit — „3 Decks
+    // hinzufügen" statt „3 hinzufügen".
+    <Modal title="Decks auswählen" onClose={onClose}>
       {decks.length === 0 ? (
         <p className="muted">Alle deine Decks liegen schon in diesem Ordner.</p>
       ) : (
@@ -772,7 +772,11 @@ function AddDecksModal({
               }
             }}
           >
-            {busy ? "Bitte warten…" : `${selected.size} hinzufügen`}
+            {busy
+              ? "Bitte warten…"
+              : selected.size === 1
+                ? "1 Deck hinzufügen"
+                : `${selected.size} Decks hinzufügen`}
           </button>
         )}
       </div>

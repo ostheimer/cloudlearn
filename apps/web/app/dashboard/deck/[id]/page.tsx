@@ -8,7 +8,7 @@ import { Modal } from "@/components/app/modal";
 import { CardEditor } from "@/components/app/card-editor";
 import { OcclusionShot } from "@/components/app/occlusion-shot";
 import { getCardImages, occlusionTarget, type CardImage } from "@/lib/card-images";
-import { cardListPreview } from "@/lib/card-display";
+import { cardDeleteQuestion, cardListPreview } from "@/lib/card-display";
 import { deckCountLabel } from "@/lib/deck-count-label";
 import { useCoarsePointer } from "@/lib/use-coarse-pointer";
 import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
@@ -617,7 +617,7 @@ export default function DeckDetailPage() {
                   />
                 </div>
               )}
-              <p>Soll diese Bild-Karte wirklich gelöscht werden?</p>
+              <p>{cardDeleteQuestion(modal.card)}</p>
               {modal.card.back && (
                 <p className="muted">Gesuchte Stelle: {modal.card.back}</p>
               )}
@@ -630,7 +630,7 @@ export default function DeckDetailPage() {
               )}
             </>
           ) : (
-            <p className="muted">Soll diese Karte wirklich gelöscht werden?</p>
+            <p className="muted">{cardDeleteQuestion(modal.card)}</p>
           )}
           <div className="modal__actions">
             <button type="button" className="btn btn-ghost" onClick={() => setModal(null)}>

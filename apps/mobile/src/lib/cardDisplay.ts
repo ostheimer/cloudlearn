@@ -40,6 +40,26 @@ export function cardKindLabel(type: string | undefined): string {
   return "Basic";
 }
 
+/**
+ * Nachfrage vor dem Löschen einer Karte (#571).
+ *
+ * Wortgleich mit `cardDeleteQuestion` in apps/web/src/lib/card-display.ts:
+ * Laras Entscheidung war die Web-Satzform MIT dem zitierten Kartenanfang der
+ * App. Vorher zitierte die App den ROHTEXT (`card.front.slice(0, 50)`) — bei
+ * Bild- und Lückenkarten stand damit ![…](…) bzw. {{c1::…}} in der Nachfrage.
+ */
+export const CARD_QUOTE_MAX = 50;
+
+export function cardDeleteQuestion(card: { front: string; back: string }): string {
+  // Genau die Zusammensetzung von `cardListPreview` im Web — nicht
+  // `cardSideTexts`: das lässt die Lücke {{c1::…}} bewusst stehen.
+  const media = summarizeCardMedia({ front: card.front || "", back: card.back || "" });
+  const text = (formatCloze(media.plainFront).display || media.frontImages[0]?.alt || "").trim();
+  if (!text) return "Soll diese Karte wirklich gelöscht werden? Das lässt sich nicht rückgängig machen.";
+  const quote = text.length > CARD_QUOTE_MAX ? `${text.slice(0, CARD_QUOTE_MAX).trimEnd()}…` : text;
+  return `Soll „${quote}" wirklich gelöscht werden? Das lässt sich nicht rückgängig machen.`;
+}
+
 // Tile texts for the matching mode — like the web (match-tiles.ts): the front
 // of a cloze card shows its gap as a blank, because the raw {{cN::…}} would
 // print the matching back right on the question tile. A side left without any

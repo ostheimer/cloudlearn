@@ -39,6 +39,11 @@ import {
   type Folder,
 } from "../../../src/lib/api";
 import { excludeOcclusionCards } from "../../../src/lib/occlusion";
+import {
+  buildFolderCountLabel,
+  descendantFolders,
+  folderDeleteQuestion,
+} from "../../../src/lib/folders";
 import { useColors, spacing, radius, typography, shadows } from "../../../src/theme";
 import { createDetailStackOptions } from "../../../src/navigation/detailStackOptions";
 import { filterDueCardsByDeckIds } from "../../../src/lib/learnFilters";
@@ -62,6 +67,9 @@ export default function FolderDetailScreen() {
   const [description, setDescription] = useState<string | null>(null);
   const [decks, setDecks] = useState<Deck[]>([]);
   const [subfolders, setSubfolders] = useState<Folder[]>([]);
+  // Alle Ordner, nicht nur die direkten Kinder: Die Lösch-Nachfrage nennt auch
+  // tiefer liegende Unterordner beim Namen (#571, wie das Web).
+  const [allFolders, setAllFolders] = useState<Folder[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [startingLearn, setStartingLearn] = useState(false);
@@ -83,6 +91,7 @@ export default function FolderDetailScreen() {
         getFolder(folderId).catch(() => null),
       ]);
       setDecks(decksRes.decks);
+      setAllFolders(foldersRes.folders);
       // Filter subfolders (children of this folder)
       setSubfolders(foldersRes.folders.filter((f) => f.parentId === folderId));
       if (folderData?.folder) {
@@ -253,7 +262,10 @@ export default function FolderDetailScreen() {
   const handleDeleteFolder = useCallback(() => {
     Alert.alert(
       t("folderDetail.deleteTitle"),
-      t("folderDetail.deleteMessage", { title: currentTitle }),
+      folderDeleteQuestion(
+        currentTitle,
+        descendantFolders(folderId, allFolders).map((f) => f.title)
+      ),
       [
         { text: t("common.cancel"), style: "cancel" },
         {
@@ -270,7 +282,7 @@ export default function FolderDetailScreen() {
         },
       ]
     );
-  }, [folderId, currentTitle, t, router]);
+  }, [folderId, currentTitle, allFolders, t, router]);
 
   const handleRemoveDeck = (deck: Deck) => {
     Alert.alert(
@@ -332,7 +344,14 @@ export default function FolderDetailScreen() {
     ]);
   }, [currentTitle, t, handleRenameFolder, handleDeleteFolder]);
 
-  const totalItems = subfolders.length + decks.length;
+  // Kopfzeile wie im Web (#571). `cardCount` des Servers lässt Occlusion- und
+  // gelöschte Karten schon weg — die Summe passt also zu der Runde, die „Alle
+  // lernen" startet.
+  const countLabel = buildFolderCountLabel(
+    subfolders.length,
+    decks.length,
+    decks.reduce((sum, d) => sum + (d.cardCount ?? 0), 0)
+  );
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -386,7 +405,7 @@ export default function FolderDetailScreen() {
                   {currentTitle}
                 </Text>
                 <Text style={{ fontSize: typography.sm, color: colors.textSecondary, marginTop: 2 }}>
-                  {totalItems} {t("folderDetail.items")}
+                  {countLabel}
                 </Text>
               </View>
             </View>
