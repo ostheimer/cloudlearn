@@ -46,7 +46,11 @@ export function useWobblyIds(deckId: string | undefined): {
         if (!active || skipStats) return;
         try {
           const stats = await getDeckStats(deckId);
-          if (active) setIds(new Set(stats.wobblyCards.map((w) => w.cardId)));
+          // Die volle Menge, nicht die 5 angezeigten (#682): „Nur
+          // Wackelkandidaten" hing bisher an der Anzeige-Liste und bot damit
+          // stillschweigend höchstens 5 Karten an.
+          const source = stats.wobblyPracticeCards ?? stats.wobblyCards;
+          if (active) setIds(new Set(source.map((w) => w.cardId)));
         } catch {
           /* Statistik ist Kür — ohne sie bleibt „Wackelkandidaten" einfach leer */
         }

@@ -94,7 +94,16 @@ export interface DeckStats {
   answersTotal: number;
   answersCorrect: number;
   accuracyByDay: Array<{ date: string; accuracy: number; count: number }>;
+  /** Die kurze Liste für die Anzeige (5 Zeilen). */
   wobblyCards: DeckWobblyCard[];
+  /**
+   * Wie viele Karten des Decks WIRKLICH mindestens einmal falsch waren (#682).
+   * Optional: Eine App im Umlauf kann gegen eine ältere API laufen — dann gilt
+   * die Länge der Anzeige-Liste.
+   */
+  wobblyTotal?: number;
+  /** Die Karten, die „Alle üben" startet (bis 100). Fehlt bei alter API. */
+  wobblyPracticeCards?: DeckWobblyCard[];
 }
 
 /**

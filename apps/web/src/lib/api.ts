@@ -565,7 +565,16 @@ export interface DeckStats {
   answersTotal: number;
   answersCorrect: number;
   accuracyByDay: Array<{ date: string; accuracy: number; count: number }>;
+  /** Die kurze Liste für die Anzeige (5 Zeilen). */
   wobblyCards: DeckWobblyCard[];
+  /**
+   * Wie viele Karten des Decks WIRKLICH mindestens einmal falsch waren (#682).
+   * Optional, weil bei einem rollenden Deploy noch eine ältere API antworten
+   * kann — dann fällt der Client auf die Länge der Anzeige-Liste zurück.
+   */
+  wobblyTotal?: number;
+  /** Die Karten, die „Alle üben" startet (bis 100). Fehlt bei alter API. */
+  wobblyPracticeCards?: DeckWobblyCard[];
 }
 export function getDeckStats(deckId: string, days: 7 | 30 = 30): Promise<DeckStats> {
   return authed<DeckStats>(

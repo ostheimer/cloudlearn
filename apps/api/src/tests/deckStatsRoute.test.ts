@@ -117,6 +117,10 @@ const WOBBLY_CARDS = [
   },
 ];
 
+// Was getDeckWobblyCards liefert: die gekappte Liste plus die echte Gesamtzahl
+// aller Karten mit mindestens einer falschen Antwort (#682).
+const WOBBLY_RESULT = { cards: WOBBLY_CARDS, total: 23 };
+
 const SUMMARIES = [
   { deckId: DECK_ID, title: "Bio Zellatmung", answersTotal: 40, accuracyRate: 0.7 },
   { deckId: "33333333-3333-4333-8333-333333333333", title: "Latein", answersTotal: 0, accuracyRate: 0 },
@@ -156,7 +160,7 @@ describe("GET /api/v1/decks/:id/stats", () => {
     });
     mockedGetDeck.mockResolvedValue(DECK);
     mockedGetDeckReviewStats.mockResolvedValue(DECK_REVIEW_STATS);
-    mockedGetDeckWobblyCards.mockResolvedValue(WOBBLY_CARDS);
+    mockedGetDeckWobblyCards.mockResolvedValue(WOBBLY_RESULT);
     // Whitelist behaviour is about the `days` logic, not the tier — run it as
     // Pro so the 30-day window is not clamped away (#235).
     mockTier("pro");
@@ -203,7 +207,37 @@ describe("GET /api/v1/decks/:id/stats", () => {
       wobblyCards: WOBBLY_CARDS,
     });
     expect(mockedGetDeckReviewStats).toHaveBeenCalledWith(AUTH_USER_ID, DECK_ID, 30);
-    expect(mockedGetDeckWobblyCards).toHaveBeenCalledWith(AUTH_USER_ID, DECK_ID, 5);
+    expect(mockedGetDeckWobblyCards).toHaveBeenCalledWith(AUTH_USER_ID, DECK_ID, 100);
+  });
+
+  it("reports the true number of wobbly cards, not just the shown ones (#682)", async () => {
+    const response = await getDeckStatsRoute(deckStatsRequest(), deckParams());
+    const body = (await response.json()) as Record<string, unknown>;
+
+    expect(body.wobblyTotal).toBe(23);
+    expect(body.wobblyPracticeCards).toEqual(WOBBLY_CARDS);
+  });
+
+  it("keeps the displayed list at 5 so shipped app builds render 5 rows", async () => {
+    const many = Array.from({ length: 40 }, (_unused, index) => ({
+      cardId: `c-${index}`,
+      front: `Front ${index}`,
+      back: `Back ${index}`,
+      wrongCount: 40 - index,
+      lastWrongAt: "2026-07-13T09:00:00.000Z",
+    }));
+    mockedGetDeckWobblyCards.mockResolvedValue({ cards: many, total: 63 });
+
+    const response = await getDeckStatsRoute(deckStatsRequest(), deckParams());
+    const body = (await response.json()) as {
+      wobblyCards: unknown[];
+      wobblyPracticeCards: unknown[];
+      wobblyTotal: number;
+    };
+
+    expect(body.wobblyCards).toHaveLength(5);
+    expect(body.wobblyPracticeCards).toHaveLength(40);
+    expect(body.wobblyTotal).toBe(63);
   });
 
   it("defaults to the 30-day window without a days param (old clients)", async () => {
@@ -236,10 +270,10 @@ describe("GET /api/v1/decks/:id/stats", () => {
     expect(mockedGetDeckReviewStats).toHaveBeenCalledWith(AUTH_USER_ID, DECK_ID, 30);
   });
 
-  it("keeps the Wackelkandidaten all-time (limit 5) regardless of days", async () => {
+  it("keeps the Wackelkandidaten all-time (practice limit) regardless of days", async () => {
     await getDeckStatsRoute(deckStatsRequest("7"), deckParams());
 
-    expect(mockedGetDeckWobblyCards).toHaveBeenCalledWith(AUTH_USER_ID, DECK_ID, 5);
+    expect(mockedGetDeckWobblyCards).toHaveBeenCalledWith(AUTH_USER_ID, DECK_ID, 100);
   });
 });
 
@@ -281,7 +315,7 @@ describe("GET /api/v1/decks/:id/stats – Pro-Gate (Deck-Statistik)", () => {
       email: "lara@example.com",
     });
     mockedGetDeck.mockResolvedValue(DECK);
-    mockedGetDeckWobblyCards.mockResolvedValue(WOBBLY_CARDS);
+    mockedGetDeckWobblyCards.mockResolvedValue(WOBBLY_RESULT);
     // The trend series length follows the window the route actually queried, so
     // the assertions below prove the window reaches the data, not just the call.
     mockedGetDeckReviewStats.mockImplementation(

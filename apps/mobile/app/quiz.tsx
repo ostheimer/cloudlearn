@@ -235,7 +235,10 @@ export default function QuizScreen() {
       // fail the mode (or show the retry) if the stats endpoint is down.
       try {
         const stats = await fetchDeckStats(deckId);
-        setWobblyIds(new Set(stats.wobblyCards.map((c) => c.cardId)));
+        // Die volle Menge, nicht die 5 angezeigten (#682): Diese Quelle hing
+        // an der Anzeige-Liste der Deck-Statistik und war damit still gekappt.
+        const source = stats.wobblyPracticeCards ?? stats.wobblyCards;
+        setWobblyIds(new Set(source.map((c) => c.cardId)));
       } catch {
         setWobblyIds(new Set());
       }

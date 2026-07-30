@@ -2144,14 +2144,26 @@ export async function getDeckReviewStats(
  * most-wrong first, ties broken by the most recent wrong answer. Only cards
  * with at least one wrong answer appear; soft-deleted cards are excluded
  * because the client offers to practice the result.
+ *
+ * Returns the capped list AND `total` — how many cards have at least one wrong
+ * answer. The clients used to show `limit` cards without ever saying that more
+ * existed, and the practice button silently inherited that display cap (#682).
+ * `total` is free: the full set is grouped in memory before the slice.
  */
 export async function getDeckWobblyCards(
   userId: string,
   deckId: string,
   limit = 5
-): Promise<
-  Array<{ cardId: string; front: string; back: string; wrongCount: number; lastWrongAt: string }>
-> {
+): Promise<{
+  cards: Array<{
+    cardId: string;
+    front: string;
+    back: string;
+    wrongCount: number;
+    lastWrongAt: string;
+  }>;
+  total: number;
+}> {
   const db = getDb();
   const { data, error } = await db
     .from("review_logs")
@@ -2189,13 +2201,14 @@ export async function getDeckWobblyCards(
     }
   }
 
-  return [...byCard.entries()]
+  const ranked = [...byCard.entries()]
     .map(([cardId, s]) => ({ cardId, ...s }))
     .sort(
       (a, b) =>
         b.wrongCount - a.wrongCount || b.lastWrongAt.localeCompare(a.lastWrongAt)
-    )
-    .slice(0, limit);
+    );
+
+  return { cards: ranked.slice(0, limit), total: ranked.length };
 }
 
 /**
