@@ -40,6 +40,7 @@ import {
 } from "@/lib/learn-session-lp";
 import { clearSessionProgress, saveSessionProgress } from "@/lib/session-progress";
 import { createReviewSendBuffer } from "@/lib/review-send-buffer";
+import { ratingKeyIndex } from "@/lib/learn-keys";
 import {
   isCardGone,
   persistedReviewCount,
@@ -142,6 +143,9 @@ export function LearnSession({
   // liegen, bis die nächste Karte bewertet ist — nur so kann der
   // Zurück-Pfeil sie folgenlos verwerfen.
   const reviewBufferRef = useRef(createReviewSendBuffer());
+  // Die Karte selbst — nach jeder Bewertung wandert der Tastatur-Fokus hierher
+  // zurück (siehe rate).
+  const cardRef = useRef<HTMLDivElement>(null);
 
   const total = cards.length;
   const current = cards[index];
@@ -383,9 +387,42 @@ export function LearnSession({
       setHistory((h) => [...h, { index, rating }]);
       setFlipped(false);
       window.setTimeout(() => setIndex((i) => i + 1), 160);
+      // Fokus zurück auf die Karte (#610). Sonst bleibt er auf dem eben
+      // geklickten Bewertungs-Knopf stehen — und die Leertaste, mit der man
+      // die nächste Karte umdrehen will, drückt stattdessen wieder denselben
+      // Knopf und bewertet die neue Karte ungesehen.
+      cardRef.current?.focus();
     },
     [cards, index, userId, sendReview]
   );
+
+  // Tasten 1–4 bewerten wie die vier Knöpfe — aber erst bei umgedrehter Karte
+  // (#610). Der Horcher hängt am Fenster, damit er auch greift, wenn der Fokus
+  // gerade nirgendwo Bestimmtem sitzt.
+  useEffect(() => {
+    if (done || total === 0) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const ratingIndex = ratingKeyIndex(
+        {
+          key: e.key,
+          ctrlKey: e.ctrlKey,
+          metaKey: e.metaKey,
+          altKey: e.altKey,
+          targetTag: target?.tagName,
+          targetIsEditable: target?.isContentEditable,
+        },
+        flipped
+      );
+      if (ratingIndex === null) return;
+      const rating = RATINGS[ratingIndex];
+      if (!rating) return;
+      e.preventDefault();
+      rate(rating.key);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [flipped, rate, done, total]);
 
   // Zurück zur vorigen Karte: die noch ungesendete Bewertung wird verworfen
   // (Rückgängig), Zähler und Wiederholungs-Stapel drehen zurück. Nur bis zur
@@ -671,6 +708,7 @@ export function LearnSession({
       </div>
 
       <div
+        ref={cardRef}
         className={`flip study-card${flipped ? " is-flipped" : ""}${
           frontImage || backImage ? " flip--media" : ""
         }`}
@@ -738,13 +776,17 @@ export function LearnSession({
         )}
       </div>
 
-      {/* Bewertungs-Knöpfe immer sichtbar — wie die App (Laras Wahl). */}
+      {/* Bewertungs-Knöpfe immer sichtbar — wie die App (Laras Wahl). Die
+          Zifferntaste steht im Tooltip und in aria-keyshortcuts: am Laptop
+          entdeckbar, ohne die Knöpfe am Handy mit sinnlosen Zahlen zu füllen. */}
       <div className="rating-row">
-        {RATINGS.map((r) => (
+        {RATINGS.map((r, i) => (
           <button
             key={r.key}
             type="button"
             className={`rating ${r.cls}`}
+            title={`${r.label} (Taste ${i + 1})`}
+            aria-keyshortcuts={String(i + 1)}
             onClick={() => rate(r.key)}
           >
             {r.label}

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
 import { listCardsInDeck, reviewCard, earnLp, isApiError, type Card } from "@/lib/api";
 import { isAnswerCorrect, isCaseOnlyMismatch } from "@/lib/answerCheck";
+import { shouldAdvanceOnEnter } from "@/lib/learn-keys";
 import { buildPrompt, hasTypeable } from "@/lib/cloze-prompt";
 import { createReviewSendBuffer } from "@/lib/review-send-buffer";
 import {
@@ -339,6 +340,33 @@ export default function ClozePage() {
     setIdx((i) => i - 1);
     setInput("");
   }
+
+  // Enter führt auch nach dem Prüfen weiter (#610). Vorher endete die Tastatur
+  // dort: Enter im Feld prüfte die Antwort, danach war das Feld gesperrt und
+  // für „Weiter" musste man zur Maus greifen — mitten im Tippfluss.
+  // Der Horcher hängt am Fenster, weil das gesperrte Feld keine Tasten mehr
+  // bekommt, und läuft nur im aufgedeckten Zustand.
+  useEffect(() => {
+    if (phase !== "play" || !revealed) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const advance = shouldAdvanceOnEnter({
+        key: e.key,
+        ctrlKey: e.ctrlKey,
+        metaKey: e.metaKey,
+        altKey: e.altKey,
+        targetTag: target?.tagName,
+      });
+      if (!advance) return;
+      e.preventDefault();
+      next();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+    // `next` ist bei jedem Render neu, hängt aber nur an Werten, die in den
+    // Abhängigkeiten stehen — der Horcher wird pro Karte einmal neu gesetzt.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, revealed, idx, round.length, floor]);
 
   // ─── Merken, wo eine unterbrochene Runde stand (Weitermachen) ────────────
   // Bei jedem Kartenwechsel geschrieben statt beim Verlassen: Ein Tab lässt
@@ -703,10 +731,16 @@ export default function ClozePage() {
         spellCheck={false}
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === "Enter" && input.trim().length > 0) {
-            e.preventDefault();
-            check();
-          }
+          if (e.key !== "Enter") return;
+          // Dieses Enter gehört dem Feld und darf NICHT weiter ans Fenster
+          // wandern: Dort wartet der „Weiter"-Horcher, und weil das Prüfen
+          // ihn im selben Wimpernschlag scharf schaltet, hätte ein einziger
+          // Tastendruck sonst geprüft UND weitergeblättert — die Rückmeldung
+          // wäre nie zu sehen gewesen.
+          e.stopPropagation();
+          if (input.trim().length === 0) return;
+          e.preventDefault();
+          check();
         }}
       />
 
