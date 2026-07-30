@@ -2,13 +2,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
+  RefreshControl,
   ScrollView,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import Svg, { G, Line, Rect, Text as SvgText } from "react-native-svg";
 import {
   TrendingUp,
@@ -160,7 +161,7 @@ export default function StatsScreen() {
   // Prüfungen (fenster-unabhängig, immer die letzten). null = noch nicht
   // geladen -> Karte bleibt weg; Fehler ist unkritisch (Nebenpanel).
   const [attempts, setAttempts] = useState<TestAttemptSummary[] | null>(null);
-  useEffect(() => {
+  const loadAttempts = useCallback(() => {
     let cancelled = false;
     getTestAttempts()
       .then((res) => {
@@ -173,6 +174,39 @@ export default function StatsScreen() {
       cancelled = true;
     };
   }, []);
+  useEffect(() => loadAttempts(), [loadAttempts]);
+
+  // Frisch beim erneuten Öffnen des Tabs (nicht nur beim ersten Mount): vorher
+  // zeigte die Statistik nach dem Lernen weiter den alten Stand, bis man die
+  // App neu startete. Der erste Fokus überspringt den Nachlader — der läuft
+  // schon über die Mount-Effekte oben, ein zweiter Aufruf im selben Moment
+  // könnte (bei rangeDays noch auf 7) die 30-Tage-Antwort für Pro überholen.
+  const hasFocusedRef = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (!hasFocusedRef.current) {
+        hasFocusedRef.current = true;
+        return;
+      }
+      loadDeckSummaries();
+      loadStats(rangeDays);
+      loadAttempts();
+    }, [loadDeckSummaries, loadStats, loadAttempts, rangeDays])
+  );
+
+  // Ziehen zum Aktualisieren — derselbe Nachlader wie beim Fokus-Wechsel, nur
+  // von Hand angestoßen. Der Spinner folgt `loading`: sobald die (für den
+  // Bildschirm wichtigste) Stats-Anfrage durch ist, ist auch die Geste fertig.
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadDeckSummaries();
+    loadStats(rangeDays);
+    loadAttempts();
+  };
+  useEffect(() => {
+    if (refreshing && !loading) setRefreshing(false);
+  }, [refreshing, loading]);
 
   const switchRange = (days: 7 | 30) => {
     if (days === rangeDays) return;
@@ -447,6 +481,7 @@ export default function StatsScreen() {
       <ScrollView
         contentContainerStyle={{ padding: spacing.xl, gap: spacing.lg }}
         showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {/* Header — this is a top-level tab, so no back button. */}
         <View style={{ paddingTop: spacing.sm }}>
