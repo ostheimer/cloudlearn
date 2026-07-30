@@ -605,6 +605,7 @@ Die initiale Migration oben ist nur das Basisschema. Die vollständige, maßgebl
 ├── /stats
 │   ├── GET    /             # Lernstatistiken
 │   ├── GET    /due-by-deck  # Fällige Karten je Deck (Zählung fürs "N fällig"-Abzeichen, #612)
+│   ├── GET    /decks-by-folder # Decks je Ordner (eine Zählung statt Anfrage-je-Ordner, #612)
 │   ├── GET    /decks        # Deck-Vergleich: Antworten + Genauigkeit je Deck, 30 Tage (Pro, #246)
 │   ├── GET    /streak-calendar # Gelernte + eingefrorene Tage eines Monats (#237)
 │   └── GET    /tests        # Letzte fünf abgegebene Prüfungen (Deck, Datum, x von y)
@@ -645,7 +646,8 @@ Die initiale Migration oben ist nur das Basisschema. Die vollständige, maßgebl
 │   ├── GET    /:id          # Einzelnen Ordner abrufen
 │   ├── PATCH  /:id          # Ordner bearbeiten
 │   ├── DELETE /:id          # Ordner löschen
-│   └── GET|POST|DELETE /:id/decks # Decks zu Ordnern zuordnen/entfernen
+│   ├── GET|POST|DELETE /:id/decks # Decks zu Ordnern zuordnen/entfernen
+│   └── GET    /:id/cards    # Alle Karten der Decks im Ordner, eine Anfrage statt je Deck (#612)
 ├── /ads
 │   └── GET    /ssv          # AdMob Server-Side-Verification Callback (Google-signiert, kein JWT) -> Werbe-LP
 └── /subscription

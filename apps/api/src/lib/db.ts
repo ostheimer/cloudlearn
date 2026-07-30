@@ -1502,6 +1502,106 @@ export async function listDecksInFolder(folderId: string, userId: string): Promi
 }
 
 /**
+ * Decks je Ordner, als Zählung über ALLE Ordner des Nutzers (#612).
+ *
+ * Die Bibliothek und die Ordnerseite riefen für jeden Ordner einzeln
+ * listDecksInFolder auf, nur um `decks.length` zu lesen: eine Anfrage pro
+ * Ordner, jede mit Deck-Titeln, Farben und Kartenzählern im Gepäck, die
+ * anschließend weggeworfen wurden (N+1). Hier fließt nur folder_id.
+ *
+ * Ordner ohne Decks fehlen im Ergebnis — Leser lesen fehlend als 0.
+ */
+export async function countDecksByFolder(userId: string): Promise<Record<string, number>> {
+  const db = getDb();
+  const rows = await selectAllRows<{ folder_id: string }>(
+    (from, to) =>
+      db
+        .from("folder_decks")
+        // Beide Seiten müssen dem Aufrufer gehören: `folders!inner` sperrt
+        // fremde Ordner aus, `decks!inner` fremde und weich gelöschte Decks —
+        // sonst zählte die Kachel Decks mit, die auf der Ordnerseite gar nicht
+        // erscheinen (Liveness-Regel aus #495).
+        .select("folder_id, folders!inner(user_id), decks!inner(user_id, deleted_at)")
+        .eq("folders.user_id", userId)
+        .eq("decks.user_id", userId)
+        .is("decks.deleted_at", null)
+        // Blättern braucht eine eindeutige Sortierung, sonst dürfen sich Seiten
+        // überlappen oder Zeilen auslassen. (folder_id, deck_id) ist der
+        // Primärschlüssel der Tabelle und damit eindeutig.
+        .order("folder_id", { ascending: true })
+        .order("deck_id", { ascending: true })
+        .range(from, to),
+    "countDecksByFolder"
+  );
+  const counts: Record<string, number> = {};
+  for (const row of rows) counts[row.folder_id] = (counts[row.folder_id] ?? 0) + 1;
+  return counts;
+}
+
+/**
+ * Alle Karten der Decks eines Ordners in einem Rutsch (#612).
+ *
+ * „Alle Karten lernen" holte im Web die Karten Deck für Deck — bei einem
+ * Ordner mit 20 Decks 20 Anfragen, die der Browser zum Teil in die Warteschlange
+ * stellt. Der Server kann dasselbe mit einer Abfrage über alle Deck-IDs.
+ *
+ * Rückgabe null = Ordner gehört dem Aufrufer nicht (Route → 404); ein leeres
+ * Array heißt: Ordner ist da, aber keine Karte drin.
+ *
+ * Die Reihenfolge bleibt die alte: Decks in ihrer Ordner-Reihenfolge (#437),
+ * darin die Karten nach created_at/id — so lernt sich der Ordner nach der
+ * Umstellung genauso durch wie vorher.
+ */
+export async function listCardsInFolder(
+  folderId: string,
+  userId: string
+): Promise<CardRecord[] | null> {
+  const folder = await getFolder(folderId, userId);
+  if (!folder) return null;
+  const db = getDb();
+
+  // Nur die IDs der Decks im Ordner — ohne Kartenzähler, den braucht hier niemand.
+  const { data: links, error: linkError } = await db
+    .from("folder_decks")
+    .select("deck_id, position, added_at, decks!inner(user_id, deleted_at)")
+    .eq("folder_id", folderId)
+    .eq("decks.user_id", userId)
+    .is("decks.deleted_at", null)
+    .order("position", { ascending: true, nullsFirst: false })
+    .order("added_at", { ascending: true });
+  if (linkError) throw new Error(`listCardsInFolder (Decks): ${linkError.message}`);
+
+  const deckIds = (links ?? []).map((r) => r.deck_id as string);
+  if (deckIds.length === 0) return [];
+  // Rang je Deck, um die Ordner-Reihenfolge nach dem Laden wiederherzustellen.
+  const rank = new Map(deckIds.map((id, i) => [id, i] as const));
+
+  const rows = await selectAllRows<Record<string, unknown>>(
+    (from, to) =>
+      db
+        .from("cards")
+        .select()
+        .eq("user_id", userId)
+        .in("deck_id", deckIds)
+        .is("deleted_at", null)
+        // Gleiche Sortierung wie listCardsForDeck: created_at allein ist bei
+        // Scan-/Import-Karten nicht eindeutig (ein Batch-Insert), id macht das
+        // Blättern lückenlos.
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to),
+    "listCardsInFolder"
+  );
+
+  const cards = rows.map(mapCardRow);
+  // Stabil nach Deck-Rang sortieren: innerhalb eines Decks bleibt die
+  // created_at/id-Ordnung von oben erhalten.
+  return cards.sort(
+    (a, b) => (rank.get(a.deckId) ?? 0) - (rank.get(b.deckId) ?? 0)
+  );
+}
+
+/**
  * Schreibt die Reihenfolge der Decks eines Ordners neu (#437).
  *
  * `deckIds` ist die vollständige gewünschte Reihenfolge. Decks, die im Ordner

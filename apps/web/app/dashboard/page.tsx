@@ -20,6 +20,7 @@ import {
   listDecksInFolder,
   addDeckToFolder,
   getDueCountsByDeck,
+  getDeckCountsByFolder,
   searchCards,
   isApiError,
   type Deck,
@@ -28,6 +29,7 @@ import {
 } from "@/lib/api";
 import { adviceForLimit } from "@/lib/import-limits";
 import { descendantFolders, folderPath } from "@/lib/folders";
+import { folderDeckCounts } from "@/lib/folder-deck-counts";
 import { handleMenuKey } from "@/lib/menu-keys";
 import { FolderCard, DeleteFolderModal } from "@/components/app/folder-ui";
 import { deckCountLabel } from "@/lib/deck-count-label";
@@ -163,21 +165,18 @@ export default function LibraryPage() {
   const loadFolders = useCallback(async () => {
     if (!userId) return;
     try {
-      const { folders: fetched } = await listFolders();
+      // Die Ordnerliste trägt keine Deck-Zahl, der Server zählt sie gruppiert
+      // (#612). Vorher lief eine Anfrage PRO Ordner, jede mit den vollen
+      // Deck-Datensätzen im Gepäck, obwohl nur `length` gebraucht wurde — bei
+      // 25 Ordnern 25 Anfragen, die der Browser teils in die Warteschlange
+      // stellt. `.catch(null)`: eine scheiternde Zählung darf die Ordnerliste
+      // nicht mitreißen, sie zeigt dann "Anzahl unbekannt".
+      const [{ folders: fetched }, counted] = await Promise.all([
+        listFolders(),
+        getDeckCountsByFolder().catch(() => null),
+      ]);
       setFolders(fetched);
-      // The folder list carries no deck count, so ask per folder. Users have a
-      // handful of folders; a failed count shows as "—" rather than breaking.
-      const counts = await Promise.all(
-        fetched.map(async (f) => {
-          try {
-            const { decks: inFolder } = await listDecksInFolder(f.id);
-            return [f.id, inFolder.length] as const;
-          } catch {
-            return [f.id, -1] as const;
-          }
-        })
-      );
-      setFolderCounts(Object.fromEntries(counts));
+      setFolderCounts(folderDeckCounts(fetched, counted));
     } catch {
       setPageError("Ordner konnten nicht geladen werden.");
     }
