@@ -40,8 +40,10 @@ import { useTrackingConsentStore } from "../src/features/ads/trackingConsent";
 import { BiometricLockScreen } from "../src/features/security/BiometricLockScreen";
 import { useBiometricLockStore } from "../src/features/security/biometricLockStore";
 import { MilestoneHost } from "../src/features/milestones/MilestoneHost";
+import { initCrashReporting, wrapRootLayout } from "../src/lib/crashReporting";
 
 initializeI18n("de");
+initCrashReporting();
 
 const MINIMUM_SPLASH_DURATION_MS = 900;
 
@@ -49,7 +51,7 @@ void SplashScreen.preventAutoHideAsync().catch(() => {
   // Native splash may already be managed by the host during hot reloads.
 });
 
-export default function RootLayout() {
+function RootLayout() {
   const router = useRouter();
   const segments = useSegments();
   const { isAuthenticated, isLoading, initialize, session, setSession, signOut, userId } =
@@ -614,3 +616,5 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
+export default wrapRootLayout(RootLayout);
