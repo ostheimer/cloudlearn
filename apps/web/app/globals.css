@@ -1498,6 +1498,29 @@ ul.reset {
   color: var(--ink-3);
 }
 
+/* Datenschutz/Impressum unter dem Anmelde-Formular (#609) — bewusst leiser
+   als die „Registrieren"-Zeile darüber: eine Pflichtangabe zum Nachlesen,
+   keine Handlungsaufforderung. */
+.auth-legal {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  font-size: 0.78rem;
+  color: var(--ink-4);
+}
+
+.auth-legal a {
+  color: var(--ink-4);
+  text-decoration: underline;
+  font-weight: 500;
+}
+
+.auth-legal a:hover {
+  color: var(--ink-3);
+}
+
 .auth-alt a,
 .link {
   color: var(--brand-600);
