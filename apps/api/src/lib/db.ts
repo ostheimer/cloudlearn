@@ -2335,3 +2335,247 @@ export async function clearSessionProgress(
     .eq("mode", mode);
   if (error) throw new Error(`clearSessionProgress: ${error.message}`);
 }
+
+// ─── Papierkorb (#614) ───────────────────────────────────────────────────────
+//
+// Gelöschtes trug schon immer nur `deleted_at` und wird von allen Lesern
+// ausgeblendet — es fehlte allein der Weg zurück. Laras Entscheidung: NICHTS
+// verschwindet von allein (kein Purge-Cron), geleert wird von Hand.
+//
+// Der Schlüssel zum Deck-Restore ist der Zeitstempel: softDeleteDeck stempelt
+// das Deck und seine damals noch lebenden Karten mit DEMSELBEN `now`, und nur
+// diese Karten dürfen mit dem Deck zurückkommen. Eine Karte, die vorher einzeln
+// weggeworfen wurde, trägt einen älteren Stempel und bleibt gelöscht — genau so
+// gewollt (Laras Regel „selbst Gelöschtes kommt nicht zurück").
+
+export interface TrashDeckEntry {
+  id: string;
+  title: string;
+  cardCount: number;
+  deletedAt: string;
+}
+
+export interface TrashCardEntry {
+  id: string;
+  front: string;
+  back: string;
+  deckId: string;
+  deckTitle: string;
+  deletedAt: string;
+}
+
+/**
+ * Inhalt des Papierkorbs: gelöschte Decks und einzeln gelöschte Karten.
+ *
+ * Die Kartenliste zeigt NUR Karten in lebenden Decks (`decks!inner` +
+ * `decks.deleted_at is null`). Karten eines gelöschten Decks hängen an dessen
+ * Eintrag und kommen mit ihm zurück; einzeln aufgeführt wären sie doppelt
+ * sichtbar und ihr „Zurückholen" müsste am fehlenden Deck scheitern.
+ */
+export async function listTrash(
+  userId: string
+): Promise<{ decks: TrashDeckEntry[]; cards: TrashCardEntry[] }> {
+  const db = getDb();
+
+  // Seitenweise (#612): 135 gelöschte Decks in einem echten Konto sind belegt,
+  // und PostgREST liefert höchstens 1000 Zeilen, ohne das zu sagen.
+  const deckRows = await selectAllRows<Record<string, unknown>>(
+    (from, to) =>
+      db
+        .from("decks")
+        .select("id, title, deleted_at, cards(count)")
+        .eq("user_id", userId)
+        .not("deleted_at", "is", null)
+        .order("deleted_at", { ascending: false })
+        .order("id", { ascending: true })
+        .range(from, to),
+    "listTrash decks"
+  );
+
+  const cardRows = await selectAllRows<Record<string, unknown>>(
+    (from, to) =>
+      db
+        .from("cards")
+        .select("id, front, back, deck_id, deleted_at, decks!inner(title, deleted_at)")
+        .eq("user_id", userId)
+        .not("deleted_at", "is", null)
+        .is("decks.deleted_at", null)
+        .order("deleted_at", { ascending: false })
+        .order("id", { ascending: true })
+        .range(from, to),
+    "listTrash cards"
+  );
+
+  return {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    decks: (deckRows as any[]).map((row) => ({
+      id: row.id as string,
+      title: (row.title as string) ?? "",
+      // Ein gelöschtes Deck hat ausschließlich gelöschte Karten, der eingebettete
+      // Zähler ist also die Gesamtzahl — anders als in listDecks, wo er bewusst
+      // auf lebende Karten gefiltert wird.
+      cardCount: Number(row.cards?.[0]?.count ?? 0),
+      deletedAt: row.deleted_at as string,
+    })),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    cards: (cardRows as any[]).map((row) => ({
+      id: row.id as string,
+      front: (row.front as string) ?? "",
+      back: (row.back as string) ?? "",
+      deckId: row.deck_id as string,
+      deckTitle: (row.decks?.title as string) ?? "",
+      deletedAt: row.deleted_at as string,
+    })),
+  };
+}
+
+/** Ein gelöschtes Deck — Grundlage für Limit-Prüfung und Restore. */
+export async function getDeletedDeck(
+  deckId: string,
+  userId: string
+): Promise<{ id: string; title: string; deletedAt: string } | null> {
+  const db = getDb();
+  const { data, error } = await db
+    .from("decks")
+    .select("id, title, deleted_at")
+    .eq("id", deckId)
+    .eq("user_id", userId)
+    .not("deleted_at", "is", null)
+    .maybeSingle();
+  if (error || !data) return null;
+  return { id: data.id, title: data.title, deletedAt: data.deleted_at };
+}
+
+/**
+ * Deck zurückholen, samt der Karten, die MIT ihm gelöscht wurden.
+ *
+ * Reihenfolge Karten -> Deck, genau umgekehrt zu softDeleteDeck: bricht der
+ * zweite Schritt ab, hängen lebende Karten unter einem noch gelöschten Deck.
+ * Alle gehärteten Leser joinen auf lebende Decks (#495), diese Karten bleiben
+ * also unsichtbar statt in einem sichtbar leeren Deck zu fehlen — und ein
+ * zweiter Versuch heilt es vollständig.
+ */
+export async function restoreDeck(deckId: string, userId: string): Promise<boolean> {
+  const db = getDb();
+  const deck = await getDeletedDeck(deckId, userId);
+  if (!deck) return false;
+
+  const { error: cardsError } = await db
+    .from("cards")
+    .update({ deleted_at: null })
+    .eq("deck_id", deckId)
+    .eq("user_id", userId)
+    .eq("deleted_at", deck.deletedAt);
+  if (cardsError) throw new Error(`restoreDeck cards: ${cardsError.message}`);
+
+  const now = new Date().toISOString();
+  const { data, error } = await db
+    .from("decks")
+    .update({ deleted_at: null, updated_at: now })
+    .eq("id", deckId)
+    .eq("user_id", userId)
+    .not("deleted_at", "is", null)
+    .select("id")
+    .maybeSingle();
+  if (error) throw new Error(`restoreDeck: ${error.message}`);
+  return !!data;
+}
+
+/** Eine einzeln gelöschte Karte samt Zustand ihres Decks. */
+export async function getDeletedCard(
+  cardId: string,
+  userId: string
+): Promise<{ id: string; deckId: string; deckDeleted: boolean } | null> {
+  const db = getDb();
+  const { data, error } = await db
+    .from("cards")
+    .select("id, deck_id, decks!inner(deleted_at)")
+    .eq("id", cardId)
+    .eq("user_id", userId)
+    .not("deleted_at", "is", null)
+    .maybeSingle();
+  if (error || !data) return null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const deckDeletedAt = (data as any).decks?.deleted_at ?? null;
+  return { id: data.id, deckId: data.deck_id, deckDeleted: !!deckDeletedAt };
+}
+
+/** Einzelne Karte zurückholen. Ihr Deck muss leben — sonst bliebe sie unsichtbar. */
+export async function restoreCard(cardId: string, userId: string): Promise<boolean> {
+  const db = getDb();
+  const { data, error } = await db
+    .from("cards")
+    .update({ deleted_at: null })
+    .eq("id", cardId)
+    .eq("user_id", userId)
+    .not("deleted_at", "is", null)
+    .select("id")
+    .maybeSingle();
+  if (error) throw new Error(`restoreCard: ${error.message}`);
+  return !!data;
+}
+
+/**
+ * Endgültig löschen — echtes DELETE, nicht noch ein Stempel.
+ *
+ * `.not("deleted_at", "is", null)` ist die Sicherung: was live ist, kann über
+ * diesen Weg nie verschwinden, welche ID auch hereinkommt. Am Deck hängen die
+ * Karten per `on delete cascade`, an den Karten die `review_logs` — die
+ * Antworten zu diesen Karten fallen damit aus der Statistik. Das ist der Preis
+ * von „endgültig" und steht genau so im Bestätigungsdialog.
+ */
+export async function purgeTrashDeck(deckId: string, userId: string): Promise<boolean> {
+  const db = getDb();
+  const { data, error } = await db
+    .from("decks")
+    .delete()
+    .eq("id", deckId)
+    .eq("user_id", userId)
+    .not("deleted_at", "is", null)
+    .select("id")
+    .maybeSingle();
+  if (error) throw new Error(`purgeTrashDeck: ${error.message}`);
+  return !!data;
+}
+
+export async function purgeTrashCard(cardId: string, userId: string): Promise<boolean> {
+  const db = getDb();
+  const { data, error } = await db
+    .from("cards")
+    .delete()
+    .eq("id", cardId)
+    .eq("user_id", userId)
+    .not("deleted_at", "is", null)
+    .select("id")
+    .maybeSingle();
+  if (error) throw new Error(`purgeTrashCard: ${error.message}`);
+  return !!data;
+}
+
+/**
+ * Papierkorb leeren. Karten zuerst, dann Decks: die Karten eines gelöschten
+ * Decks fallen über den Cascade ohnehin, aber einzeln gelöschte Karten in
+ * LEBENDEN Decks erwischt nur der erste Schritt.
+ */
+export async function purgeAllTrash(
+  userId: string
+): Promise<{ decks: number; cards: number }> {
+  const db = getDb();
+  const { data: cardData, error: cardError } = await db
+    .from("cards")
+    .delete()
+    .eq("user_id", userId)
+    .not("deleted_at", "is", null)
+    .select("id");
+  if (cardError) throw new Error(`purgeAllTrash cards: ${cardError.message}`);
+
+  const { data: deckData, error: deckError } = await db
+    .from("decks")
+    .delete()
+    .eq("user_id", userId)
+    .not("deleted_at", "is", null)
+    .select("id");
+  if (deckError) throw new Error(`purgeAllTrash decks: ${deckError.message}`);
+
+  return { decks: (deckData ?? []).length, cards: (cardData ?? []).length };
+}

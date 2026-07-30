@@ -47,6 +47,12 @@ export function cardKindLabel(type: string | undefined): string {
  * Laras Entscheidung war die Web-Satzform MIT dem zitierten Kartenanfang der
  * App. Vorher zitierte die App den ROHTEXT (`card.front.slice(0, 50)`) — bei
  * Bild- und Lückenkarten stand damit ![…](…) bzw. {{c1::…}} in der Nachfrage.
+ *
+ * Der zweite Satz hieß bis zum Papierkorb (#614) „Das lässt sich nicht
+ * rückgängig machen." — seither falsch, denn gelöscht wird weich. Hier
+ * mitgeändert, damit App und Web wortgleich bleiben (#571). Der
+ * Papierkorb-BILDSCHIRM der App kommt mit dem nächsten Build; die Karte selbst
+ * ist ab sofort zurückholbar, im Web mit demselben Konto.
  */
 export const CARD_QUOTE_MAX = 50;
 
@@ -55,9 +61,9 @@ export function cardDeleteQuestion(card: { front: string; back: string }): strin
   // `cardSideTexts`: das lässt die Lücke {{c1::…}} bewusst stehen.
   const media = summarizeCardMedia({ front: card.front || "", back: card.back || "" });
   const text = (formatCloze(media.plainFront).display || media.frontImages[0]?.alt || "").trim();
-  if (!text) return "Soll diese Karte wirklich gelöscht werden? Das lässt sich nicht rückgängig machen.";
+  if (!text) return "Soll diese Karte wirklich gelöscht werden? Sie landet im Papierkorb und lässt sich von dort zurückholen.";
   const quote = text.length > CARD_QUOTE_MAX ? `${text.slice(0, CARD_QUOTE_MAX).trimEnd()}…` : text;
-  return `Soll „${quote}" wirklich gelöscht werden? Das lässt sich nicht rückgängig machen.`;
+  return `Soll „${quote}" wirklich gelöscht werden? Sie landet im Papierkorb und lässt sich von dort zurückholen.`;
 }
 
 // Tile texts for the matching mode — like the web (match-tiles.ts): the front

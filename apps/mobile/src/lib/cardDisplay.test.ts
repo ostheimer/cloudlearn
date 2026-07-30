@@ -103,7 +103,7 @@ describe("cardKindLabel — Bild-Karten heissen nicht mehr Basic (#612)", () => 
 describe("cardDeleteQuestion", () => {
   it("quotes the card so you see which one is meant", () => {
     expect(cardDeleteQuestion({ front: "Was ist ein Ribosom?", back: "Organell" })).toBe(
-      'Soll „Was ist ein Ribosom?" wirklich gelöscht werden? Das lässt sich nicht rückgängig machen.'
+      'Soll „Was ist ein Ribosom?" wirklich gelöscht werden? Sie landet im Papierkorb und lässt sich von dort zurückholen.'
     );
   });
 
@@ -121,7 +121,7 @@ describe("cardDeleteQuestion", () => {
 
   it("asks without a quote when the front is only an image without a caption", () => {
     expect(cardDeleteQuestion({ front: "![](https://example.com/a.png)", back: "" })).toBe(
-      "Soll diese Karte wirklich gelöscht werden? Das lässt sich nicht rückgängig machen."
+      "Soll diese Karte wirklich gelöscht werden? Sie landet im Papierkorb und lässt sich von dort zurückholen."
     );
   });
 });

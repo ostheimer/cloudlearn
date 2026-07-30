@@ -295,7 +295,7 @@ export const resources = {
       "deckAction.revokeShareError": "Deaktivieren fehlgeschlagen. Bitte erneut versuchen.",
       "deckAction.deleteTitle": "Deck löschen",
       "deckAction.deleteMessage":
-        "Soll „{{title}}\" mit allen Karten wirklich gelöscht werden? Das lässt sich nicht rückgängig machen.",
+        "Soll „{{title}}\" mit allen Karten wirklich gelöscht werden? Es landet im Papierkorb und lässt sich von dort zurückholen.",
       "deckAction.deleteError": "Löschen fehlgeschlagen",
       "deckAction.cardSaveError": "Karte konnte nicht gespeichert werden.",
       "deckAction.cardSaveBlockedTitle": "Karte nicht gespeichert",
