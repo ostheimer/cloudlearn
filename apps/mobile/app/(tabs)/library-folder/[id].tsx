@@ -28,6 +28,7 @@ import { TITLE_MAX_LENGTH, DESCRIPTION_MAX_LENGTH } from "../../../src/lib/title
 import { useTranslation } from "react-i18next";
 import {
   getFolder,
+  listCardsInFolder,
   listDecksInFolder,
   listFolders,
   updateFolderApi,
@@ -35,6 +36,7 @@ import {
   removeDeckFromFolder,
   setFolderDeckOrder,
   getDueCards,
+  type Card,
   type Deck,
   type Folder,
 } from "../../../src/lib/api";
@@ -73,6 +75,10 @@ export default function FolderDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [startingLearn, setStartingLearn] = useState(false);
+  // Fällige Karten dieses Ordners, vorab geladen (#610): so kann der Knopf die
+  // Zahl gleich nennen ("N fällig lernen"), statt sie erst beim Antippen zu
+  // holen. `null` = noch am Laden, `[]` = keine Decks oder nichts fällig.
+  const [dueCards, setDueCards] = useState<Card[] | null>(null);
   const [deckPickerVisible, setDeckPickerVisible] = useState(false);
   // Eigenes Eingabe-Fenster statt Eingabe-Alert: den gibt es nur auf iOS (#396).
   const [renamePromptVisible, setRenamePromptVisible] = useState(false);
@@ -109,6 +115,29 @@ export default function FolderDetailScreen() {
   useEffect(() => {
     loadContent();
   }, [loadContent]);
+
+  // Für die Beschriftung des ersten Lern-Knopfs ("N fällig lernen") und damit
+  // er beim Antippen nicht selbst erst noch nachladen muss.
+  useEffect(() => {
+    if (decks.length === 0) {
+      setDueCards([]);
+      return;
+    }
+    if (!userId) return;
+    let cancelled = false;
+    const deckIds = decks.map((d) => d.id);
+    getDueCards(userId)
+      .then(({ cards }) => {
+        if (cancelled) return;
+        setDueCards(filterDueCardsByDeckIds(excludeOcclusionCards(cards), deckIds));
+      })
+      .catch(() => {
+        if (!cancelled) setDueCards(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, decks]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -306,21 +335,32 @@ export default function FolderDetailScreen() {
     );
   };
 
-  const handleLearnAll = useCallback(async () => {
-    if (!userId || decks.length === 0) return;
+  // Nutzt die vorab geladenen fälligen Karten (dueCards) statt selbst noch
+  // einmal nachzufragen — die Zahl auf dem Knopf ist ja schon da.
+  const handleLearnDue = useCallback(() => {
+    if (!dueCards || dueCards.length === 0) {
+      Alert.alert(t("learn.noDueCards"), t("learn.noDueCardsMessage"));
+      return;
+    }
+    startPreset(dueCards.map((c) => ({ id: c.id, front: c.front, back: c.back, starred: c.starred })));
+    router.push("/(tabs)/learn");
+  }, [dueCards, t, startPreset, router]);
+
+  // Zweiter Knopf (#610): die App lernte bisher NUR Fälliges und lief bei null
+  // fälligen Karten in eine Sackgasse (Meldung ohne Ausweg) — anders als das
+  // Web, das dort zusätzlich "Alle Karten lernen" anbietet.
+  const handleLearnAllCards = useCallback(async () => {
+    if (decks.length === 0) return;
     setStartingLearn(true);
     try {
-      const { cards } = await getDueCards(userId);
+      const { cards } = await listCardsInFolder(folderId);
       // Occlusion cards can't be studied as flashcards (see excludeOcclusionCards).
       // They must be dropped HERE too: this screen pre-fills the review store and
       // pushes to /learn, which then keeps the given cards instead of re-loading —
       // so the learn screen's own filter would never run.
-      const filtered = filterDueCardsByDeckIds(
-        excludeOcclusionCards(cards),
-        decks.map((d) => d.id)
-      );
+      const filtered = excludeOcclusionCards(cards);
       if (filtered.length === 0) {
-        Alert.alert(t("learn.noDueCards"), t("learn.noDueCardsMessage"));
+        Alert.alert(t("learn.noCardsToLearn"), t("learn.noCardsToLearnMessage"));
         return;
       }
       startPreset(filtered.map((c) => ({ id: c.id, front: c.front, back: c.back, starred: c.starred })));
@@ -330,7 +370,7 @@ export default function FolderDetailScreen() {
     } finally {
       setStartingLearn(false);
     }
-  }, [userId, decks, t, startPreset, router]);
+  }, [decks, folderId, t, startPreset, router]);
 
   const handleMoreMenu = useCallback(() => {
     Alert.alert(currentTitle, "", [
@@ -347,11 +387,9 @@ export default function FolderDetailScreen() {
   // Kopfzeile wie im Web (#571). `cardCount` des Servers lässt Occlusion- und
   // gelöschte Karten schon weg — die Summe passt also zu der Runde, die „Alle
   // lernen" startet.
-  const countLabel = buildFolderCountLabel(
-    subfolders.length,
-    decks.length,
-    decks.reduce((sum, d) => sum + (d.cardCount ?? 0), 0)
-  );
+  const totalCards = decks.reduce((sum, d) => sum + (d.cardCount ?? 0), 0);
+  const countLabel = buildFolderCountLabel(subfolders.length, decks.length, totalCards);
+  const dueCount = dueCards?.length;
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -423,34 +461,81 @@ export default function FolderDetailScreen() {
             ) : null}
           </View>
 
-          {/* Learn all button */}
+          {/* Zwei Lern-Knöpfe (#610): nichts fällig → "Alle X lernen" bekommt den
+              Akzent, sonst wäre der laute Knopf der tote (wie im Web). */}
           {decks.length > 0 && (
-            <TouchableOpacity
-              onPress={handleLearnAll}
-              disabled={startingLearn}
-              activeOpacity={0.8}
-              style={{
-                backgroundColor: colors.primary,
-                borderRadius: radius.md,
-                paddingVertical: spacing.md,
-                paddingHorizontal: spacing.lg,
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: spacing.sm,
-                marginBottom: spacing.lg,
-                opacity: startingLearn ? 0.7 : 1,
-              }}
-            >
-              {startingLearn ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Play size={16} color="#fff" fill="#fff" />
-              )}
-              <Text style={{ color: "#fff", fontWeight: typography.semibold, fontSize: typography.base }}>
-                {t("folderDetail.learnAll")}
-              </Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginBottom: spacing.lg }}>
+              <TouchableOpacity
+                onPress={handleLearnDue}
+                disabled={startingLearn}
+                activeOpacity={0.8}
+                style={{
+                  flex: 1,
+                  minWidth: 150,
+                  backgroundColor: dueCount === 0 ? colors.surface : colors.primary,
+                  borderWidth: dueCount === 0 ? 1 : 0,
+                  borderColor: colors.primary,
+                  borderRadius: radius.md,
+                  paddingVertical: spacing.md,
+                  paddingHorizontal: spacing.lg,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: spacing.sm,
+                  opacity: startingLearn ? 0.7 : 1,
+                }}
+              >
+                {dueCount !== 0 && (
+                  <Play size={16} color={dueCount === 0 ? colors.primary : "#fff"} fill={dueCount === 0 ? colors.primary : "#fff"} />
+                )}
+                <Text
+                  style={{
+                    color: dueCount === 0 ? colors.primary : "#fff",
+                    fontWeight: typography.semibold,
+                    fontSize: typography.base,
+                  }}
+                >
+                  {dueCount === undefined
+                    ? t("folderDetail.learnDueUnknown")
+                    : t("folderDetail.learnDue", { count: dueCount })}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleLearnAllCards}
+                disabled={startingLearn}
+                activeOpacity={0.8}
+                style={{
+                  flex: 1,
+                  minWidth: 150,
+                  backgroundColor: dueCount === 0 ? colors.primary : colors.surface,
+                  borderWidth: dueCount === 0 ? 0 : 1,
+                  borderColor: colors.primary,
+                  borderRadius: radius.md,
+                  paddingVertical: spacing.md,
+                  paddingHorizontal: spacing.lg,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: spacing.sm,
+                  opacity: startingLearn ? 0.7 : 1,
+                }}
+              >
+                {startingLearn ? (
+                  <ActivityIndicator size="small" color={dueCount === 0 ? "#fff" : colors.primary} />
+                ) : (
+                  dueCount === 0 && <Play size={16} color="#fff" fill="#fff" />
+                )}
+                <Text
+                  style={{
+                    color: dueCount === 0 ? "#fff" : colors.primary,
+                    fontWeight: typography.semibold,
+                    fontSize: typography.base,
+                  }}
+                >
+                  {t("folderDetail.learnAllCards", { count: totalCards })}
+                </Text>
+              </TouchableOpacity>
+            </View>
           )}
 
           {/* Content */}
