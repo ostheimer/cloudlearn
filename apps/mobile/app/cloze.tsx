@@ -24,7 +24,8 @@ import {
   Pencil,
   Star,
 } from "lucide-react-native";
-import { listCardsInDeck, reviewCard, earnLp, type Card } from "../src/lib/api";
+import { listCardsInDeck, reviewCard, updateCard, earnLp, type Card } from "../src/lib/api";
+import CardEditor from "../src/components/CardEditor";
 import { toggleCardStar } from "../src/lib/toggleCardStar";
 import { setLastUsedDeck } from "../src/lib/lastUsedDeck";
 import {
@@ -156,6 +157,9 @@ export default function ClozeScreen() {
   const [round, setRound] = useState<Card[]>([]);
   // Stern-Stand der laufenden Runde, für sofort sichtbares Markieren (#610).
   const [starredMap, setStarredMap] = useState<Record<string, boolean>>({});
+  // Stift-Knopf (#610): öffnet den Karten-Editor, ohne die Runde zu verlassen.
+  const [editingCard, setEditingCard] = useState(false);
+  const [savingCard, setSavingCard] = useState(false);
   const [idx, setIdx] = useState(0);
   // Earliest card the back button may reach. Non-zero only after resuming, so a
   // continued round cannot step back into cards the earlier session rated.
@@ -1082,6 +1086,16 @@ export default function ClozeScreen() {
             >
               {current && (
                 <TouchableOpacity
+                  onPress={() => setEditingCard(true)}
+                  activeOpacity={0.6}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={{ position: "absolute", top: spacing.md, left: spacing.md }}
+                >
+                  <Pencil size={19} color={colors.textTertiary} />
+                </TouchableOpacity>
+              )}
+              {current && (
+                <TouchableOpacity
                   onPress={() => toggleCardStar(current.id, starredMap, setStarredMap)}
                   activeOpacity={0.6}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -1341,6 +1355,28 @@ export default function ClozeScreen() {
           </ScrollView>
         </SafeAreaView>
       </KeyboardAvoidingView>
+      <CardEditor
+        visible={editingCard}
+        card={current ? { front: current.front, back: current.back, difficulty: "medium" } : null}
+        saving={savingCard}
+        onCancel={() => setEditingCard(false)}
+        onSave={async ({ front, back }) => {
+          if (!current) return;
+          setSavingCard(true);
+          try {
+            const { card: updated } = await updateCard(current.id, { front, back });
+            // Nur die editierte Karte patchen (#610) — ein Neuladen der Runde
+            // würde Fortschritt, Index und Ergebnisse dieser Sitzung zerstören.
+            setRound((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+            setEditingCard(false);
+          } catch {
+            // Speichern fehlgeschlagen — Editor bleibt offen, statt den Text
+            // kommentarlos zu verlieren.
+          } finally {
+            setSavingCard(false);
+          }
+        }}
+      />
     </>
   );
 }

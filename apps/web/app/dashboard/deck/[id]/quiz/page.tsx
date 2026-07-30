@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
-import { listCardsInDeck, reviewCard, earnLp, isApiError, type Card } from "@/lib/api";
+import { listCardsInDeck, reviewCard, updateCard, earnLp, isApiError, type Card } from "@/lib/api";
+import { CardEditor } from "@/components/app/card-editor";
 import { useDisplayName } from "@/lib/use-display-name";
 import { toggleCardStar } from "@/lib/toggle-card-star";
 import { useWobblyIds } from "@/lib/use-wobbly-ids";
@@ -37,6 +38,7 @@ import {
   CheckCircle,
   Trophy,
   Star,
+  Pencil,
   Zap,
   AlertTriangle,
   ListChecks,
@@ -52,6 +54,10 @@ export default function QuizPage() {
   const [cards, setCards] = useState<Card[]>([]);
   // Stern-Stand der laufenden Runde, für sofort sichtbares Markieren (#610).
   const [starredMap, setStarredMap] = useState<Record<string, boolean>>({});
+  // Stift-Knopf (#610): öffnet den Karten-Editor, ohne die Runde zu verlassen.
+  // Patcht nur die Karte selbst — die schon gebauten Fragen (Optionen,
+  // richtige Antwort) ändern sich erst in der nächsten Runde.
+  const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -635,15 +641,25 @@ export default function QuizPage() {
 
       <div className="cl-prompt">
         {q && (
-          <button
-            type="button"
-            className={`prompt-star-btn${starredMap[q.cardId] ? " is-starred" : ""}`}
-            aria-label={starredMap[q.cardId] ? "Markierung entfernen" : "Karte markieren"}
-            aria-pressed={starredMap[q.cardId] ?? false}
-            onClick={() => toggleCardStar(q.cardId, starredMap, setStarredMap)}
-          >
-            <Star size={17} />
-          </button>
+          <>
+            <button
+              type="button"
+              className="prompt-edit-btn"
+              aria-label="Karte bearbeiten"
+              onClick={() => setEditing(true)}
+            >
+              <Pencil size={16} />
+            </button>
+            <button
+              type="button"
+              className={`prompt-star-btn${starredMap[q.cardId] ? " is-starred" : ""}`}
+              aria-label={starredMap[q.cardId] ? "Markierung entfernen" : "Karte markieren"}
+              aria-pressed={starredMap[q.cardId] ?? false}
+              onClick={() => toggleCardStar(q.cardId, starredMap, setStarredMap)}
+            >
+              <Star size={17} />
+            </button>
+          </>
         )}
         <div className="quiz-eyebrow">
           {q?.type === "trueFalse" ? "Wahr / Falsch" : "Multiple Choice"}
@@ -707,6 +723,21 @@ export default function QuizPage() {
             {index + 1 >= total ? "Ergebnis" : "Weiter"}
           </button>
         </div>
+      )}
+      {editing && q && (
+        <CardEditor
+          initial={cards.find((c) => c.id === q.cardId)}
+          onClose={() => setEditing(false)}
+          onSubmit={async (front, back) => {
+            const { card: updated } = await updateCard(q.cardId, { front, back });
+            // Nur die Karte selbst patchen (#610) — die schon gebauten Fragen
+            // dieser Runde bleiben unverändert, damit Optionen und richtige
+            // Antwort zueinander passen. Die nächste Runde baut aus dem
+            // aktualisierten Text neu.
+            setCards((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+            setEditing(false);
+          }}
+        />
       )}
     </div>
   );

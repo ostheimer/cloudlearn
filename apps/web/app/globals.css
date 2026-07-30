@@ -2676,9 +2676,25 @@ a.mode-card:hover {
 .prompt-star-btn.is-starred svg {
   fill: var(--amber);
 }
+/* Stift-Knopf (#610) in derselben Prompt-Box — Gegenstück zum Stern, in der
+   freien linken Ecke. */
+.prompt-edit-btn {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-3);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
 .cl-eyebrow,
 .quiz-eyebrow {
-  padding-right: 44px;
+  padding: 0 44px;
 }
 .cl-eyebrow {
   font-size: 0.7rem;

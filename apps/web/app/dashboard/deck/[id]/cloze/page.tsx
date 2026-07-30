@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
-import { listCardsInDeck, reviewCard, earnLp, isApiError, type Card } from "@/lib/api";
+import { listCardsInDeck, reviewCard, updateCard, earnLp, isApiError, type Card } from "@/lib/api";
+import { CardEditor } from "@/components/app/card-editor";
 import { isAnswerCorrect, isCaseOnlyMismatch } from "@/lib/answerCheck";
 import { shouldAdvanceOnEnter } from "@/lib/learn-keys";
 import { buildPrompt, hasTypeable } from "@/lib/cloze-prompt";
@@ -72,6 +73,8 @@ export default function ClozePage() {
   const [round, setRound] = useState<Card[]>([]);
   // Stern-Stand der laufenden Runde, für sofort sichtbares Markieren (#610).
   const [starredMap, setStarredMap] = useState<Record<string, boolean>>({});
+  // Stift-Knopf (#610): öffnet den Karten-Editor, ohne die Runde zu verlassen.
+  const [editing, setEditing] = useState(false);
   const [idx, setIdx] = useState(0);
   // Untergrenze für den Zurück-Pfeil. Beim Weitermachen wurden die Karten vor
   // der Einstiegskarte letztes Mal beantwortet und bewertet — zurückblättern
@@ -775,15 +778,25 @@ export default function ClozePage() {
 
       <div className="cl-prompt">
         {current && (
-          <button
-            type="button"
-            className={`prompt-star-btn${starredMap[current.id] ? " is-starred" : ""}`}
-            aria-label={starredMap[current.id] ? "Markierung entfernen" : "Karte markieren"}
-            aria-pressed={starredMap[current.id] ?? false}
-            onClick={() => toggleCardStar(current.id, starredMap, setStarredMap)}
-          >
-            <Star size={17} />
-          </button>
+          <>
+            <button
+              type="button"
+              className="prompt-edit-btn"
+              aria-label="Karte bearbeiten"
+              onClick={() => setEditing(true)}
+            >
+              <Pencil size={16} />
+            </button>
+            <button
+              type="button"
+              className={`prompt-star-btn${starredMap[current.id] ? " is-starred" : ""}`}
+              aria-label={starredMap[current.id] ? "Markierung entfernen" : "Karte markieren"}
+              aria-pressed={starredMap[current.id] ?? false}
+              onClick={() => toggleCardStar(current.id, starredMap, setStarredMap)}
+            >
+              <Star size={17} />
+            </button>
+          </>
         )}
         <div className="cl-eyebrow">
           {parsed?.isCloze ? "Ergänze die Lücke" : "Wie lautet die Antwort?"}
@@ -883,6 +896,19 @@ export default function ClozePage() {
           </>
         )}
       </div>
+      {editing && current && (
+        <CardEditor
+          initial={current}
+          onClose={() => setEditing(false)}
+          onSubmit={async (front, back) => {
+            const { card: updated } = await updateCard(current.id, { front, back });
+            // Nur die editierte Karte patchen (#610) — ein Neuladen der Runde
+            // würde Fortschritt, Index und Ergebnisse dieser Sitzung zerstören.
+            setRound((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+            setEditing(false);
+          }}
+        />
+      )}
     </div>
   );
 }
