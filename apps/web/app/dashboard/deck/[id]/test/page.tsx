@@ -9,9 +9,11 @@ import {
   listCardsInDeck,
   reviewCard,
   recordTestAttempt,
+  updateCard,
   isApiError,
   type Card,
 } from "@/lib/api";
+import { CardEditor } from "@/components/app/card-editor";
 import { useDisplayName } from "@/lib/use-display-name";
 import { toggleCardStar } from "@/lib/toggle-card-star";
 import { useWobblyIds } from "@/lib/use-wobbly-ids";
@@ -45,6 +47,7 @@ import {
   AlertTriangle,
   FileText,
   Star,
+  Pencil,
 } from "@/components/icons";
 
 const SECONDS_PER_QUESTION = 30;
@@ -107,6 +110,10 @@ export default function TestPage() {
   const [cards, setCards] = useState<Card[]>([]);
   // Stern-Stand der laufenden Runde, für sofort sichtbares Markieren (#610).
   const [starredMap, setStarredMap] = useState<Record<string, boolean>>({});
+  // Stift-Knopf (#610): öffnet den Karten-Editor, ohne die Runde zu verlassen.
+  // Patcht nur die Karte selbst — die schon gebauten Fragen (Optionen,
+  // richtige Antwort) ändern sich erst in der nächsten Runde.
+  const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<number | null>(null);
@@ -907,6 +914,14 @@ export default function TestPage() {
       <div className="cl-prompt">
         <button
           type="button"
+          className="prompt-edit-btn"
+          aria-label="Karte bearbeiten"
+          onClick={() => setEditing(true)}
+        >
+          <Pencil size={16} />
+        </button>
+        <button
+          type="button"
           className={`prompt-star-btn${starredMap[q.cardId] ? " is-starred" : ""}`}
           aria-label={starredMap[q.cardId] ? "Markierung entfernen" : "Karte markieren"}
           aria-pressed={starredMap[q.cardId] ?? false}
@@ -1021,6 +1036,20 @@ export default function TestPage() {
             </button>
           </div>
         </Modal>
+      )}
+      {editing && q && (
+        <CardEditor
+          initial={cards.find((c) => c.id === q.cardId)}
+          onClose={() => setEditing(false)}
+          onSubmit={async (front, back) => {
+            const { card: updated } = await updateCard(q.cardId, { front, back });
+            // Nur die Karte selbst patchen (#610) — die schon gebaute Frage
+            // dieser Runde bleibt unverändert. Die nächste Runde baut aus dem
+            // aktualisierten Text neu.
+            setCards((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+            setEditing(false);
+          }}
+        />
       )}
     </div>
   );

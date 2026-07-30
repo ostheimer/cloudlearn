@@ -22,8 +22,10 @@ import {
   Brain,
   Zap,
   Star,
+  Pencil,
 } from "lucide-react-native";
-import { earnLp, listCardsInDeck, type Card } from "../src/lib/api";
+import { earnLp, listCardsInDeck, updateCard, type Card } from "../src/lib/api";
+import CardEditor from "../src/components/CardEditor";
 import { toggleCardStar } from "../src/lib/toggleCardStar";
 import { sendReview } from "../src/features/sync/sendReview";
 import { setLastUsedDeck } from "../src/lib/lastUsedDeck";
@@ -95,6 +97,10 @@ export default function QuizScreen() {
   const [cards, setCards] = useState<Card[]>([]);
   // Stern-Stand der laufenden Runde, für sofort sichtbares Markieren (#610).
   const [starredMap, setStarredMap] = useState<Record<string, boolean>>({});
+  // Stift-Knopf (#610): patcht nur die Karte selbst — die schon gebaute
+  // Frage (Optionen, richtige Antwort) ändert sich erst in der nächsten Runde.
+  const [editingCard, setEditingCard] = useState(false);
+  const [savingCard, setSavingCard] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
@@ -1076,6 +1082,16 @@ export default function QuizScreen() {
           >
             {question && (
               <TouchableOpacity
+                onPress={() => setEditingCard(true)}
+                activeOpacity={0.6}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={{ position: "absolute", top: spacing.lg, left: spacing.lg }}
+              >
+                <Pencil size={19} color={colors.textTertiary} />
+              </TouchableOpacity>
+            )}
+            {question && (
+              <TouchableOpacity
                 onPress={() => toggleCardStar(question.cardId, starredMap, setStarredMap)}
                 activeOpacity={0.6}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -1350,6 +1366,35 @@ export default function QuizScreen() {
           </View>
         </View>
       </SafeAreaView>
+      <CardEditor
+        visible={editingCard}
+        card={
+          question
+            ? (() => {
+                const raw = cards.find((c) => c.id === question.cardId);
+                return raw ? { front: raw.front, back: raw.back, difficulty: "medium" } : null;
+              })()
+            : null
+        }
+        saving={savingCard}
+        onCancel={() => setEditingCard(false)}
+        onSave={async ({ front, back }) => {
+          if (!question) return;
+          setSavingCard(true);
+          try {
+            const { card: updated } = await updateCard(question.cardId, { front, back });
+            // Nur die Karte selbst patchen (#610) — die schon gebaute Frage
+            // dieser Runde bleibt unverändert. Die nächste Runde baut aus dem
+            // aktualisierten Text neu.
+            setCards((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+            setEditingCard(false);
+          } catch {
+            // Speichern fehlgeschlagen — Editor bleibt offen.
+          } finally {
+            setSavingCard(false);
+          }
+        }}
+      />
     </>
   );
 }
