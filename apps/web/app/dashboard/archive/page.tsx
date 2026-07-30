@@ -125,19 +125,29 @@ export default function ArchivePage() {
         <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 8 }}>
           {decks.map((deck) => (
             <div key={deck.id} className="panel" style={{ padding: "12px 14px" }}>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  fontWeight: 600,
-                }}
-                title={deck.title}
-              >
-                <Layers size={16} /> {deck.title}
+              {/* Kürzen muss der TEXT, nicht die Zeile: `overflow: hidden` auf
+                  dem Flex-Container reicht nicht, ein nowrap-Text meldet weiter
+                  seine volle Breite und schiebt das Symbol aus dem Kärtchen
+                  (#545). Deshalb `minWidth: 0` am Text und `flex: none` am
+                  Symbol — Laras Deck-Titel sind lang („Themengebiet 6 -
+                  Datenbanken (nur Kap. 1, 2, 8)"). */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                <span style={{ flex: "none", display: "inline-flex" }} aria-hidden>
+                  <Layers size={16} />
+                </span>
+                <span
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    fontWeight: 600,
+                  }}
+                  title={deck.title}
+                >
+                  {deck.title}
+                </span>
               </div>
               <p className="muted" style={{ margin: "2px 0 10px", fontSize: "0.85rem" }}>
                 {deckCountLabel(deck.cardCount ?? 0, deck.imageCardCount ?? 0) ?? "Keine Karten"}

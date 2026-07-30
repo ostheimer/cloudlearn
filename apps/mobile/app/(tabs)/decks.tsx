@@ -131,8 +131,12 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
   // der Server die Grenzen nicht geliefert hat (#603) — dann steht hier nichts.
   const maxDecks = useUsageStore((state) => state.maxDecks);
   const setUsage = useUsageStore((state) => state.setUsage);
-  const deckSlotsLabel = deckSlotsSummary(decksLoading ? null : decks.length, maxDecks);
-  const decksAtLimit = isDeckLimitReached(decks.length, maxDecks);
+  // Belegt sind AKTIVE + ARCHIVIERTE Decks (#614): ein archiviertes Deck ist
+  // nicht weg und zählt weiter gegen die Grenze. Nur die sichtbaren zu zählen
+  // hieße „18 von 20 belegt" zu melden und trotzdem abgelehnt zu werden.
+  const usedDeckSlots = decks.length + archivedCount;
+  const deckSlotsLabel = deckSlotsSummary(decksLoading ? null : usedDeckSlots, maxDecks);
+  const decksAtLimit = isDeckLimitReached(usedDeckSlots, maxDecks);
 
   // Grenzen einmalig nachladen, falls dieser Tab der erste ist. Über die
   // Startseite hat das LP-Abzeichen sie längst geholt — dann kein Aufruf.

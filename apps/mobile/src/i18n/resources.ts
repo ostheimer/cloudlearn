@@ -422,7 +422,8 @@ export const resources = {
       "library.tabDecks": "Decks",
       "library.tabFolders": "Ordner",
       "library.searchPlaceholder": "Suchen...",
-      "library.longPressHint": "Gedrückt halten zum Bearbeiten/Löschen",
+      // Nennt seit #614 auch das Archivieren — der Menüpunkt steht dort.
+      "library.longPressHint": "Gedrückt halten zum Umbenennen, Archivieren oder Löschen",
       "library.emptyDecks": "Noch keine Decks.\nScanne einen Text, um dein erstes Deck zu erstellen.",
       "library.scanCta": "Neuen Text scannen",
       "library.noMatchDecks": "Kein Deck gefunden.",
@@ -1048,7 +1049,7 @@ export const resources = {
       "library.tabDecks": "Decks",
       "library.tabFolders": "Folders",
       "library.searchPlaceholder": "Search...",
-      "library.longPressHint": "Long press to edit/delete",
+      "library.longPressHint": "Long press to rename, archive or delete",
       "library.emptyDecks": "No decks yet.\nScan a text to create your first deck.",
       "library.scanCta": "Scan a new text",
       "library.noMatchDecks": "No deck found.",

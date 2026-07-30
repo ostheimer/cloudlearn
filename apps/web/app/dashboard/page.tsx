@@ -164,8 +164,13 @@ export default function LibraryPage() {
   // Liste — ohne archivierte Decks steht dort gar nichts, damit die
   // Bibliothek nicht mit einem leeren Ort wirbt.
   const [archivedCount, setArchivedCount] = useState(0);
-  const deckSlotsLabel = deckSlotsSummary(loading ? null : decks.length, maxDecks);
-  const decksAtLimit = isDeckLimitReached(decks.length, maxDecks);
+  // Belegt sind AKTIVE + ARCHIVIERTE Decks (#614): ein archiviertes Deck ist
+  // nicht weg und zählt weiter gegen die Grenze. Stünde hier nur die Zahl der
+  // sichtbaren Decks, meldete der Füllstand „2 von 20" und die Grenze risse
+  // trotzdem — genau die Sorte Halbwahrheit, die #611 überall entfernt hat.
+  const usedDeckSlots = decks.length + archivedCount;
+  const deckSlotsLabel = deckSlotsSummary(loading ? null : usedDeckSlots, maxDecks);
+  const decksAtLimit = isDeckLimitReached(usedDeckSlots, maxDecks);
 
   useEffect(() => {
     if (!userId) return;
