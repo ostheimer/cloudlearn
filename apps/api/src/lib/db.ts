@@ -2137,3 +2137,101 @@ export async function getLastTestAttempts(
     submittedAt: r.submitted_at as string,
   }));
 }
+
+// ─── Lernstand (geräteübergreifendes „Weitermachen", #610) ──────────────────
+
+/** Lernarten mit merkbarer Position — deckungsgleich mit dem CHECK der Tabelle. */
+export type SessionProgressMode = "flashcards" | "cloze";
+
+export interface SessionProgressRecord {
+  index: number;
+  cardId: string;
+  source: string;
+  reverse: boolean;
+  total: number;
+  results?: Record<string, { correct: boolean; overridden: boolean }>;
+  updatedAt: string;
+}
+
+/**
+ * Gemerkte Position einer unterbrochenen Runde — oder null.
+ *
+ * Immer nach user_id gefiltert: Der Admin-Client umgeht RLS, die Zugehörigkeit
+ * muss also hier im Code stehen (Deck-Ownership-Pattern).
+ */
+export async function getSessionProgress(
+  userId: string,
+  deckId: string,
+  mode: SessionProgressMode
+): Promise<SessionProgressRecord | null> {
+  const db = getDb();
+  const { data, error } = await db
+    .from("session_progress")
+    .select("card_index, card_id, source, reverse, total, results, updated_at")
+    .eq("user_id", userId)
+    .eq("deck_id", deckId)
+    .eq("mode", mode)
+    .maybeSingle();
+  if (error || !data) return null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const row = data as any;
+  return {
+    index: row.card_index as number,
+    cardId: row.card_id as string,
+    source: row.source as string,
+    reverse: row.reverse === true,
+    total: row.total as number,
+    ...(row.results ? { results: row.results } : {}),
+    updatedAt: row.updated_at as string,
+  };
+}
+
+/**
+ * Position speichern (eine Zeile je Nutzer/Deck/Lernart, wird überschrieben).
+ *
+ * Das Deck muss dem Nutzer gehören und leben — sonst legte ein manipulierter
+ * Aufruf Zeilen zu fremden Decks an. Liefert false, wenn das Deck nicht passt.
+ */
+export async function saveSessionProgress(
+  userId: string,
+  deckId: string,
+  mode: SessionProgressMode,
+  progress: Omit<SessionProgressRecord, "updatedAt">
+): Promise<boolean> {
+  const deck = await getDeck(deckId, userId);
+  if (!deck) return false;
+  const db = getDb();
+  const { error } = await db.from("session_progress").upsert(
+    {
+      user_id: userId,
+      deck_id: deckId,
+      mode,
+      card_index: progress.index,
+      card_id: progress.cardId,
+      source: progress.source,
+      reverse: progress.reverse,
+      total: progress.total,
+      results: progress.results ?? null,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id,deck_id,mode" }
+  );
+  if (error) throw new Error(`saveSessionProgress: ${error.message}`);
+  return true;
+}
+
+/** Merker löschen — am Rundenende, damit eine fertige Runde nichts anbietet. */
+export async function clearSessionProgress(
+  userId: string,
+  deckId: string,
+  mode: SessionProgressMode
+): Promise<void> {
+  const db = getDb();
+  const { error } = await db
+    .from("session_progress")
+    .delete()
+    .eq("user_id", userId)
+    .eq("deck_id", deckId)
+    .eq("mode", mode);
+  if (error) throw new Error(`clearSessionProgress: ${error.message}`);
+}
