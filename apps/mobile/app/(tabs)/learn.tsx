@@ -40,6 +40,7 @@ import {
 } from "lucide-react-native";
 import CardEditor from "../../src/components/CardEditor";
 import * as Speech from "expo-speech";
+import { AUTO_PLAY_SPEEDS, loadAutoPlaySpeed, saveAutoPlaySpeed } from "../../src/lib/autoplaySpeed";
 import {
   useReviewSession,
   missedCardsFrom,
@@ -650,6 +651,17 @@ function AuthenticatedLearnScreen({
   // ─── Auto-Play ────────────────────────────────────────────────────────────
   const [autoPlaying, setAutoPlaying] = useState(false);
   const [autoPlaySpeed, setAutoPlaySpeed] = useState(3);
+  // Geräteweit gemerktes Vorlese-Tempo (#610) — AsyncStorage ist asynchron,
+  // der Ladewert kommt also erst nach dem ersten Render nach.
+  useEffect(() => {
+    let cancelled = false;
+    loadAutoPlaySpeed().then((speed) => {
+      if (!cancelled) setAutoPlaySpeed(speed);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const autoPlayRef = { current: null as ReturnType<typeof setTimeout> | null };
 
   const deductLp = useUsageStore((s) => s.deductLp);
@@ -795,9 +807,10 @@ function AuthenticatedLearnScreen({
     if (autoPlaying) { setAutoPlaying(false); Speech.stop(); } else { setAutoPlaying(true); }
   };
   const cycleSpeed = () => {
-    const speeds = [1, 3, 5, 10];
-    const idx = speeds.indexOf(autoPlaySpeed);
-    setAutoPlaySpeed(speeds[(idx + 1) % speeds.length]!);
+    const idx = AUTO_PLAY_SPEEDS.indexOf(autoPlaySpeed);
+    const next = AUTO_PLAY_SPEEDS[(idx + 1) % AUTO_PLAY_SPEEDS.length]!;
+    setAutoPlaySpeed(next);
+    void saveAutoPlaySpeed(next);
   };
 
   // ─── Star toggle ──────────────────────────────────────────────────────────

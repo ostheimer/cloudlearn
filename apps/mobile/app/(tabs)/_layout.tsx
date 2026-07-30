@@ -1,9 +1,13 @@
 import { Tabs } from "expo-router";
 import { Home, ScanLine, BarChart3, Library, User } from "lucide-react-native";
 import { useColors } from "../../src/theme";
+import { useSessionStore } from "../../src/store/sessionStore";
 
 export default function TabsLayout() {
   const c = useColors();
+  // dueCount wurde bisher nur GESCHRIEBEN (Home, Onboarding), nirgends
+  // gelesen (#610) — das Abzeichen zeigt es jetzt auch ohne offene App.
+  const dueCount = useSessionStore((state) => state.dueCount);
 
   return (
     <Tabs
@@ -28,6 +32,8 @@ export default function TabsLayout() {
         options={{
           title: "Home",
           tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
+          ...(dueCount > 0 ? { tabBarBadge: dueCount } : {}),
+          tabBarBadgeStyle: { backgroundColor: c.warning },
         }}
       />
       <Tabs.Screen
