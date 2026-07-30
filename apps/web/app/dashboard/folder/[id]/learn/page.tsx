@@ -7,7 +7,7 @@ import { useAuth } from "@/components/app/auth-context";
 import { LearnSession } from "@/components/app/learn-session";
 import {
   listDecksInFolder,
-  listCardsInDeck,
+  listCardsInFolder,
   getDueCards,
   isApiError,
   type Card,
@@ -40,15 +40,18 @@ export default function FolderLearnPage() {
   const load = useCallback(async () => {
     if (!userId || !folderId) return;
     try {
-      const { decks } = await listDecksInFolder(folderId);
-      const deckIds = new Set(decks.map((d) => d.id));
-
       let cards: Card[];
       if (mode === "all") {
-        const perDeck = await Promise.all(decks.map((d) => listCardsInDeck(d.id)));
-        cards = perDeck.flatMap((r) => r.cards);
+        // Eine Anfrage für den ganzen Ordner (#612): vorher lief eine pro Deck,
+        // bei 20 Decks also 20 Anfragen, von denen der Browser nur wenige
+        // gleichzeitig laufen lässt. Der Server blättert intern über die
+        // 1000-Zeilen-Grenze hinweg und behält die Deck-Reihenfolge.
+        const { cards: inFolder } = await listCardsInFolder(folderId);
+        cards = inFolder;
       } else {
         // getDueCards is global; keep only what belongs to this folder.
+        const { decks } = await listDecksInFolder(folderId);
+        const deckIds = new Set(decks.map((d) => d.id));
         const { cards: due } = await getDueCards(userId);
         cards = due.filter((c) => deckIds.has(c.deckId));
       }
