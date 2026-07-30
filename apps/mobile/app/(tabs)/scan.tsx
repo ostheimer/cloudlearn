@@ -55,6 +55,7 @@ import {
 } from "../../src/lib/api";
 import {
   DECK_LIMIT_LABEL,
+  affordableScanSources,
   deckLimitMessage,
   freeCardSlots,
   isDeckLimitReached,
@@ -173,6 +174,16 @@ export default function ScanScreen() {
   const usageTier = useUsageStore((state) => state.tier);
   const maxDecks = useUsageStore((state) => state.maxDecks);
   const maxCardsPerDeck = useUsageStore((state) => state.maxCardsPerDeck);
+
+  // Welche Quelle ist bezahlbar? (#611) Der Warnstreifen prüfte nur gegen den
+  // GÜNSTIGSTEN Preis: Bei 12 LP kam keine Warnung, obwohl URL (15) und PDF (20)
+  // unbezahlbar waren — man wählte eine Datei, wartete auf den Upload und bekam
+  // dann 402. Jede Quelle prüft jetzt gegen ihren eigenen Preis.
+  const afford = affordableScanSources(lpBalance, {
+    aiScan: lpCostAiScan,
+    urlImport: lpCostUrlImport,
+    pdfImport: lpCostPdfImport,
+  });
 
   // LP-Insufficient-Modal state
   const [lpModalVisible, setLpModalVisible] = useState(false);
@@ -1093,11 +1104,13 @@ export default function ScanScreen() {
 
           <TouchableOpacity
             onPress={handleGenerateFromText}
-            disabled={loading || !editedText.trim()}
+            // Reichen die Punkte nicht, ist der Knopf zu (#611) — der
+            // Warnstreifen darüber sagt, woran es liegt.
+            disabled={loading || !editedText.trim() || !afford.aiScan}
             activeOpacity={0.8}
             style={{
               backgroundColor:
-                loading || !editedText.trim()
+                loading || !editedText.trim() || !afford.aiScan
                   ? colors.textTertiary
                   : colors.primary,
               borderRadius: radius.md,
@@ -1207,11 +1220,13 @@ export default function ScanScreen() {
 
           <TouchableOpacity
             onPress={handleGenerateFromUrl}
-            disabled={loading || !validUrl}
+            disabled={loading || !validUrl || !afford.urlImport}
             activeOpacity={0.8}
             style={{
               backgroundColor:
-                loading || !validUrl ? colors.textTertiary : colors.primary,
+                loading || !validUrl || !afford.urlImport
+                  ? colors.textTertiary
+                  : colors.primary,
               borderRadius: radius.md,
               paddingVertical: 16,
               flexDirection: "row",
@@ -1331,10 +1346,13 @@ export default function ScanScreen() {
           </View>
         )}
 
-        {/* LP insufficient hint */}
-        {lpBalance < lpCostAiScan && cards.length === 0 && !loading && (
+        {/* LP insufficient hint — jetzt gegen den GÜNSTIGSTEN Weg (#611).
+            Vorher stand hier fest lpCostAiScan: derselbe Wert, aber aus dem
+            falschen Grund. Reicht es nicht mal für den günstigsten, geht gar
+            nichts — die teureren Quellen sagen es an ihrer Kachel selbst. */}
+        {!afford.anyAffordable && cards.length === 0 && !loading && (
           <TouchableOpacity
-            onPress={() => { setLpModalFeature("aiScan"); setLpModalCost(lpCostAiScan); setLpModalVisible(true); }}
+            onPress={() => { setLpModalFeature("aiScan"); setLpModalCost(afford.cheapest); setLpModalVisible(true); }}
             activeOpacity={0.8}
             style={{
               backgroundColor: colors.warningLight,
@@ -1349,7 +1367,7 @@ export default function ScanScreen() {
           >
             <Zap size={16} color={colors.warning} />
             <Text style={{ flex: 1, color: colors.text, fontSize: typography.sm }}>
-              {t("lp.insufficientHint", { cost: lpCostAiScan, balance: lpBalance })}
+              {t("lp.insufficientHint", { cost: afford.cheapest, balance: lpBalance })}
             </Text>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
               <Text style={{ color: colors.warning, fontSize: typography.xs, fontWeight: typography.semibold }}>
@@ -1481,6 +1499,10 @@ export default function ScanScreen() {
             {/* Camera button */}
             <TouchableOpacity
               onPress={openCamera}
+              // Nichts anbieten, was der Server sicher ablehnt (#611): Vorher
+              // startete die Kamera, man knipste, das Bild lud hoch — und DANN
+              // kam 402. Die Sperre kostet nichts, der Fehlweg kostete Zeit.
+              disabled={!afford.aiScan}
               activeOpacity={0.8}
               style={{
                 backgroundColor: colors.primary,
@@ -1489,6 +1511,7 @@ export default function ScanScreen() {
                 flexDirection: "row",
                 alignItems: "center",
                 gap: spacing.lg,
+                opacity: afford.aiScan ? 1 : 0.5,
                 ...shadows.md,
               }}
             >
@@ -1515,7 +1538,9 @@ export default function ScanScreen() {
                   Foto aufnehmen
                 </Text>
                 <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: typography.sm, marginTop: 2 }}>
-                  {t("scan.cameraHint")}
+                  {afford.aiScan
+                    ? t("scan.cameraHint")
+                    : t("lp.sourceTooExpensive", { balance: lpBalance, cost: lpCostAiScan })}
                 </Text>
               </View>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 }}>
@@ -1530,6 +1555,7 @@ export default function ScanScreen() {
             {/* Gallery button */}
             <TouchableOpacity
               onPress={handlePickFromGallery}
+              disabled={!afford.aiScan}
               activeOpacity={0.8}
               style={{
                 backgroundColor: colors.success,
@@ -1538,6 +1564,7 @@ export default function ScanScreen() {
                 flexDirection: "row",
                 alignItems: "center",
                 gap: spacing.lg,
+                opacity: afford.aiScan ? 1 : 0.5,
                 ...shadows.md,
               }}
             >
@@ -1564,7 +1591,9 @@ export default function ScanScreen() {
                   Aus Galerie wählen
                 </Text>
                 <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: typography.sm, marginTop: 2 }}>
-                  {t("scan.galleryHint")}
+                  {afford.aiScan
+                    ? t("scan.galleryHint")
+                    : t("lp.sourceTooExpensive", { balance: lpBalance, cost: lpCostAiScan })}
                 </Text>
               </View>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 }}>
@@ -1579,6 +1608,7 @@ export default function ScanScreen() {
             {/* Text input button */}
             <TouchableOpacity
               onPress={() => setMode("text")}
+              disabled={!afford.aiScan}
               activeOpacity={0.8}
               style={{
                 backgroundColor: colors.warning,
@@ -1587,6 +1617,7 @@ export default function ScanScreen() {
                 flexDirection: "row",
                 alignItems: "center",
                 gap: spacing.lg,
+                opacity: afford.aiScan ? 1 : 0.5,
                 ...shadows.md,
               }}
             >
@@ -1613,7 +1644,9 @@ export default function ScanScreen() {
                   Text eingeben
                 </Text>
                 <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: typography.sm, marginTop: 2 }}>
-                  {t("scan.textHint")}
+                  {afford.aiScan
+                    ? t("scan.textHint")
+                    : t("lp.sourceTooExpensive", { balance: lpBalance, cost: lpCostAiScan })}
                 </Text>
               </View>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 }}>
@@ -1628,8 +1661,10 @@ export default function ScanScreen() {
             {/* URL import button */}
             <TouchableOpacity
               onPress={() => setMode("url")}
+              disabled={!afford.urlImport}
               activeOpacity={0.8}
               style={{
+                opacity: afford.urlImport ? 1 : 0.5,
                 backgroundColor: colors.info,
                 borderRadius: radius.lg,
                 padding: spacing.xl,
@@ -1662,7 +1697,9 @@ export default function ScanScreen() {
                   URL importieren
                 </Text>
                 <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: typography.sm, marginTop: 2 }}>
-                  {t("scan.urlHint")}
+                  {afford.urlImport
+                    ? t("scan.urlHint")
+                    : t("lp.sourceTooExpensive", { balance: lpBalance, cost: lpCostUrlImport })}
                 </Text>
               </View>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 }}>
@@ -1677,6 +1714,9 @@ export default function ScanScreen() {
             {/* PDF import button */}
             <TouchableOpacity
               onPress={handlePickPdf}
+              // Der teuerste Weg (20 LP) und der mit dem längsten Fehlweg: Datei
+              // wählen, hochladen, warten — dann 402 (#611).
+              disabled={!afford.pdfImport}
               activeOpacity={0.8}
               style={{
                 backgroundColor: colors.text,
@@ -1685,6 +1725,7 @@ export default function ScanScreen() {
                 flexDirection: "row",
                 alignItems: "center",
                 gap: spacing.lg,
+                opacity: afford.pdfImport ? 1 : 0.5,
                 ...shadows.md,
               }}
             >
@@ -1711,7 +1752,9 @@ export default function ScanScreen() {
                   PDF importieren
                 </Text>
                 <Text style={{ color: "rgba(255,255,255,0.72)", fontSize: typography.sm, marginTop: 2 }}>
-                  Text-PDF direkt in Lernkarten umwandeln
+                  {afford.pdfImport
+                    ? "Text-PDF direkt in Lernkarten umwandeln"
+                    : t("lp.sourceTooExpensive", { balance: lpBalance, cost: lpCostPdfImport })}
                 </Text>
               </View>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 }}>
