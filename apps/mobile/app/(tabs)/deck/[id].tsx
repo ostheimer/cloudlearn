@@ -10,16 +10,12 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  Modal,
-  KeyboardAvoidingView,
-  Platform,
   Share,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   Plus,
   CreditCard,
-  X,
   Check,
   ChevronRight,
   ChevronLeft,
