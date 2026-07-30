@@ -10,6 +10,7 @@ import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Zap, PlayCircle, ShoppingBag, X, BookOpen } from "lucide-react-native";
 import { useColors, spacing, radius, typography, shadows } from "../theme";
+import { REAL_ADS_ENABLED } from "../features/ads/adsMode";
 import { useRewardedAd } from "../features/ads/useRewardedAd";
 import { resolveRewardedAdOutcome } from "../features/ads/resolveRewardedAdOutcome";
 import { lpInsufficientOptions } from "../features/paywall/proDisplay";
@@ -172,27 +173,40 @@ export function LpInsufficientModal({
               )}
               <View style={{ flex: 1 }}>
                 <Text style={{ color: colors.textInverse, fontSize: typography.base, fontWeight: typography.bold }}>
-                  {adState === "showing" ? t("lp.adWatching") : t("lp.watchAd")}
+                  {adState === "showing"
+                    ? t("lp.adWatching")
+                    : REAL_ADS_ENABLED
+                      ? t("lp.watchAd")
+                      : t("lp.watchAdMockFull")}
                 </Text>
                 <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: typography.sm, marginTop: 2 }}>
-                  {t("lp.watchAdSubtitle", { count: 5 })}
+                  {REAL_ADS_ENABLED
+                    ? t("lp.watchAdSubtitle", { count: 5 })
+                    : t("lp.watchAdMockSubtitle")}
                 </Text>
               </View>
-              <View
-                style={{
-                  backgroundColor: "rgba(255,255,255,0.25)",
-                  borderRadius: radius.sm,
-                  paddingHorizontal: spacing.sm,
-                  paddingVertical: 3,
-                }}
-              >
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
-                  <Zap size={12} color={colors.textInverse} />
-                  <Text style={{ color: colors.textInverse, fontSize: typography.xs, fontWeight: typography.bold }}>
-                    +5
-                  </Text>
+              {/* „+5"-Plakette nur, wenn die 5 LP wirklich kommen (#611). Solange
+                  REAL_ADS_ENABLED false ist, liefert watchAd() garantiert 0 LP
+                  (mock) — das Versprechen hier war schlicht falsch, und ehrlich
+                  wurde erst die Antwort danach. Der Shop macht es längst so
+                  (lp-store.tsx), das Fenster zieht nach. */}
+              {REAL_ADS_ENABLED ? (
+                <View
+                  style={{
+                    backgroundColor: "rgba(255,255,255,0.25)",
+                    borderRadius: radius.sm,
+                    paddingHorizontal: spacing.sm,
+                    paddingVertical: 3,
+                  }}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
+                    <Zap size={12} color={colors.textInverse} />
+                    <Text style={{ color: colors.textInverse, fontSize: typography.xs, fontWeight: typography.bold }}>
+                      +5
+                    </Text>
+                  </View>
                 </View>
-              </View>
+              ) : null}
             </TouchableOpacity>
           ) : null}
 

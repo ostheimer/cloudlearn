@@ -86,6 +86,10 @@ export const resources = {
       "lp.availableBalance": "Verfügbare Lernpunkte",
       "lp.dailyEarnTitle": "Täglicher Fortschritt",
       "lp.earnByLearning": "Durch Lernen",
+      // Lern-Kachel im Shop-Abschnitt „Jetzt LP verdienen" (#611). Wortlaut wie
+      // im Web (dashboard/lp), wo der Weg längst als erster steht.
+      "lp.earnByLearningTitle": "Lernen",
+      "lp.earnByLearningSubtitle": "1 LP je gelernter Karte, bis {{cap}} LP am Tag",
       "lp.earnByAds": "Durch Werbung",
       "lp.freeEarnSection": "Jetzt LP verdienen",
       "lp.packSection": "LP-Packs",
@@ -615,6 +619,8 @@ export const resources = {
       "lp.availableBalance": "Available Learning Points",
       "lp.dailyEarnTitle": "Daily Progress",
       "lp.earnByLearning": "By learning",
+      "lp.earnByLearningTitle": "Learning",
+      "lp.earnByLearningSubtitle": "1 LP per studied card, up to {{cap}} LP a day",
       "lp.earnByAds": "By watching ads",
       "lp.freeEarnSection": "Earn LP now",
       "lp.packSection": "LP packs",
