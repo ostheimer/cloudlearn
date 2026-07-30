@@ -51,7 +51,15 @@ import {
   Link as LinkIcon,
   RefreshSync,
   CheckCircle,
+  ArrowsSort,
 } from "@/components/icons";
+import {
+  DEFAULT_FOLDER_SORT,
+  loadFolderSort,
+  saveFolderSort,
+  sortFolders,
+  type FolderSort,
+} from "@/lib/folder-sort";
 
 type TabKey = "decks" | "folders";
 
@@ -96,6 +104,14 @@ export default function LibraryPage() {
   // genau wie der Deck-Tab der App.
   const [cardHits, setCardHits] = useState<CardSearchResult[]>([]);
   const [cardsSearching, setCardsSearching] = useState(false);
+  // Ordner-Reihenfolge (#612): A–Z oder neueste zuerst, Wahl bleibt gemerkt.
+  // Erst nach dem Mount aus dem Speicher lesen — beim Serverrendern gibt es
+  // kein localStorage, und ein Unterschied zwischen Server- und Browser-Lauf
+  // würde React als Hydrierungsfehler melden.
+  const [folderSort, setFolderSort] = useState<FolderSort>(DEFAULT_FOLDER_SORT);
+  useEffect(() => {
+    setFolderSort(loadFolderSort());
+  }, []);
 
   const loadDecks = useCallback(async () => {
     if (!userId) return;
@@ -214,13 +230,14 @@ export default function LibraryPage() {
 
   const filteredFolders = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const sorted = [...folders].sort((a, b) => a.title.localeCompare(b.title, "de"));
+    // Reihenfolge ist umschaltbar (#612) — A–Z oder neueste zuerst.
+    const sorted = sortFolders(folders, folderSort);
     // Default view is a tree: show only the top level, you click into a folder
     // to see its subfolders. Searching lifts that — it reaches every folder at
     // any depth (with its path shown) so nothing nested becomes unfindable.
     if (!q) return sorted.filter((f) => !f.parentId);
     return sorted.filter((f) => f.title.toLowerCase().includes(q));
-  }, [folders, query]);
+  }, [folders, query, folderSort]);
 
   // Karten-Treffer über der Deck-Liste, wie im Deck-Tab der App: Überschrift
   // („Karten werden durchsucht…" bzw. „Karten · N Treffer"), darunter je Treffer
@@ -386,6 +403,35 @@ export default function LibraryPage() {
             onCreate={() => setModal({ type: "createFolder" })}
           />
         ) : (
+          <>
+          {/* Reihenfolge umschalten (#612) — erst ab zwei Ordnern, darunter
+              gibt es nichts zu sortieren. */}
+          {folders.length > 1 && (
+            <div className="folder-sort" role="group" aria-label="Reihenfolge der Ordner">
+              <span className="folder-sort__icon" aria-hidden>
+                <ArrowsSort size={15} />
+              </span>
+              {(
+                [
+                  ["alpha", "A–Z"],
+                  ["recent", "Neueste"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={`folder-sort__chip${folderSort === value ? " active" : ""}`}
+                  aria-pressed={folderSort === value}
+                  onClick={() => {
+                    setFolderSort(value);
+                    saveFolderSort(value);
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="deck-grid">
             {filteredFolders.map((folder) => (
               <FolderCard
@@ -411,6 +457,7 @@ export default function LibraryPage() {
               />
             ))}
           </div>
+          </>
         )
       ) : filtered.length === 0 && !cardSection ? (
         <EmptyState hasDecks={decks.length > 0} onCreate={() => setModal({ type: "create" })} />

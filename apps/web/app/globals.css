@@ -2852,6 +2852,43 @@ a.mode-card:hover {
   flex-wrap: wrap;
 }
 
+/* Reihenfolge-Umschalter über der Ordner-Liste (#612). Schmale Zeile, damit sie
+   die Liste nicht dominiert — sie ist eine Einstellung, keine Hauptaktion. */
+.folder-sort {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 14px;
+}
+
+.folder-sort__icon {
+  display: inline-flex;
+  color: var(--ink-3);
+  margin-right: 2px;
+}
+
+.folder-sort__chip {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: var(--r-pill);
+  cursor: pointer;
+}
+
+.folder-sort__chip:hover {
+  background: var(--bg-softer);
+}
+
+.folder-sort__chip.active {
+  background: var(--brand-50, var(--bg-softer));
+  border-color: var(--brand);
+  color: var(--brand-600);
+}
+
 /* ---------- Library / deck grid ---------- */
 .lib-head {
   display: flex;

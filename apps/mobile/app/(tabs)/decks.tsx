@@ -18,6 +18,7 @@ import {
   Layers,
   ChevronRight,
   FolderOpen,
+  ArrowUpDown,
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { useSessionStore } from "../../src/store/sessionStore";
@@ -42,6 +43,13 @@ import { buildLibraryFolderRoute } from "../../src/navigation/libraryRoutes";
 import { AuthPromptCard } from "../../src/components/AuthPromptCard";
 import TextPromptModal from "../../src/components/TextPromptModal";
 import { TITLE_MAX_LENGTH } from "../../src/lib/titleLimit";
+import {
+  DEFAULT_FOLDER_SORT,
+  loadFolderSort,
+  saveFolderSort,
+  sortFolders,
+  type FolderSort,
+} from "../../src/lib/folderSort";
 
 type TabKey = "decks" | "folders";
 
@@ -196,13 +204,26 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
     };
   }, [query, activeTab, userId]);
 
-  const filteredFolders = useMemo(
-    () =>
-      query.trim()
-        ? folders.filter((f) => f.title.toLowerCase().includes(query.toLowerCase()))
-        : folders,
-    [folders, query]
-  );
+  // Reihenfolge ist umschaltbar (#612): A–Z (Voreinstellung) oder neueste
+  // zuerst. Vorher zeigte die App nur die Server-Reihenfolge, das Web nur
+  // alphabetisch — dasselbe Konto, zwei Reihenfolgen.
+  const [folderSort, setFolderSort] = useState<FolderSort>(DEFAULT_FOLDER_SORT);
+  useEffect(() => {
+    let active = true;
+    void loadFolderSort().then((stored) => {
+      if (active) setFolderSort(stored);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const filteredFolders = useMemo(() => {
+    const sorted = sortFolders(folders, folderSort);
+    return query.trim()
+      ? sorted.filter((f) => f.title.toLowerCase().includes(query.toLowerCase()))
+      : sorted;
+  }, [folders, query, folderSort]);
 
   // --- Deck actions ---
 
@@ -677,7 +698,64 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
         folders.length === 0 ? t("library.emptyFolders") : t("library.noMatchFolders")
       );
     }
-    return filteredFolders.map(renderFolderItem);
+    return (
+      <>
+        {/* Reihenfolge umschalten (#612) — erst ab zwei Ordnern, darunter gibt
+            es nichts zu sortieren. */}
+        {folders.length > 1 && (
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: spacing.xs,
+              marginBottom: spacing.sm,
+            }}
+            accessibilityRole="radiogroup"
+          >
+            <ArrowUpDown size={15} color={colors.textTertiary} />
+            {(
+              [
+                ["alpha", t("library.sortAlpha")],
+                ["recent", t("library.sortRecent")],
+              ] as const
+            ).map(([value, label]) => {
+              const active = folderSort === value;
+              return (
+                <TouchableOpacity
+                  key={value}
+                  onPress={() => {
+                    setFolderSort(value);
+                    void saveFolderSort(value);
+                  }}
+                  activeOpacity={0.7}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: active }}
+                  style={{
+                    paddingVertical: 4,
+                    paddingHorizontal: spacing.md,
+                    borderRadius: radius.full ?? 999,
+                    borderWidth: 1,
+                    borderColor: active ? colors.primary : colors.border,
+                    backgroundColor: active ? colors.primaryLight : colors.surface,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: typography.sm,
+                      fontWeight: typography.semibold,
+                      color: active ? colors.primary : colors.textSecondary,
+                    }}
+                  >
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
+        {filteredFolders.map(renderFolderItem)}
+      </>
+    );
   };
 
   return (
