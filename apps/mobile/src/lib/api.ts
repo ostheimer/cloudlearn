@@ -1,5 +1,6 @@
 // API client for communicating with the clearn backend
 import { supabase } from "./supabase";
+import { emitMilestones, parseMilestones } from "../features/milestones/milestoneBus";
 
 // Configurable via env (staging/preview builds); production URL as fallback
 // so builds without env configuration keep working (#77).
@@ -107,6 +108,12 @@ async function request<T>(
     throw new ApiError("Empty API response", res.status);
   }
 
+  // Meilenstein-Boni (#637): Der Server schreibt sie selbst gut und hängt sie
+  // an die Antwort, die sie ausgelöst hat — ein neues Deck, ein Sitzungsende,
+  // eine abgegebene Prüfung. Hier abgegriffen statt in jedem Bildschirm: genau
+  // das Nachfragen je Bildschirm war die Fehlerquelle.
+  emitMilestones(parseMilestones(body));
+
   return body as T;
 }
 
@@ -180,11 +187,6 @@ export interface LpEarnResponse {
   granted: number;
   newBalance: number;
   capReached: boolean;
-}
-
-export interface LpMilestoneResponse {
-  granted: number;
-  alreadyClaimed: boolean;
 }
 
 export interface Deck {
@@ -912,14 +914,11 @@ export async function earnLp(
   });
 }
 
-export async function claimMilestone(
-  milestone: "first_deck" | "first_review" | "streak_7" | "streak_30" | "streak_100"
-): Promise<LpMilestoneResponse> {
-  return requestAuthenticated<LpMilestoneResponse>("/api/v1/lp/milestone", {
-    method: "POST",
-    body: JSON.stringify({ milestone }),
-  });
-}
+// `claimMilestone` ist entfallen (#637): Meilensteine löst der Server selbst
+// ein, sobald sie entstehen, und meldet sie über das `milestones`-Feld der
+// auslösenden Antwort. Der Endpunkt /api/v1/lp/milestone bleibt bestehen —
+// ausgelieferte App-Versionen rufen ihn noch, bekommen dann aber
+// `alreadyClaimed`, weil die Gutschrift einmalig ist.
 
 // ─── Streak Freeze (LP store item) ────────────────────────────────────────────
 

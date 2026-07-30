@@ -52,7 +52,6 @@ import { useSessionStore } from "../../src/store/sessionStore";
 import {
   earnLp,
   getDueCards,
-  getStats,
   listCardsInDeck,
   listDecks,
   reviewCard,
@@ -77,9 +76,6 @@ import {
 import { summarizeCardMedia } from "../../src/lib/cardMedia";
 import { cleanTerm } from "../../src/lib/cardTerms";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
-import { useMilestoneToast } from "../../src/features/milestones/useMilestoneToast";
-import { MilestoneToastView } from "../../src/components/MilestoneToast";
-import { MilestoneCelebration } from "../../src/components/MilestoneCelebration";
 import {
   createReviewSyncOperation,
   syncPendingReviewOperations,
@@ -626,13 +622,6 @@ function AuthenticatedLearnScreen({
   // Punkte-Rückmeldung der Runde (#611): Zahlen kommen aus der Server-Antwort.
   const [earnedLp, setEarnedLp] = useState(0);
   const [earnCapReached, setEarnCapReached] = useState(false);
-  const {
-    toast: milestoneToast,
-    celebration: milestoneCelebration,
-    dismissCelebration,
-    checkStreakMilestones,
-    claimOnceMilestone,
-  } = useMilestoneToast();
 
   useEffect(() => {
     if (completed && autoPlaying) setAutoPlaying(false);
@@ -721,7 +710,11 @@ function AuthenticatedLearnScreen({
     setEarnCapReached(false);
   }, [awardSession]);
 
-  // Milestone + streak rewards still fire when a session is fully completed.
+  // Punkte-Abrechnung am Rundenende. Die Meilensteine („erste Lernsitzung",
+  // Streak-Stufen) hängen seit #637 daran serverseitig — hier stand dafür ein
+  // eigener Aufruf samt Statistik-Abfrage, der NUR in diesem Bildschirm lief,
+  // weshalb Lückentext, Quiz, Zuordnen, Bildkarten und Prüfung leer ausgingen.
+  // Die Anzeige übernimmt der MilestoneHost im Wurzel-Layout.
   useEffect(() => {
     if (!completed || cards.length === 0 || !userId) return;
 
@@ -739,17 +732,6 @@ function AuthenticatedLearnScreen({
       await awardSession(
         getSessionReviewedCount(sessionReviewsRef.current, pendingReviewsRef.current.length),
       );
-
-      // Claim first_review milestone (idempotent – only fires once ever)
-      claimOnceMilestone("first_review").catch(() => {});
-
-      // Check streak milestones (idempotent – each fires once per streak level)
-      try {
-        const statsResult = await getStats();
-        await checkStreakMilestones(statsResult.stats.currentStreak);
-      } catch {
-        // Streak milestones are best-effort
-      }
     };
 
     handleSessionComplete();
@@ -1422,8 +1404,8 @@ function AuthenticatedLearnScreen({
           )}
         </View>
       </SafeAreaView>
-      <MilestoneToastView toast={milestoneToast} />
-      <MilestoneCelebration celebration={milestoneCelebration} onDismiss={dismissCelebration} />
+      {/* Toast und Feier hängen seit #637 im Wurzel-Layout (MilestoneHost) —
+          sie gehören zu ALLEN Lernarten, nicht nur zu den Karteikarten. */}
     </GestureHandlerRootView>
   );
 }

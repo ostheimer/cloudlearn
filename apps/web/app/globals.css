@@ -5171,3 +5171,98 @@ a.lp-way:hover {
 .onboarding__creating p {
   margin: 0;
 }
+
+/* ---------- Meilenstein-Hinweis (#637) ----------
+   Der Server schreibt die einmaligen Boni selbst gut; dieses Kästchen sagt,
+   dass es passiert ist. Hängt EINMAL in der App-Hülle (app-shell), nicht in
+   den einzelnen Bildschirmen.
+
+   Fixiert oben und mittig, damit es an jeder Stelle gleich erscheint. Über der
+   Kopfzeile (z-index 40) und der Handy-Tab-Leiste (50), aber UNTER dem
+   Modal-Overlay (100): Ein Dialog fragt etwas, der Hinweis erzählt nur. */
+.ms-note {
+  position: fixed;
+  top: calc(10px + env(safe-area-inset-top, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  width: min(420px, calc(100vw - 24px));
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--r-lg);
+  background: var(--brand-50);
+  border: 1px solid var(--brand);
+  box-shadow: var(--shadow-lg);
+  animation: ms-note-in 0.25s ease-out;
+}
+
+@keyframes ms-note-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ms-note {
+    animation: none;
+  }
+}
+
+.ms-note__ic {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--bg);
+  /* --brand statt --brand-600: im Dunkelmodus wird --brand-50 zu einem tiefen
+     Indigo, auf dem das dunklere 600er untergeht (dieselbe Falle wie #639). */
+  color: var(--brand);
+}
+
+/* min-width: 0 lässt den Text schrumpfen statt das Kästchen zu sprengen —
+   dieselbe Falle wie bei den Deck-Kacheln (#545). */
+.ms-note__txt {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.ms-note__t {
+  font-weight: 700;
+  font-size: 0.95rem;
+  /* Neutrale Schriftfarbe: --brand-50 ist hell im Hellmodus und dunkel im
+     Dunkelmodus, eine feste Markenfarbe wäre in einem der beiden zu blass. */
+  color: var(--ink);
+}
+
+.ms-note__s {
+  font-size: 0.88rem;
+  color: var(--ink-2);
+}
+
+.ms-note__x {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+
+.ms-note__x:hover {
+  background: var(--bg);
+  color: var(--ink);
+}

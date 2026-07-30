@@ -69,6 +69,8 @@ export async function saveImportedCards(
     cards: stored.savedCards,
     generatedCount: stored.generatedCount,
     savedCount: stored.savedCount,
+    // Nur belegt, wenn das hier das erste Deck des Kontos war (#637).
+    milestones: stored.milestones,
   };
 
   await storeIdempotentResult(parsed.idempotencyKey, response);

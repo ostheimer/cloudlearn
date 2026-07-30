@@ -24,6 +24,13 @@ vi.mock("@/lib/llm", () => ({
   generateFlashcardsAsync: vi.fn(),
 }));
 
+// Der Import legt bei einem neuen Deck den „Erstes Deck"-Bonus an (#637).
+// Hier gemockt, damit die Tests nicht gegen das echte LP-System laufen —
+// was er auszahlt, prüft milestoneAwards.test.ts.
+vi.mock("@/services/lpService", () => ({
+  awardFirstDeckMilestone: vi.fn(async () => []),
+}));
+
 vi.mock("@/lib/db", () => ({
   createDeck: vi.fn(),
   getDeck: vi.fn(),

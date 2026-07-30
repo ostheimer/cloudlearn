@@ -39,6 +39,7 @@ import {
 import { useTrackingConsentStore } from "../src/features/ads/trackingConsent";
 import { BiometricLockScreen } from "../src/features/security/BiometricLockScreen";
 import { useBiometricLockStore } from "../src/features/security/biometricLockStore";
+import { MilestoneHost } from "../src/features/milestones/MilestoneHost";
 
 initializeI18n("de");
 
@@ -599,6 +600,9 @@ export default function RootLayout() {
               }}
             />
           </Stack>
+          {/* Meilenstein-Boni (#637): eine Anzeige für alle Bildschirme.
+              Nach dem Stack, damit Toast und Feier darüber liegen. */}
+          <MilestoneHost />
         </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

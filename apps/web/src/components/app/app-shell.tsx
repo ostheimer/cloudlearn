@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { useAuth } from "./auth-context";
 import { DisplayNamePrompt } from "./display-name-prompt";
+import { MilestoneNotice } from "./milestone-notice";
 import { listDecks } from "@/lib/api";
 import {
   decideOnboarding,
@@ -109,6 +110,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="app-shell">
       <DisplayNamePrompt />
+      {/* Meilenstein-Boni (#637): eine Stelle für alle Bildschirme. */}
+      <MilestoneNotice />
       <header className="app-topbar">
         <div className="container app-topbar__inner">
           <Link href="/dashboard/home" className="brand">

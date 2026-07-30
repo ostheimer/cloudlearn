@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getLpBalance, isApiError, type LpBalanceResponse } from "@/lib/api";
 import { REAL_ADS_ENABLED } from "@/lib/ads-mode";
+import { milestoneLabel } from "@/lib/milestones";
 import {
   ArrowLeft,
   ChevronRight,
@@ -27,15 +28,19 @@ const LP_PACKS = [
 ] as const;
 
 // Einmalige Meilenstein-Boni (packages/contracts/src/featureGates.ts).
-// Der Server kann Meilensteine nur einlösen, nicht abfragen — es gibt also
-// keinen Weg herauszufinden, welche davon schon erreicht sind. Darum stehen
-// sie hier als Übersicht ohne Haken.
+// Seit #637 schreibt der Server sie selbst gut, sobald sie entstehen; wer sie
+// erreicht, sieht dazu den Hinweis aus `milestone-notice.tsx`. Abfragen kann
+// man sie weiterhin nicht — welche schon erreicht sind, weiß nur die Datenbank.
+// Darum steht die Liste hier als Übersicht ohne Haken.
+//
+// Die Beschriftungen kommen aus `lib/milestones.ts`, damit Übersicht und
+// Hinweis nicht auseinanderlaufen und derselbe Bonus nicht wie zwei aussieht.
 const MILESTONES = [
-  { label: "Erstes Deck", lp: 10 },
-  { label: "Erste Lernsitzung", lp: 5 },
-  { label: "7 Tage", lp: 25 },
-  { label: "30 Tage", lp: 100 },
-  { label: "100 Tage", lp: 300 },
+  { label: milestoneLabel("first_deck"), lp: 10 },
+  { label: milestoneLabel("first_review"), lp: 5 },
+  { label: milestoneLabel("streak_7"), lp: 25 },
+  { label: milestoneLabel("streak_30"), lp: 100 },
+  { label: milestoneLabel("streak_100"), lp: 300 },
 ] as const;
 
 export default function LpPage() {

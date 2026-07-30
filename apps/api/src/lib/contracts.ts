@@ -320,6 +320,40 @@ export const lpSpendRequestSchema = z.object({
 });
 export type LpSpendRequest = z.infer<typeof lpSpendRequestSchema>;
 
+// ─── Meilenstein-Boni (#637) ─────────────────────────────────────────────────
+// Einmalige Boni, die der Server SELBST gutschreibt, sobald sie entstehen —
+// beim Anlegen eines Decks und am Ende einer Lernsitzung. Vorher musste jeder
+// Client von sich aus danach fragen; das Web tat es nie, die App nur für
+// `first_review`, und `first_deck` hat nie jemand bekommen.
+//
+// Was gutgeschrieben wurde, hängt der Server an die Antwort DES Aufrufs, der
+// den Bonus ausgelöst hat. Die Clients brauchen dafür nur eine Stelle (ihren
+// gemeinsamen fetch-Wrapper) statt einer pro Bildschirm — genau der Grund,
+// warum es vorher vergessen wurde.
+export const milestoneKeySchema = z.enum([
+  "first_deck",
+  "first_review",
+  "streak_7",
+  "streak_30",
+  "streak_100",
+]);
+export type MilestoneKey = z.infer<typeof milestoneKeySchema>;
+
+export const milestoneAwardSchema = z.object({
+  key: milestoneKeySchema,
+  lpGranted: z.number().int().positive(),
+});
+export type MilestoneAward = z.infer<typeof milestoneAwardSchema>;
+
+/**
+ * Anhängsel für jede Antwort, die einen Bonus ausgelöst haben kann. Leer heißt
+ * „nichts Neues" — ein bereits eingelöster Meilenstein taucht hier NIE wieder
+ * auf, sonst würde derselbe Hinweis bei jedem weiteren Deck erneut erscheinen.
+ */
+export const milestoneAwardsField = {
+  milestones: z.array(milestoneAwardSchema).default([]),
+};
+
 export const revenueCatWebhookSchema = z.object({
   event: z.object({
     // TRANSFER-Ereignisse haben laut RevenueCat-Doku KEIN app_user_id — sie
@@ -414,6 +448,8 @@ export const importSaveResponseSchema = z.object({
   deckTitle: z.string().min(1).max(100),
   cards: flashcardListSchema,
   ...importCountFields,
+  // Nur belegt, wenn dabei ein NEUES Deck entstand und es das erste war (#637).
+  ...milestoneAwardsField,
 });
 
 export type ImportSaveResponse = z.infer<typeof importSaveResponseSchema>;
