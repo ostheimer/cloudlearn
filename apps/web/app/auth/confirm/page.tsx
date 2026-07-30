@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { siteConfig } from "@/lib/site";
+import { isMobileDevice } from "@/lib/device";
 import { CheckCircle, AlertTriangle } from "@/components/icons";
 
 /**
@@ -27,16 +29,8 @@ function parseAuthResult(): ConfirmResult {
   return { state: "failed", description: get("error_description") };
 }
 
-function isMobileDevice(): boolean {
-  const ua = navigator.userAgent;
-  if (/iphone|ipod|android/i.test(ua)) return true;
-  // iPads (auch iPadOS 13+, das sich als "Macintosh" meldet) haben Touch
-  return /ipad/i.test(ua) || (/macintosh/i.test(ua) && navigator.maxTouchPoints > 1);
-}
-
-const appLinkStyle = {
+const primaryCtaStyle = {
   display: "inline-block",
-  marginTop: "2rem",
   padding: "1rem 2rem",
   background: "#6366f1",
   color: "#fff",
@@ -46,44 +40,67 @@ const appLinkStyle = {
   textDecoration: "none",
 } as const;
 
+const secondaryCtaStyle = {
+  display: "inline-block",
+  padding: "0.9rem 1.75rem",
+  background: "#fff",
+  color: "#4338ca",
+  border: "1px solid #c7d2fe",
+  borderRadius: "12px",
+  fontSize: "1rem",
+  fontWeight: 600,
+  textDecoration: "none",
+} as const;
+
 /**
- * clearn:// can only be opened by a phone with the app installed — on
- * desktop browsers the link would silently do nothing, so we show an
- * instruction instead of a dead button.
+ * Beide Wege anbieten (#609): Diese Seite wird sowohl vom Handy (App-Konto)
+ * als auch am Rechner geöffnet. Vorher stand hier nur „weiter am Handy" —
+ * am Rechner war das eine Sackgasse, und für Konten, die im Browser
+ * angelegt wurden, war es sogar falsch.
+ *
+ * clearn:// kann nur ein Handy mit installierter App öffnen, deshalb
+ * erscheint der App-Knopf nur dort. Der Browser-Weg funktioniert überall
+ * und steht daher von der ersten Bildschirmausgabe an — auch bevor die
+ * Geräte-Erkennung (nur im Browser möglich) durch ist.
  */
-function AppCta({ label }: { label: string }) {
+function NextSteps({ browserLabel }: { browserLabel: string }) {
   const [mobile, setMobile] = useState<boolean | null>(null);
 
   useEffect(() => {
     setMobile(isMobileDevice());
   }, []);
 
-  if (mobile === null) return null;
-
-  if (mobile) {
-    return (
-      <a href="clearn://" style={appLinkStyle}>
-        {label}
-      </a>
-    );
-  }
-
   return (
     <div
       style={{
         marginTop: "2rem",
-        padding: "1rem 1.5rem",
-        background: "#eef2ff",
-        border: "1px solid #c7d2fe",
-        borderRadius: "12px",
-        color: "#3730a3",
-        fontSize: "1rem",
-        fontWeight: 600,
-        maxWidth: "440px",
-        lineHeight: 1.6,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: "0.75rem",
       }}
     >
-      Weiter geht’s am Handy: Öffne dort die <strong>clearn</strong>-App und melde dich an.
+      {mobile ? (
+        <>
+          <a href="clearn://" style={primaryCtaStyle}>
+            Jetzt in der App anmelden
+          </a>
+          <Link href="/login" style={secondaryCtaStyle}>
+            {browserLabel}
+          </Link>
+        </>
+      ) : (
+        <>
+          <Link href="/login" style={primaryCtaStyle}>
+            {browserLabel}
+          </Link>
+          {mobile === false && (
+            <p style={{ fontSize: "0.95rem", color: "#6b7280", maxWidth: "440px", lineHeight: 1.6 }}>
+              Am Handy? Öffne dort die <strong>clearn</strong>-App und melde dich an.
+            </p>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -119,13 +136,13 @@ export default function AuthConfirmPage() {
             <CheckCircle size={64} />
           </div>
           <h1 style={{ fontSize: "2rem", fontWeight: 800, color: "#111827", marginBottom: "0.5rem" }}>
-            E-Mail bestätigt!
+            E-Mail bestätigt
           </h1>
-          <p style={{ fontSize: "1.1rem", color: "#6b7280", maxWidth: "400px", lineHeight: 1.6 }}>
-            Dein Konto ist jetzt aktiv. Öffne die <strong>clearn</strong>-App auf deinem Handy und
-            melde dich an.
+          <p style={{ fontSize: "1.1rem", color: "#6b7280", maxWidth: "420px", lineHeight: 1.6 }}>
+            Dein Konto ist jetzt aktiv. Du kannst sofort hier im Browser weiterlernen — oder am
+            Handy in der <strong>clearn</strong>-App.
           </p>
-          <AppCta label="Jetzt in der App anmelden" />
+          <NextSteps browserLabel="Hier im Browser anmelden" />
         </>
       )}
 
@@ -141,10 +158,10 @@ export default function AuthConfirmPage() {
           </h1>
           <p style={{ fontSize: "1.1rem", color: "#6b7280", maxWidth: "440px", lineHeight: 1.6 }}>
             {result.state === "expired"
-              ? "Bestätigungslinks sind aus Sicherheitsgründen nur kurz gültig. Keine Sorge: Öffne die clearn-App und melde dich an — dort kannst du dir einen neuen Link zuschicken lassen."
-              : "Der Link ist ungültig oder wurde schon verwendet. Öffne die clearn-App und melde dich an — falls dein Konto noch nicht bestätigt ist, kannst du dort einen neuen Link anfordern."}
+              ? "Bestätigungslinks sind aus Sicherheitsgründen nur kurz gültig. Keine Sorge: Melde dich an — dann kannst du dir einen neuen Link zuschicken lassen."
+              : "Der Link ist ungültig oder wurde schon verwendet. Melde dich an — falls dein Konto noch nicht bestätigt ist, kannst du dort einen neuen Link anfordern."}
           </p>
-          <AppCta label="clearn-App öffnen" />
+          <NextSteps browserLabel="Zur Anmeldung im Browser" />
           <p style={{ marginTop: "1.4rem", fontSize: "0.9rem", color: "#6b7280" }}>
             Klappt es nicht?{" "}
             <a href={siteConfig.supportMailto} style={{ color: "#4338ca", fontWeight: 600 }}>
