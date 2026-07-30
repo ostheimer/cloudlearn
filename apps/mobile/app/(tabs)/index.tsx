@@ -242,9 +242,71 @@ export default function HomeScreen() {
             </Text>
           </View>
 
+          {/* #609 (Laras Entscheidung): „Ohne Konto starten" versprach etwas,
+              das es nicht gab — jeder Tab verlangte sofort ein Konto. Jetzt
+              gibt es zuerst etwas, das ohne Konto wirklich funktioniert. */}
+          <TouchableOpacity
+            onPress={() => router.push("/demo")}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            style={{
+              backgroundColor: colors.surface,
+              borderRadius: radius.lg,
+              padding: spacing.lg,
+              borderWidth: 1,
+              borderColor: colors.primary,
+              gap: spacing.md,
+              ...shadows.sm,
+            }}
+          >
+            <View style={{ gap: spacing.xs }}>
+              <Text
+                style={{
+                  fontSize: typography.lg,
+                  fontWeight: typography.bold,
+                  color: colors.text,
+                }}
+              >
+                Erst mal ausprobieren
+              </Text>
+              <Text
+                style={{
+                  fontSize: typography.base,
+                  color: colors.textSecondary,
+                  lineHeight: 22,
+                }}
+              >
+                Drei Beispielkarten zum Durchwischen — ohne Konto, ohne Anmeldung. Gespeichert
+                wird dabei nichts.
+              </Text>
+            </View>
+            <View
+              style={{
+                backgroundColor: colors.primary,
+                borderRadius: radius.md,
+                paddingVertical: 14,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: spacing.sm,
+              }}
+            >
+              <Brain size={18} color={colors.textInverse} />
+              <Text
+                style={{
+                  color: colors.textInverse,
+                  fontSize: typography.base,
+                  fontWeight: typography.bold,
+                }}
+              >
+                Beispielkarten lernen
+              </Text>
+            </View>
+          </TouchableOpacity>
+
           <AuthPromptCard
-            title="Ohne Konto starten"
-            body="Du kannst clearn zuerst ansehen. Für Scan, Decks, Lernfortschritt und Synchronisierung brauchst du danach ein Konto."
+            title="Mit Konto geht mehr"
+            body="Eigene Karten aus Fotos und PDFs, dein Lernfortschritt und alle Geräte synchron — dafür brauchst du ein Konto."
             ctaLabel="Anmelden oder registrieren"
             onPress={() => router.push("/auth")}
           />
