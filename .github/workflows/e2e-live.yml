@@ -10,6 +10,12 @@ on:
     - cron: "0 5 * * *"
   # Manual "Run workflow" button in the Actions tab.
   workflow_dispatch:
+    inputs:
+      include_paid_import:
+        description: "Kostenpflichtigen URL-Import ausführen (verbraucht LP und LLM-Quota)"
+        required: false
+        type: boolean
+        default: false
 
 # Never run two live suites at once against production.
 concurrency:
@@ -28,13 +34,19 @@ jobs:
       - name: Check for E2E credentials
         id: check
         env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
         run: |
-          if [ -n "$TEST_USER_PASSWORD" ]; then
+          if [ -n "$SUPABASE_URL" ] &&
+             [ -n "$SUPABASE_ANON_KEY" ] &&
+             [ -n "$TEST_USER_EMAIL" ] &&
+             [ -n "$TEST_USER_PASSWORD" ]; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Live E2E secrets not configured yet — skipping. See docs/runbooks/e2e-live-ci.md"
+            echo "::notice::One or more live E2E secrets are missing — skipping. See docs/runbooks/e2e-live-ci.md"
           fi
 
   e2e:
@@ -63,9 +75,16 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
 
       - name: Run live E2E suite
-        run: pnpm exec playwright test
+        run: |
+          if [ "$INCLUDE_PAID_IMPORT" = "true" ]; then
+            echo "::warning::Running the paid URL-import E2E test; this consumes LP and LLM quota."
+            pnpm exec playwright test
+          else
+            pnpm exec playwright test --grep-invert "@paid"
+          fi
         env:
           CI: "true"
+          INCLUDE_PAID_IMPORT: ${{ inputs.include_paid_import || false }}
           # All values come from the repo secrets — never hard-coded here.
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
