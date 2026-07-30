@@ -48,7 +48,7 @@ describe("supabase migrations", () => {
   it("adds the billing_issue_at column for RevenueCat BILLING_ISSUE (#607)", () => {
     const migrationPath = join(
       apiRoot,
-      "supabase/migrations/20260729130000_billing_issue_at.sql",
+      "supabase/migrations/20260729114126_billing_issue_at.sql",
     );
     const sql = readFileSync(migrationPath, "utf-8");
 
