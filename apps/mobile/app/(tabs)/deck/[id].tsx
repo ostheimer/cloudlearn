@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import {
   ActivityIndicator,
@@ -33,6 +33,7 @@ import {
   MoreVertical,
   Download,
   Trash2,
+  Search,
 } from "lucide-react-native";
 import {
   listCardsInDeck,
@@ -72,7 +73,11 @@ import DeckDetailsModal from "../../../src/components/DeckDetailsModal";
 import CardEditor from "../../../src/components/CardEditor";
 
 export default function DeckDetailScreen() {
-  const { id, title } = useLocalSearchParams<{ id: string; title: string }>();
+  const { id, title, card: highlightCardId } = useLocalSearchParams<{
+    id: string;
+    title: string;
+    card?: string;
+  }>();
   const router = useRouter();
   const navigation = useNavigation();
   const userId = useSessionStore((state) => state.userId);
@@ -101,6 +106,20 @@ export default function DeckDetailScreen() {
   const deckIsFull =
     typeof maxCardsPerDeck === "number" && textCardCount + imageCardCount >= maxCardsPerDeck;
   const [refreshing, setRefreshing] = useState(false);
+
+  // Kartenliste durchsuchen (#610) — rein clientseitig, die Karten sind schon
+  // geladen. Sprung aus der Bibliothek-Suche (?card=<id>): kurz hervorheben
+  // und dorthin scrollen, statt nur im Deck zu landen.
+  const [cardQuery, setCardQuery] = useState("");
+  const [highlightedCardId, setHighlightedCardId] = useState<string | null>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const jumpedRef = useRef(false);
+  const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    return () => {
+      if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current);
+    };
+  }, []);
 
   // Grenzen einmalig nachladen, falls dieser Bildschirm der erste ist (Deeplink,
   // App-Neustart auf einem Deck). Kommt der Nutzer über die Startseite, hat das
@@ -566,6 +585,7 @@ export default function DeckDetailScreen() {
         {/* One page-level ScrollView: deck info, study modes and the card list
             scroll together as a single page, Quizlet-style (#192). */}
         <ScrollView
+          ref={scrollViewRef}
           style={{ flex: 1 }}
           refreshControl={
             <RefreshControl
@@ -799,6 +819,35 @@ export default function DeckDetailScreen() {
             </View>
           )}
 
+          {/* Im Auswahl-Modus weg (#610 + #614) — sonst müsste Filtern und
+              Ankreuzen gleichzeitig gedacht werden. */}
+          {!loading && !selectMode && cards.length > 4 && (
+            <View style={{ position: "relative" }}>
+              <Search
+                size={18}
+                color={colors.textTertiary}
+                style={{ position: "absolute", left: 14, top: 14, zIndex: 1 }}
+              />
+              <TextInput
+                value={cardQuery}
+                onChangeText={setCardQuery}
+                placeholder="Karten durchsuchen…"
+                placeholderTextColor={colors.textTertiary}
+                style={{
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  borderRadius: radius.md,
+                  paddingVertical: spacing.md,
+                  paddingLeft: 42,
+                  paddingRight: spacing.md,
+                  fontSize: typography.base,
+                  backgroundColor: colors.surface,
+                  color: colors.text,
+                }}
+              />
+            </View>
+          )}
+
           {/* Card list */}
           {loading ? (
             <View
@@ -907,7 +956,16 @@ export default function DeckDetailScreen() {
                     {selectMode ? t("cardSelect.count", { count: selectedIds.length }) : ""}
                   </Text>
                   <TouchableOpacity
-                    onPress={() => (selectMode ? leaveSelectMode() : setSelectMode(true))}
+                    onPress={() => {
+                      if (selectMode) {
+                        leaveSelectMode();
+                      } else {
+                        // Ein aktiver Suchfilter bliebe sonst unsichtbar aktiv —
+                        // das Suchfeld verschwindet im Auswahl-Modus (#610+#614).
+                        setCardQuery("");
+                        setSelectMode(true);
+                      }
+                    }}
                     activeOpacity={0.7}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
@@ -923,7 +981,31 @@ export default function DeckDetailScreen() {
                   </TouchableOpacity>
                 </View>
               )}
-              {cards.map((card, idx) => {
+              {(() => {
+                const query = cardQuery.trim().toLowerCase();
+                const visible = query
+                  ? cards.filter(
+                      (c) =>
+                        (c.front ?? "").toLowerCase().includes(query) ||
+                        (c.back ?? "").toLowerCase().includes(query)
+                    )
+                  : cards;
+                if (visible.length === 0) {
+                  return (
+                    <Text
+                      style={{
+                        fontSize: typography.base,
+                        color: colors.textSecondary,
+                        textAlign: "center",
+                        paddingVertical: spacing.lg,
+                      }}
+                    >
+                      Keine Karten gefunden.
+                    </Text>
+                  );
+                }
+                return visible.map((card) => {
+                  const idx = cards.indexOf(card);
                   const meta = difficultyMeta[card.difficulty] ?? {
                     color: colors.textSecondary,
                     label: card.difficulty,
@@ -942,13 +1024,33 @@ export default function DeckDetailScreen() {
                         selectMode ? toggleSelected(card.id) : handleEditCard(card)
                       }
                       onLongPress={selectMode ? undefined : () => handleCardLongPress(card)}
+                      // Sprung aus der Bibliothek-Suche (#610): kein FlatList
+                      // hier, also über das eigene onLayout der Ziel-Zeile
+                      // scrollen statt über einen Index. jumpedRef sperrt
+                      // danach erneutes Auslösen (z. B. beim Fokus-Nachladen).
+                      onLayout={(e) => {
+                        if (card.id !== highlightCardId || jumpedRef.current) return;
+                        jumpedRef.current = true;
+                        const y = e.nativeEvent.layout.y;
+                        scrollViewRef.current?.scrollTo({ y: Math.max(y - 80, 0), animated: true });
+                        setHighlightedCardId(card.id);
+                        highlightTimeoutRef.current = setTimeout(() => setHighlightedCardId(null), 2200);
+                      }}
                       activeOpacity={0.7}
                       style={{
-                        backgroundColor: picked ? colors.primaryLight : colors.surface,
+                        backgroundColor: picked
+                          ? colors.primaryLight
+                          : highlightedCardId === card.id
+                            ? colors.warningLight
+                            : colors.surface,
                         borderRadius: radius.md,
                         padding: 14,
                         borderWidth: 1,
-                        borderColor: picked ? colors.primary : colors.border,
+                        borderColor: picked
+                          ? colors.primary
+                          : highlightedCardId === card.id
+                            ? colors.warning
+                            : colors.border,
                         ...shadows.sm,
                       }}
                     >
@@ -1071,7 +1173,8 @@ export default function DeckDetailScreen() {
                       </Text>
                     </TouchableOpacity>
                   );
-                })}
+                });
+              })()}
 
               {/* Löschen-Knopf der Mehrfachauswahl (#614), unter der Liste wie
                   im Web. Ohne Häkchen gesperrt statt versteckt, damit klar ist,

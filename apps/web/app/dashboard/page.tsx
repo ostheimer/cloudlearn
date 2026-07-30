@@ -291,7 +291,7 @@ export default function LibraryPage() {
         {cardHits.map((hit) => (
           <Link
             key={hit.cardId}
-            href={`/dashboard/deck/${hit.deckId}`}
+            href={`/dashboard/deck/${hit.deckId}?card=${hit.cardId}`}
             style={{
               display: "grid",
               gap: 2,
