@@ -223,7 +223,9 @@ export default function DeckDetailPage() {
 
       <div className="detail-head">
         <div>
-          <h1 style={{ fontSize: "clamp(1.5rem, 4vw, 2rem)", fontWeight: 800 }}>
+          {/* overflowWrap: ein Titel ohne Leerzeichen darf die Seite nicht
+              horizontal aufschieben (#612). */}
+          <h1 style={{ fontSize: "clamp(1.5rem, 4vw, 2rem)", fontWeight: 800, overflowWrap: "anywhere" }}>
             {details?.title}
           </h1>
           {cardCountLabel && (

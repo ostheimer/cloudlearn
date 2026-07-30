@@ -41,6 +41,7 @@ import { useColors, spacing, radius, typography, shadows } from "../../src/theme
 import { buildLibraryFolderRoute } from "../../src/navigation/libraryRoutes";
 import { AuthPromptCard } from "../../src/components/AuthPromptCard";
 import TextPromptModal from "../../src/components/TextPromptModal";
+import { TITLE_MAX_LENGTH } from "../../src/lib/titleLimit";
 
 type TabKey = "decks" | "folders";
 
@@ -819,6 +820,8 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
           label={promptConfig.label}
           initialValue={promptConfig.initialValue}
           confirmLabel={promptConfig.confirmLabel}
+          // Alle drei Fenster hier sind Namen (Deck/Ordner) — Servergrenze 120 (#612).
+          maxLength={TITLE_MAX_LENGTH}
           onCancel={() => setPrompt(null)}
           onSubmit={handlePromptSubmit}
         />
