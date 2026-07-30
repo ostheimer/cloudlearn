@@ -39,7 +39,8 @@ import {
   type SessionAwardState,
 } from "@/lib/learn-session-lp";
 import { useCoarsePointer } from "@/lib/use-coarse-pointer";
-import { clearSessionProgress, saveSessionProgress } from "@/lib/session-progress";
+import { saveSessionProgress, type SessionProgress } from "@/lib/session-progress";
+import { clearProgressEverywhere, pushProgressToAccount } from "@/lib/session-progress-sync";
 import { createReviewSendBuffer } from "@/lib/review-send-buffer";
 import { ratingKeyIndex } from "@/lib/learn-keys";
 import {
@@ -363,7 +364,9 @@ export function LearnSession({
   useEffect(() => {
     if (!progressDeckId || !progressSource || total === 0) return;
     if (done) {
-      clearSessionProgress(progressDeckId, "flashcards");
+      // Auch im Konto löschen (#610) — sonst böte das andere Gerät eine Runde
+      // an, die hier längst fertig ist.
+      void clearProgressEverywhere(progressDeckId, "flashcards");
       return;
     }
     const card = cards[index];
@@ -376,6 +379,39 @@ export function LearnSession({
       total,
     });
   }, [progressDeckId, progressSource, cards, index, done, total, reverse]);
+
+  // Beim Verlassen der Runde den Stand ins Konto schreiben (#610). Bewusst
+  // NICHT bei jedem Kartenwechsel: Das wäre eine Anfrage je Karte. Der Ref
+  // trägt den jeweils aktuellen Stand, damit der Effekt selbst nur einmal
+  // eingehängt werden muss und beim Abbau den letzten Stand sieht.
+  const accountPushRef = useRef<SessionProgress | null>(null);
+  accountPushRef.current =
+    !done && progressDeckId && progressSource && cards[index]
+      ? {
+          index,
+          cardId: cards[index]!.id,
+          source: progressSource,
+          reverse,
+          total,
+        }
+      : null;
+  useEffect(() => {
+    if (!progressDeckId) return;
+    const push = () => {
+      const pending = accountPushRef.current;
+      if (pending) void pushProgressToAccount(progressDeckId, "flashcards", pending);
+    };
+    // Ein geschlossener Tab läuft ohne Aufräum-Code — das Verstecken der Seite
+    // ist der letzte Moment, in dem eine Anfrage noch verlässlich rausgeht.
+    const onHide = () => {
+      if (document.visibilityState === "hidden") push();
+    };
+    document.addEventListener("visibilitychange", onHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      push();
+    };
+  }, [progressDeckId]);
 
   // useCallback statt schlichter Funktion, weil der Auto-Abspielen-Timer sie
   // aus einem Effekt heraus aufruft.

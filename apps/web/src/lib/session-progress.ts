@@ -54,6 +54,12 @@ export interface SessionProgress {
    * zählt dann nur die aktuelle Sitzung.
    */
   results?: Record<string, StoredCardResult>;
+  /**
+   * Wann dieser Stand geschrieben wurde (ISO). Nur nötig, um ihn gegen den
+   * Stand im Konto abzuwägen — der neuere gewinnt (#610). Optional: Merker von
+   * vor diesem Feld gelten als älter als jeder Server-Stand, was stimmt.
+   */
+  savedAt?: string;
 }
 
 /** Nur Einträge behalten, die wie ein Ergebnis aussehen — ein kaputtes Feld darf nie den Merker töten. */
@@ -91,7 +97,16 @@ export function parseSessionProgress(raw: string | null): SessionProgress | null
     // Ein Index am oder hinter dem Ende ist eine fertige Runde, keine fortsetzbare.
     if (index >= total) return null;
     const results = parseStoredResults(value.results);
-    return { index, cardId, source, reverse: reverse === true, total, ...(results ? { results } : {}) };
+    const savedAt = typeof value.savedAt === "string" && value.savedAt ? value.savedAt : undefined;
+    return {
+      index,
+      cardId,
+      source,
+      reverse: reverse === true,
+      total,
+      ...(results ? { results } : {}),
+      ...(savedAt ? { savedAt } : {}),
+    };
   } catch {
     return null;
   }
@@ -128,7 +143,10 @@ export function saveSessionProgress(
   progress: SessionProgress
 ): void {
   try {
-    window.localStorage.setItem(storageKey(deckId, mode), JSON.stringify(progress));
+    // Zeitstempel beim Schreiben setzen, damit sich lokaler und Konto-Stand
+    // später vergleichen lassen (#610).
+    const stamped: SessionProgress = { ...progress, savedAt: new Date().toISOString() };
+    window.localStorage.setItem(storageKey(deckId, mode), JSON.stringify(stamped));
   } catch {
     // localStorage kann gesperrt sein (Privatmodus): Dann fehlt nur das
     // Weitermachen-Angebot — nie eine Bewertung.
