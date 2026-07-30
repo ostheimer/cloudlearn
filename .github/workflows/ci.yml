@@ -10,7 +10,9 @@ jobs:
   checks:
     runs-on: ubuntu-latest
     services:
-      # Throwaway Postgres for the LP SQL integration tests (lpDb.integration.test.ts).
+      # Throwaway Postgres for the LP SQL integration tests (lpDb.integration.test.ts)
+      # and for the restore probe (scripts/restore-smoke.ts, #86). Both only ever
+      # touch this disposable server — never production.
       # Those tests skip themselves when DATABASE_URL is unset (e.g. local runs).
       postgres:
         image: postgres:16
@@ -55,6 +57,15 @@ jobs:
 
       - name: Test
         run: pnpm test
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/clearn_test
+
+      # Echte Wiederherstellungs-Probe (#86): spielt ALLE Migrationen in eine
+      # frische, leere Wegwerf-Datenbank ein und prueft, ob danach die tragenden
+      # Tabellen, Funktionen und RLS-Schalter stehen. Frueher war das eine
+      # Attrappe, die nur die Existenz einer Datei geprueft hat.
+      - name: Restore-Probe (Wiederaufbau aus Migrationen)
+        run: pnpm run restore:smoke
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/clearn_test
 

@@ -1125,8 +1125,12 @@ pnpm run orchestrator:verify
 ./scripts/orchestrator.sh deploy
 ./scripts/orchestrator.sh poll <deployment-url>
 
-# Monatlicher Restore-Smoke-Test
-./scripts/restore-smoke.sh
+# Restore-Probe: baut die DB aus allen Migrationen in einer Wegwerf-Datenbank neu auf
+# (laeuft auch in CI; niemals gegen Produktion — siehe docs/runbooks/restore-test.md)
+DATABASE_URL=postgres://postgres:postgres@localhost:55432/clearn_test pnpm run restore:smoke
+
+# Echte Latenz-Messung gegen das Deployment (nur lesend, kostet nichts)
+pnpm run perf:http
 ```
 
 ---
@@ -1150,7 +1154,8 @@ clearn/
 │   ├── runbooks/              # 25+ Runbooks: DoD, Incident, Security, EAS, App Store, TestFlight, Passkeys, etc.
 │   └── screens/               # Screen-Map & Wireframes (SCREENS.md, wireframes/)
 ├── scripts/                   # Orchestrator, Build, Restore, Perf
-├── .github/workflows/ci.yml   # CI: lint + typecheck + test
+├── .github/workflows/         # ci.yml (lint/typecheck/test/Restore-Probe), e2e-live.yml
+│                              # (taeglich), perf-http.yml (echte Messung auf Knopfdruck)
 ├── BACKLOG.md
 ├── ROADMAP.md
 └── package.json               # Workspace-Skripte

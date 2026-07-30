@@ -249,7 +249,7 @@ Ein Ticket ist erst "Done", wenn:
 - **CL-401:** Onboarding-Flow mit Abschlussrouting implementiert
 - **CL-402:** Statistiken-Dashboard als App-Home-Scaffold implementiert
 - **CL-403:** Push-Preferences mit Opt-In/Opt-Out und Quiet-Hours implementiert
-- **CL-404:** Incident + Restore Runbooks und `restore-smoke.sh` umgesetzt
+- **CL-404:** Incident + Restore Runbooks und Restore-Probe umgesetzt (seit #86 `scripts/restore-smoke.ts`, echter Wiederaufbau statt Simulation)
 - **CL-405:** Landing Page (`apps/web`) und ASO-Checkliste angelegt
 - **CL-406:** Beta-Feedback-Endpoint und Triage-Runbook implementiert
 
