@@ -275,7 +275,11 @@ export default function DeckStatsPage() {
                     flex: "none",
                   }}
                 >
-                  {card.wrongCount}× falsch
+                  {/* „N Fehler" statt „N× falsch" (Laras Wortlaut, #682): Das
+                      Kreuz las sich wie eine Kartenzahl — 7 und 6 wurden als
+                      13 Karten verstanden. Gezählt werden Fehler AUF DIESER
+                      einen Karte. */}
+                  {card.wrongCount} Fehler
                 </span>
               </div>
             ))}

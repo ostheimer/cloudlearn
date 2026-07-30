@@ -491,7 +491,7 @@ export default function DeckStatsScreen() {
                           onPress={() => practiceCards([card])}
                           activeOpacity={0.7}
                           accessibilityRole="button"
-                          accessibilityLabel={`${card.front}: ${card.wrongCount}x falsch, jetzt üben`}
+                          accessibilityLabel={`${card.front}: ${card.wrongCount} Fehler, jetzt üben`}
                           style={{
                             flexDirection: "row",
                             alignItems: "center",
@@ -518,7 +518,10 @@ export default function DeckStatsScreen() {
                                 color: colors.textTertiary,
                               }}
                             >
-                              {card.wrongCount}x falsch · zuletzt{" "}
+                              {/* „N Fehler" statt „Nx falsch" (Laras Wortlaut,
+                                  #682): Das Kreuz las sich wie eine Kartenzahl.
+                                  Gezählt werden Fehler AUF DIESER Karte. */}
+                              {card.wrongCount} Fehler · zuletzt{" "}
                               {shortDate(card.lastWrongAt.slice(0, 10))}
                             </Text>
                           </View>
