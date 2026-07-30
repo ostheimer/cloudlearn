@@ -125,6 +125,21 @@ export default function HomePage() {
   const hasAccuracyData = (stats?.reviewsInWindow ?? stats?.reviewsTotal ?? 0) > 0;
   const goalPct = goal > 0 ? Math.min(100, Math.round((today / goal) * 100)) : 0;
 
+  // Die Streak-Kachel leuchtet erst, wenn das heutige Lernen erledigt ist —
+  // dieselbe Regel wie das App-Banner (index.tsx, `fireBurning`). Vorher war
+  // sie IMMER warm-gelb und sah damit auch morgens um sieben nach „geschafft"
+  // aus, während die Unterzeile schon „Lerne heute, um deinen Streak zu
+  // halten!" sagte (#610, Laras Entscheidung 30.07.).
+  //
+  // Als Signal dient `reviewsToday` und nicht wie in der App der Vergleich von
+  // `lastReviewDate` mit dem heutigen Datum: Die Unterzeile hängt hier längst
+  // daran, und zwei verschiedene Signale könnten sich widersprechen — eine
+  // graue Kachel mit „Weiter so!" darunter wäre schlimmer als beides.
+  //
+  // Das ist NICHT der Zustand „Streak verloren": dafür gibt es das eigene
+  // Reparatur-Banner darüber.
+  const fireBurning = streak > 0 && today > 0;
+
   const activeFriend = friendStreaks.filter((s) => s.status === "active");
   const bestFriendStreak = activeFriend.reduce((m, s) => Math.max(m, s.currentStreak), 0);
   const waitingPartner =
@@ -351,8 +366,8 @@ export default function HomePage() {
             display: "flex",
             alignItems: "center",
             gap: 13,
-            background: "var(--amber-50)",
-            border: "1px solid var(--amber)",
+            background: fireBurning ? "var(--amber-50)" : "var(--bg-soft)",
+            border: `1px solid ${fireBurning ? "var(--amber)" : "var(--line)"}`,
             borderRadius: 14,
             padding: "14px 16px",
             textDecoration: "none",
@@ -364,22 +379,33 @@ export default function HomePage() {
               width: 44,
               height: 44,
               borderRadius: 999,
-              background: "rgba(245, 158, 11, 0.18)",
-              color: "var(--amber)",
+              // Im kalten Zustand die weiße Fläche, nicht dieselbe wie die
+              // Kachel: Gleich auf Gleich ließe den Kreis verschwinden
+              // (derselbe Fallstrick wie in der App).
+              background: fireBurning ? "rgba(245, 158, 11, 0.18)" : "var(--surface)",
+              color: fireBurning ? "var(--amber)" : "var(--ink-3)",
               display: "grid",
               placeItems: "center",
               flex: "none",
             }}
             aria-hidden
           >
-            <Flame size={24} />
+            {/* Gefüllt nur im warmen Zustand — wie die App-Flamme. */}
+            <Flame size={24} fill={fireBurning ? "currentColor" : "none"} />
           </span>
           {/* Große Tageszahl + Zuruf wie in der App: dort steht die Zahl groß
               („1 Tag") und darunter je nach Lage „Weiter so!", eine Erinnerung
               oder die Einladung zum Start. Der Bestwert sitzt rechts als
               eigene Spalte mit Auszeichnungs-Symbol, nicht in der Unterzeile. */}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: "1.75rem", fontWeight: 800, color: "var(--amber)", lineHeight: 1.1 }}>
+            <div
+              style={{
+                fontSize: "1.75rem",
+                fontWeight: 800,
+                color: fireBurning ? "var(--amber)" : "var(--ink-3)",
+                lineHeight: 1.1,
+              }}
+            >
               {streak} {streak === 1 ? "Tag" : "Tage"}
             </div>
             <div style={{ fontSize: "0.85rem", color: "var(--ink-3)", marginTop: 2 }}>
