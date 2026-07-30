@@ -32,13 +32,16 @@ import {
   type StoredSetup,
 } from "../src/lib/setupMemory";
 import {
-  clearSessionProgress,
   isProgressUsable,
-  loadSessionProgress,
   saveSessionProgress,
   type SessionProgress,
   type StoredCardResult,
 } from "../src/features/review/sessionProgress";
+import {
+  clearProgressEverywhere,
+  loadBestProgress,
+  pushProgressToAccount,
+} from "../src/features/review/sessionProgressSync";
 import {
   createReviewSendBuffer,
   type BufferedReview,
@@ -196,7 +199,8 @@ export default function ClozeScreen() {
   useEffect(() => {
     if (!deckId) return;
     let active = true;
-    void loadSessionProgress(deckId, "cloze").then((progress) => {
+    // Lokal UND aus dem Konto lesen, der neuere gilt (#610).
+    void loadBestProgress(deckId, "cloze").then((progress) => {
       if (active) setSaved(progress);
     });
     return () => {
@@ -500,7 +504,9 @@ export default function ClozeScreen() {
   useEffect(() => {
     if (!deckId || round.length === 0) return;
     if (phase === "summary") {
-      void clearSessionProgress(deckId, "cloze");
+      // Auch im Konto löschen (#610) — sonst böte das andere Gerät eine Runde
+      // an, die hier längst fertig ist.
+      void clearProgressEverywhere(deckId, "cloze");
       return;
     }
     if (phase !== "play") return;
@@ -525,6 +531,40 @@ export default function ClozeScreen() {
       ...(Object.keys(answered).length > 0 ? { results: answered } : {}),
     });
   }, [deckId, phase, round, idx, source, reverse, results]);
+
+  // Beim Verlassen der Runde den Stand ins Konto schreiben (#610). Bewusst
+  // NICHT bei jedem Kartenwechsel: Das wäre eine Anfrage je Karte. Der Ref
+  // trägt den jeweils aktuellen Stand, damit der Effekt nur einmal eingehängt
+  // werden muss und beim Abbau den letzten Stand sieht.
+  const accountPushRef = useRef<SessionProgress | null>(null);
+  {
+    const card = phase === "play" ? round[idx] : undefined;
+    if (deckId && card) {
+      const answered: Record<string, StoredCardResult> = {};
+      round.forEach((roundCard, i) => {
+        const result = results[i];
+        if (result)
+          answered[roundCard.id] = { correct: result.correct, overridden: result.overridden };
+      });
+      accountPushRef.current = {
+        index: idx,
+        cardId: card.id,
+        source,
+        reverse,
+        total: round.length,
+        ...(Object.keys(answered).length > 0 ? { results: answered } : {}),
+      };
+    } else {
+      accountPushRef.current = null;
+    }
+  }
+  useEffect(() => {
+    if (!deckId) return;
+    return () => {
+      const pending = accountPushRef.current;
+      if (pending) void pushProgressToAccount(deckId, "cloze", pending);
+    };
+  }, [deckId]);
 
   // Round outcome, derived from the per-card results.
   const correctCount = results.filter(
