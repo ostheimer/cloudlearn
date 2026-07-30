@@ -640,7 +640,7 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
             key={hit.cardId}
             onPress={() =>
               router.push(
-                `/deck/${hit.deckId}?title=${encodeURIComponent(hit.deckTitle)}`
+                `/deck/${hit.deckId}?title=${encodeURIComponent(hit.deckTitle)}&card=${hit.cardId}`
               )
             }
             activeOpacity={0.7}

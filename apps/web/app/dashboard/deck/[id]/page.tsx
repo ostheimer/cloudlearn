@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
 import { Modal } from "@/components/app/modal";
@@ -37,6 +37,7 @@ import {
   FileText,
   ImageIcon,
   AlertTriangle,
+  Search,
 } from "@/components/icons";
 
 // Lern-Modi wie im App-Deck-Screen. „active" gibt es im Web schon; der Rest
@@ -76,6 +77,15 @@ export default function DeckDetailPage() {
   const deckId = params.id;
   const { userId } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // Sprung aus der Bibliothek-Suche (?card=<id>, #610): die Zeile kurz
+  // hervorheben und dorthin scrollen, statt nur auf der Deck-Wurzel zu landen.
+  const highlightCardId = searchParams.get("card");
+  const [highlightedRowId, setHighlightedRowId] = useState<string | null>(null);
+  const cardRowRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  // Suchfeld über der Kartenliste (#610) — rein clientseitig, die Karten sind
+  // schon geladen.
+  const [cardQuery, setCardQuery] = useState("");
   const goBack = () => {
     if (typeof window !== "undefined" && window.history.length > 1) router.back();
     else router.push("/dashboard");
@@ -130,6 +140,30 @@ export default function DeckDetailPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Aus der Bibliothek-Suche zur Karte springen (#610): scrollen, kurz
+  // hervorheben, danach wieder normal — nur einmal je Aufruf, damit ein
+  // späteres Neuladen (Fokus-Nachladen) das Hervorheben nicht wiederholt.
+  const jumpedRef = useRef(false);
+  const highlightTimeoutRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!highlightCardId || jumpedRef.current || cards.length === 0) return;
+    const row = cardRowRefs.current[highlightCardId];
+    if (!row) return;
+    jumpedRef.current = true;
+    row.scrollIntoView({ behavior: "smooth", block: "center" });
+    setHighlightedRowId(highlightCardId);
+    highlightTimeoutRef.current = window.setTimeout(() => setHighlightedRowId(null), 2200);
+    // Kein Cleanup hier, das den Timeout abbricht: das Fokus-Nachladen ersetzt
+    // `cards` (neue Array-Referenz), das würde diesen Effect erneut auslösen
+    // und den bereits laufenden Timeout canceln, ohne ihn neu zu setzen —
+    // der Hervorheb-Zustand bliebe für immer an. Nur beim echten Unmount räumen.
+  }, [highlightCardId, cards]);
+  useEffect(() => {
+    return () => {
+      if (highlightTimeoutRef.current) window.clearTimeout(highlightTimeoutRef.current);
+    };
+  }, []);
 
   // Nach dem Lernen am Handy zeigte die offene Deck-Seite am Laptop weiter den
   // alten Stand (#610) — auch Karten, die inzwischen woanders geändert wurden.
@@ -447,7 +481,7 @@ export default function DeckDetailPage() {
             <h2 className="h3" style={{ margin: 0 }}>
               {selectMode
                 ? `${selectedIds.length} ausgewählt`
-                : "Karten"}
+                : `Karten (${textCards.length})`}
             </h2>
             {/* Erst ab zwei Karten: bei einer einzigen ist der Papierkorb in
                 ihrer Zeile der kürzere Weg. */}
@@ -455,14 +489,54 @@ export default function DeckDetailPage() {
               <button
                 type="button"
                 className="card-select-toggle"
-                onClick={() => (selectMode ? leaveSelectMode() : setSelectMode(true))}
+                onClick={() => {
+                  if (selectMode) {
+                    leaveSelectMode();
+                  } else {
+                    // Ein aktiver Suchfilter bliebe sonst unsichtbar aktiv —
+                    // das Suchfeld verschwindet im Auswahl-Modus (s.o.).
+                    setCardQuery("");
+                    setSelectMode(true);
+                  }
+                }}
               >
                 {selectMode ? "Abbrechen" : "Auswählen"}
               </button>
             )}
           </div>
+          {/* Suche bleibt im Auswahl-Modus weg (#610 + #614) — sonst müsste
+              Filtern und Ankreuzen gleichzeitig gedacht werden. */}
+          {!selectMode && textCards.length > 4 && (
+            <div className="input-icon" style={{ marginBottom: 12 }}>
+              <span aria-hidden>
+                <Search size={16} />
+              </span>
+              <input
+                className="input"
+                placeholder="Karten durchsuchen…"
+                aria-label="Karten durchsuchen"
+                value={cardQuery}
+                onChange={(e) => setCardQuery(e.target.value)}
+              />
+            </div>
+          )}
           <div className="card-list">
-            {textCards.map((card, i) => {
+            {(() => {
+              const term = cardQuery.trim().toLowerCase();
+              const visible = term
+                ? textCards.filter((card) => {
+                    const preview = cardListPreview(card);
+                    return (
+                      preview.front.toLowerCase().includes(term) ||
+                      preview.back.toLowerCase().includes(term)
+                    );
+                  })
+                : textCards;
+              if (visible.length === 0) {
+                return <p className="muted">Keine Karten gefunden.</p>;
+              }
+              return visible.map((card) => {
+              const i = textCards.indexOf(card);
               // Aufbereitet wie in den Lernmodi (#612): Lücken als Strich statt
               // rohem {{c1::…}}, kein Bild-Markdown. Eine Seite ohne Text (reines
               // Bild ohne Unterschrift) sagt das, statt leer zu bleiben.
@@ -472,9 +546,12 @@ export default function DeckDetailPage() {
               return (
             <div
               key={card.id}
+              ref={(el) => {
+                cardRowRefs.current[card.id] = el;
+              }}
               className={`card-row${selectMode ? " card-row--select" : ""}${
                 picked ? " is-picked" : ""
-              }`}
+              }${highlightedRowId === card.id ? " card-row--highlight" : ""}`}
               // Im Auswahl-Modus zählt die ganze Zeile als Trefferfläche, nicht
               // nur das Kästchen — am Handy ist ein 18px-Kästchen zu klein.
               // Klicks AUS dem Kästchen laufen über sein onChange, sonst würde
@@ -537,7 +614,8 @@ export default function DeckDetailPage() {
               )}
             </div>
               );
-            })}
+            });
+            })()}
           </div>
           {selectMode && (
             <div className="card-select-bar">
