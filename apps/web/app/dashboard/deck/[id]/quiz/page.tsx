@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
-import { listCardsInDeck, reviewCard, updateCard, earnLp, isApiError, type Card } from "@/lib/api";
+import { listCardsInDeck, reviewCard, updateCard, earnLp, getStats, isApiError, type Card } from "@/lib/api";
 import { CardEditor } from "@/components/app/card-editor";
+import { dailyGoalLine } from "@/lib/daily-goal-line";
 import { useDisplayName } from "@/lib/use-display-name";
 import { toggleCardStar } from "@/lib/toggle-card-star";
 import { useWobblyIds } from "@/lib/use-wobbly-ids";
@@ -79,12 +80,29 @@ export default function QuizPage() {
 
   const [earned, setEarned] = useState<number | null>(null);
   const [earnCapReached, setEarnCapReached] = useState(false);
+  const [dailyGoalText, setDailyGoalText] = useState<string | null>(null);
   const awardStateRef = useRef<SessionAwardState>({ finalized: false, inFlight: null });
   const pendingReviewsRef = useRef<Promise<unknown>[]>([]);
   // Endgültig verlorene Bewertungen (#605): Ref für die Abrechnung, State für
   // die Ergebnis-Zeile — immer zusammen fortgeschrieben.
   const unsavedRef = useRef(0);
   const [unsavedCount, setUnsavedCount] = useState(0);
+
+  // Tagesziel im Rundenergebnis (#610): jede Karte wurde schon während der
+  // Runde einzeln ans Backend gemeldet, `reviewsToday` ist beim Abschluss also
+  // schon aktuell.
+  useEffect(() => {
+    if (phase !== "result") return;
+    let cancelled = false;
+    getStats()
+      .then(({ stats }) => {
+        if (!cancelled) setDailyGoalText(dailyGoalLine(stats.dailyGoal, stats.reviewsToday));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [phase]);
 
   const load = useCallback(async () => {
     if (!deckId) return;
@@ -509,6 +527,11 @@ export default function QuizPage() {
           {earned === 0 && earnCapReached && (
             <p className="muted" style={{ fontSize: "0.9rem" }}>
               Heutiges Lernpunkte-Limit erreicht — morgen gibt es wieder welche.
+            </p>
+          )}
+          {dailyGoalText && (
+            <p className="muted" style={{ fontSize: "0.9rem" }}>
+              {dailyGoalText}
             </p>
           )}
 

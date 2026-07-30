@@ -54,11 +54,13 @@ import { useSessionStore } from "../../src/store/sessionStore";
 import {
   earnLp,
   getDueCards,
+  getStats,
   listCardsInDeck,
   listDecks,
   reviewCard,
   updateCard,
 } from "../../src/lib/api";
+import { dailyGoalLine } from "../../src/lib/dailyGoalLine";
 import {
   DEFAULT_SPEECH_LANGUAGE,
   toSpeechLanguage,
@@ -657,6 +659,7 @@ function AuthenticatedLearnScreen({
   // Punkte-Rückmeldung der Runde (#611): Zahlen kommen aus der Server-Antwort.
   const [earnedLp, setEarnedLp] = useState(0);
   const [earnCapReached, setEarnCapReached] = useState(false);
+  const [dailyGoalText, setDailyGoalText] = useState<string | null>(null);
 
   useEffect(() => {
     if (completed && autoPlaying) setAutoPlaying(false);
@@ -743,6 +746,7 @@ function AuthenticatedLearnScreen({
     // neue eine Gutschrift behaupten, die noch nicht erfolgt ist.
     setEarnedLp(0);
     setEarnCapReached(false);
+    setDailyGoalText(null);
   }, [awardSession]);
 
   // Punkte-Abrechnung am Rundenende. Die Meilensteine („erste Lernsitzung",
@@ -771,6 +775,22 @@ function AuthenticatedLearnScreen({
 
     handleSessionComplete();
   // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [completed]);
+
+  // Tagesziel im Rundenergebnis (#610): jede Karte wurde schon während der
+  // Runde einzeln ans Backend gemeldet, `reviewsToday` ist beim Abschluss also
+  // schon aktuell.
+  useEffect(() => {
+    if (!completed) return;
+    let cancelled = false;
+    getStats()
+      .then(({ stats }) => {
+        if (!cancelled) setDailyGoalText(dailyGoalLine(stats.dailyGoal, stats.reviewsToday));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, [completed]);
 
   useEffect(() => {
@@ -1108,7 +1128,7 @@ function AuthenticatedLearnScreen({
                     erst beim VERLASSEN ab — hier konnte also gar nichts stehen,
                     und wer 20 Karten gelernt hatte, erfuhr nie, ob und warum
                     Punkte ausblieben. */}
-                <LpRoundSummary earned={earnedLp} capReached={earnCapReached} />
+                <LpRoundSummary earned={earnedLp} capReached={earnCapReached} dailyGoalText={dailyGoalText} />
                 <View style={{ width: "100%", maxWidth: 340, gap: spacing.sm, marginTop: spacing.sm }}>
                   {missedCards.length > 0 && (
                     <TouchableOpacity

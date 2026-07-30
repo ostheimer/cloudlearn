@@ -10,10 +10,12 @@ import {
   reviewCard,
   recordTestAttempt,
   updateCard,
+  getStats,
   isApiError,
   type Card,
 } from "@/lib/api";
 import { CardEditor } from "@/components/app/card-editor";
+import { dailyGoalLine } from "@/lib/daily-goal-line";
 import { useDisplayName } from "@/lib/use-display-name";
 import { toggleCardStar } from "@/lib/toggle-card-star";
 import { useWobblyIds } from "@/lib/use-wobbly-ids";
@@ -143,6 +145,23 @@ export default function TestPage() {
   // Fragen berechnet, als man sich vorgenommen hatte, und darf NICHT als
   // „Letztes Ergebnis" stehenbleiben.
   const [aborted, setAborted] = useState(false);
+  const [dailyGoalText, setDailyGoalText] = useState<string | null>(null);
+
+  // Tagesziel im Rundenergebnis (#610): jede Karte wurde schon während der
+  // Runde einzeln ans Backend gemeldet, `reviewsToday` ist beim Abschluss also
+  // schon aktuell.
+  useEffect(() => {
+    if (phase !== "result") return;
+    let cancelled = false;
+    getStats()
+      .then(({ stats }) => {
+        if (!cancelled) setDailyGoalText(dailyGoalLine(stats.dailyGoal, stats.reviewsToday));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [phase]);
   /**
    * Sind die Antworten dieser Runde schon rausgegangen?
    *
@@ -751,6 +770,11 @@ export default function TestPage() {
           <p className="muted" style={{ margin: 0, fontSize: "0.85rem" }}>
             Eine Prüfung misst — Lernpunkte gibt es beim Lernen.
           </p>
+          {dailyGoalText && (
+            <p className="muted" style={{ margin: 0, fontSize: "0.85rem" }}>
+              {dailyGoalText}
+            </p>
+          )}
           {aborted && (
             // Ohne diesen Satz sähe eine vorzeitig beendete Prüfung aus wie eine
             // vollständige — mit einer Quote, die sich auf weniger Fragen

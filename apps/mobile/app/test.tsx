@@ -30,8 +30,9 @@ import {
   Star,
   Pencil,
 } from "lucide-react-native";
-import { listCardsInDeck, recordTestAttempt, updateCard, type Card } from "../src/lib/api";
+import { listCardsInDeck, recordTestAttempt, updateCard, getStats, type Card } from "../src/lib/api";
 import CardEditor from "../src/components/CardEditor";
+import { dailyGoalLine } from "../src/lib/dailyGoalLine";
 import { toggleCardStar } from "../src/lib/toggleCardStar";
 import { sendReview } from "../src/features/sync/sendReview";
 import { setLastUsedDeck } from "../src/lib/lastUsedDeck";
@@ -175,6 +176,23 @@ export default function TestScreen() {
   // Fragen berechnet, als man sich vorgenommen hatte, und darf NICHT als
   // „Letztes Ergebnis" stehenbleiben.
   const [aborted, setAborted] = useState(false);
+  const [dailyGoalText, setDailyGoalText] = useState<string | null>(null);
+
+  // Tagesziel im Rundenergebnis (#610): jede Karte wurde schon während der
+  // Runde einzeln ans Backend gemeldet, `reviewsToday` ist beim Abschluss also
+  // schon aktuell.
+  useEffect(() => {
+    if (phase !== "result") return;
+    let cancelled = false;
+    getStats()
+      .then(({ stats }) => {
+        if (!cancelled) setDailyGoalText(dailyGoalLine(stats.dailyGoal, stats.reviewsToday));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [phase]);
   /**
    * Sind die Antworten dieser Runde schon gemeldet?
    *
@@ -777,6 +795,11 @@ export default function TestScreen() {
                 <Text style={{ fontSize: typography.sm, color: colors.textTertiary, textAlign: "center" }}>
                   Vorzeitig beendet — gewertet sind die {questions.length}{" "}
                   {questions.length === 1 ? "Frage" : "Fragen"}, die du beantwortet hast.
+                </Text>
+              )}
+              {dailyGoalText && (
+                <Text style={{ fontSize: typography.xs, color: colors.textTertiary, textAlign: "center" }}>
+                  {dailyGoalText}
                 </Text>
               )}
             </View>
