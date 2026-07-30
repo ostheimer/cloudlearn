@@ -862,6 +862,15 @@ export default function ProfileScreen() {
               iconBg: c.primaryLight,
               route: "/tracking-preferences",
             },
+            // Papierkorb (#614) — Gegenstück zur Profil-Zeile im Web.
+            {
+              key: "trash",
+              label: t("profile.trash"),
+              subtitle: t("profile.trashSubtitle"),
+              icon: <Trash2 size={18} color={c.primary} />,
+              iconBg: c.primaryLight,
+              route: "/trash",
+            },
             {
               key: "impressum",
               label: t("profile.impressum"),

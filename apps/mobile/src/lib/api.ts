@@ -728,6 +728,80 @@ export async function deleteCard(cardId: string): Promise<{ deleted: boolean }> 
   });
 }
 
+/**
+ * Mehrere Karten eines Decks in EINER Anfrage löschen (#614). `deleted` ist die
+ * wirklich getroffene Anzahl — eine anderswo schon gelöschte Karte zählt nicht
+ * mit. Gegenstück: apps/web/src/lib/api.ts `deleteCards`.
+ */
+export async function deleteCards(
+  deckId: string,
+  cardIds: string[]
+): Promise<{ deleted: number }> {
+  return requestAuthenticated<{ deleted: number }>("/api/v1/cards/delete-many", {
+    method: "POST",
+    body: JSON.stringify({ deckId, cardIds }),
+  });
+}
+
+// --- Papierkorb (#614) ---
+
+export interface TrashDeck {
+  id: string;
+  title: string;
+  cardCount: number;
+  deletedAt: string;
+}
+
+export interface TrashCard {
+  id: string;
+  front: string;
+  back: string;
+  deckId: string;
+  deckTitle: string;
+  deletedAt: string;
+}
+
+export async function getTrash(): Promise<{ decks: TrashDeck[]; cards: TrashCard[] }> {
+  return requestAuthenticated<{ decks: TrashDeck[]; cards: TrashCard[] }>("/api/v1/trash");
+}
+
+export async function restoreTrashDeck(deckId: string): Promise<{ restored: string }> {
+  return requestAuthenticated<{ restored: string }>("/api/v1/trash/restore", {
+    method: "POST",
+    body: JSON.stringify({ deckId }),
+  });
+}
+
+export async function restoreTrashCard(cardId: string): Promise<{ restored: string }> {
+  return requestAuthenticated<{ restored: string }>("/api/v1/trash/restore", {
+    method: "POST",
+    body: JSON.stringify({ cardId }),
+  });
+}
+
+export interface PurgeResult {
+  purged: { decks: number; cards: number };
+}
+
+export async function purgeTrashDeck(deckId: string): Promise<PurgeResult> {
+  return requestAuthenticated<PurgeResult>(
+    `/api/v1/trash?deckId=${encodeURIComponent(deckId)}`,
+    { method: "DELETE" }
+  );
+}
+
+export async function purgeTrashCard(cardId: string): Promise<PurgeResult> {
+  return requestAuthenticated<PurgeResult>(
+    `/api/v1/trash?cardId=${encodeURIComponent(cardId)}`,
+    { method: "DELETE" }
+  );
+}
+
+/** `all=1` steht ausdrücklich in der Adresse — ein DELETE ohne Parameter leert nicht. */
+export async function emptyTrash(): Promise<PurgeResult> {
+  return requestAuthenticated<PurgeResult>("/api/v1/trash?all=1", { method: "DELETE" });
+}
+
 // --- Subscription ---
 
 export async function getSubscriptionStatus(
