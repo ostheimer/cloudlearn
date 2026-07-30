@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/app/auth-context";
 import {
   listDecks,
+  getDeckDetails,
   reviewCard,
   updateCard,
   earnLp,
@@ -191,9 +192,34 @@ export function LearnSession({
   // sagt die Karte, zu welchem Deck sie gehört — Laras Bedingung dafür, dass
   // die fällige Runde über alle Decks überhaupt gebaut wird.
   const [deckTitles, setDeckTitles] = useState<Record<string, string>>({});
+  // Der Regelfall ist eine Einzeldeck-Runde — dafür reicht die Sprache dieses
+  // einen Decks. Nur bei gemischten Runden (global/Ordner) brauchen wir
+  // wirklich die komplette Liste, weil dort mehrere Titel vorkommen.
+  const singleDeckId = useMemo(() => {
+    const ids = new Set(pool.map((c) => c.deckId));
+    return ids.size === 1 ? pool[0]?.deckId : undefined;
+  }, [pool]);
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
+    if (singleDeckId) {
+      getDeckDetails(singleDeckId)
+        .then(({ details }) => {
+          if (cancelled) return;
+          setDeckLangs({
+            [singleDeckId]: {
+              front: toSpeechLanguage(details.speechLangFront),
+              back: toSpeechLanguage(details.speechLangBack),
+            },
+          });
+        })
+        .catch(() => {
+          /* Ohne Zuordnung bleibt es bei Deutsch — Vorlesen muss trotzdem gehen */
+        });
+      return () => {
+        cancelled = true;
+      };
+    }
     listDecks(userId)
       .then(({ decks }) => {
         if (cancelled) return;
@@ -215,7 +241,7 @@ export function LearnSession({
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [userId, singleDeckId]);
 
   // Nur bei gemischten Stapeln beschriften — im Ein-Deck-Lernen stünde sonst
   // auf jeder Karte redundant der Titel, den die Kopfzeile schon nennt.
