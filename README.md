@@ -598,6 +598,10 @@ Die initiale Migration oben ist nur das Basisschema. Die vollständige, maßgebl
 │   ├── PATCH  /:id          # Karte bearbeiten
 │   ├── DELETE /:id          # Karte löschen
 │   └── POST   /:id/review   # Review-Ergebnis speichern (FSRS-Update)
+├── /trash
+│   ├── GET    /             # Papierkorb: gelöschte Decks + einzeln gelöschte Karten (#614)
+│   ├── DELETE /             # Endgültig löschen: ?deckId= | ?cardId= | ?all=1 (kein Purge-Cron, Laras Entscheidung)
+│   └── POST   /restore      # Zurückholen, Body: { "deckId" } ODER { "cardId" }
 ├── /learn
 │   ├── GET    /due          # Fällige Karten abrufen
 │   ├── GET|PUT|DELETE /progress # „Weitermachen"-Merker je Deck+Lernart, geräteübergreifend (#610)

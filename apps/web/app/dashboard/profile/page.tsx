@@ -419,6 +419,21 @@ export default function ProfilePage() {
           </Link>
         </div>
 
+        {/* Deine Daten — Einstieg in den Papierkorb (#614) */}
+        <div className="pf-card">
+          <div className="pf-card__label">Deine Daten</div>
+          <Link className="pf-navrow" href="/dashboard/trash">
+            <span className="pf-ic pf-ic--indigo" aria-hidden>
+              <Trash size={18} />
+            </span>
+            <div className="pf-navrow__t">
+              <b>Papierkorb</b>
+              <span>Gelöschte Decks und Karten zurückholen</span>
+            </div>
+            <ChevronRight size={18} />
+          </Link>
+        </div>
+
         {/* Hilfe & Rechtliches */}
         <div className="pf-card">
           <div className="pf-card__label">Hilfe &amp; Rechtliches</div>

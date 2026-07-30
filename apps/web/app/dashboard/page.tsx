@@ -602,9 +602,11 @@ export default function LibraryPage() {
 
       {modal?.type === "delete" && (
         <Modal title="Deck löschen" onClose={() => setModal(null)}>
+          {/* „Lässt sich nicht rückgängig machen" stimmt seit dem Papierkorb
+              nicht mehr (#614) — der Satz hätte davon abgehalten, ihn zu nutzen. */}
           <p className="muted">
-            Soll „{modal.deck.title}" mit allen Karten wirklich gelöscht werden? Das lässt sich
-            nicht rückgängig machen.
+            Soll „{modal.deck.title}" mit allen Karten wirklich gelöscht werden? Es landet im
+            Papierkorb und lässt sich von dort zurückholen.
           </p>
           <div className="modal__actions">
             <button type="button" className="btn btn-ghost" onClick={() => setModal(null)}>

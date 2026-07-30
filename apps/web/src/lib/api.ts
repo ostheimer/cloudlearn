@@ -1047,3 +1047,60 @@ export function setFolderDeckOrder(
     body: JSON.stringify({ deckIds }),
   });
 }
+
+// ─── Papierkorb (#614) ──────────────────────────────────────────────────────
+
+export interface TrashDeck {
+  id: string;
+  title: string;
+  cardCount: number;
+  deletedAt: string;
+}
+
+export interface TrashCard {
+  id: string;
+  front: string;
+  back: string;
+  deckId: string;
+  deckTitle: string;
+  deletedAt: string;
+}
+
+export function getTrash(): Promise<{ decks: TrashDeck[]; cards: TrashCard[] }> {
+  return authed<{ decks: TrashDeck[]; cards: TrashCard[] }>("/api/v1/trash");
+}
+
+export function restoreTrashDeck(deckId: string): Promise<{ restored: string }> {
+  return authed<{ restored: string }>("/api/v1/trash/restore", {
+    method: "POST",
+    body: JSON.stringify({ deckId }),
+  });
+}
+
+export function restoreTrashCard(cardId: string): Promise<{ restored: string }> {
+  return authed<{ restored: string }>("/api/v1/trash/restore", {
+    method: "POST",
+    body: JSON.stringify({ cardId }),
+  });
+}
+
+export interface PurgeResult {
+  purged: { decks: number; cards: number };
+}
+
+export function purgeTrashDeck(deckId: string): Promise<PurgeResult> {
+  return authed<PurgeResult>(`/api/v1/trash?deckId=${encodeURIComponent(deckId)}`, {
+    method: "DELETE",
+  });
+}
+
+export function purgeTrashCard(cardId: string): Promise<PurgeResult> {
+  return authed<PurgeResult>(`/api/v1/trash?cardId=${encodeURIComponent(cardId)}`, {
+    method: "DELETE",
+  });
+}
+
+/** `all=1` steht ausdrücklich in der Adresse — ein DELETE ohne Parameter leert nicht. */
+export function emptyTrash(): Promise<PurgeResult> {
+  return authed<PurgeResult>("/api/v1/trash?all=1", { method: "DELETE" });
+}

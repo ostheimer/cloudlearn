@@ -5409,3 +5409,49 @@ a.lp-way:hover {
 :root[data-theme="dark"] .quiz-verdict.no {
   color: #fca5a5;
 }
+
+/* Papierkorb (#614): Jede Zeile trägt zwei Aktionen. Zwei gleich große Knöpfe
+   passen bei 375px nicht nebeneinander (≈318px gemessen bei ≈300px Platz) und
+   stapeln sich — bei 5 Decks und 11 Karten wird die Seite dadurch doppelt so
+   lang. Statt die Wörter zu kürzen (Laras Wortlaute bleiben, #498) wird die
+   zweite Aktion eine Textzeile: „Zurückholen" ist der Regelfall und behält den
+   Knopf, „Endgültig löschen" tritt zurück — was zu seiner Endgültigkeit passt.
+   Beide bleiben mit 34px Höhe fingertauglich. */
+.trash-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+}
+
+.trash-actions .btn {
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  gap: 6px;
+}
+
+.trash-purge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 2px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #dc2626;
+}
+
+.trash-purge:hover {
+  text-decoration: underline;
+}
+
+.trash-purge:disabled {
+  opacity: 0.5;
+  cursor: default;
+  text-decoration: none;
+}

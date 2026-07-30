@@ -100,9 +100,16 @@ export function cardListPreview(card: { front: string; back: string }): {
  * Nachfrage vor dem Löschen einer Karte (#571).
  *
  * Wortgleich mit `cardDeleteQuestion` in apps/mobile/src/lib/cardDisplay.ts:
- * Laras Entscheidung war die Web-Satzform („Soll … wirklich gelöscht werden?
- * Das lässt sich nicht rückgängig machen.") MIT dem zitierten Kartenanfang der
+ * Laras Entscheidung war die Web-Satzform MIT dem zitierten Kartenanfang der
  * App — nur so sieht man, welche Karte gemeint ist.
+ *
+ * Der zweite Satz hieß bis zum Papierkorb (#614) „Das lässt sich nicht
+ * rückgängig machen." Das ist seither falsch: gelöscht wird weich, und die
+ * Karte liegt im Papierkorb. Der Satz musste weg, weil er von einem Weg
+ * abgehalten hätte, den es gibt — beide Plattformen bleiben dabei wortgleich
+ * (#571). In der App fehlt vorerst nur der Papierkorb-BILDSCHIRM (wartet auf
+ * den nächsten Build); zurückholen kann man dieselbe Karte im Web sofort, es
+ * ist dasselbe Konto.
  *
  * Der Anfang kommt aus der aufbereiteten Anzeige, nie aus dem Rohtext: sonst
  * stünde bei Bild- und Lückenkarten ![…](…) bzw. {{c1::…}} in der Nachfrage.
@@ -114,9 +121,9 @@ export const CARD_QUOTE_MAX = 50;
 export function cardDeleteQuestion(card: { front: string; back: string }): string {
   const { front } = cardListPreview(card);
   const text = front.trim();
-  if (!text) return "Soll diese Karte wirklich gelöscht werden? Das lässt sich nicht rückgängig machen.";
+  if (!text) return "Soll diese Karte wirklich gelöscht werden? Sie landet im Papierkorb und lässt sich von dort zurückholen.";
   const quote = text.length > CARD_QUOTE_MAX ? `${text.slice(0, CARD_QUOTE_MAX).trimEnd()}…` : text;
-  return `Soll „${quote}" wirklich gelöscht werden? Das lässt sich nicht rückgängig machen.`;
+  return `Soll „${quote}" wirklich gelöscht werden? Sie landet im Papierkorb und lässt sich von dort zurückholen.`;
 }
 
 // Zieht aus einer Übersetzungsfrage den bloßen Begriff heraus, damit gescannte
