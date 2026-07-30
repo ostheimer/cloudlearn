@@ -168,6 +168,7 @@ export function selectEvenlySpread<T>(items: T[], keep: number): T[] {
 interface ErrorLike {
   status?: number;
   code?: string;
+  message?: string;
 }
 
 function asErrorLike(error: unknown): ErrorLike {
@@ -176,6 +177,7 @@ function asErrorLike(error: unknown): ErrorLike {
   return {
     ...(typeof candidate.status === "number" ? { status: candidate.status } : {}),
     ...(typeof candidate.code === "string" ? { code: candidate.code } : {}),
+    ...(typeof candidate.message === "string" ? { message: candidate.message } : {}),
   };
 }
 
@@ -200,4 +202,53 @@ export function shouldOpenLpModal(error: unknown): boolean {
   if (code === "INSUFFICIENT_LP") return true;
   if (code === "PAYWALL_REQUIRED") return false;
   return status === 402;
+}
+
+/**
+ * Brauchbarer Server-Text — oder `null`, wenn nur ein Platzhalter ankam.
+ *
+ * `request()` in api.ts setzt „API error 409", wenn der Server gar keinen Text
+ * mitschickt. Der darf niemals als Erklärung durchgereicht werden.
+ */
+function usableServerMessage(message: string | undefined): string | null {
+  if (!message) return null;
+  const trimmed = message.trim();
+  if (!trimmed) return null;
+  if (/^API error \d+$/i.test(trimmed)) return null;
+  return trimmed;
+}
+
+/**
+ * Der Satz zu einer Grenz-Ablehnung AUSSERHALB des Imports — oder `null`, wenn
+ * der Fehler keine Tarifgrenze ist (dann bleibt der Satz des Bildschirms).
+ *
+ * Genau der Helfer, den der Kommentar in `src/lib/api.ts` seit #371 versprach
+ * („ob dort ein Kauf hilft, entscheidet der Bildschirm über adviceForLimit()")
+ * und den nie jemand gebaut hat. Bis #611 fingen Duplizieren, Übernehmen und
+ * Karte-von-Hand den Fehler blind ab: „Übernehmen fehlgeschlagen. Bitte versuch
+ * es nochmal." forderte an der Deck-Grenze zu einer Endlosschleife auf.
+ *
+ * Die Tarif-Beratung leistet der Server längst selbst („Mit Pro hast du
+ * deutlich mehr Platz." für Free, „lösche ein Deck, um Platz zu schaffen." für
+ * Pro — `assertDeckLimit`/`assertCardLimit` in apps/api/src/lib/limits.ts). Der
+ * Text wird deshalb durchgereicht statt neu erfunden: Er nennt die echten
+ * Zahlen des Tarifs und ist auf Deutsch, weil der Server ihn bewusst für alte
+ * App-Builds übersetzt liefert.
+ *
+ * Wichtig: Geprüft wird NUR der Code — anders als `isPlanLimitError`, das für
+ * die Scan-Ansicht zusätzlich jeden 409 nimmt. Das ist dort zulässig, weil sie
+ * ausschließlich Import-Endpunkte aufruft; Deck-Detail und geteiltes Deck rufen
+ * viele andere auf, und 409 steht in dieser API auch für NO_INVITE,
+ * ALREADY_REFERRED und den Streak-Schutz.
+ */
+export function adviceForLimit(error: unknown): string | null {
+  const { code, message } = asErrorLike(error);
+  if (code !== "DECK_LIMIT_REACHED" && code !== "DECK_FULL") return null;
+  const fromServer = usableServerMessage(message);
+  if (fromServer) return fromServer;
+  // Nur für den Fall, dass der Server schweigt: ohne Zahlen, weil der Client
+  // die Tarifgrenzen an dieser Stelle nicht zwingend kennt.
+  return code === "DECK_LIMIT_REACHED"
+    ? "Die Deck-Grenze deines Tarifs ist erreicht. Lösche ein Deck, um Platz zu schaffen."
+    : "Dieses Deck ist voll. Leg für weitere Karten ein zweites Deck an.";
 }

@@ -266,6 +266,9 @@ export const resources = {
       "deckAction.downloadError": "Download fehlgeschlagen",
       "deckAction.duplicateSuccess": "Deck wurde dupliziert",
       "deckAction.duplicateError": "Duplizieren fehlgeschlagen",
+      // Überschrift, wenn eine Tarifgrenze im Weg steht (#611): Der Grund
+      // kommt als Klartext vom Server, der Titel sagt nur, was nicht ging.
+      "deckAction.duplicateBlockedTitle": "Duplizieren nicht möglich",
       "deckAction.shareError": "Teilen fehlgeschlagen",
       "deckAction.revokeShareTitle": "Teilen-Link deaktivieren?",
       "deckAction.revokeShareMessage": "Der bisher geteilte Link funktioniert danach nicht mehr — wer ihn schon hat, kommt nicht mehr an das Deck. Beim nächsten Teilen entsteht ein neuer Link.",
@@ -276,6 +279,8 @@ export const resources = {
       "deckAction.deleteTitle": "Deck löschen?",
       "deckAction.deleteMessage": "\"{{title}}\" und alle Karten werden dauerhaft gelöscht.",
       "deckAction.deleteError": "Löschen fehlgeschlagen",
+      "deckAction.cardSaveError": "Karte konnte nicht gespeichert werden.",
+      "deckAction.cardSaveBlockedTitle": "Karte nicht gespeichert",
       "deckAction.alreadyOffline": "Bereits offline verfügbar",
 
       // Shared deck (received via link)
@@ -286,6 +291,9 @@ export const resources = {
       "sharedDeck.importing": "Wird übernommen…",
       "sharedDeck.importSuccess": "In deine Bibliothek übernommen",
       "sharedDeck.importError": "Übernehmen fehlgeschlagen. Bitte versuch es nochmal.",
+      // An der Deck-Grenze war „versuch es nochmal" eine Aufforderung zur
+      // Endlosschleife (#611) — dort steht jetzt der Grund vom Server.
+      "sharedDeck.importBlockedTitle": "Übernehmen nicht möglich",
       "sharedDeck.loadError": "Dieses Deck konnte nicht geladen werden. Vielleicht ist der Link abgelaufen.",
       "sharedDeck.empty": "Dieses Deck enthält noch keine Karten.",
       "sharedDeck.retry": "Nochmal versuchen",
@@ -785,6 +793,7 @@ export const resources = {
       "deckAction.downloadError": "Download failed",
       "deckAction.duplicateSuccess": "Deck duplicated",
       "deckAction.duplicateError": "Duplication failed",
+      "deckAction.duplicateBlockedTitle": "Can't duplicate this deck",
       "deckAction.shareError": "Sharing failed",
       "deckAction.revokeShareTitle": "Deactivate share link?",
       "deckAction.revokeShareMessage": "The shared link will stop working — anyone who already has it loses access to this deck. Sharing again creates a fresh link.",
@@ -795,6 +804,8 @@ export const resources = {
       "deckAction.deleteTitle": "Delete deck?",
       "deckAction.deleteMessage": "\"{{title}}\" and all cards will be permanently deleted.",
       "deckAction.deleteError": "Deletion failed",
+      "deckAction.cardSaveError": "Couldn't save the card.",
+      "deckAction.cardSaveBlockedTitle": "Card not saved",
       "deckAction.alreadyOffline": "Already available offline",
 
       // Shared deck (received via link)
@@ -805,6 +816,7 @@ export const resources = {
       "sharedDeck.importing": "Saving…",
       "sharedDeck.importSuccess": "Saved to your library",
       "sharedDeck.importError": "Couldn't save the deck. Please try again.",
+      "sharedDeck.importBlockedTitle": "Can't save this deck",
       "sharedDeck.loadError": "Couldn't load this deck. The link may have expired.",
       "sharedDeck.empty": "This deck has no cards yet.",
       "sharedDeck.retry": "Try again",

@@ -16,6 +16,7 @@ import {
   type Card,
   type Deck,
 } from "../../../src/lib/api";
+import { adviceForLimit } from "../../../src/lib/importLimits";
 import { useSessionStore } from "../../../src/store/sessionStore";
 import { useColors, spacing, radius, typography, shadows } from "../../../src/theme";
 import { useTranslation } from "react-i18next";
@@ -63,8 +64,16 @@ export default function SharedDeckScreen() {
         pathname: "/deck/[id]",
         params: { id: newDeck.id, title: newDeck.title },
       });
-    } catch {
-      Alert.alert(t("common.error"), t("sharedDeck.importError"));
+    } catch (e) {
+      // „Bitte versuch es nochmal" war an der Deck-Grenze eine Aufforderung
+      // zur Endlosschleife: Der nächste Versuch scheitert genauso. Jetzt steht
+      // dort der Grund und der Ausweg, beides vom Server (#611).
+      const advice = adviceForLimit(e);
+      if (advice) {
+        Alert.alert(t("sharedDeck.importBlockedTitle"), advice);
+      } else {
+        Alert.alert(t("common.error"), t("sharedDeck.importError"));
+      }
     } finally {
       setImporting(false);
     }
