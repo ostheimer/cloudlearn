@@ -537,6 +537,18 @@ export async function getDueCountsByDeck(): Promise<{ dueByDeck: Record<string, 
 }
 
 /**
+ * Zeitpunkt der letzten Antwort je Deck — für die Sortierung „zuletzt gelernt"
+ * (#614). Decks ohne jede Antwort fehlen im Ergebnis.
+ */
+export async function getLastLearnedByDeck(): Promise<{
+  lastLearnedByDeck: Record<string, string>;
+}> {
+  return requestAuthenticated<{ lastLearnedByDeck: Record<string, string> }>(
+    "/api/v1/stats/last-learned-by-deck"
+  );
+}
+
+/**
  * Woher eine Wiederholung stammt. Der Server entscheidet daran, was sie
  * auslöst: Abruf-Modi bewegen den Lernplan, "test" gibt keine Lernpunkte,
  * "quiz"/"match" geben Punkte, rühren den Plan aber nur bei Fehlern an.

@@ -610,6 +610,7 @@ Die initiale Migration oben ist nur das Basisschema. Die vollständige, maßgebl
 ├── /stats
 │   ├── GET    /             # Lernstatistiken
 │   ├── GET    /due-by-deck  # Fällige Karten je Deck (Zählung fürs "N fällig"-Abzeichen, #612)
+│   ├── GET    /last-learned-by-deck # Letzte Antwort je Deck (Sortierung "zuletzt gelernt", #614)
 │   ├── GET    /decks-by-folder # Decks je Ordner (eine Zählung statt Anfrage-je-Ordner, #612)
 │   ├── GET    /decks        # Deck-Vergleich: Antworten + Genauigkeit je Deck, 30 Tage (Pro, #246)
 │   ├── GET    /streak-calendar # Gelernte + eingefrorene Tage eines Monats (#237)
