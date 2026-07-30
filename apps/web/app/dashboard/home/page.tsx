@@ -16,6 +16,11 @@ import {
 import { useDisplayName } from "@/lib/use-display-name";
 import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
 import { consumeFreshWelcome } from "@/lib/onboarding";
+import {
+  canAffordStreakRepair,
+  streakRepairBannerLine,
+  streakRepairPrompt,
+} from "@/lib/streak-repair";
 import { useAuth } from "@/components/app/auth-context";
 import {
   Flame,
@@ -151,15 +156,16 @@ export default function HomePage() {
   const repairBrokenStreak = stats?.repairBrokenStreak ?? 0;
   const repairCost = stats?.repairCost ?? 40;
 
+  // Reicht das Guthaben? (#611) `lp` ist `null`, solange nicht geladen — dann
+  // wird NICHT gesperrt, sonst wäre der Knopf für ein volles Konto kurz grau.
+  const canAffordRepair = canAffordStreakRepair(lp, repairCost);
+
   // Gerissenen Streak gegen LP zurückholen. Preis/Berechtigung entscheidet der
   // Server; danach Werte neu laden, damit Banner und LP-Pille stimmen.
   const handleRepair = async () => {
-    if (
-      !window.confirm(
-        `Deinen ${repairBrokenStreak}-Tage-Streak für ${repairCost} LP zurückholen?`
-      )
-    )
-      return;
+    // Kontostand mit in die Nachfrage (#611): Vorher stand dort nur der Preis,
+    // und bei Ebbe endete das Ja in einer Sackgasse.
+    if (!window.confirm(streakRepairPrompt(lp, repairCost, repairBrokenStreak))) return;
     setRepairing(true);
     setRepairMsg(null);
     try {
@@ -321,7 +327,9 @@ export default function HomePage() {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 700 }}>Streak gerissen</div>
               <div style={{ fontSize: "0.85rem", color: "var(--ink-3)" }}>
-                Dein {repairBrokenStreak}-Tage-Streak ist weg
+                {/* Preis UND Kontostand (#611) — vorher musste man raten, ob es
+                    reicht, und erfuhr es erst nach dem Klick. */}
+                {streakRepairBannerLine(lp, repairCost, repairBrokenStreak)}
               </div>
             </div>
           </div>
@@ -329,7 +337,9 @@ export default function HomePage() {
             type="button"
             className="btn btn-primary btn-block"
             onClick={handleRepair}
-            disabled={repairing}
+            // Nichts anbieten, was sicher scheitert (#611): Bei zu wenig Punkten
+            // führte der Knopf über die Nachfrage in einen Serverfehler.
+            disabled={repairing || !canAffordRepair}
             style={{ gap: 8 }}
           >
             {repairing ? (
@@ -340,6 +350,13 @@ export default function HomePage() {
               </>
             )}
           </button>
+          {/* Der Ausweg — vorher endete es bei Ebbe mit einem roten Satz und
+              ohne Hinweis, wo es Punkte gibt (#611). */}
+          {!canAffordRepair && !repairing && (
+            <Link href="/dashboard/lp" className="btn btn-ghost btn-block">
+              Lernpunkte holen
+            </Link>
+          )}
           {repairMsg && (
             <div style={{ fontSize: "0.85rem", color: "#dc2626", textAlign: "center" }}>
               {repairMsg}
