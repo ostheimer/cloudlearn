@@ -36,6 +36,7 @@ import {
   Repeat,
 } from "@/components/icons";
 import { CardEditor } from "@/components/app/card-editor";
+import { AUTO_PLAY_SPEEDS, loadAutoPlaySpeed, saveAutoPlaySpeed } from "@/lib/autoplay-speed";
 import {
   beginSessionAward,
   getSessionReviewedCount,
@@ -62,7 +63,6 @@ const RATINGS: { key: ReviewRating; label: string; cls: string }[] = [
 
 // Wartezeit des Auto-Abspielens zwischen zwei Schritten — dieselbe Auswahl
 // wie in der App, per Tipp auf die Anzeige durchgeschaltet.
-const AUTO_PLAY_SPEEDS = [1, 3, 5, 10];
 
 /**
  * The flip-and-rate session, shared by the deck and the folder learn pages.
@@ -240,7 +240,10 @@ export function LearnSession({
   // ─── Vorlesen + Auto-Abspielen (wie der App-Lernmodus) ───────────────────
   const { supported, speaking, speak, stop } = useSpeech();
   const [autoPlaying, setAutoPlaying] = useState(false);
-  const [autoPlaySpeed, setAutoPlaySpeed] = useState(3);
+  // Vorlese-Tempo gilt geräteweit, nicht je Deck (#610) — der Ladewert kommt
+  // per Lazy-Initializer, damit die erste Runde nicht sichtbar bei 3s startet
+  // und dann umspringt.
+  const [autoPlaySpeed, setAutoPlaySpeed] = useState(() => loadAutoPlaySpeed());
   const spoken = current ? speechTexts(shownFront, shownBack) : null;
 
   // LP fürs Lernen gutschreiben — wie die App. Der Server zählt review_logs;
@@ -592,7 +595,9 @@ export function LearnSession({
   function cycleSpeed() {
     setAutoPlaySpeed((s) => {
       const idx = AUTO_PLAY_SPEEDS.indexOf(s);
-      return AUTO_PLAY_SPEEDS[(idx + 1) % AUTO_PLAY_SPEEDS.length] ?? 3;
+      const next = AUTO_PLAY_SPEEDS[(idx + 1) % AUTO_PLAY_SPEEDS.length] ?? 3;
+      saveAutoPlaySpeed(next);
+      return next;
     });
   }
 
