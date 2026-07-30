@@ -38,6 +38,7 @@ import {
   isSessionEarnFinalized,
   type SessionAwardState,
 } from "@/lib/learn-session-lp";
+import { useCoarsePointer } from "@/lib/use-coarse-pointer";
 import { clearSessionProgress, saveSessionProgress } from "@/lib/session-progress";
 import { createReviewSendBuffer } from "@/lib/review-send-buffer";
 import { ratingKeyIndex } from "@/lib/learn-keys";
@@ -99,6 +100,10 @@ export function LearnSession({
 }) {
   const router = useRouter();
   const { userId } = useAuth();
+
+  // Am Handy tippt man die Karte an, am Laptop klickt man sie — der Hinweis
+  // auf der Kartenvorderseite muss die richtige Geste nennen (#521).
+  const coarsePointer = useCoarsePointer();
 
   // `cards` is the queue actually being studied — possibly a subset of `pool`
   // after „Nur die nicht gewussten".
@@ -734,7 +739,9 @@ export function LearnSession({
             <span className="flip__q">
               {frontParsed.display || frontImage?.alt || "Bildkarte"}
             </span>
-            <span className="flip__hint">Klicken zum Umdrehen</span>
+            <span className="flip__hint">
+              {coarsePointer ? "Tippen zum Umdrehen" : "Klicken zum Umdrehen"}
+            </span>
           </div>
           <div className="flip__face flip__face--back">
             {currentDeckTitle && <span className="flip__deck">{currentDeckTitle}</span>}
