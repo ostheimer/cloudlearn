@@ -6,12 +6,16 @@ import { useEffect, useState } from "react";
 import { getDeckStats, isApiError, type DeckStats } from "@/lib/api";
 import { ArrowLeft, Lock, RotateCw } from "@/components/icons";
 import { AccuracyRing, AccuracyTrendChart } from "@/components/app/stats-charts";
+import { useCoarsePointer } from "@/lib/use-coarse-pointer";
 
 export default function DeckStatsPage() {
   const params = useParams<{ id: string }>();
   const deckId = params.id;
   const router = useRouter();
 
+  // „Drüberfahren" gibt es am Handy nicht — dort tippt man den Punkt an.
+  // Gleiche Regel wie auf der großen Statistik-Seite (#521).
+  const coarsePointer = useCoarsePointer();
   const [rangeDays, setRangeDays] = useState<7 | 30>(30);
   const [stats, setStats] = useState<DeckStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -191,7 +195,10 @@ export default function DeckStatsPage() {
           <div style={{ flex: 1, minWidth: 220 }}>
             <div className="muted" style={{ fontSize: "0.8rem", marginBottom: 4 }}>
               Verlauf — letzte {rangeDays} Tage
-              {learningDays >= 2 && " · Punkt drüberfahren für Details"}
+              {learningDays >= 2 &&
+                (coarsePointer
+                  ? " · Punkt antippen für Details"
+                  : " · Punkt drüberfahren für Details")}
             </div>
             {learningDays >= 2 ? (
               <AccuracyTrendChart data={accuracyByDay} showAllDates={rangeDays === 7} />
