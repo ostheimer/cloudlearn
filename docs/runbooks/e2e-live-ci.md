@@ -42,3 +42,11 @@ nächsten Zeitplan-Lauf (oder sofort per „Run workflow") echt durch.
 
 Nach jedem echten Lauf liegt unter dem Workflow-Run das Artefakt
 `playwright-report` (HTML-Bericht, 7 Tage aufbewahrt).
+
+## Dieselben Secrets nutzt auch die Perf-Messung
+
+Der Workflow **Perf HTTP** (`.github/workflows/perf-http.yml`, #86) meldet sich
+mit demselben Test-Konto an und braucht dieselben vier Secrets. Er läuft
+ausschließlich auf Knopfdruck und fragt nur lesend ab — er doppelt diese Suite
+also weder zeitlich noch inhaltlich. Ohne Secrets misst er nur den öffentlichen
+Endpunkt und sagt das offen. Siehe `docs/runbooks/performance-budgets.md`.
