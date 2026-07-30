@@ -218,9 +218,18 @@ export const useReviewSession = create<ReviewSessionState>((set, get) => ({
   }
 }));
 
+/**
+ * Laras Entscheidung (#565): „Schwer" heißt „nicht sicher gewusst" — nur
+ * „Gut" und „Leicht" zählen als gewusst (das Web zählte immer schon so).
+ * Die Regel steht an EINER Stelle, damit Auswertung, Lesezeichen und die
+ * Gast-Demo (#609) nicht auseinanderlaufen.
+ */
+export function wasKnown(rating: ReviewRating): boolean {
+  return rating === "good" || rating === "easy";
+}
+
 // Cards the learner didn't know this session: those whose most recent rating
-// was "again" OR "hard" — „Schwer" heißt „nicht sicher gewusst" (#565, Laras
-// Entscheidung; das Web zählte immer schon so). Uses the LAST rating per card
+// was "again" OR "hard" (see wasKnown). Uses the LAST rating per card
 // so a card re-rated after "Zurück" (goBack) counts by its final answer, not
 // an earlier one. Pure, so the result screen's "X von Y gewusst" and "only
 // the missed ones" button are unit-testable.
@@ -237,7 +246,7 @@ export function missedCardsFrom(
   const missed: ReviewCard[] = [];
   lastRating.forEach((rating, cardIndex) => {
     const card = cards[cardIndex];
-    if ((rating === "again" || rating === "hard") && card) missed.push(card);
+    if (!wasKnown(rating) && card) missed.push(card);
   });
   return missed;
 }
@@ -261,7 +270,7 @@ export function storedResultsFrom(
     const card = cards[cardIndex];
     if (!card) return;
     results[card.id] = {
-      correct: rating === "good" || rating === "easy",
+      correct: wasKnown(rating),
       // Karteikarten kennen kein „Trotzdem als richtig zählen" — das Feld
       // gehört zum geteilten StoredCardResult (Lückentext).
       overridden: false,

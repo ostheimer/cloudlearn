@@ -30,7 +30,12 @@ async function openAuthFromGuestHome(page: Page) {
     return;
   }
 
-  await expect(page.getByText("Ohne Konto starten")).toBeVisible();
+  // #609: Die Gast-Startseite hieß „Ohne Konto starten" und verlangte dann
+  // doch überall ein Konto. Jetzt steht dort zuerst das, was ohne Konto
+  // wirklich geht, und darunter erst die Anmelde-Karte.
+  await expect(page.getByText("Erst mal ausprobieren")).toBeVisible();
+  await expect(page.getByText("Beispielkarten lernen")).toBeVisible();
+  await expect(page.getByText("Mit Konto geht mehr")).toBeVisible();
   await expect(tagline).toBeVisible();
 
   await page.getByText("Anmelden oder registrieren").first().click();

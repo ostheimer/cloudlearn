@@ -524,6 +524,9 @@ export default function RootLayout() {
             <Stack.Screen name="auth-callback" options={{ headerShown: false }} />
             <Stack.Screen name="reset-password" options={{ headerShown: false }} />
             <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+            {/* #609: Drei Beispielkarten ohne Konto. Eigene Kopfzeile im
+                Bildschirm, daher headerShown: false wie beim Lernen. */}
+            <Stack.Screen name="demo" options={{ headerShown: false }} />
             <Stack.Screen
               name="deck-review/[id]"
               options={{

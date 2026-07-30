@@ -189,4 +189,18 @@ describe("resolveRootRedirect", () => {
       })
     ).toBeNull();
   });
+
+  it("lässt Gäste die Beispielkarten öffnen (#609)", () => {
+    // Würde /demo hier auf /(tabs) umgeleitet, wäre die einzige Sache, die
+    // ohne Konto wirklich funktioniert, nicht erreichbar.
+    expect(
+      resolveRootRedirect({
+        isAuthenticated: false,
+        isLoading: false,
+        onboardingLoaded: false,
+        onboardingCompleted: false,
+        firstSegment: "demo",
+      })
+    ).toBeNull();
+  });
 });
