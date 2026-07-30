@@ -302,6 +302,15 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
           </>
         )}
       </div>
+
+      {/* Datenschutz und Impressum direkt am Formular (#609): Wer ein Konto
+          anlegt, soll vorher nachlesen können, was mit seinen Daten passiert —
+          bisher standen die Links nur im Profil, also erst NACH der Anmeldung. */}
+      <div className="auth-legal">
+        <Link href="/privacy">Datenschutz</Link>
+        <span aria-hidden>·</span>
+        <Link href="/impressum">Impressum</Link>
+      </div>
     </div>
   );
 }
