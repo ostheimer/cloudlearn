@@ -33,11 +33,14 @@ import {
   createFolder,
   updateFolderApi,
   deleteFolderApi,
+  getLpBalance,
   type Deck,
   type Folder,
 } from "../../src/lib/api";
 import { searchDecks } from "../../src/lib/searchDecks";
 import { buildDeckCountLabel } from "../../src/lib/deckCountLabel";
+import { deckSlotsSummary, isDeckLimitReached } from "../../src/lib/importLimits";
+import { usageFromBalanceResponse, useUsageStore } from "../../src/store/usageStore";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
 import { buildLibraryFolderRoute } from "../../src/navigation/libraryRoutes";
 import { AuthPromptCard } from "../../src/components/AuthPromptCard";
@@ -108,6 +111,24 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
 
   // Offenes Eingabe-Fenster (Anlegen / Umbenennen). null = keines.
   const [prompt, setPrompt] = useState<PromptState | null>(null);
+
+  // Füllstand „19 von 20 Decks belegt" (#611). `maxDecks` ist `null`, solange
+  // der Server die Grenzen nicht geliefert hat (#603) — dann steht hier nichts.
+  const maxDecks = useUsageStore((state) => state.maxDecks);
+  const setUsage = useUsageStore((state) => state.setUsage);
+  const deckSlotsLabel = deckSlotsSummary(decksLoading ? null : decks.length, maxDecks);
+  const decksAtLimit = isDeckLimitReached(decks.length, maxDecks);
+
+  // Grenzen einmalig nachladen, falls dieser Tab der erste ist. Über die
+  // Startseite hat das LP-Abzeichen sie längst geholt — dann kein Aufruf.
+  useEffect(() => {
+    if (maxDecks !== null) return;
+    void getLpBalance()
+      .then((res) => setUsage(usageFromBalanceResponse(res)))
+      .catch(() => {
+        // Ohne Grenzen bleibt der Füllstand aus — nichts behaupten (#603).
+      });
+  }, [maxDecks, setUsage]);
 
   // --- Load data ---
 
@@ -763,9 +784,25 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
       <View style={{ flex: 1, padding: spacing.lg, gap: spacing.md }}>
         {/* Header */}
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-          <Text style={{ fontSize: typography.xxl, fontWeight: typography.bold, color: colors.text }}>
-            {t("library.title")}
-          </Text>
+          <View style={{ flexShrink: 1 }}>
+            <Text style={{ fontSize: typography.xxl, fontWeight: typography.bold, color: colors.text }}>
+              {t("library.title")}
+            </Text>
+            {/* Füllstand (#611): Die Deck-Grenze war unsichtbar, bis sie riss —
+                der Endpunkt liefert sie seit #411 mit, nur fragte sie hier
+                niemand ab. Bei unbekannter Grenze steht nichts (#603). */}
+            {deckSlotsLabel !== null && activeTab === "decks" && (
+              <Text
+                style={{
+                  fontSize: typography.sm,
+                  color: decksAtLimit ? colors.warning : colors.textSecondary,
+                  marginTop: 2,
+                }}
+              >
+                {deckSlotsLabel}
+              </Text>
+            )}
+          </View>
           <TouchableOpacity
             onPress={handleCreate}
             activeOpacity={0.8}

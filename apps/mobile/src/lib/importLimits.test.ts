@@ -3,6 +3,7 @@ import {
   DECK_LIMIT_LABEL,
   NEARLY_FULL_THRESHOLD,
   adviceForLimit,
+  deckSlotsSummary,
   deckLimitMessage,
   deckSlotsLabel,
   deckSlotsHint,
@@ -15,6 +16,23 @@ import {
   selectEvenlySpread,
   shouldOpenLpModal,
 } from "./importLimits";
+
+describe("Füllstand der Bibliothek (#611)", () => {
+  it("nennt den Stand, lange bevor die Grenze reißt", () => {
+    expect(deckSlotsSummary(19, 20)).toBe("19 von 20 Decks belegt");
+    expect(deckSlotsSummary(3, 20)).toBe("3 von 20 Decks belegt");
+  });
+
+  it("sagt auch am Anschlag die Zahlen", () => {
+    expect(deckSlotsSummary(20, 20)).toBe("20 von 20 Decks belegt");
+  });
+
+  it("schweigt bei unbekannter Grenze und beim Laden", () => {
+    // maxDecks ist `null`, bis der Server die Grenzen geliefert hat (#603).
+    expect(deckSlotsSummary(19, null)).toBeNull();
+    expect(deckSlotsSummary(null, 20)).toBeNull();
+  });
+});
 
 describe("Deck-Grenze in der App (#411)", () => {
   it("erkennt die erreichte Deck-Grenze", () => {

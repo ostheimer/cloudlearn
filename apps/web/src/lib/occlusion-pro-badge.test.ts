@@ -35,17 +35,26 @@ describe("web deck-seite – statisches Pro-Schild am Occlusion-Eintrag", () => 
     expect(entry).toContain(">\n                    Pro\n                  </span>");
   });
 
-  it("ist statisch — keine Tarif-Abfrage auf dieser Seite", () => {
-    // Der Kern der Entscheidung (#376): ohne Tarif-Abfrage kann das Schild
-    // niemanden fälschlich sperren und kostet keine Anfrage bei jedem
-    // Deck-Öffnen. Geprüft wird die GANZE Datei, nicht nur der Eintrag: ein
-    // Tarif-Getter irgendwo oben wäre genau der Fehler, den wir ausschließen.
-    expect(source).not.toMatch(/getLpBalance|getSubscriptionStatus|featureGates/);
+  it("ist statisch — kein Tarif kommt auf dieser Seite vor", () => {
+    // Der Kern der Entscheidung (#376): Ohne den TARIF kann das Schild niemanden
+    // fälschlich sperren. Geprüft wird die GANZE Datei, nicht nur der Eintrag:
+    // ein Tarif-Getter irgendwo oben wäre genau der Fehler, den wir ausschließen.
+    expect(source).not.toMatch(/getSubscriptionStatus|featureGates/);
     expect(source).not.toMatch(/\btier\b|subscription/i);
-    // Die Importliste aus @/lib/api bleibt unangetastet — dort kam nichts dazu.
-    const apiImport = source.slice(source.indexOf('import {\n  getDeckDetails'), source.indexOf('} from "@/lib/api";'));
-    expect(apiImport).toContain("getDeckDetails");
-    expect(apiImport).not.toMatch(/Lp|lp|tier|subscription/);
+  });
+
+  it("holt die Plan-Grenzen gecacht, nicht bei jedem Deck-Öffnen (#611)", () => {
+    // Zweite Hälfte des #376-Einwands: Der Grund gegen eine Abfrage war auch ihr
+    // PREIS — eine Anfrage pro Deck-Öffnen. Seit #611 steht im Kopf der
+    // Füllstand („142 von 150 Karten") und der „+ Karte"-Knopf schläft am vollen
+    // Deck; dafür braucht die Seite die Kartengrenze. Sie kommt deshalb über
+    // loadPlanLimits, das sie je Sitzung genau einmal holt — nicht über einen
+    // direkten getLpBalance-Aufruf in dieser Datei.
+    expect(source).toContain('import { loadPlanLimits } from "@/lib/plan-limits";');
+    expect(source).not.toMatch(/getLpBalance/);
+    // Und die Grenze darf nur die Karten betreffen: Der Occlusion-Eintrag hängt
+    // weiterhin an nichts, was ein Konto sperren könnte.
+    expect(source).toContain("limits.maxCardsPerDeck");
   });
 
   it("ist ein Schild, keine Sperre — der Link navigiert weiter wie bisher", () => {

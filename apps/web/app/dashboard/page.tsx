@@ -30,6 +30,8 @@ import { adviceForLimit } from "@/lib/import-limits";
 import { descendantFolders, folderPath } from "@/lib/folders";
 import { FolderCard, DeleteFolderModal } from "@/components/app/folder-ui";
 import { deckCountLabel } from "@/lib/deck-count-label";
+import { deckSlotsSummary, isDeckLimitReached } from "@/lib/import-limits";
+import { loadPlanLimits } from "@/lib/plan-limits";
 import {
   SPEECH_LANGUAGES,
   toSpeechLanguage,
@@ -113,6 +115,26 @@ export default function LibraryPage() {
   useEffect(() => {
     setFolderSort(loadFolderSort());
   }, []);
+  // Tarif-Grenzen für den Füllstand (#611). Der /usage-Endpunkt liefert sie
+  // seit #411 mit, diese Seite fragte sie nur nie ab — deshalb war die
+  // Deck-Grenze unsichtbar, bis sie riss. `undefined` heißt „unbekannt"
+  // (älterer Server oder Abfrage fehlgeschlagen): dann wird nichts behauptet.
+  const [maxDecks, setMaxDecks] = useState<number | undefined>(undefined);
+  const deckSlotsLabel = deckSlotsSummary(loading ? null : decks.length, maxDecks);
+  const decksAtLimit = isDeckLimitReached(decks.length, maxDecks);
+
+  useEffect(() => {
+    if (!userId) return;
+    let active = true;
+    // loadPlanLimits holt die Grenzen je Sitzung einmal und teilt sie mit der
+    // Deck-Seite — der Füllstand kostet damit keine Anfrage pro Seitenwechsel.
+    void loadPlanLimits().then((limits) => {
+      if (active) setMaxDecks(limits.maxDecks);
+    });
+    return () => {
+      active = false;
+    };
+  }, [userId]);
 
   const loadDecks = useCallback(async () => {
     if (!userId) return;
@@ -320,12 +342,23 @@ export default function LibraryPage() {
         <div>
           {/* „Bibliothek" wie der App-Bildschirm (library.title), nicht „Meine …" */}
           <h1>Bibliothek</h1>
-          <p className="muted" style={{ marginTop: 4 }}>
-            {/* Solange die Liste lädt, keine falsche „0 Decks" zeigen (#499) */}
+          <p
+            className="muted"
+            style={{
+              marginTop: 4,
+              // Am Anschlag warnfarben — die Zahl IST dann die Nachricht (#611).
+              ...(decksAtLimit && tab === "decks" ? { color: "var(--amber)" } : {}),
+            }}
+          >
+            {/* Solange die Liste lädt, keine falsche „0 Decks" zeigen (#499).
+                Ist die Grenze bekannt, steht statt der nackten Zahl der
+                Füllstand: „19 von 20 Decks belegt" (#611) — vorher erfuhr man
+                von der Grenze erst, wenn sie riss. */}
             {loading
               ? "Lädt…"
               : tab === "decks"
-                ? `${decks.length} ${decks.length === 1 ? "Deck" : "Decks"}`
+                ? (deckSlotsLabel ??
+                  `${decks.length} ${decks.length === 1 ? "Deck" : "Decks"}`)
                 : `${folders.length} ${folders.length === 1 ? "Ordner" : "Ordner"}`}
           </p>
         </div>

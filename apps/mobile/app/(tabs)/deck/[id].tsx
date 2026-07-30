@@ -44,11 +44,13 @@ import {
   revokeDeckShare,
   exportDeckForOffline,
   getDeckDetails,
+  getLpBalance,
   type Card,
 } from "../../../src/lib/api";
 import { summarizeCardMedia } from "../../../src/lib/cardMedia";
 import { cardKindLabel } from "../../../src/lib/cardDisplay";
 import { adviceForLimit } from "../../../src/lib/importLimits";
+import { usageFromBalanceResponse, useUsageStore } from "../../../src/store/usageStore";
 import {
   cardsFromOfflineDeckCache,
   offlineDeckStorageKey,
@@ -379,8 +381,28 @@ export default function DeckDetailScreen() {
   // shows every card, image ones included, so they stay manageable.
   const imageCardCount = cards.filter(isOcclusionCard).length;
   const textCardCount = cards.length - imageCardCount;
-  const deckCountLabel = buildDeckCountLabel(textCardCount, imageCardCount);
+  // Füllstand statt reiner Anzahl (#611): „142 von 150 Karten" sagt VOR dem
+  // Tippen, wie viel Platz bleibt. `maxCardsPerDeck` ist `null`, solange der
+  // Server die Grenzen nicht geliefert hat (#603) — dann bleibt das alte Label
+  // und nichts wird gesperrt.
+  const maxCardsPerDeck = useUsageStore((state) => state.maxCardsPerDeck);
+  const setUsage = useUsageStore((state) => state.setUsage);
+  const deckCountLabel = buildDeckCountLabel(textCardCount, imageCardCount, maxCardsPerDeck);
+  const deckIsFull =
+    typeof maxCardsPerDeck === "number" && textCardCount + imageCardCount >= maxCardsPerDeck;
   const [refreshing, setRefreshing] = useState(false);
+
+  // Grenzen einmalig nachladen, falls dieser Bildschirm der erste ist (Deeplink,
+  // App-Neustart auf einem Deck). Kommt der Nutzer über die Startseite, hat das
+  // LP-Abzeichen sie längst geholt — dann kostet das hier keinen Aufruf.
+  useEffect(() => {
+    if (maxCardsPerDeck !== null) return;
+    void getLpBalance()
+      .then((res) => setUsage(usageFromBalanceResponse(res)))
+      .catch(() => {
+        // Ohne Grenzen bleibt das alte Label stehen und nichts wird gesperrt.
+      });
+  }, [maxCardsPerDeck, setUsage]);
 
   // Card editor state
   const [editorVisible, setEditorVisible] = useState(false);
@@ -804,17 +826,24 @@ export default function DeckDetailScreen() {
             <Text
               style={{
                 fontSize: typography.base,
-                color: colors.textSecondary,
+                // Am vollen Deck warnfarben — die Zahl IST hier die Nachricht.
+                color: deckIsFull && !loading ? colors.warning : colors.textSecondary,
                 fontWeight: typography.medium,
+                flexShrink: 1,
               }}
             >
-              {loading ? "Lade..." : deckCountLabel}
+              {loading ? "Lade..." : deckIsFull ? `${deckCountLabel} — voll` : deckCountLabel}
             </Text>
             <TouchableOpacity
               onPress={handleAddCard}
               activeOpacity={0.8}
+              // Nichts anbieten, was der Server sicher ablehnt (#611): Am vollen
+              // Deck führte „+ Karte" bisher durch den ganzen Editor bis in eine
+              // Fehlermeldung. Die Zahl links sagt, warum der Knopf schläft.
+              disabled={deckIsFull}
+              accessibilityState={{ disabled: deckIsFull }}
               style={{
-                backgroundColor: colors.primary,
+                backgroundColor: deckIsFull ? colors.border : colors.primary,
                 borderRadius: radius.md,
                 paddingHorizontal: 14,
                 paddingVertical: spacing.sm,
@@ -825,12 +854,12 @@ export default function DeckDetailScreen() {
             >
               <Plus
                 size={16}
-                color={colors.textInverse}
+                color={deckIsFull ? colors.textSecondary : colors.textInverse}
                 strokeWidth={3}
               />
               <Text
                 style={{
-                  color: colors.textInverse,
+                  color: deckIsFull ? colors.textSecondary : colors.textInverse,
                   fontWeight: typography.bold,
                   fontSize: typography.base,
                 }}

@@ -15,11 +15,21 @@
  */
 export function buildDeckCountLabel(
   cardCount: number | undefined,
-  imageCardCount: number | undefined
+  imageCardCount: number | undefined,
+  maxCardsPerDeck?: number | null
 ): string | null {
   const cards = cardCount ?? 0;
   const images = imageCardCount ?? 0;
   const parts: string[] = [];
+  if (typeof maxCardsPerDeck === "number") {
+    // Füllstand statt reiner Anzahl (#611): „142 von 150 Karten" sagt vor dem
+    // Tippen, wie viel Platz bleibt. Bild-Karten zählen in die Summe links vom
+    // „von", weil der Server sie beim Durchsetzen der Grenze mitzählt — sie
+    // bleiben rechts zusätzlich ausgewiesen, damit die Aufteilung sichtbar ist.
+    parts.push(`${cards + images} von ${maxCardsPerDeck} Karten`);
+    if (images > 0) parts.push(`${images} Bild-${images === 1 ? "Karte" : "Karten"}`);
+    return parts.join(" · ");
+  }
   if (cards > 0) parts.push(`${cards} ${cards === 1 ? "Karte" : "Karten"}`);
   if (images > 0) parts.push(`${images} Bild-${images === 1 ? "Karte" : "Karten"}`);
   return parts.length > 0 ? parts.join(" · ") : null;

@@ -3,6 +3,7 @@ import {
   DECK_LIMIT_LABEL,
   OVERFLOW_CONFIRM_TITLE,
   adviceForLimit,
+  deckSlotsSummary,
   deckLimitMessage,
   deckLimitNotice,
   deckOptionLabel,
@@ -36,6 +37,24 @@ describe("Deck-Grenze im Browser (#411)", () => {
 
   it("schweigt, solange noch Platz ist", () => {
     expect(deckLimitNotice(19, 20)).toBeNull();
+  });
+
+  describe("Füllstand der Bibliothek (#611)", () => {
+    it("nennt den Stand, lange bevor die Grenze reißt", () => {
+      // Der eigentliche Punkt: Bei 19 von 20 schweigt deckLimitNotice noch —
+      // hier steht der Stand trotzdem, damit die Grenze nicht überrascht.
+      expect(deckSlotsSummary(19, 20)).toBe("19 von 20 Decks belegt");
+      expect(deckSlotsSummary(3, 20)).toBe("3 von 20 Decks belegt");
+    });
+
+    it("sagt auch am Anschlag die Zahlen", () => {
+      expect(deckSlotsSummary(20, 20)).toBe("20 von 20 Decks belegt");
+    });
+
+    it("schweigt bei unbekannter Grenze und beim Laden", () => {
+      expect(deckSlotsSummary(19, undefined)).toBeNull();
+      expect(deckSlotsSummary(null, 20)).toBeNull();
+    });
   });
 
   it("benennt die Sperre so, wie sie über den Kacheln steht", () => {
