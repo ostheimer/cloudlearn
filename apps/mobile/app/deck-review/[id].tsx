@@ -16,6 +16,7 @@ import { fetchDeckStats } from "../../src/lib/statsApi";
 import {
   CardSourcePicker,
   filterBySource,
+  isCardDue,
   type CardSource,
 } from "../../src/components/cardSourcePicker";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
@@ -118,6 +119,7 @@ export default function DeckReviewScreen() {
 
   const starredCount = allCards.filter((card) => card.starred).length;
   const wobblyCount = allCards.filter((card) => wobblyIds.has(card.id)).length;
+  const dueCount = allCards.filter((card) => isCardDue(card)).length;
   const studyPool = filterBySource(allCards, source, wobblyIds);
 
   const setupRestoredRef = useRef(false);
@@ -125,14 +127,17 @@ export default function DeckReviewScreen() {
     if (setupRestoredRef.current || loading || storedSetup === undefined) return;
     if (phase !== "setup") return;
     setupRestoredRef.current = true;
-    if (!storedSetup) return;
-    if (storedSetup.reverse !== undefined) setReverse(storedSetup.reverse);
-    const wanted = resolveSource(storedSetup.source, {
+    if (storedSetup?.reverse !== undefined) setReverse(storedSetup.reverse);
+    const wanted = resolveSource(storedSetup?.source, {
       starred: starredCount,
       wobbly: wobblyCount,
+      due: dueCount,
     });
     if (wanted) setSource(wanted);
-  }, [loading, storedSetup, phase, starredCount, wobblyCount]);
+    // Ohne gemerkte Wahl ist das Tagespensum die Voreinstellung (#610):
+    // „Nur fällige", sobald es gerade welche gibt.
+    else if (!storedSetup?.source && dueCount > 0) setSource("due");
+  }, [loading, storedSetup, phase, starredCount, wobblyCount, dueCount]);
 
   // Offer the resume only while it is genuinely usable: same source, and the
   // stored card still sits at the stored position (cards may have been added,
@@ -367,6 +372,7 @@ export default function DeckReviewScreen() {
             allCount={allCards.length}
             starredCount={starredCount}
             wobblyCount={wobblyCount}
+            dueCount={dueCount}
           />
 
           <View style={{ flex: 1 }} />

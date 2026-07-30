@@ -16,15 +16,17 @@ vi.mock("../theme", () => ({
   shadows: {},
 }));
 
-import { filterBySource, type CardSource } from "./cardSourcePicker";
+import { filterBySource, isCardDue, type CardSource } from "./cardSourcePicker";
 
-type TestCard = { id: string; starred?: boolean };
+type TestCard = { id: string; starred?: boolean; fsrsDue?: string };
+
+const NOW = Date.parse("2026-07-29T12:00:00.000Z");
 
 const cards: TestCard[] = [
-  { id: "a", starred: true },
-  { id: "b", starred: false },
-  { id: "c", starred: true },
-  { id: "d" }, // starred omitted → treated as not starred
+  { id: "a", starred: true, fsrsDue: "2026-07-29T08:00:00.000Z" }, // due today
+  { id: "b", starred: false, fsrsDue: "2026-08-05T08:00:00.000Z" }, // due next week
+  { id: "c", starred: true, fsrsDue: "2026-07-29T12:00:00.000Z" }, // due right now
+  { id: "d" }, // starred/fsrsDue omitted → not starred, never due
 ];
 
 const wobblyIds = new Set(["b", "d"]);
@@ -69,8 +71,28 @@ describe("filterBySource", () => {
     expect(input).toEqual(snapshot);
   });
 
+  it("returns only cards whose due time has arrived for 'due' (#610)", () => {
+    expect(filterBySource(cards, "due", wobblyIds, NOW).map((c) => c.id)).toEqual([
+      "a",
+      "c",
+    ]);
+  });
+
   it("keeps the source type usable as a discriminated value", () => {
-    const sources: CardSource[] = ["all", "starred", "wobbly"];
-    expect(sources).toHaveLength(3);
+    const sources: CardSource[] = ["all", "starred", "wobbly", "due"];
+    expect(sources).toHaveLength(4);
+  });
+});
+
+describe("isCardDue", () => {
+  it("due from the scheduled moment on, not before", () => {
+    expect(isCardDue({ fsrsDue: "2026-07-29T08:00:00.000Z" }, NOW)).toBe(true);
+    expect(isCardDue({ fsrsDue: "2026-07-29T12:00:00.000Z" }, NOW)).toBe(true);
+    expect(isCardDue({ fsrsDue: "2026-07-30T08:00:00.000Z" }, NOW)).toBe(false);
+  });
+
+  it("never due without or with a broken date", () => {
+    expect(isCardDue({}, NOW)).toBe(false);
+    expect(isCardDue({ fsrsDue: "not a date" }, NOW)).toBe(false);
   });
 });

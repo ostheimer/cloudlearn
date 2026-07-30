@@ -46,6 +46,7 @@ import { fetchDeckStats } from "../src/lib/statsApi";
 import {
   CardSourcePicker,
   filterBySource,
+  isCardDue,
   type CardSource,
 } from "../src/components/cardSourcePicker";
 import { QuestionCountPicker } from "../src/components/questionCountPicker";
@@ -200,6 +201,10 @@ export default function TestScreen() {
     () => usableCards.filter((c) => wobblyIds.has(c.id)).length,
     [usableCards, wobblyIds]
   );
+  const dueCount = useMemo(
+    () => usableCards.filter((c) => isCardDue(c)).length,
+    [usableCards]
+  );
   // The chosen source drives which cards the test draws from; the question
   // count then follows this pool.
   const pool = useMemo(
@@ -277,18 +282,21 @@ export default function TestScreen() {
     if (setupRestoredRef.current || loading || storedSetup === undefined) return;
     if (phase !== "setup") return;
     setupRestoredRef.current = true;
-    if (!storedSetup) return;
+    const counts = { starred: starredCount, wobbly: wobblyCount, due: dueCount };
+    // Ohne gemerkte Wahl ist das Tagespensum die Voreinstellung (#610).
+    if (!storedSetup) {
+      if (counts.due > 0) setSource("due");
+      return;
+    }
     if (storedSetup.reverse !== undefined) setReverse(storedSetup.reverse);
     if (storedSetup.strict !== undefined) setStrict(storedSetup.strict);
     if (storedSetup.timed !== undefined) setTimed(storedSetup.timed);
     if (storedSetup.typeTF !== undefined) setTypeTF(storedSetup.typeTF);
     if (storedSetup.typeMC !== undefined) setTypeMC(storedSetup.typeMC);
     if (storedSetup.typeWritten !== undefined) setTypeWritten(storedSetup.typeWritten);
-    const wanted = resolveSource(storedSetup.source, {
-      starred: starredCount,
-      wobbly: wobblyCount,
-    });
+    const wanted = resolveSource(storedSetup.source, counts);
     if (wanted) setSource(wanted);
+    else if (!storedSetup.source && counts.due > 0) setSource("due");
     // Obergrenze der Anzahl ist der Vorrat der Quelle, die ab jetzt gilt —
     // der Klemm-Effekt oben zieht sie bei Quellenwechseln weiter mit.
     const wantedMax = filterBySource(usableCards, wanted ?? source, wobblyIds).length;
@@ -297,7 +305,7 @@ export default function TestScreen() {
       countInitializedRef.current = true;
       setCount(storedCount);
     }
-  }, [loading, storedSetup, phase, starredCount, wobblyCount, usableCards, source, wobblyIds]);
+  }, [loading, storedSetup, phase, starredCount, wobblyCount, dueCount, usableCards, source, wobblyIds]);
 
   const anyType = typeTF || typeMC || typeWritten;
 
@@ -679,6 +687,7 @@ export default function TestScreen() {
               allCount={deckUsableCount}
               starredCount={starredCount}
               wobblyCount={wobblyCount}
+              dueCount={dueCount}
             />
 
             {/* Richtung — one arrow in the middle, tap to swap */}

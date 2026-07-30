@@ -36,7 +36,7 @@ export interface SessionProgress {
   index: number;
   /** Id of the card at `index` when it was saved — see isProgressUsable. */
   cardId: string;
-  /** Card source the session ran with ("all" | "starred" | "wobbly"). */
+  /** Card source the session ran with ("all" | "starred" | "wobbly" | "due"). */
   source: string;
   /** Whether the session asked back-to-front. */
   reverse: boolean;

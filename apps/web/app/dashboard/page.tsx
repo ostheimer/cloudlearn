@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
+import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
 import { Modal } from "@/components/app/modal";
 import {
   listDecks,
@@ -18,7 +19,7 @@ import {
   deleteFolder,
   listDecksInFolder,
   addDeckToFolder,
-  getDueCards,
+  getDueCountsByDeck,
   searchCards,
   isApiError,
   type Deck,
@@ -101,16 +102,14 @@ export default function LibraryPage() {
     try {
       // Das Abzeichen ist best-effort: eine scheiternde Fällig-Abfrage darf
       // die Bibliothek nicht brechen (gleiche Logik wie im App-Deck-Tab).
-      const [{ decks: fetched }, due] = await Promise.all([
+      // Gezählt wird auf dem Server (#612): getDueCards überträgt den ganzen
+      // Rückstand mit Kartentext und wird ab 1000 Karten still gekappt.
+      const [{ decks: fetched }, { dueByDeck: due }] = await Promise.all([
         listDecks(userId),
-        getDueCards(userId).catch(() => ({ cards: [] })),
+        getDueCountsByDeck().catch(() => ({ dueByDeck: {} })),
       ]);
       setDecks(fetched);
-      const counts: Record<string, number> = {};
-      for (const card of due.cards) {
-        counts[card.deckId] = (counts[card.deckId] ?? 0) + 1;
-      }
-      setDueByDeck(counts);
+      setDueByDeck(due);
       setPageError(null);
     } catch (e) {
       setPageError(
@@ -148,6 +147,12 @@ export default function LibraryPage() {
     loadDecks();
     loadFolders();
   }, [loadDecks, loadFolders]);
+
+  // Nach dem Lernen am Handy standen die „N fällig"-Abzeichen im offenen
+  // Laptop-Tab weiter auf dem alten Stand (#610). Nur die Decks nachladen —
+  // die Ordner-Zählung macht eine Anfrage je Ordner und ändert sich beim
+  // Lernen nicht.
+  useRefreshOnFocus(loadDecks);
 
   useEffect(() => {
     if (!openMenu) return;

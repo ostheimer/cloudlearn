@@ -23,7 +23,7 @@ import { useTranslation } from "react-i18next";
 import { useSessionStore } from "../../src/store/sessionStore";
 import {
   listDecks,
-  getDueCards,
+  getDueCountsByDeck,
   searchCards,
   type CardSearchResult,
   updateDeck,
@@ -41,6 +41,7 @@ import { useColors, spacing, radius, typography, shadows } from "../../src/theme
 import { buildLibraryFolderRoute } from "../../src/navigation/libraryRoutes";
 import { AuthPromptCard } from "../../src/components/AuthPromptCard";
 import TextPromptModal from "../../src/components/TextPromptModal";
+import { TITLE_MAX_LENGTH } from "../../src/lib/titleLimit";
 
 type TabKey = "decks" | "folders";
 
@@ -112,16 +113,14 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
     setDecksError(false);
     try {
       // The badge is best-effort: a failing due lookup must not break the list.
-      const [{ decks: fetched }, due] = await Promise.all([
+      // Gezählt wird auf dem Server (#612): getDueCards überträgt den ganzen
+      // Rückstand mit Kartentext und wird ab 1000 Karten still gekappt.
+      const [{ decks: fetched }, { dueByDeck: due }] = await Promise.all([
         listDecks(userId),
-        getDueCards(userId).catch(() => ({ cards: [] })),
+        getDueCountsByDeck().catch(() => ({ dueByDeck: {} })),
       ]);
       setDecks(fetched);
-      const counts: Record<string, number> = {};
-      for (const card of due.cards) {
-        counts[card.deckId] = (counts[card.deckId] ?? 0) + 1;
-      }
-      setDueByDeck(counts);
+      setDueByDeck(due);
     } catch {
       // Distinguish a load failure (offline / server error) from a genuinely
       // empty library so we can offer a retry instead of "noch keine Decks".
@@ -821,6 +820,8 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
           label={promptConfig.label}
           initialValue={promptConfig.initialValue}
           confirmLabel={promptConfig.confirmLabel}
+          // Alle drei Fenster hier sind Namen (Deck/Ordner) — Servergrenze 120 (#612).
+          maxLength={TITLE_MAX_LENGTH}
           onCancel={() => setPrompt(null)}
           onSubmit={handlePromptSubmit}
         />

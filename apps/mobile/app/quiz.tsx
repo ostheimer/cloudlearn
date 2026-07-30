@@ -44,6 +44,7 @@ import { fetchDeckStats } from "../src/lib/statsApi";
 import {
   CardSourcePicker,
   filterBySource,
+  isCardDue,
   type CardSource,
 } from "../src/components/cardSourcePicker";
 import { QuestionCountPicker } from "../src/components/questionCountPicker";
@@ -124,6 +125,7 @@ export default function QuizScreen() {
   // The chosen source; choice questions need at least two cards from it.
   const starredCount = cards.filter((c) => c.starred).length;
   const wobblyCount = cards.filter((c) => wobblyIds.has(c.id)).length;
+  const dueCount = cards.filter((c) => isCardDue(c)).length;
   const pool = filterBySource(cards, source, wobblyIds);
   const canStart = anyType && pool.length >= 2;
   // Obergrenze der Auswahl: wie die Prüfung nur Karten mit beiden Seiten —
@@ -159,15 +161,25 @@ export default function QuizScreen() {
     if (setupRestoredRef.current || loading || storedSetup === undefined) return;
     if (!inSetup) return;
     setupRestoredRef.current = true;
-    if (!storedSetup) return;
+    // Multiple Choice braucht 2 Karten (Ablenker) — eine Quelle mit weniger
+    // darf nie vorbelegt werden, sonst steht man vor gesperrtem Start.
+    const usable = (n: number) => (n >= 2 ? n : 0);
+    const counts = {
+      starred: usable(starredCount),
+      wobbly: usable(wobblyCount),
+      due: usable(dueCount),
+    };
+    // Ohne gemerkte Wahl ist das Tagespensum die Voreinstellung (#610).
+    if (!storedSetup) {
+      if (counts.due > 0) setSource("due");
+      return;
+    }
     if (storedSetup.reverse !== undefined) setReverse(storedSetup.reverse);
     if (storedSetup.typeMC !== undefined) setTypeMC(storedSetup.typeMC);
     if (storedSetup.typeTF !== undefined) setTypeTF(storedSetup.typeTF);
-    const wanted = resolveSource(storedSetup.source, {
-      starred: starredCount,
-      wobbly: wobblyCount,
-    });
+    const wanted = resolveSource(storedSetup.source, counts);
     if (wanted) setSource(wanted);
+    else if (!storedSetup.source && counts.due > 0) setSource("due");
     // Obergrenze der Anzahl ist der Vorrat der Quelle, die ab jetzt gilt —
     // der Klemm-Effekt oben zieht sie bei Quellenwechseln weiter mit.
     const wantedPool = filterBySource(cards, wanted ?? source, wobblyIds);
@@ -176,7 +188,7 @@ export default function QuizScreen() {
     ).length;
     const storedCount = resolveCount(storedSetup.count, wantedMax);
     if (storedCount !== null) setCount(storedCount);
-  }, [loading, storedSetup, inSetup, starredCount, wobblyCount, cards, source, wobblyIds]);
+  }, [loading, storedSetup, inSetup, starredCount, wobblyCount, dueCount, cards, source, wobblyIds]);
 
   // Load cards
   const loadCards = useCallback(async () => {
@@ -687,12 +699,13 @@ export default function QuizScreen() {
               )}
             </View>
 
-            {/* Kartenquelle — Alle / Nur markierte / Nur Wackelkandidaten */}
+            {/* Kartenquelle — Nur fällige / Alle / Nur markierte / Nur Wackelkandidaten */}
             <CardSourcePicker
               value={source}
               onChange={setSource}
               allCount={cards.length}
               starredCount={starredCount}
+              dueCount={dueCount}
               wobblyCount={wobblyCount}
             />
             {source !== "all" && pool.length < 2 && (

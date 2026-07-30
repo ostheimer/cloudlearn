@@ -19,6 +19,7 @@ import { useColors, spacing, radius, typography } from "../theme";
 import { useTranslation } from "react-i18next";
 import { getDeckDetails, updateDeck } from "../lib/api";
 import { buildDeckUpdatePayload } from "../lib/deckEditPayload";
+import { TITLE_MAX_LENGTH } from "../lib/titleLimit";
 import {
   SPEECH_LANGUAGES,
   speechLanguageLabel,
@@ -286,6 +287,9 @@ export default function DeckEditModal({
                 onChangeText={setTitle}
                 placeholder={t("deckEdit.titlePlaceholder")}
                 placeholderTextColor={colors.textTertiary}
+                // Servergrenze für Deck-Titel (#612) — Tipp-Stopp statt
+                // Fehler beim Speichern.
+                maxLength={TITLE_MAX_LENGTH}
                 style={{
                   borderWidth: 1,
                   borderColor: colors.border,
