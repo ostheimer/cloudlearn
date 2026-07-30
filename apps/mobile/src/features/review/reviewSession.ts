@@ -89,6 +89,12 @@ interface ReviewSessionState {
   canGoBack: () => boolean;
   goBack: () => boolean;
   rateCurrent: (rating: ReviewRating) => { cardId: string; rating: ReviewRating } | null;
+  /**
+   * Karte im laufenden Stapel patchen (#610, Stift-Knopf): NICHT die ganze
+   * Runde neu laden — das würde Index, Fortschritt und Bewertungen dieser
+   * Sitzung zerstören.
+   */
+  patchCard: (cardId: string, updates: Partial<Pick<ReviewCard, "front" | "back">>) => void;
 }
 
 export const useReviewSession = create<ReviewSessionState>((set, get) => ({
@@ -215,6 +221,11 @@ export const useReviewSession = create<ReviewSessionState>((set, get) => ({
     });
 
     return { cardId: current.id, rating };
+  },
+  patchCard: (cardId, updates) => {
+    set({
+      cards: get().cards.map((c) => (c.id === cardId ? { ...c, ...updates } : c)),
+    });
   }
 }));
 
