@@ -18,9 +18,13 @@ export function SiteFooter() {
               </span>
               {siteConfig.brandName}
             </Link>
+            {/* #609: Stand „strukturierte Flashcards — und Spaced Repetition
+                sorgt dafür …". Erklärender Text spricht Deutsch; das
+                Fachwort steht nur noch einmal auf der Startseite (in einer
+                Klammer) und in den Angaben für Suchmaschinen. */}
             <p style={{ maxWidth: 320, color: "var(--ink-3)" }}>
-              Aus Fotos, PDFs und Texten werden strukturierte Flashcards — und Spaced Repetition
-              sorgt dafür, dass das Gelernte bleibt.
+              Aus Fotos, PDFs und Texten werden fertige Karteikarten — und clearn zeigt sie dir
+              genau dann wieder, wenn du sie brauchst.
             </p>
           </div>
 

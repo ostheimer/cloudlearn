@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  REPLAY_PARAM,
   consumeFreshWelcome,
   decideOnboarding,
   isOnboardingCompleted,
   markOnboardingCompleted,
+  onboardingReplayHref,
   rememberFreshWelcome,
 } from "./onboarding";
 
@@ -30,6 +32,16 @@ describe("decideOnboarding", () => {
   it("silently marks existing accounts as done — no second sample deck", () => {
     expect(decideOnboarding(1)).toBe("markCompleted");
     expect(decideOnboarding(24)).toBe("markCompleted");
+  });
+});
+
+describe("Einführung erneut ansehen (#609)", () => {
+  it("die Adresse aus dem Profil trägt genau den Merker, den die Seite liest", () => {
+    // Gingen Link und gelesener Parameter auseinander, würde die Seite das
+    // zweite Ansehen sofort ins Dashboard umleiten — der Knopf täte nichts.
+    const gelesen = new URLSearchParams(onboardingReplayHref.split("?")[1] ?? "");
+    expect(gelesen.get(REPLAY_PARAM)).toBe("1");
+    expect(onboardingReplayHref.startsWith("/onboarding?")).toBe(true);
   });
 });
 

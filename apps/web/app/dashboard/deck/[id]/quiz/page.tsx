@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
 import { listCardsInDeck, reviewCard, earnLp, isApiError, type Card } from "@/lib/api";
 import { useDisplayName } from "@/lib/use-display-name";
+import { toggleCardStar } from "@/lib/toggle-card-star";
 import { useWobblyIds } from "@/lib/use-wobbly-ids";
 import { filterBySource, isCardDue, type CardSource } from "@/lib/card-source";
 import {
@@ -35,6 +36,7 @@ import {
   Check,
   CheckCircle,
   Trophy,
+  Star,
   Zap,
   AlertTriangle,
   ListChecks,
@@ -48,6 +50,8 @@ export default function QuizPage() {
   const displayName = useDisplayName();
 
   const [cards, setCards] = useState<Card[]>([]);
+  // Stern-Stand der laufenden Runde, für sofort sichtbares Markieren (#610).
+  const [starredMap, setStarredMap] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -225,6 +229,9 @@ export default function QuizPage() {
     setEarned(null);
     setEarnCapReached(false);
     setQuestions(qs);
+    // Stern-Stand für diese Runde (#610) — frisch aus den Karten, damit ein
+    // Markieren in einer anderen Runde dazwischen nicht veraltet mitläuft.
+    setStarredMap(Object.fromEntries(cardsForRound.map((c) => [c.id, c.starred ?? false])));
     setIndex(0);
     setPicked(null);
     setAnswers([]);
@@ -627,6 +634,17 @@ export default function QuizPage() {
       </div>
 
       <div className="cl-prompt">
+        {q && (
+          <button
+            type="button"
+            className={`prompt-star-btn${starredMap[q.cardId] ? " is-starred" : ""}`}
+            aria-label={starredMap[q.cardId] ? "Markierung entfernen" : "Karte markieren"}
+            aria-pressed={starredMap[q.cardId] ?? false}
+            onClick={() => toggleCardStar(q.cardId, starredMap, setStarredMap)}
+          >
+            <Star size={17} />
+          </button>
+        )}
         <div className="quiz-eyebrow">
           {q?.type === "trueFalse" ? "Wahr / Falsch" : "Multiple Choice"}
         </div>

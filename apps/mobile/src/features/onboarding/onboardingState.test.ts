@@ -28,6 +28,54 @@ describe("onboarding state", () => {
     }
     expect(useOnboardingState.getState().step).toBe(5);
   });
+
+  it("prevStep geht zurück und bleibt bei Schritt 1 stehen (#609)", () => {
+    useOnboardingState.getState().nextStep();
+    useOnboardingState.getState().nextStep();
+    useOnboardingState.getState().prevStep();
+    expect(useOnboardingState.getState().step).toBe(2);
+
+    for (let i = 0; i < 10; i++) {
+      useOnboardingState.getState().prevStep();
+    }
+    expect(useOnboardingState.getState().step).toBe(1);
+  });
+});
+
+describe("Einführung erneut ansehen (#609)", () => {
+  beforeEach(() => {
+    useOnboardingState.getState().reset();
+  });
+
+  it("startReplay beginnt bei Schritt 1 und setzt den Merker", () => {
+    useOnboardingState.getState().nextStep();
+    useOnboardingState.getState().nextStep();
+    useOnboardingState.getState().startReplay();
+
+    expect(useOnboardingState.getState().step).toBe(1);
+    expect(useOnboardingState.getState().replay).toBe(true);
+  });
+
+  it("startReplay lässt den Haken 'erledigt' in Ruhe — sonst gäbe es ein zweites Beispiel-Deck", () => {
+    useOnboardingState.getState().complete();
+    useOnboardingState.getState().startReplay();
+
+    expect(useOnboardingState.getState().completed).toBe(true);
+  });
+
+  it("endReplay räumt den Merker weg", () => {
+    useOnboardingState.getState().startReplay();
+    useOnboardingState.getState().endReplay();
+
+    expect(useOnboardingState.getState().replay).toBe(false);
+  });
+
+  it("reset räumt den Merker mit weg", () => {
+    useOnboardingState.getState().startReplay();
+    useOnboardingState.getState().reset();
+
+    expect(useOnboardingState.getState().replay).toBe(false);
+  });
 });
 
 describe("shouldShowOnboardingForDeckCount", () => {

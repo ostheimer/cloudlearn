@@ -459,18 +459,30 @@ export const resources = {
       "onboarding.welcomeTitle": "Willkommen bei clearn",
       "onboarding.welcomeSubtitle": "Lerne mit KI-generierten Karteikarten. Schnell, smart, nachhaltig.",
       "onboarding.howTitle": "So funktioniert's",
-      "onboarding.howSubtitle": "Wische nach links = „Nochmal“, nach rechts = „Gewusst“. Tippe auf die Karte zum Umdrehen.",
+      // #609: Die vier Bewertungs-Knöpfe standen nirgends erklärt, und der
+      // Wortlaut widersprach dem Wisch-Overlay („GEMERKT"). Laras
+      // Entscheidung: überall „gewusst".
+      "onboarding.howSubtitle":
+        "Tippe auf die Karte zum Umdrehen, dann bewerte ehrlich: „Nochmal“ (gar nicht gewusst), „Schwer“ (nur mit Mühe), „Gut“ (gewusst), „Leicht“ (sofort klar). Je nach Bewertung kommt die Karte früher oder später wieder. Schneller geht's mit Wischen: nach links „Nochmal“, nach rechts „Gewusst“.",
       "onboarding.scanTitle": "Karten aus Fotos",
       "onboarding.scanSubtitle": "Fotografiere deine Notizen oder lade ein PDF hoch — die KI macht daraus fertige Karteikarten. Du findest das jederzeit im Tab „Scan“.",
       "onboarding.lpTitle": "Was sind Lernpunkte?",
       "onboarding.lpSubtitle":
         "Lernpunkte (LP) sind das Guthaben der App: Du verdienst sie durchs Lernen — 1 LP für jede gelernte Karte — und gibst sie aus, wenn die KI für dich arbeitet, zum Beispiel beim Scannen. Lernen selbst ist immer gratis.",
       "onboarding.startTitle": "Dein erstes Deck",
-      "onboarding.startSubtitle": "Wir legen dir 3 Beispielkarten an. Danach kannst du sofort loslegen.",
+      // #609: „kannst du löschen" gehört dazu — sonst wirken die drei
+      // Tier-Karten wie ein fester Teil der App.
+      "onboarding.startSubtitle":
+        "Wir legen dir 3 Beispielkarten an — die kannst du jederzeit löschen. Danach kannst du sofort loslegen.",
       "onboarding.next": "Weiter",
+      "onboarding.back": "Zurück",
+      "onboarding.skip": "Überspringen",
+      "onboarding.done": "Fertig",
       "onboarding.start": "Jetzt starten",
       "onboarding.creating": "Erstelle dein erstes Deck…",
       "onboarding.error": "Starter-Deck konnte nicht erstellt werden. Bitte später erneut versuchen.",
+      "onboarding.replay": "Einführung erneut ansehen",
+      "onboarding.replayHint": "Die fünf Schritte vom ersten Start",
       "paywall.unavailableNative": "RevenueCat ist in dieser Laufzeit nicht verfügbar (Expo Go). Nutze einen Dev/Store Build.",
       "paywall.unavailableApiKey": "RevenueCat API-Key fehlt. Bitte EXPO_PUBLIC_REVENUECAT_* konfigurieren.",
       "paywall.purchaseSuccessTitle": "Kauf erfolgreich",
@@ -983,18 +995,25 @@ export const resources = {
       "onboarding.welcomeTitle": "Welcome to clearn",
       "onboarding.welcomeSubtitle": "Learn with AI-generated flashcards. Fast, smart, long-lasting.",
       "onboarding.howTitle": "How it works",
-      "onboarding.howSubtitle": "Swipe left = \"Again\", right = \"Got it\". Tap the card to flip.",
+      "onboarding.howSubtitle":
+        "Tap the card to flip it, then rate honestly: \"Again\" (didn't know it), \"Hard\" (only with effort), \"Good\" (knew it), \"Easy\" (instantly clear). Depending on your rating the card comes back sooner or later. Faster with swipes: left for \"Again\", right for \"Knew it\".",
       "onboarding.scanTitle": "Cards from photos",
       "onboarding.scanSubtitle": "Snap your notes or upload a PDF — AI turns them into ready-made flashcards. You'll find it anytime in the \"Scan\" tab.",
       "onboarding.lpTitle": "What are learning points?",
       "onboarding.lpSubtitle":
         "Learning points (LP) are the app's balance: you earn them by studying — 1 LP per studied card — and spend them when AI works for you, for example when scanning. Studying itself is always free.",
       "onboarding.startTitle": "Your first deck",
-      "onboarding.startSubtitle": "We'll create 3 sample cards for you. Then you can start right away.",
+      "onboarding.startSubtitle":
+        "We'll create 3 sample cards for you — you can delete them any time. Then you can start right away.",
       "onboarding.next": "Next",
+      "onboarding.back": "Back",
+      "onboarding.skip": "Skip",
+      "onboarding.done": "Done",
       "onboarding.start": "Get started",
       "onboarding.creating": "Creating your first deck…",
       "onboarding.error": "Could not create starter deck. Please try again later.",
+      "onboarding.replay": "Watch the intro again",
+      "onboarding.replayHint": "The five steps from your first launch",
       "paywall.unavailableNative": "RevenueCat is not available in this runtime (Expo Go). Use a dev/store build.",
       "paywall.unavailableApiKey": "RevenueCat API key is missing. Configure EXPO_PUBLIC_REVENUECAT_* variables.",
       "paywall.purchaseSuccessTitle": "Purchase successful",

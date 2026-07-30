@@ -2645,11 +2645,40 @@ a.mode-card:hover {
   margin-top: 10px;
 }
 .cl-prompt {
+  position: relative;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r-md);
   box-shadow: var(--shadow-sm);
   padding: 22px;
+}
+/* Stern-Markieren in Lückentext/Quiz/Prüfung (#610) — Gegenstück zu .star-btn,
+   aber relativ zur Prompt-Box statt zur Flip-Karte (die es hier nicht gibt).
+   Platz rechts freigehalten, damit der Fragetext nicht drunter verschwindet. */
+.prompt-star-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-3);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.prompt-star-btn.is-starred {
+  border-color: var(--amber);
+  color: var(--amber);
+}
+.prompt-star-btn.is-starred svg {
+  fill: var(--amber);
+}
+.cl-eyebrow,
+.quiz-eyebrow {
+  padding-right: 44px;
 }
 .cl-eyebrow {
   font-size: 0.7rem;
@@ -3516,6 +3545,25 @@ a.mode-card:hover {
 
 .star-btn.is-starred svg {
   fill: var(--amber);
+}
+
+/* Stift-Knopf (#610): öffnet den Karten-Editor aus der Runde heraus. Sitzt
+   neben dem Stern statt in einer eigenen Ecke — die zweite Ecke gehört schon
+   dem Vorlese-Knopf. */
+.edit-btn {
+  position: absolute;
+  top: 14px;
+  left: 62px;
+  z-index: 2;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-3);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
 }
 
 .learn-bottom {
@@ -5121,6 +5169,35 @@ a.lp-way:hover {
   flex-direction: column;
   padding: 28px 24px;
   background: var(--bg);
+}
+/* #609: Zurück links, Punkte in der Mitte, Überspringen rechts. Die
+   Textknöpfe belegen ihren Platz auch unsichtbar (visibility statt display),
+   damit die Punkte beim Wechsel der Schritte nicht springen. */
+.onboarding__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.onboarding__nav .onboarding__dots {
+  flex: 1;
+}
+.onboarding__navbtn {
+  background: none;
+  border: 0;
+  padding: 8px 4px;
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--ink-3);
+  cursor: pointer;
+  border-radius: var(--r-sm);
+}
+.onboarding__navbtn:hover {
+  color: var(--ink);
+}
+.onboarding__navbtn.is-invisible {
+  visibility: hidden;
+  pointer-events: none;
 }
 .onboarding__dots {
   display: flex;

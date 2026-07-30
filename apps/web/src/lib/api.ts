@@ -998,6 +998,25 @@ export function listDecksInFolder(folderId: string): Promise<{ decks: Deck[] }> 
   return authed<{ decks: Deck[] }>(`/api/v1/folders/${folderId}/decks`);
 }
 
+/**
+ * Deck-Anzahl je Ordner in einer Anfrage (#612) — für die "3 Decks"-Zeile der
+ * Ordner-Kacheln. Vorher fragte die Seite jeden Ordner einzeln ab und zog dabei
+ * die vollen Deck-Datensätze, um nur `length` zu lesen. Ordner ohne Decks fehlen
+ * im Objekt, Leser lesen fehlend als 0.
+ */
+export function getDeckCountsByFolder(): Promise<{ decksByFolder: Record<string, number> }> {
+  return authed<{ decksByFolder: Record<string, number> }>("/api/v1/stats/decks-by-folder");
+}
+
+/**
+ * Alle Karten der Decks eines Ordners in einer Anfrage (#612) — für "Alle Karten
+ * lernen". Vorher lief eine Anfrage pro Deck; der Server macht daraus eine
+ * Abfrage und blättert intern über die 1000-Zeilen-Grenze hinweg.
+ */
+export function listCardsInFolder(folderId: string): Promise<{ cards: Card[] }> {
+  return authed<{ cards: Card[] }>(`/api/v1/folders/${folderId}/cards`);
+}
+
 export function addDeckToFolder(folderId: string, deckId: string): Promise<{ added: boolean }> {
   return authed<{ added: boolean }>(`/api/v1/folders/${folderId}/decks`, {
     method: "POST",

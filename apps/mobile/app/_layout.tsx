@@ -70,6 +70,7 @@ export default function RootLayout() {
   const c = useColors();
   const themeMode = useResolvedThemeMode();
   const onboardingCompleted = useOnboardingState((state) => state.completed);
+  const onboardingReplay = useOnboardingState((state) => state.replay);
   const loadCompletedFromStorage = useOnboardingState(
     (state) => state.loadCompletedFromStorage
   );
@@ -233,6 +234,7 @@ export default function RootLayout() {
       onboardingLoaded,
       onboardingCompleted,
       firstSegment: segments[0],
+      onboardingReplay,
     });
 
     if (redirect) {
@@ -243,6 +245,7 @@ export default function RootLayout() {
     isLoading,
     onboardingLoaded,
     onboardingCompleted,
+    onboardingReplay,
     router,
     segments,
   ]);
@@ -521,6 +524,9 @@ export default function RootLayout() {
             <Stack.Screen name="auth-callback" options={{ headerShown: false }} />
             <Stack.Screen name="reset-password" options={{ headerShown: false }} />
             <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+            {/* #609: Drei Beispielkarten ohne Konto. Eigene Kopfzeile im
+                Bildschirm, daher headerShown: false wie beim Lernen. */}
+            <Stack.Screen name="demo" options={{ headerShown: false }} />
             <Stack.Screen
               name="deck-review/[id]"
               options={{

@@ -16,11 +16,13 @@ import {
   updateFolder,
   deleteFolder,
   getDueCountsByDeck,
+  getDeckCountsByFolder,
   isApiError,
   type Deck,
   type Folder,
 } from "@/lib/api";
 import { buildFolderCountLabel, descendantFolders, folderPath } from "@/lib/folders";
+import { folderDeckCounts } from "@/lib/folder-deck-counts";
 import { handleMenuKey } from "@/lib/menu-keys";
 import { FolderCard, DeleteFolderModal, FolderNameModal } from "@/components/app/folder-ui";
 import { deckCountLabel } from "@/lib/deck-count-label";
@@ -96,32 +98,24 @@ export default function FolderDetailPage() {
   const load = useCallback(async () => {
     if (!userId) return;
     try {
-      const [{ folders: fetchedFolders }, { decks: inFolder }, { decks: mine }] =
-        await Promise.all([listFolders(), listDecksInFolder(folderId), listDecks(userId)]);
+      // Die Deck-Zahlen der Unterordner kommen gruppiert vom Server (#612) —
+      // vorher lief eine Anfrage pro Unterordner, nur um `length` zu lesen.
+      // `.catch(null)`: eine scheiternde Zählung darf die Seite nicht brechen,
+      // die Kacheln sagen dann "Anzahl unbekannt".
+      const [{ folders: fetchedFolders }, { decks: inFolder }, { decks: mine }, counted] =
+        await Promise.all([
+          listFolders(),
+          listDecksInFolder(folderId),
+          listDecks(userId),
+          getDeckCountsByFolder().catch(() => null),
+        ]);
       setFolders(fetchedFolders);
       setDecks(inFolder);
       setAllDecks(mine);
       setPageError(null);
 
-      // Deck counts for this folder's subfolders — same best-effort pattern as
-      // the library tab. A failed count shows as "Anzahl unbekannt" rather than
-      // breaking the page.
-      try {
-        const kids = fetchedFolders.filter((f) => f.parentId === folderId);
-        const counts = await Promise.all(
-          kids.map(async (f) => {
-            try {
-              const { decks: inSub } = await listDecksInFolder(f.id);
-              return [f.id, inSub.length] as const;
-            } catch {
-              return [f.id, -1] as const;
-            }
-          })
-        );
-        setSubCounts(Object.fromEntries(counts));
-      } catch {
-        setSubCounts({});
-      }
+      const kids = fetchedFolders.filter((f) => f.parentId === folderId);
+      setSubCounts(folderDeckCounts(kids, counted));
 
       // How many of this folder's cards are due today. The grouped count is
       // global, so filter by the folder's decks — the server applies the same

@@ -8,6 +8,8 @@ import {
   addDeckToFolder,
   removeDeckFromFolder,
   listDecksInFolder,
+  countDecksByFolder,
+  listCardsInFolder,
   listFoldersForDeck,
   setFolderDeckOrder,
 } from "@/lib/db";
@@ -88,6 +90,19 @@ export async function removeDeckFromFolderForUser(folderId: string, userId: stri
 
 export async function listDecksInFolderForUser(folderId: string, userId: string) {
   return listDecksInFolder(folderId, userId);
+}
+
+/**
+ * Deck-Anzahl je Ordner in einer Antwort (#612) — ersetzt die Anfrage-je-Ordner
+ * der Bibliothek und der Ordnerseite. Ordner ohne Decks fehlen im Ergebnis.
+ */
+export async function countDecksByFolderForUser(userId: string) {
+  return countDecksByFolder(userId);
+}
+
+/** Alle Karten der Decks eines Ordners (#612). null = nicht der Besitzer → 404. */
+export async function listCardsInFolderForUser(folderId: string, userId: string) {
+  return listCardsInFolder(folderId, userId);
 }
 
 export async function listFoldersForDeckForUser(deckId: string) {

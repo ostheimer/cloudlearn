@@ -19,6 +19,7 @@ import {
   type ReferralInfoResponse,
 } from "@/lib/api";
 import { getStoredTheme, applyTheme, type ThemeChoice } from "@/lib/theme";
+import { onboardingReplayHref } from "@/lib/onboarding";
 import {
   User,
   Trash,
@@ -308,6 +309,19 @@ export default function ProfilePage() {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* #609: Die Einführung war nach dem ersten Besuch nicht mehr
+              erreichbar. „erneut=1" sorgt dafür, dass dabei kein zweites
+              Beispiel-Deck entsteht. */}
+          <div className="pf-row">
+            <div className="pf-row__t">
+              <b>Einführung</b>
+              <span>Die fünf Schritte vom ersten Start</span>
+            </div>
+            <Link href={onboardingReplayHref} className="btn btn-ghost">
+              Erneut ansehen
+            </Link>
           </div>
 
           <div className="pf-row">

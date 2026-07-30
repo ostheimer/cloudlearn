@@ -4,6 +4,13 @@ export interface RootRedirectInput {
   onboardingLoaded: boolean;
   onboardingCompleted: boolean;
   firstSegment?: string | undefined;
+  /**
+   * Die Einführung wird freiwillig erneut angesehen (#609). Ohne diesen
+   * Merker schickt die Regel unten jedes fertige Konto sofort aus
+   * /onboarding zurück in die Tabs — „Einführung erneut ansehen" wäre
+   * damit ein Knopf, der nichts tut.
+   */
+  onboardingReplay?: boolean | undefined;
 }
 
 export function resolveRootRedirect({
@@ -12,6 +19,7 @@ export function resolveRootRedirect({
   onboardingLoaded,
   onboardingCompleted,
   firstSegment,
+  onboardingReplay,
 }: RootRedirectInput): string | null {
   if (isLoading) {
     return null;
@@ -39,6 +47,10 @@ export function resolveRootRedirect({
     return inOnboardingScreen || inAuthCallbackScreen || inResetPasswordScreen
       ? null
       : "/onboarding";
+  }
+
+  if (inOnboardingScreen && onboardingReplay) {
+    return null;
   }
 
   if (inAuthScreen || inOnboardingScreen || !hasSegment) {

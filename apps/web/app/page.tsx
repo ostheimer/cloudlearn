@@ -48,11 +48,11 @@ const steps = [
   },
   {
     title: "Strukturieren",
-    body: "KI und OCR verwandeln Rohmaterial in saubere Flashcards mit klarer Vorder- und Rückseite — du prüfst nur noch.",
+    body: "Die KI liest dein Material — auch auf Fotos — und macht daraus saubere Karten mit klarer Vorder- und Rückseite. Du prüfst nur noch.",
   },
   {
     title: "Verankern",
-    body: "Spaced Repetition bringt dir täglich genau die Karten, die dran sind. Streaks und Tagesziele halten dich dabei.",
+    body: "clearn bringt dir täglich genau die Karten, die dran sind. Streaks und Tagesziele halten dich dabei.",
   },
 ];
 
@@ -61,13 +61,17 @@ const features: { Icon: IconType; tint: string; title: string; body: string }[] 
     Icon: Camera,
     tint: "g-indigo",
     title: "Foto & KI-Erstellung",
-    body: "OCR liest den Inhalt deines Materials, die KI baut daraus in Sekunden fertige Frage-Antwort-Karten.",
+    body: "Die KI erkennt den Text auf deinem Foto und baut daraus in Sekunden fertige Frage-Antwort-Karten.",
   },
   {
+    // #609: Hieß „Spaced Repetition" mit „FSRS-Verfahren" im Text — beides
+    // versteht eine Schülerin nicht. Der Fachbegriff bleibt bewusst EINMAL
+    // in der Klammer stehen (Laras Entscheidung), damit die Seite bei Google
+    // weiter unter dem Suchwort gefunden wird.
     Icon: Repeat,
     tint: "g-green",
-    title: "Spaced Repetition",
-    body: "Ein modernes FSRS-Verfahren plant jede Wiederholung optimal — du lernst weniger und behältst mehr.",
+    title: "Kluges Wiederholen",
+    body: "clearn rechnet für jede Karte aus, wann du sie wieder brauchst — du lernst weniger und behältst mehr. (Fachwort: Spaced Repetition.)",
   },
   {
     Icon: Target,
@@ -109,19 +113,19 @@ const modes: { Icon: IconType; tint: string; title: string; desc: string }[] = [
 const faqs = [
   {
     q: "Kann ich clearn im Browser nutzen?",
-    a: "Ja! Registriere dich auf clearn-web.vercel.app und leg sofort los — ganz ohne Installation. Zusätzlich gibt es clearn als iPhone-App (aktuell über TestFlight).",
+    a: "Ja! Du kannst clearn direkt im Browser nutzen — registrieren und sofort loslegen, ganz ohne Installation. Für das iPhone gibt es zusätzlich eine App, die noch in der Testphase ist.",
   },
   {
     q: "Was kostet clearn? Was ist gratis, was Pro?",
-    a: "Starten ist kostenlos: Konto anlegen, Decks & Karten erstellen und lernen — inklusive Spaced Repetition, allen Lernmodi, Ordner, Teilen und Statistik. Das KI-Erstellen läuft über Lernpunkte, die du dir durchs Lernen verdienst. Mit Pro gibt es mehr: mehr Decks & Karten, Bild-Occlusion, Offline-Download, günstigere KI-Kosten und monatliche Lernpunkte.",
+    a: "Starten ist kostenlos: Konto anlegen, Decks & Karten erstellen und lernen — inklusive dem klugen Wiederholen, allen Lernmodi, Ordner, Teilen und Statistik. Das KI-Erstellen läuft über Lernpunkte, die du dir durchs Lernen verdienst. Mit Pro gibt es mehr: mehr Decks & Karten, Bild-Occlusion, Offline-Download, günstigere KI-Kosten und monatliche Lernpunkte.",
   },
   {
     q: "Woraus kann ich Karten erstellen?",
-    a: "Aus Fotos, Galerie-Bildern, reinem Text, Webseiten-URLs und PDF-Dokumenten. OCR und KI übernehmen das Umwandeln in Flashcards.",
+    a: "Aus Fotos, Galerie-Bildern, reinem Text, Links zu Webseiten und PDF-Dokumenten. Die KI erkennt den Text und macht daraus fertige Karteikarten.",
   },
   {
     q: "Wie funktioniert das Wiederholen?",
-    a: "clearn nutzt ein FSRS-basiertes Spaced-Repetition-System. Es lernt aus deinen Bewertungen (Nochmal/Schwer/Gut/Leicht) und plant den idealen nächsten Zeitpunkt für jede Karte.",
+    a: "clearn merkt sich, wie gut du eine Karte konntest. Aus deinen Bewertungen (Nochmal, Schwer, Gut, Leicht) rechnet es aus, wann du sie wieder brauchst — und zeigt sie dir genau dann, statt dich alles ständig wiederholen zu lassen.",
   },
   {
     q: "Auf welchen Geräten läuft clearn?",
@@ -168,8 +172,8 @@ export default function LandingPage() {
               </h1>
               <p className="lead">
                 clearn verwandelt Fotos, Screenshots, PDFs, Texte und Links in klare Lernkarten.
-                Lerne direkt im Browser oder unterwegs am iPhone — mit Spaced Repetition, die dir
-                genau die Karten bringt, die heute dran sind.
+                Lerne direkt im Browser oder unterwegs am iPhone — clearn bringt dir genau die
+                Karten, die heute dran sind.
               </p>
               <div className="hero__cta">
                 <Link href="/signup" className="btn btn-primary btn-lg">
@@ -347,8 +351,8 @@ export default function LandingPage() {
                 Dein Material wird zu Karten — in Sekunden
               </h2>
               <p className="lead">
-                Fotografiere eine Buchseite, importiere ein PDF oder füge einen Link ein: OCR
-                erkennt den Text, die KI schlägt fertige Flashcards vor. Du prüfst, passt an und
+                Fotografiere eine Buchseite, importiere ein PDF oder füge einen Link ein: Die KI
+                erkennt den Text und schlägt fertige Karteikarten vor. Du prüfst, passt an und
                 lernst los.
               </p>
               <ul className="reset check-list">
@@ -426,8 +430,11 @@ export default function LandingPage() {
                 <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#ef4444" }} />
                 <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#f59e0b" }} />
                 <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#10b981" }} />
+                {/* #609: Stand „clearn-web.vercel.app" — eine Adresse, die
+                    niemand tippt und die nichts erklärt. clearn.ai steht
+                    hier bewusst NICHT, solange die Domain nur geparkt ist. */}
                 <span style={{ marginLeft: 6, fontSize: "0.8rem", color: "var(--ink-3)", fontWeight: 600 }}>
-                  clearn-web.vercel.app
+                  clearn im Browser
                 </span>
               </div>
               <div className="stack">
@@ -472,7 +479,7 @@ export default function LandingPage() {
                   <span className="tick">
                     <Smartphone size={13} strokeWidth={2.5} />
                   </span>{" "}
-                  Als iPhone-App (aktuell über TestFlight)
+                  Als iPhone-App (noch in der Testphase)
                 </li>
                 <li>
                   <span className="tick">
@@ -494,8 +501,8 @@ export default function LandingPage() {
                 <span>Import-Quellen</span>
               </div>
               <div className="stat">
-                <b>FSRS</b>
-                <span>Modernes Spaced-Repetition-Verfahren</span>
+                <b>Klug</b>
+                <span>Wiederholung genau im richtigen Moment</span>
               </div>
               <div className="stat">
                 <b>6</b>
@@ -611,7 +618,7 @@ export default function LandingPage() {
               <h2 className="h2">Fang heute an, klüger zu lernen</h2>
               <p className="lead" style={{ color: "rgba(255,255,255,0.9)" }}>
                 Registriere dich in Sekunden im Browser — oder hol dir die iPhone-App. Dein erstes
-                Lernmaterial wird im Nu zu Flashcards.
+                Lernmaterial wird im Nu zu Karteikarten.
               </p>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center" }}>
                 <Link href="/signup" className="btn btn-ghost btn-lg">

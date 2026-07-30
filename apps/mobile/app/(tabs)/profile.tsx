@@ -20,8 +20,10 @@ import {
   Trash2,
   ChevronRight,
   UserRound,
+  GraduationCap,
 } from "lucide-react-native";
 import { useSessionStore } from "../../src/store/sessionStore";
+import { useOnboardingState } from "../../src/features/onboarding/onboardingState";
 import {
   deleteAccount,
   getProfile,
@@ -77,6 +79,7 @@ export default function ProfileScreen() {
   const [gender, setGender] = useState<Gender | null>(null);
   const [genderBusy, setGenderBusy] = useState(false);
   const isGuest = !userId;
+  const startOnboardingReplay = useOnboardingState((state) => state.startReplay);
   const biometricEnabled = useBiometricLockStore((state) => state.enabled);
   const biometricCanUse = useBiometricLockStore((state) => state.canUse);
   const biometricHasHardware = useBiometricLockStore(
@@ -759,6 +762,61 @@ export default function ProfileScreen() {
             </>
           )}
         </View>
+
+        {/* #609: Die Einführung war nach dem ersten Start nicht mehr erreichbar —
+            `reset` gab es im Zustand, aber kein Bedienelement dafür. Beim
+            zweiten Ansehen entsteht kein weiteres Beispiel-Deck (replay). */}
+        {!isGuest && (
+          <TouchableOpacity
+            onPress={() => {
+              startOnboardingReplay();
+              router.push("/onboarding");
+            }}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            style={{
+              backgroundColor: c.surface,
+              borderRadius: radius.lg,
+              padding: spacing.lg,
+              borderWidth: 1,
+              borderColor: c.border,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              ...shadows.sm,
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.md, flex: 1 }}>
+              <View
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: radius.md,
+                  backgroundColor: c.primaryLight,
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <GraduationCap size={18} color={c.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    fontSize: typography.base,
+                    fontWeight: typography.semibold,
+                    color: c.text,
+                  }}
+                >
+                  {t("onboarding.replay")}
+                </Text>
+                <Text style={{ fontSize: typography.xs, color: c.textTertiary, marginTop: 2 }}>
+                  {t("onboarding.replayHint")}
+                </Text>
+              </View>
+            </View>
+            <ChevronRight size={18} color={c.textTertiary} />
+          </TouchableOpacity>
+        )}
 
         {/* Language switcher intentionally hidden: many screens are still
             hard-wired German (#213), so an English toggle would only deliver

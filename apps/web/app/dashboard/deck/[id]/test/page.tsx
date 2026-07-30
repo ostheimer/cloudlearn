@@ -13,6 +13,7 @@ import {
   type Card,
 } from "@/lib/api";
 import { useDisplayName } from "@/lib/use-display-name";
+import { toggleCardStar } from "@/lib/toggle-card-star";
 import { useWobblyIds } from "@/lib/use-wobbly-ids";
 import { filterBySource, isCardDue, type CardSource } from "@/lib/card-source";
 import {
@@ -43,6 +44,7 @@ import {
   RotateCw,
   AlertTriangle,
   FileText,
+  Star,
 } from "@/components/icons";
 
 const SECONDS_PER_QUESTION = 30;
@@ -103,6 +105,8 @@ export default function TestPage() {
   const displayName = useDisplayName();
 
   const [cards, setCards] = useState<Card[]>([]);
+  // Stern-Stand der laufenden Runde, für sofort sichtbares Markieren (#610).
+  const [starredMap, setStarredMap] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<number | null>(null);
@@ -286,6 +290,9 @@ export default function TestPage() {
       }
       setFellBackToWritten(fellBack);
       setQuestions(qs);
+      // Stern-Stand für diese Runde (#610) — frisch aus den Karten, damit ein
+      // Markieren in einer anderen Runde dazwischen nicht veraltet mitläuft.
+      setStarredMap(Object.fromEntries(sourceCards.map((c) => [c.id, c.starred ?? false])));
       setAnswers(qs.map(() => ({ ...EMPTY_ANSWER })));
       setGraded([]);
       setIdx(0);
@@ -898,6 +905,15 @@ export default function TestPage() {
       )}
 
       <div className="cl-prompt">
+        <button
+          type="button"
+          className={`prompt-star-btn${starredMap[q.cardId] ? " is-starred" : ""}`}
+          aria-label={starredMap[q.cardId] ? "Markierung entfernen" : "Karte markieren"}
+          aria-pressed={starredMap[q.cardId] ?? false}
+          onClick={() => toggleCardStar(q.cardId, starredMap, setStarredMap)}
+        >
+          <Star size={17} />
+        </button>
         <div className="quiz-eyebrow" style={{ color: "#ef4444" }}>
           {q.type === "written"
             ? "Antwort eintippen"
