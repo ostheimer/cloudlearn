@@ -5122,6 +5122,35 @@ a.lp-way:hover {
   padding: 28px 24px;
   background: var(--bg);
 }
+/* #609: Zurück links, Punkte in der Mitte, Überspringen rechts. Die
+   Textknöpfe belegen ihren Platz auch unsichtbar (visibility statt display),
+   damit die Punkte beim Wechsel der Schritte nicht springen. */
+.onboarding__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.onboarding__nav .onboarding__dots {
+  flex: 1;
+}
+.onboarding__navbtn {
+  background: none;
+  border: 0;
+  padding: 8px 4px;
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--ink-3);
+  cursor: pointer;
+  border-radius: var(--r-sm);
+}
+.onboarding__navbtn:hover {
+  color: var(--ink);
+}
+.onboarding__navbtn.is-invisible {
+  visibility: hidden;
+  pointer-events: none;
+}
 .onboarding__dots {
   display: flex;
   gap: 8px;
