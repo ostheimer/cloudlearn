@@ -49,6 +49,7 @@ import {
   type CardSource,
 } from "../src/components/cardSourcePicker";
 import { QuestionCountPicker } from "../src/components/questionCountPicker";
+import { LpRoundSummary } from "../src/components/LpRoundSummary";
 import {
   encodeCount,
   loadSetup,
@@ -102,6 +103,10 @@ export default function QuizScreen() {
   // Der Server zählt Rate-Modi je Karte und Lerntag nur einmal (Anti-Farming,
   // Schritt 8); eine eigene Rechnung würde bei der zweiten Runde lügen.
   const [earnedLp, setEarnedLp] = useState(0);
+  // Sagte der Server, dass der Tagesdeckel greift? (#611) Kam schon immer in der
+  // earn-Antwort mit und wurde hier weggeworfen — deshalb blieb offen, warum
+  // eine Runde ohne Punkte endete.
+  const [earnCapReached, setEarnCapReached] = useState(false);
 
   // LP-Abrechnung nach dem #397-Muster (wie Lernen/Lückentext): Antworten
   // werden sofort gemeldet, die eine Gutschrift je Runde wartet erst alle
@@ -248,6 +253,7 @@ export default function QuizScreen() {
               setUsage({ lpBalance: result.newBalance });
               setEarnedLp(result.granted);
             }
+            setEarnCapReached(result.capReached);
             if (isSessionEarnFinalized(result, reviewedCount)) {
               state.finalized = true;
               break;
@@ -294,6 +300,7 @@ export default function QuizScreen() {
     pendingReviewsRef.current = [];
     sessionReviewsRef.current = 0;
     setEarnedLp(0);
+    setEarnCapReached(false);
     setQuestions(qs);
     setCurrentIdx(0);
     setSelections(new Array<number | null>(qs.length).fill(null));
@@ -820,33 +827,10 @@ export default function QuizScreen() {
                 : "Weiter üben! Wiederholung ist der Schlüssel."}
             </Text>
 
-            {/* Nur anzeigen, wenn wirklich Punkte kamen. Eine zweite Runde mit
-                denselben Karten am selben Tag bringt keine — dann steht hier
-                nichts, statt „+0 Lernpunkte" zu behaupten. */}
-            {earnedLp > 0 && (
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: spacing.xs,
-                  backgroundColor: colors.successLight,
-                  paddingVertical: spacing.xs,
-                  paddingHorizontal: spacing.md,
-                  borderRadius: radius.full ?? 999,
-                }}
-              >
-                <Zap size={15} color={colors.success} />
-                <Text
-                  style={{
-                    fontSize: typography.sm,
-                    fontWeight: typography.semibold,
-                    color: colors.success,
-                  }}
-                >
-                  +{earnedLp} Lernpunkte
-                </Text>
-              </View>
-            )}
+            {/* Punkte-Rückmeldung, seit #611 geteilt: „+0 Lernpunkte" wird
+                weiterhin nicht behauptet — aber wenn der Tagesdeckel der Grund
+                ist, steht das jetzt da, statt die Frage offen zu lassen. */}
+            <LpRoundSummary earned={earnedLp} capReached={earnCapReached} />
 
             {/* Answer summary */}
             <View style={{ width: "100%", gap: spacing.sm }}>

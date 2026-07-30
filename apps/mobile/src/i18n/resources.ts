@@ -50,7 +50,16 @@ export const resources = {
       "lp.balance": "{{count}} LP",
       "lp.balanceLoading": "Lernpunkte werden geladen",
       "lp.notEnough": "Nicht genug LP. Benötigt: {{cost}}, Vorhanden: {{balance}}.",
+      // Endlich in Gebrauch (#611): Stand hier seit Langem, ohne dass ihn je
+      // jemand aufrief. Erscheint am Rundenende, wenn der Tagesdeckel greift —
+      // dann ist „verdient" per Definition gleich dem Deckel.
       "lp.earnToday": "Heute verdient: {{count}} / {{cap}} LP",
+      // Der Deckel-Satz, den bisher nur Bild-Abdecken zeigte — dort hartkodiert.
+      // Wortgleich mit dem Web (learn-session.tsx & die Modus-Seiten).
+      "lp.earnCapReachedToday": "Heutiges Lernpunkte-Limit erreicht — morgen gibt es wieder welche.",
+      // Die LP-Pille am Rundenende. Erscheint NUR, wenn wirklich Punkte kamen —
+      // „+0 Lernpunkte" wäre eine Behauptung, nicht eine Auskunft.
+      "lp.earnedThisRound": "+{{count}} Lernpunkte",
       "lp.milestone.first_deck": "Erstes Deck erstellt! +{{lp}} LP",
       "lp.milestone.first_review": "Erste Lernsitzung! +{{lp}} LP",
       "lp.milestone.streak_7": "7-Tage-Streak! +{{lp}} LP",
@@ -572,6 +581,8 @@ export const resources = {
       "lp.balanceLoading": "Loading learning points",
       "lp.notEnough": "Not enough LP. Need: {{cost}}, have: {{balance}}.",
       "lp.earnToday": "Earned today: {{count}} / {{cap}} LP",
+      "lp.earnCapReachedToday": "Today's LP limit is reached — there will be more tomorrow.",
+      "lp.earnedThisRound": "+{{count}} LP earned",
       "lp.milestone.first_deck": "First deck created! +{{lp}} LP",
       "lp.milestone.first_review": "First study session! +{{lp}} LP",
       "lp.milestone.streak_7": "7-day streak! +{{lp}} LP",

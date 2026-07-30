@@ -13,6 +13,7 @@ import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-rou
 import { AlertTriangle, ImagePlus, Pencil, Trash2, X, Zap } from "lucide-react-native";
 import { useColors, spacing, radius, typography } from "../src/theme";
 import { StudyResult } from "../src/components/StudyResult";
+import { LpRoundSummary } from "../src/components/LpRoundSummary";
 import { useSessionStore } from "../src/store/sessionStore";
 import { useUsageStore } from "../src/store/usageStore";
 import { listCardsInDeck, earnLp, deleteCard } from "../src/lib/api";
@@ -320,17 +321,9 @@ export default function OcclusionStudyScreen() {
   }
 
   if (done) {
-    const lpAccessory =
-      earned !== null && earned > 0 ? (
-        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.xs, backgroundColor: colors.successLight, paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: radius.full }}>
-          <Zap size={15} color={colors.success} />
-          <Text style={{ color: colors.success, fontWeight: typography.semibold }}>+{earned} Lernpunkte</Text>
-        </View>
-      ) : earned === 0 && earnCapReached ? (
-        <Text style={{ color: colors.textSecondary, fontSize: typography.sm, textAlign: "center" }}>
-          Heutiges Lernpunkte-Limit erreicht — morgen gibt es wieder welche.
-        </Text>
-      ) : null;
+    // Seit #611 in der geteilten Komponente: Der Wortlaut war hier hartkodiert
+    // und dieser Modus der EINZIGE, der den Tagesdeckel überhaupt nannte.
+    const lpAccessory = <LpRoundSummary earned={earned} capReached={earnCapReached} />;
     return wrap(
       <StudyResult
         headline={`Runde geschafft${displayName ? `, ${displayName}` : ""}!`}

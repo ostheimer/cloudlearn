@@ -86,6 +86,7 @@ import {
   useOfflineQueueStore,
 } from "../../src/features/sync/offlineQueueStore";
 import { AuthPromptCard } from "../../src/components/AuthPromptCard";
+import { LpRoundSummary } from "../../src/components/LpRoundSummary";
 import { shouldRetryLater } from "../../src/features/sync/sendReview";
 import {
   filterBySource,
@@ -622,6 +623,9 @@ function AuthenticatedLearnScreen({
 
   const deductLp = useUsageStore((s) => s.deductLp);
   const setUsage = useUsageStore((s) => s.setUsage);
+  // Punkte-Rückmeldung der Runde (#611): Zahlen kommen aus der Server-Antwort.
+  const [earnedLp, setEarnedLp] = useState(0);
+  const [earnCapReached, setEarnCapReached] = useState(false);
   const {
     toast: milestoneToast,
     celebration: milestoneCelebration,
@@ -654,7 +658,9 @@ function AuthenticatedLearnScreen({
             const result = await earnLp("session", reviewedCount);
             if (result.granted > 0) {
               setUsage({ lpBalance: result.newBalance });
+              setEarnedLp(result.granted);
             }
+            setEarnCapReached(result.capReached);
             if (isSessionEarnFinalized(result, reviewedCount)) {
               state.finalized = true;
               break;
@@ -690,11 +696,50 @@ function AuthenticatedLearnScreen({
     }, [reviewBuffer, sendReview, awardSession]),
   );
 
+  /**
+   * Eine Folgerunde vom Ergebnis-Bildschirm aus (#611).
+   *
+   * Seit die Runde BEI FERTIG abrechnet, steht `finalized` auf true, sobald das
+   * Ergebnis erscheint. „Nur die nicht gewussten" und „Alle nochmal" starten
+   * direkt aus diesem Bildschirm, also ohne neuen Fokus — ohne diese Klammer
+   * liefen alle Folgerunden dauerhaft ohne Punkte.
+   *
+   * Reihenfolge wie in cloze.startRound: erst die vorige Gutschrift zu Ende
+   * laufen lassen, dann entschärfen. Andernfalls setzt der noch laufende Lauf
+   * `finalized` wieder auf true, NACHDEM wir es zurückgesetzt haben.
+   */
+  const rearmForNextRound = useCallback(async () => {
+    await awardSession(
+      getSessionReviewedCount(sessionReviewsRef.current, pendingReviewsRef.current.length),
+    );
+    awardStateRef.current.finalized = false;
+    pendingReviewsRef.current = [];
+    sessionReviewsRef.current = 0;
+    // Die Punkte-Anzeige gehört zur alten Runde — stehenbleiben würde für die
+    // neue eine Gutschrift behaupten, die noch nicht erfolgt ist.
+    setEarnedLp(0);
+    setEarnCapReached(false);
+  }, [awardSession]);
+
   // Milestone + streak rewards still fire when a session is fully completed.
   useEffect(() => {
     if (!completed || cards.length === 0 || !userId) return;
 
     const handleSessionComplete = async () => {
+      // Punkte JETZT abrechnen, nicht erst beim Verlassen (#611, Web-Vorbild
+      // learn-session.tsx). Vorher lief die Gutschrift ausschließlich im
+      // Blur-Cleanup: Das Ergebnis konnte deshalb gar nichts über Punkte sagen,
+      // und wer 20 Karten gelernt hatte, erfuhr nie, ob der Tagesdeckel griff.
+      //
+      // Der Puffer ist hier schon geleert: `handleRate` flusht die letzte
+      // Bewertung, sobald die Runde fertig ist (die letzte Karte hat kein
+      // „danach", das den Puffer freigäbe). Der Blur-Cleanup rechnet weiterhin
+      // ab — `beginSessionAward` verhindert die Doppel-Gutschrift, sobald
+      // dieser Lauf `finalized` gesetzt hat.
+      await awardSession(
+        getSessionReviewedCount(sessionReviewsRef.current, pendingReviewsRef.current.length),
+      );
+
       // Claim first_review milestone (idempotent – only fires once ever)
       claimOnceMilestone("first_review").catch(() => {});
 
@@ -1042,10 +1087,20 @@ function AuthenticatedLearnScreen({
                     ? t("review.resultBodyOne", { known: knownCount })
                     : t("review.resultBody", { total: resultTotal, known: knownCount })}
                 </Text>
+                {/* Punkte-Rückmeldung (#611). Vorher rechnete dieser Bildschirm
+                    erst beim VERLASSEN ab — hier konnte also gar nichts stehen,
+                    und wer 20 Karten gelernt hatte, erfuhr nie, ob und warum
+                    Punkte ausblieben. */}
+                <LpRoundSummary earned={earnedLp} capReached={earnCapReached} />
                 <View style={{ width: "100%", maxWidth: 340, gap: spacing.sm, marginTop: spacing.sm }}>
                   {missedCards.length > 0 && (
                     <TouchableOpacity
-                      onPress={() => start(missedCards)}
+                      onPress={() => {
+                        void (async () => {
+                          await rearmForNextRound();
+                          start(missedCards);
+                        })();
+                      }}
                       activeOpacity={0.85}
                       style={{
                         backgroundColor: c.primary, borderRadius: radius.md, paddingVertical: 14,
@@ -1058,7 +1113,12 @@ function AuthenticatedLearnScreen({
                     </TouchableOpacity>
                   )}
                   <TouchableOpacity
-                    onPress={loadDueCards}
+                    onPress={() => {
+                      void (async () => {
+                        await rearmForNextRound();
+                        await loadDueCards();
+                      })();
+                    }}
                     activeOpacity={0.85}
                     style={{
                       backgroundColor: missedCards.length > 0 ? c.surface : c.primary,

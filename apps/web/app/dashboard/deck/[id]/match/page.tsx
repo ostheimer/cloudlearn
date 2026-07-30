@@ -57,6 +57,9 @@ export default function MatchPage() {
   const router = useRouter();
   const { userId } = useAuth();
   const [earned, setEarned] = useState<number | null>(null);
+  // Tagesdeckel des Servers (#611): kam in der earn-Antwort schon immer mit und
+  // wurde hier — anders als in den vier übrigen Web-Modi — weggeworfen.
+  const [earnCapReached, setEarnCapReached] = useState(false);
   // Verhindert, dass eine Runde zweimal abgerechnet wird.
   const awardedRef = useRef(false);
   // Endgültig verlorene Bewertungen (#605) fürs Ergebnis — hier reicht State,
@@ -179,6 +182,7 @@ export default function MatchPage() {
       setMissedIds(new Set());
       setIsNewBest(false);
       setEarned(null);
+      setEarnCapReached(false);
       setUnsavedCount(0);
       awardedRef.current = false;
       setTimed(withTimer);
@@ -251,6 +255,7 @@ export default function MatchPage() {
         try {
           const res = await earnLp("session", saved);
           setEarned(res.granted);
+          setEarnCapReached(res.capReached);
         } catch {
           /* LP-Gutschrift ist best-effort */
         }
@@ -476,6 +481,13 @@ export default function MatchPage() {
             <span className="lp-pill">
               <Zap size={15} /> +{earned} Lernpunkte
             </span>
+          )}
+          {/* Der Tagesdeckel — als einziger Web-Modus verschwieg Zuordnen ihn
+              (#611). Wortgleich mit den anderen vier Modi und der App. */}
+          {earned === 0 && earnCapReached && (
+            <p className="muted" style={{ fontSize: "0.9rem" }}>
+              Heutiges Lernpunkte-Limit erreicht — morgen gibt es wieder welche.
+            </p>
           )}
           <div style={{ display: "grid", gap: 8, width: "100%", maxWidth: 320 }}>
             {showSubset && (

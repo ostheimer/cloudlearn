@@ -31,6 +31,7 @@ import { useUsageStore } from "../src/store/usageStore";
 import { excludeOcclusionCards } from "../src/lib/occlusion";
 import { matchTileTexts } from "../src/lib/cardDisplay";
 import { fetchDeckStats } from "../src/lib/statsApi";
+import { LpRoundSummary } from "../src/components/LpRoundSummary";
 import {
   loadSetup,
   resolveSource,
@@ -122,6 +123,8 @@ export default function MatchScreen() {
   const [missedIds, setMissedIds] = useState<Set<string>>(new Set());
   // Punkte der Runde — Zahl aus der SERVER-Antwort, nie selbst gerechnet.
   const [earnedLp, setEarnedLp] = useState(0);
+  // Tagesdeckel des Servers (#611) — kam bisher an und wurde verworfen.
+  const [earnCapReached, setEarnCapReached] = useState(false);
   // Verhindert doppeltes Abrechnen: der Abschluss-Effekt kann mehrfach feuern.
   const awardedRef = useRef(false);
   const [elapsed, setElapsed] = useState(0);
@@ -243,6 +246,7 @@ export default function MatchScreen() {
     // keine weiteren Punkte — die alte Zahl stehen zu lassen wäre gelogen.
     awardedRef.current = false;
     setEarnedLp(0);
+    setEarnCapReached(false);
     setPhase("playing");
 
     // The stopwatch only runs in timed (Challenge) mode.
@@ -312,6 +316,9 @@ export default function MatchScreen() {
             }
           );
           setEarnedLp(result.granted);
+          // capReached kam schon immer bis hierher (rateModeRound reicht es
+          // durch) und wurde weggeworfen (#611).
+          setEarnCapReached(result.capReached);
         })();
       }
     }
@@ -732,33 +739,10 @@ export default function MatchScreen() {
               </View>
             )}
 
-            {/* Nur zeigen, wenn wirklich Punkte kamen. Eine zweite Runde mit
-                denselben Karten am selben Tag bringt keine — dann steht hier
-                nichts, statt „+0 Lernpunkte" zu behaupten. */}
-            {earnedLp > 0 && (
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: spacing.xs,
-                  backgroundColor: colors.successLight,
-                  paddingVertical: spacing.xs,
-                  paddingHorizontal: spacing.md,
-                  borderRadius: radius.full ?? 999,
-                }}
-              >
-                <Zap size={15} color={colors.success} />
-                <Text
-                  style={{
-                    fontSize: typography.sm,
-                    fontWeight: typography.semibold,
-                    color: colors.success,
-                  }}
-                >
-                  +{earnedLp} Lernpunkte
-                </Text>
-              </View>
-            )}
+            {/* Punkte-Rückmeldung, seit #611 geteilt: „+0 Lernpunkte" wird
+                weiterhin nicht behauptet — aber wenn der Tagesdeckel der Grund
+                ist, steht das jetzt da. */}
+            <LpRoundSummary earned={earnedLp} capReached={earnCapReached} />
 
             <View style={{ flexDirection: "row", gap: spacing.sm }}>
               {[0, 1, 2].map((i) => (
