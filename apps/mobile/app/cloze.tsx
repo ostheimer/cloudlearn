@@ -22,8 +22,10 @@ import {
   HelpCircle,
   Check,
   Pencil,
+  Star,
 } from "lucide-react-native";
 import { listCardsInDeck, reviewCard, earnLp, type Card } from "../src/lib/api";
+import { toggleCardStar } from "../src/lib/toggleCardStar";
 import { setLastUsedDeck } from "../src/lib/lastUsedDeck";
 import {
   loadSetup,
@@ -152,6 +154,8 @@ export default function ClozeScreen() {
   const [earnedLp, setEarnedLp] = useState(0);
   const [earnCapReached, setEarnCapReached] = useState(false);
   const [round, setRound] = useState<Card[]>([]);
+  // Stern-Stand der laufenden Runde, für sofort sichtbares Markieren (#610).
+  const [starredMap, setStarredMap] = useState<Record<string, boolean>>({});
   const [idx, setIdx] = useState(0);
   // Earliest card the back button may reach. Non-zero only after resuming, so a
   // continued round cannot step back into cards the earlier session rated.
@@ -434,6 +438,9 @@ export default function ClozeScreen() {
     }
     setRound(cardsForRound);
     setResults(initialResults);
+    // Stern-Stand für diese Runde (#610) — frisch aus den Karten, damit ein
+    // Markieren in einer anderen Runde dazwischen nicht veraltet mitläuft.
+    setStarredMap(Object.fromEntries(cardsForRound.map((c) => [c.id, c.starred ?? false])));
     setIdx(from);
     setFloor(from);
     setInput("");
@@ -1063,6 +1070,7 @@ export default function ClozeScreen() {
             {/* Prompt card */}
             <View
               style={{
+                position: "relative",
                 backgroundColor: colors.surface,
                 borderRadius: radius.lg,
                 borderWidth: 1,
@@ -1072,12 +1080,27 @@ export default function ClozeScreen() {
                 ...shadows.sm,
               }}
             >
+              {current && (
+                <TouchableOpacity
+                  onPress={() => toggleCardStar(current.id, starredMap, setStarredMap)}
+                  activeOpacity={0.6}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={{ position: "absolute", top: spacing.md, right: spacing.md }}
+                >
+                  <Star
+                    size={20}
+                    color={starredMap[current.id] ? colors.warning : colors.textTertiary}
+                    fill={starredMap[current.id] ? colors.warning : "none"}
+                  />
+                </TouchableOpacity>
+              )}
               <Text
                 style={{
                   fontSize: typography.xs,
                   color: colors.textTertiary,
                   textTransform: "uppercase",
                   letterSpacing: 0.5,
+                  paddingRight: 28,
                 }}
               >
                 {parsed?.isCloze ? "Ergänze die Lücke" : "Wie lautet die Antwort?"}

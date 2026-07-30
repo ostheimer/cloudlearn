@@ -15,6 +15,7 @@ import {
   unsavedReviewsNotice,
 } from "@/lib/unsaved-reviews";
 import { useDisplayName } from "@/lib/use-display-name";
+import { toggleCardStar } from "@/lib/toggle-card-star";
 import { useWobblyIds } from "@/lib/use-wobbly-ids";
 import { filterBySource, isCardDue, type CardSource } from "@/lib/card-source";
 import { loadSetup, resolveSource, saveSetup } from "@/lib/setup-memory";
@@ -43,6 +44,7 @@ import {
   CheckCircle,
   Trophy,
   Pencil,
+  Star,
   Zap,
   AlertTriangle,
 } from "@/components/icons";
@@ -68,6 +70,8 @@ export default function ClozePage() {
 
   const [phase, setPhase] = useState<"setup" | "play" | "summary">("setup");
   const [round, setRound] = useState<Card[]>([]);
+  // Stern-Stand der laufenden Runde, für sofort sichtbares Markieren (#610).
+  const [starredMap, setStarredMap] = useState<Record<string, boolean>>({});
   const [idx, setIdx] = useState(0);
   // Untergrenze für den Zurück-Pfeil. Beim Weitermachen wurden die Karten vor
   // der Einstiegskarte letztes Mal beantwortet und bewertet — zurückblättern
@@ -256,6 +260,9 @@ export default function ClozePage() {
     }
     setRound(cards);
     setResults(initialResults);
+    // Stern-Stand für diese Runde (#610) — frisch aus den Karten, damit ein
+    // Markieren in einer anderen Runde dazwischen nicht veraltet mitläuft.
+    setStarredMap(Object.fromEntries(cards.map((c) => [c.id, c.starred ?? false])));
     setIdx(from);
     setFloor(from);
     setInput("");
@@ -767,6 +774,17 @@ export default function ClozePage() {
       </div>
 
       <div className="cl-prompt">
+        {current && (
+          <button
+            type="button"
+            className={`prompt-star-btn${starredMap[current.id] ? " is-starred" : ""}`}
+            aria-label={starredMap[current.id] ? "Markierung entfernen" : "Karte markieren"}
+            aria-pressed={starredMap[current.id] ?? false}
+            onClick={() => toggleCardStar(current.id, starredMap, setStarredMap)}
+          >
+            <Star size={17} />
+          </button>
+        )}
         <div className="cl-eyebrow">
           {parsed?.isCloze ? "Ergänze die Lücke" : "Wie lautet die Antwort?"}
         </div>

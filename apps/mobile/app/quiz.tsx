@@ -21,8 +21,10 @@ import {
   HelpCircle,
   Brain,
   Zap,
+  Star,
 } from "lucide-react-native";
 import { earnLp, listCardsInDeck, type Card } from "../src/lib/api";
+import { toggleCardStar } from "../src/lib/toggleCardStar";
 import { sendReview } from "../src/features/sync/sendReview";
 import { setLastUsedDeck } from "../src/lib/lastUsedDeck";
 import { useDisplayName } from "../src/lib/useDisplayName";
@@ -91,6 +93,8 @@ export default function QuizScreen() {
   );
 
   const [cards, setCards] = useState<Card[]>([]);
+  // Stern-Stand der laufenden Runde, für sofort sichtbares Markieren (#610).
+  const [starredMap, setStarredMap] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
@@ -292,7 +296,7 @@ export default function QuizScreen() {
   // wie cloze.startRound: erst die vorige Gutschrift zu Ende laufen lassen,
   // DANN wieder scharf machen — sonst setzt der noch laufende Lauf
   // `finalized` wieder auf true, nachdem es hier zurückgesetzt wurde.
-  const beginRound = async (qs: QuizQuestion[]) => {
+  const beginRound = async (qs: QuizQuestion[], sourceCards: Card[]) => {
     await awardSession(
       getSessionReviewedCount(sessionReviewsRef.current, pendingReviewsRef.current.length),
     );
@@ -302,6 +306,9 @@ export default function QuizScreen() {
     setEarnedLp(0);
     setEarnCapReached(false);
     setQuestions(qs);
+    // Stern-Stand für diese Runde (#610) — frisch aus den Karten, damit ein
+    // Markieren in einer anderen Runde dazwischen nicht veraltet mitläuft.
+    setStarredMap(Object.fromEntries(sourceCards.map((c) => [c.id, c.starred ?? false])));
     setCurrentIdx(0);
     setSelections(new Array<number | null>(qs.length).fill(null));
     setFinished(false);
@@ -326,7 +333,7 @@ export default function QuizScreen() {
         source,
         count: encodeCount(count, usableCount),
       });
-    void beginRound(q);
+    void beginRound(q, pool);
   };
 
   // Selection of the question currently on screen (derived, not own state,
@@ -411,7 +418,7 @@ export default function QuizScreen() {
       allowTrueFalse: typeTF,
     });
     if (q.length === 0) return;
-    void beginRound(q);
+    void beginRound(q, sourceCards);
   };
 
   if (loading) {
@@ -1057,6 +1064,7 @@ export default function QuizScreen() {
           {/* Question card */}
           <View
             style={{
+              position: "relative",
               backgroundColor: colors.surface,
               borderRadius: radius.xl,
               padding: spacing.xxl,
@@ -1066,6 +1074,20 @@ export default function QuizScreen() {
               gap: spacing.lg,
             }}
           >
+            {question && (
+              <TouchableOpacity
+                onPress={() => toggleCardStar(question.cardId, starredMap, setStarredMap)}
+                activeOpacity={0.6}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={{ position: "absolute", top: spacing.lg, right: spacing.lg }}
+              >
+                <Star
+                  size={20}
+                  color={starredMap[question.cardId] ? colors.warning : colors.textTertiary}
+                  fill={starredMap[question.cardId] ? colors.warning : "none"}
+                />
+              </TouchableOpacity>
+            )}
             {/* Badge */}
             <View
               style={{
