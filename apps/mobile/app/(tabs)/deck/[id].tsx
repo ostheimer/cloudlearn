@@ -32,12 +32,14 @@ import {
   Layers,
   MoreVertical,
   Download,
+  Trash2,
 } from "lucide-react-native";
 import {
   listCardsInDeck,
   createCard,
   updateCard,
   deleteCard,
+  deleteCards,
   deleteDeck,
   duplicateDeck,
   shareDeck,
@@ -111,6 +113,10 @@ export default function DeckDetailScreen() {
         // Ohne Grenzen bleibt das alte Label stehen und nichts wird gesperrt.
       });
   }, [maxCardsPerDeck, setUsage]);
+
+  // Mehrfachauswahl der Kartenliste (#614) — nur Löschen, kein Ziehen.
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   // Card editor state
   const [editorVisible, setEditorVisible] = useState(false);
@@ -412,6 +418,56 @@ export default function DeckDetailScreen() {
         prev.map((c) => (c.id === card.id ? { ...c, starred: !newVal } : c))
       );
     }
+  };
+
+  /**
+   * Mehrfachauswahl der Kartenliste (#614) — Gegenstück zum Web.
+   *
+   * Laras Entscheidungen: nur Löschen (Verschieben fiel mit dem abgelehnten
+   * Karten-Verschieben weg) und kein Ziehen — angekreuzt wird, egal wie weit
+   * die Karten in der Liste auseinanderliegen.
+   */
+  const leaveSelectMode = () => {
+    setSelectMode(false);
+    setSelectedIds([]);
+  };
+
+  const toggleSelected = (cardId: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(cardId) ? prev.filter((id) => id !== cardId) : [...prev, cardId]
+    );
+  };
+
+  const handleDeleteSelected = () => {
+    if (!deckId || selectedIds.length === 0) return;
+    const ids = selectedIds;
+    Alert.alert(
+      t("cardSelect.confirmTitle"),
+      ids.length === 1
+        ? t("cardSelect.confirmBodyOne")
+        : t("cardSelect.confirmBodyMany", { count: ids.length }),
+      [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: t("cardSelect.delete"),
+          style: "destructive",
+          onPress: async () => {
+            leaveSelectMode();
+            // Erst aus der Liste nehmen, dann senden — wie beim Löschen einer
+            // einzelnen Karte. Geht es schief, holt loadCards die Wahrheit.
+            setCards((prev) => prev.filter((c) => !ids.includes(c.id)));
+            try {
+              await deleteCards(deckId, ids);
+            } catch (error) {
+              const message =
+                error instanceof Error && error.message ? error.message : t("cardSelect.error");
+              Alert.alert(t("common.error"), message);
+              await loadCards();
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleCardLongPress = (card: Card) => {
@@ -829,6 +885,44 @@ export default function DeckDetailScreen() {
                 </View>
           ) : (
             <View style={{ gap: spacing.sm + 2 }}>
+              {/* Kopfzeile der Mehrfachauswahl (#614). Erst ab zwei Karten: bei
+                  einer einzigen ist langes Drücken der kürzere Weg zum Löschen. */}
+              {cards.length > 1 && (
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: spacing.md,
+                    marginBottom: spacing.xs,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: typography.base,
+                      fontWeight: typography.bold,
+                      color: colors.text,
+                    }}
+                  >
+                    {selectMode ? t("cardSelect.count", { count: selectedIds.length }) : ""}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => (selectMode ? leaveSelectMode() : setSelectMode(true))}
+                    activeOpacity={0.7}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Text
+                      style={{
+                        color: colors.primary,
+                        fontWeight: typography.bold,
+                        fontSize: typography.sm,
+                      }}
+                    >
+                      {selectMode ? t("cardSelect.cancel") : t("cardSelect.start")}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
               {cards.map((card, idx) => {
                   const meta = difficultyMeta[card.difficulty] ?? {
                     color: colors.textSecondary,
@@ -837,18 +931,24 @@ export default function DeckDetailScreen() {
                   const media = summarizeCardMedia(card);
                   const frontDisplay = media.plainFront || card.front;
                   const backDisplay = media.plainBack || card.back;
+                  const picked = selectedIds.includes(card.id);
                   return (
                     <TouchableOpacity
                       key={card.id}
-                      onPress={() => handleEditCard(card)}
-                      onLongPress={() => handleCardLongPress(card)}
+                      // Im Auswahl-Modus wählt ein Tipp aus, statt den Editor zu
+                      // öffnen; langes Drücken ist abgeschaltet, damit dort kein
+                      // Löschen-Menü über der Auswahl aufgeht.
+                      onPress={() =>
+                        selectMode ? toggleSelected(card.id) : handleEditCard(card)
+                      }
+                      onLongPress={selectMode ? undefined : () => handleCardLongPress(card)}
                       activeOpacity={0.7}
                       style={{
-                        backgroundColor: colors.surface,
+                        backgroundColor: picked ? colors.primaryLight : colors.surface,
                         borderRadius: radius.md,
                         padding: 14,
                         borderWidth: 1,
-                        borderColor: colors.border,
+                        borderColor: picked ? colors.primary : colors.border,
                         ...shadows.sm,
                       }}
                     >
@@ -861,30 +961,56 @@ export default function DeckDetailScreen() {
                           marginBottom: spacing.sm,
                         }}
                       >
-                        <Text
-                          style={{
-                            fontSize: typography.xs,
-                            color: colors.textTertiary,
-                            fontWeight: typography.medium,
-                          }}
+                        <View
+                          style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}
                         >
-                          {/* Bild-Karten hießen hier „Basic" (#612) — der
-                              Kopf zählt sie längst getrennt, die Liste nannte
-                              sie wie eine gewöhnliche Karteikarte. */}
-                          #{idx + 1} · {cardKindLabel(card.type)}
-                        </Text>
-                        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
-                          <TouchableOpacity
-                            onPress={() => handleToggleStar(card)}
-                            activeOpacity={0.6}
-                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          {/* Kästchen sitzt vor der Nummer, damit die Zeile
+                              beim Umschalten nicht neu aufgebaut wirkt. */}
+                          {selectMode && (
+                            <View
+                              style={{
+                                width: 18,
+                                height: 18,
+                                borderRadius: 4,
+                                borderWidth: 2,
+                                borderColor: picked ? colors.primary : colors.textTertiary,
+                                backgroundColor: picked ? colors.primary : "transparent",
+                                alignItems: "center",
+                                justifyContent: "center",
+                              }}
+                            >
+                              {picked && <Check size={12} color="#fff" />}
+                            </View>
+                          )}
+                          <Text
+                            style={{
+                              fontSize: typography.xs,
+                              color: colors.textTertiary,
+                              fontWeight: typography.medium,
+                            }}
                           >
-                            <Star
-                              size={16}
-                              color={card.starred ? colors.warning : colors.textTertiary}
-                              fill={card.starred ? colors.warning : "none"}
-                            />
-                          </TouchableOpacity>
+                            {/* Bild-Karten hießen hier „Basic" (#612) — der
+                                Kopf zählt sie längst getrennt, die Liste nannte
+                                sie wie eine gewöhnliche Karteikarte. */}
+                            #{idx + 1} · {cardKindLabel(card.type)}
+                          </Text>
+                        </View>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+                          {/* Der Stern bleibt im Auswahl-Modus weg: er liegt in
+                              derselben Zeile, die jetzt auswählt. */}
+                          {!selectMode && (
+                            <TouchableOpacity
+                              onPress={() => handleToggleStar(card)}
+                              activeOpacity={0.6}
+                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            >
+                              <Star
+                                size={16}
+                                color={card.starred ? colors.warning : colors.textTertiary}
+                                fill={card.starred ? colors.warning : "none"}
+                              />
+                            </TouchableOpacity>
+                          )}
                           <Text
                             style={{
                               fontSize: typography.xs,
@@ -947,7 +1073,37 @@ export default function DeckDetailScreen() {
                   );
                 })}
 
-              {cards.length > 0 && (
+              {/* Löschen-Knopf der Mehrfachauswahl (#614), unter der Liste wie
+                  im Web. Ohne Häkchen gesperrt statt versteckt, damit klar ist,
+                  woher das Löschen käme. */}
+              {selectMode && (
+                <TouchableOpacity
+                  onPress={handleDeleteSelected}
+                  disabled={selectedIds.length === 0}
+                  activeOpacity={0.8}
+                  style={{
+                    alignSelf: "flex-end",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 6,
+                    marginTop: spacing.sm,
+                    paddingHorizontal: spacing.lg,
+                    paddingVertical: spacing.md,
+                    borderRadius: radius.md,
+                    backgroundColor: colors.error,
+                    opacity: selectedIds.length === 0 ? 0.5 : 1,
+                  }}
+                >
+                  <Trash2 size={16} color="#fff" />
+                  <Text style={{ color: "#fff", fontWeight: typography.bold }}>
+                    {selectedIds.length === 0
+                      ? t("cardSelect.delete")
+                      : t("cardSelect.deleteCount", { count: selectedIds.length })}
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {cards.length > 0 && !selectMode && (
                 <Text
                   style={{
                     fontSize: typography.xs,
