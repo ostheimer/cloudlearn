@@ -798,6 +798,13 @@ export default function ClozePage() {
         }}
       />
 
+      {/* Live-Region (#613): Das sichtbare Urteil darunter wird erst nach dem
+          Prüfen eingefügt — Screenreader lesen aber nur Änderungen in einer
+          schon vorhandenen Region zuverlässig vor. */}
+      <div className="sr-only" role="status">
+        {revealed ? (wasCorrect ? "Richtig." : `Falsch. Lösung: ${parsed?.answer ?? ""}`) : ""}
+      </div>
+
       {revealed && (
         <div className={`cl-fb ${wasCorrect ? "ok" : nearMiss ? "near" : "no"}`}>
           <span className="cl-fb__ic" aria-hidden>
