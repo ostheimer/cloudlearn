@@ -12,10 +12,15 @@ import {
 } from "@/lib/auth-availability";
 import { GraduationCap, MailCheck, AlertTriangle } from "@/components/icons";
 
-const GENDER_OPTIONS: { value: Gender; label: string }[] = [
+// „Sag ich nicht" seit #609 (Laras Entscheidung): Pflichtfeld bleibt, aber
+// niemand muss etwas Persönliches preisgeben. Steht als vierte Option in einer
+// eigenen Zeile, weil die Beschriftung deutlich länger ist als die drei
+// anderen — zu viert nebeneinander wäre es am Handy gequetscht.
+const GENDER_OPTIONS: { value: Gender; label: string; wide?: boolean }[] = [
   { value: "female", label: "Weiblich" },
   { value: "male", label: "Männlich" },
   { value: "diverse", label: "Divers" },
+  { value: "prefer_not_to_say", label: "Sag ich nicht", wide: true },
 ];
 
 export function AuthForm({ mode }: { mode: "login" | "signup" }) {
@@ -216,12 +221,14 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         {!isLogin && (
           <div className="field">
             <label id="gender-label">Geschlecht</label>
-            <div className="seg" role="group" aria-labelledby="gender-label">
+            <div className="seg seg--wrap" role="group" aria-labelledby="gender-label">
               {GENDER_OPTIONS.map((opt) => (
                 <button
                   key={opt.value}
                   type="button"
-                  className={`seg__btn${gender === opt.value ? " is-on" : ""}`}
+                  className={`seg__btn${opt.wide ? " seg__btn--row" : ""}${
+                    gender === opt.value ? " is-on" : ""
+                  }`}
                   aria-pressed={gender === opt.value}
                   onClick={() => setGender(opt.value)}
                   disabled={busy}

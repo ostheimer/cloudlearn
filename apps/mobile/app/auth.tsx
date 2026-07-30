@@ -33,10 +33,14 @@ import type { Gender } from "../src/lib/api";
 
 type AuthMode = "login" | "register" | "reset";
 
-const GENDER_OPTIONS: { value: Gender; label: string }[] = [
+// „Sag ich nicht" seit #609 (Laras Entscheidung): Pflichtfeld bleibt, aber
+// niemand muss etwas Persönliches preisgeben. Die längere Beschriftung bekommt
+// eine eigene Zeile — zu viert nebeneinander wäre es am Handy gequetscht.
+const GENDER_OPTIONS: { value: Gender; label: string; wide?: boolean }[] = [
   { value: "female", label: "Weiblich" },
   { value: "male", label: "Männlich" },
   { value: "diverse", label: "Divers" },
+  { value: "prefer_not_to_say", label: "Sag ich nicht", wide: true },
 ];
 
 const webFormStyle = {
@@ -539,7 +543,7 @@ export default function AuthScreen() {
                   >
                     Geschlecht
                   </Text>
-                  <View style={{ flexDirection: "row", gap: spacing.sm }}>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm }}>
                     {GENDER_OPTIONS.map((opt) => {
                       const selected = gender === opt.value;
                       return (
@@ -549,7 +553,8 @@ export default function AuthScreen() {
                           disabled={isBusy}
                           activeOpacity={0.8}
                           style={{
-                            flex: 1,
+                            // „Sag ich nicht" belegt eine eigene Zeile (#609)
+                            ...(opt.wide ? { width: "100%" } : { flex: 1 }),
                             backgroundColor: selected ? brandButtonBackground : brandSurface,
                             borderWidth: 1,
                             borderColor: selected ? brandButtonBackground : brandBorder,

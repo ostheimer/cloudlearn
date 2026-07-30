@@ -684,7 +684,7 @@ export async function deleteAccount(): Promise<DeleteAccountResponse> {
 // nur die drei bekannten Werte); der Client übersetzt nur die Fehler-Codes.
 // gender null = keine Angabe (Bestandskonto) → Texte nutzen die neutrale Form.
 
-export type Gender = "female" | "male" | "diverse";
+export type Gender = "female" | "male" | "diverse" | "prefer_not_to_say";
 
 export interface ProfileResponse {
   displayName: string | null;

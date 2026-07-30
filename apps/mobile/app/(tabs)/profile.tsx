@@ -529,9 +529,12 @@ export default function ProfileScreen() {
               </Text>
             </View>
           </View>
-          <View style={{ flexDirection: "row", gap: spacing.sm }}>
-            {(["female", "male", "diverse"] as const).map((value) => {
+          {/* Gleiche vier Optionen wie die Registrierung (#609); „Sag ich
+              nicht" bekommt wegen der längeren Beschriftung eine eigene Zeile. */}
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm }}>
+            {(["female", "male", "diverse", "prefer_not_to_say"] as const).map((value) => {
               const selected = gender === value;
+              const wide = value === "prefer_not_to_say";
               return (
                 <TouchableOpacity
                   key={value}
@@ -539,7 +542,7 @@ export default function ProfileScreen() {
                   disabled={genderBusy}
                   activeOpacity={0.8}
                   style={{
-                    flex: 1,
+                    ...(wide ? { width: "100%" } : { flex: 1 }),
                     backgroundColor: selected ? c.primary : c.surfaceSecondary,
                     borderRadius: radius.md,
                     paddingVertical: 10,

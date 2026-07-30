@@ -491,6 +491,7 @@ export const resources = {
       "gender.female": "Weiblich",
       "gender.male": "Männlich",
       "gender.diverse": "Divers",
+      "gender.prefer_not_to_say": "Sag ich nicht",
       "gender.errorTitle": "Nicht gespeichert",
       "gender.errorGeneric": "Konnte nicht gespeichert werden — versuch es noch einmal.",
 
@@ -996,6 +997,7 @@ export const resources = {
       "gender.female": "Female",
       "gender.male": "Male",
       "gender.diverse": "Diverse",
+      "gender.prefer_not_to_say": "Prefer not to say",
       "gender.errorTitle": "Not saved",
       "gender.errorGeneric": "Could not save — please try again.",
 
