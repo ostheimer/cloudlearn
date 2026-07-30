@@ -21,6 +21,7 @@ import {
   ChevronRight,
   UserRound,
   GraduationCap,
+  BookOpen,
 } from "lucide-react-native";
 import { useSessionStore } from "../../src/store/sessionStore";
 import { useOnboardingState } from "../../src/features/onboarding/onboardingState";
@@ -35,7 +36,7 @@ import {
 } from "../../src/lib/api";
 import TextPromptModal from "../../src/components/TextPromptModal";
 import { APP_PROFILE_LABEL } from "../../src/lib/appInfo";
-import { IMPRESSUM_URL, PRIVACY_URL, SUPPORT_URL } from "../../src/lib/publicLinks";
+import { IMPRESSUM_URL, PRIVACY_URL, SUPPORT_URL, TERMS_URL } from "../../src/lib/publicLinks";
 import { getSubscriptionManagementUrls } from "../../src/lib/subscriptionManagement";
 import {
   useColors,
@@ -878,6 +879,14 @@ export default function ProfileScreen() {
               icon: <FileText size={18} color={c.warning} />,
               iconBg: `${c.warning}22`,
               url: IMPRESSUM_URL,
+            },
+            {
+              key: "terms",
+              label: t("profile.terms"),
+              subtitle: t("profile.termsSubtitle"),
+              icon: <BookOpen size={18} color={c.primary} />,
+              iconBg: c.primaryLight,
+              url: TERMS_URL,
             },
           ].map((item, index, items) => (
             <View key={item.key}>

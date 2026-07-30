@@ -36,6 +36,7 @@ import {
   FileText,
   HelpCircle,
   AlertTriangle,
+  BookOpen,
 } from "@/components/icons";
 
 const TIER_LABEL: Record<string, string> = { free: "Free", pro: "Pro", lifetime: "Lifetime" };
@@ -464,6 +465,16 @@ export default function ProfilePage() {
             <div className="pf-navrow__t">
               <b>Impressum</b>
               <span>Kontakt und Anbieterangaben</span>
+            </div>
+            <ChevronRight size={18} />
+          </a>
+          <a className="pf-navrow" href="/terms">
+            <span className="pf-ic pf-ic--indigo" aria-hidden>
+              <BookOpen size={18} />
+            </span>
+            <div className="pf-navrow__t">
+              <b>Nutzungsbedingungen</b>
+              <span>Regeln für Konto, Käufe und Kündigung</span>
             </div>
             <ChevronRight size={18} />
           </a>

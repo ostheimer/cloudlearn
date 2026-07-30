@@ -17,6 +17,7 @@ export const siteConfig = {
   privacyPath: "/privacy",
   supportPath: "/support",
   impressumPath: "/impressum",
+  termsPath: "/terms",
 } as const;
 
 export const siteNavLinks = [
@@ -52,6 +53,7 @@ export const footerSections = [
     links: [
       { href: siteConfig.privacyPath, label: "Datenschutz" },
       { href: siteConfig.impressumPath, label: "Impressum" },
+      { href: siteConfig.termsPath, label: "Nutzungsbedingungen" },
     ],
   },
   {
