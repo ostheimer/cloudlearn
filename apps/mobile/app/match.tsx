@@ -16,12 +16,13 @@ import {
   RotateCcw,
   Timer,
   Star,
+  Pencil,
   HelpCircle,
   Puzzle,
   CheckCircle2,
   Zap,
 } from "lucide-react-native";
-import { earnLp, getStats, listCardsInDeck, type Card } from "../src/lib/api";
+import { earnLp, getStats, listCardsInDeck, updateCard, type Card } from "../src/lib/api";
 import { dailyGoalLine } from "../src/lib/dailyGoalLine";
 import { sendReview } from "../src/features/sync/sendReview";
 import { setLastUsedDeck } from "../src/lib/lastUsedDeck";
@@ -33,6 +34,8 @@ import { excludeOcclusionCards } from "../src/lib/occlusion";
 import { matchTileTexts } from "../src/lib/cardDisplay";
 import { fetchDeckStats } from "../src/lib/statsApi";
 import { LpRoundSummary } from "../src/components/LpRoundSummary";
+import { toggleCardStar } from "../src/lib/toggleCardStar";
+import CardEditor from "../src/components/CardEditor";
 import {
   loadSetup,
   resolveSource,
@@ -148,6 +151,12 @@ export default function MatchScreen() {
   const [elapsed, setElapsed] = useState(0);
   const [gameCards, setGameCards] = useState<Card[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Stern + Stift NUR im Ergebnis, nicht live während der Runde (Laras
+  // Entscheidung, #610): der Zeit-Modus soll nicht durchs Bearbeiten
+  // unterbrochen werden.
+  const [starredMap, setStarredMap] = useState<Record<string, boolean>>({});
+  const [editingCardId, setEditingCardId] = useState<string | null>(null);
+  const [savingCard, setSavingCard] = useState(false);
 
   // Load cards
   const loadCards = useCallback(async () => {
@@ -234,6 +243,7 @@ export default function MatchScreen() {
     });
     const selected = shuffle(usable).slice(0, Math.min(MAX_PAIRS, usable.length));
     setGameCards(selected.map((entry) => entry.card));
+    setStarredMap(Object.fromEntries(selected.map(({ card }) => [card.id, card.starred ?? false])));
 
     // Create tiles: one "front" tile + one "back" tile per card.
     const newTiles: Tile[] = [];
@@ -799,6 +809,80 @@ export default function MatchScreen() {
               )}
             </View>
 
+            {/* Stern + Stift NUR hier im Ergebnis (Laras Entscheidung, #610) —
+                nicht live während der Runde, damit der Zeit-Modus nicht durch
+                Bearbeiten unterbrochen wird. */}
+            {gameCards.length > 0 && (
+              <View style={{ width: "100%", gap: spacing.sm }}>
+                <Text
+                  style={{
+                    fontSize: typography.xs,
+                    fontWeight: typography.bold,
+                    textTransform: "uppercase",
+                    letterSpacing: 0.5,
+                    color: colors.textTertiary,
+                  }}
+                >
+                  Karten dieser Runde
+                </Text>
+                {gameCards.map((card) => {
+                  const texts = matchTileTexts(card) ?? { front: card.front, back: card.back };
+                  const missed = missedIds.has(card.id);
+                  return (
+                    <View
+                      key={card.id}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: spacing.sm,
+                        backgroundColor: missed ? colors.warningLight : colors.surface,
+                        borderRadius: radius.md,
+                        borderWidth: 1,
+                        borderColor: missed ? colors.warning : colors.border,
+                        padding: 12,
+                      }}
+                    >
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text
+                          style={{ fontWeight: typography.semibold, color: colors.text, fontSize: typography.sm }}
+                          numberOfLines={1}
+                        >
+                          {texts.front}
+                        </Text>
+                        <Text
+                          style={{ color: colors.textSecondary, fontSize: typography.sm, marginTop: 2 }}
+                          numberOfLines={1}
+                        >
+                          {texts.back}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => toggleCardStar(card.id, starredMap, setStarredMap)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Star
+                          size={18}
+                          color={starredMap[card.id] ? colors.warning : colors.textTertiary}
+                          fill={starredMap[card.id] ? colors.warning : "none"}
+                        />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => setEditingCardId(card.id)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Pencil size={17} color={colors.textTertiary} />
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })}
+                {missedIds.size > 0 && (
+                  <Text style={{ fontSize: typography.xs, color: colors.textTertiary }}>
+                    Orange umrandet: beim Zuordnen nicht auf Anhieb gewusst.
+                  </Text>
+                )}
+              </View>
+            )}
+
             <View style={{ width: "100%", gap: spacing.sm }}>
               <TouchableOpacity
                 onPress={() => startGame(playable, timed)}
@@ -840,6 +924,32 @@ export default function MatchScreen() {
             </View>
           </ScrollView>
         </SafeAreaView>
+        <CardEditor
+          visible={editingCardId !== null}
+          card={
+            editingCardId
+              ? (() => {
+                  const raw = gameCards.find((c) => c.id === editingCardId);
+                  return raw ? { front: raw.front, back: raw.back, difficulty: raw.difficulty } : null;
+                })()
+              : null
+          }
+          saving={savingCard}
+          onCancel={() => setEditingCardId(null)}
+          onSave={async ({ front, back, difficulty }) => {
+            if (!editingCardId) return;
+            setSavingCard(true);
+            try {
+              const { card: updated } = await updateCard(editingCardId, { front, back, difficulty });
+              setGameCards((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+              setEditingCardId(null);
+            } catch {
+              // Speichern fehlgeschlagen — Editor bleibt offen.
+            } finally {
+              setSavingCard(false);
+            }
+          }}
+        />
       </>
     );
   }
