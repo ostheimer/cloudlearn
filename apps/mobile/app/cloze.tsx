@@ -64,6 +64,7 @@ import {
 } from "../src/components/cardSourcePicker";
 import { useColors, spacing, radius, typography, shadows } from "../src/theme";
 import { StudyResult } from "../src/components/StudyResult";
+import { LpRoundSummary } from "../src/components/LpRoundSummary";
 import { shouldRetryLater } from "../src/features/sync/sendReview";
 import {
   beginSessionAward,
@@ -143,6 +144,10 @@ export default function ClozeScreen() {
   const [wobblyIds, setWobblyIds] = useState<Set<string>>(new Set());
 
   const [phase, setPhase] = useState<Phase>("setup");
+  // Punkte-Rückmeldung der Runde (#611): Zahl und Deckel kommen aus der
+  // Server-Antwort, nie aus eigener Rechnung.
+  const [earnedLp, setEarnedLp] = useState(0);
+  const [earnCapReached, setEarnCapReached] = useState(false);
   const [round, setRound] = useState<Card[]>([]);
   const [idx, setIdx] = useState(0);
   // Earliest card the back button may reach. Non-zero only after resuming, so a
@@ -338,7 +343,11 @@ export default function ClozeScreen() {
 
           try {
             const result = await earnLp("session", reviewedCount);
-            if (result.granted > 0) setUsage({ lpBalance: result.newBalance });
+            if (result.granted > 0) {
+              setUsage({ lpBalance: result.newBalance });
+              setEarnedLp(result.granted);
+            }
+            setEarnCapReached(result.capReached);
             if (isSessionEarnFinalized(result, reviewedCount)) {
               state.finalized = true;
               break;
@@ -396,6 +405,10 @@ export default function ClozeScreen() {
     awardStateRef.current.finalized = false;
     pendingReviewsRef.current = [];
     sessionReviewsRef.current = 0;
+    // Die Punkte-Anzeige gehört zur alten Runde (#611): Stehenbleiben würde für
+    // die neue Runde eine Gutschrift behaupten, die noch nicht erfolgt ist.
+    setEarnedLp(0);
+    setEarnCapReached(false);
 
     // `startAt` resumes an interrupted round (sessionProgress.ts). The floor
     // travels with it: the skipped cards were answered and sent last time, so
@@ -914,18 +927,23 @@ export default function ClozeScreen() {
               headline={`${pct}%`}
               subtitle={`${correct} von ${total} richtig`}
               accessory={
-                <Text
-                  style={{
-                    textAlign: "center",
-                    fontSize: typography.base,
-                    color: allRight ? colors.success : colors.textSecondary,
-                    fontWeight: allRight ? typography.bold : typography.medium,
-                  }}
-                >
-                  {allRight
-                    ? `Alles richtig — stark${displayName ? `, ${displayName}` : ""}!`
-                    : `${wrongCount} ${wrongCount === 1 ? "Karte" : "Karten"} noch offen.`}
-                </Text>
+                <View style={{ gap: spacing.sm, alignItems: "center" }}>
+                  <Text
+                    style={{
+                      textAlign: "center",
+                      fontSize: typography.base,
+                      color: allRight ? colors.success : colors.textSecondary,
+                      fontWeight: allRight ? typography.bold : typography.medium,
+                    }}
+                  >
+                    {allRight
+                      ? `Alles richtig — stark${displayName ? `, ${displayName}` : ""}!`
+                      : `${wrongCount} ${wrongCount === 1 ? "Karte" : "Karten"} noch offen.`}
+                  </Text>
+                  {/* Bis #611 sagte dieser Modus kein Wort zu den Punkten —
+                      obwohl er längst abrechnet. */}
+                  <LpRoundSummary earned={earnedLp} capReached={earnCapReached} />
+                </View>
               }
               actions={[
                 ...(allRight
