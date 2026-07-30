@@ -186,6 +186,50 @@ export function selectEvenlySpread<T>(items: T[], keep: number): T[] {
   return picked;
 }
 
+/** Die drei Preise, die der Scan-Bildschirm kennt (aus /usage). */
+export interface ScanSourceCosts {
+  aiScan: number;
+  urlImport: number;
+  pdfImport: number;
+}
+
+export interface ScanAffordability {
+  /** Foto, Galerie und Text — alle drei kosten `aiScan`. */
+  aiScan: boolean;
+  urlImport: boolean;
+  pdfImport: boolean;
+  /** Der günstigste Weg. Reicht es dafür nicht, geht gar nichts. */
+  cheapest: number;
+  /** Ist überhaupt eine Quelle bezahlbar? */
+  anyAffordable: boolean;
+}
+
+/**
+ * Welche Scan-Quellen sind mit diesem Guthaben bezahlbar? (#611)
+ *
+ * Der Warnstreifen prüfte nur gegen `lpCostAiScan` — den GÜNSTIGSTEN Preis. Bei
+ * 12 LP erschien also keine Warnung, obwohl URL (15) und PDF (20) unbezahlbar
+ * waren; wer PDF antippte, wählte eine Datei, wartete auf den Upload und bekam
+ * dann 402. Das Web rechnet längst je Modus (`enoughLp` in dashboard/import).
+ *
+ * Bewusst eine Funktion und keine drei Vergleiche im Bildschirm: Genau das
+ * Auseinanderfallen von „ein Preis geprüft, drei Preise angeboten" war der
+ * Fehler.
+ */
+export function affordableScanSources(
+  balance: number,
+  costs: ScanSourceCosts
+): ScanAffordability {
+  const cheapest = Math.min(costs.aiScan, costs.urlImport, costs.pdfImport);
+  return {
+    aiScan: balance >= costs.aiScan,
+    urlImport: balance >= costs.urlImport,
+    pdfImport: balance >= costs.pdfImport,
+    cheapest,
+    anyAffordable: balance >= cheapest,
+  };
+}
+
 interface ErrorLike {
   status?: number;
   code?: string;

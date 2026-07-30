@@ -70,6 +70,10 @@ export const resources = {
       "lp.insufficientTitle": "Nicht genug LP",
       "lp.insufficientDetail": "Dieses Feature kostet {{cost}} LP. Du hast {{balance}} LP.",
       "lp.insufficientHint": "Du hast {{balance}} LP. KI-Scan kostet {{cost}} LP. Neue Lernpunkte bekommst du durchs Lernen.",
+      // Untertitel einer gesperrten Scan-Quelle (#611). Wortlaut wie im Web
+      // (dashboard/import); der Lern-Hinweis steht im Warnstreifen darüber,
+      // damit er an fünf Kacheln nicht fünfmal wiederholt wird.
+      "lp.sourceTooExpensive": "Dafür reichen deine Lernpunkte nicht ({{balance}} von {{cost}})",
       "lp.earnMore": "Jetzt aufladen",
       "lp.learnNow": "Jetzt lernen",
       "lp.learnNowSubtitle": "+1 LP je gelernte Karte — gratis",
@@ -605,6 +609,7 @@ export const resources = {
       "lp.insufficientTitle": "Not enough LP",
       "lp.insufficientDetail": "This feature costs {{cost}} LP. You have {{balance}} LP.",
       "lp.insufficientHint": "You have {{balance}} LP. AI scan costs {{cost}} LP. You earn new LP by studying.",
+      "lp.sourceTooExpensive": "Your LP aren't enough for this ({{balance}} of {{cost}})",
       "lp.earnMore": "Top up",
       "lp.learnNow": "Learn now",
       "lp.learnNowSubtitle": "+1 LP per studied card — free",

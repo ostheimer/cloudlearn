@@ -3,6 +3,7 @@ import {
   DECK_LIMIT_LABEL,
   NEARLY_FULL_THRESHOLD,
   adviceForLimit,
+  affordableScanSources,
   deckSlotsSummary,
   deckLimitMessage,
   deckSlotsLabel,
@@ -31,6 +32,56 @@ describe("Füllstand der Bibliothek (#611)", () => {
     // maxDecks ist `null`, bis der Server die Grenzen geliefert hat (#603).
     expect(deckSlotsSummary(19, null)).toBeNull();
     expect(deckSlotsSummary(null, 20)).toBeNull();
+  });
+});
+
+describe("Kosten-Sperren je Scan-Quelle (#611)", () => {
+  const PREISE = { aiScan: 10, urlImport: 15, pdfImport: 20 };
+
+  it("erlaubt alles, wenn das Guthaben für die teuerste Quelle reicht", () => {
+    expect(affordableScanSources(20, PREISE)).toMatchObject({
+      aiScan: true,
+      urlImport: true,
+      pdfImport: true,
+      anyAffordable: true,
+    });
+  });
+
+  it("sperrt genau die Quellen, die zu teuer sind — der eigentliche Fehler", () => {
+    // Der Fall aus dem Audit: 12 LP. Der Warnstreifen prüfte nur gegen 10 (den
+    // günstigsten Preis) und schwieg, obwohl URL und PDF unbezahlbar waren.
+    const a = affordableScanSources(12, PREISE);
+    expect(a.aiScan).toBe(true);
+    expect(a.urlImport).toBe(false);
+    expect(a.pdfImport).toBe(false);
+    // Und weil Foto/Galerie/Text noch gehen, ist es KEIN Totalausfall.
+    expect(a.anyAffordable).toBe(true);
+  });
+
+  it("meldet den Totalausfall, wenn nicht mal die günstigste Quelle geht", () => {
+    const a = affordableScanSources(9, PREISE);
+    expect(a.anyAffordable).toBe(false);
+    expect(a.cheapest).toBe(10);
+  });
+
+  it("nennt den günstigsten Preis, statt ihn zu erraten", () => {
+    // Diese Zahl steht im Warnstreifen. Sie darf nicht hart auf lpCostAiScan
+    // verdrahtet sein: Pro zahlt 5/8/12, und Preise können sich ändern.
+    expect(affordableScanSources(0, { aiScan: 5, urlImport: 8, pdfImport: 12 }).cheapest).toBe(5);
+    expect(affordableScanSources(0, { aiScan: 30, urlImport: 8, pdfImport: 12 }).cheapest).toBe(8);
+  });
+
+  it("lässt eine Quelle zu, deren Preis genau dem Guthaben entspricht", () => {
+    expect(affordableScanSources(15, PREISE).urlImport).toBe(true);
+  });
+
+  it("sperrt bei leerem Konto alles", () => {
+    expect(affordableScanSources(0, PREISE)).toMatchObject({
+      aiScan: false,
+      urlImport: false,
+      pdfImport: false,
+      anyAffordable: false,
+    });
   });
 });
 
