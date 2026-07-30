@@ -9,12 +9,13 @@ import {
   type StreakCalendarResponse,
 } from "@/lib/api";
 import { getSupabase } from "@/lib/supabase-browser";
+import { todayLocal } from "@/lib/local-day";
 import { ArrowLeft, Award, ChevronLeft, ChevronRight, Flame, Shield } from "@/components/icons";
 
-// Lokales Kalenderdatum (sv-SE rendert YYYY-MM-DD) passt zu den Server-Streak-
-// Tagen in Berlin-Zeit — toISOString() würde um Mitternacht UTC umkippen (#211).
+// „Heute" in der Server-Zeitzone (#612) — die Browser-Zeitzone markierte auf
+// Reisen den falschen Tag im Kalender.
 function todayLocalDate(): string {
-  return new Date().toLocaleDateString("sv-SE");
+  return todayLocal();
 }
 
 function shiftMonth(month: string, delta: number): string {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  cardListPreview,
   cleanTerm,
   formatCloze,
   parseMarkdownImages,
@@ -110,5 +111,48 @@ describe("formatCloze", () => {
     const parsed = formatCloze("Berlin liegt an der {{c1::Spree}}.", "…");
     expect(parsed.display).toBe("Berlin liegt an der ….");
     expect(parsed.clozeAnswer).toBe("Spree");
+  });
+});
+
+describe("cardListPreview — Kartenliste zeigt keinen Rohtext mehr (#612)", () => {
+  it("macht aus dem Lücken-Code einen Strich, statt die Lösung zu drucken", () => {
+    const preview = cardListPreview({
+      front: "Das {{c1::Mitochondrium}} ist das Kraftwerk der Zelle.",
+      back: "Mitochondrium",
+    });
+
+    expect(preview.front).toBe("Das ______ ist das Kraftwerk der Zelle.");
+    // Der rohe Code stand vorher direkt in der Liste — samt Lösung.
+    expect(preview.front).not.toContain("{{c1::");
+    expect(preview.front).not.toContain("Mitochondrium");
+  });
+
+  it("zeigt kein Bild-Markdown, sondern die Bildunterschrift", () => {
+    const preview = cardListPreview({
+      front: "![Zellkern](https://example.com/zelle.png)",
+      back: "Der Zellkern",
+    });
+
+    expect(preview.front).toBe("Zellkern");
+    expect(preview.front).not.toContain("![");
+    expect(preview.front).not.toContain("https://");
+    expect(preview.hasImage).toBe(true);
+  });
+
+  it("meldet ein Bild ohne Unterschrift, statt eine leere Zeile zu liefern", () => {
+    const preview = cardListPreview({
+      front: "![](https://example.com/zelle.png)",
+      back: "Der Zellkern",
+    });
+
+    // Kein Text uebrig — die Liste zeigt dafuer "(Bild)" statt einer Luecke.
+    expect(preview.front).toBe("");
+    expect(preview.hasImage).toBe(true);
+  });
+
+  it("laesst gewoehnliche Karten unveraendert", () => {
+    const preview = cardListPreview({ front: "la courbe", back: "die Kurve" });
+
+    expect(preview).toEqual({ front: "la courbe", back: "die Kurve", hasImage: false });
   });
 });

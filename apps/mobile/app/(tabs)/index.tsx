@@ -28,6 +28,7 @@ import {
 import { useSessionStore } from "../../src/store/sessionStore";
 import { getStats, listDecks, getFriendStreaks, buyStreakRepair, isApiError, type StatsResponse, type Deck, type FriendStreak } from "../../src/lib/api";
 import { getLastUsedDeck, pickShownDeck, type LastUsedDeck } from "../../src/lib/lastUsedDeck";
+import { todayLocal } from "../../src/lib/localDay";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
 import { LpBadge } from "../../src/components/LpBadge";
 import { AuthPromptCard } from "../../src/components/AuthPromptCard";
@@ -147,10 +148,11 @@ export default function HomeScreen() {
   // reviewsTotal is its matching denominator).
   const hasAccuracyData = (stats?.reviewsInWindow ?? stats?.reviewsTotal ?? 0) > 0;
 
-  // Determine whether user has reviewed today. The device's local calendar
-  // date (sv-SE renders YYYY-MM-DD) matches the server's local-day streak
-  // dates — toISOString() would flip to the next day at UTC midnight (#211).
-  const today = new Date().toLocaleDateString("sv-SE");
+  // Determine whether user has reviewed today. Gerechnet in der Zeitzone, in
+  // der der SERVER seine Streak-Tage stempelt (#612) — die Geräte-Zeitzone
+  // wäre auf Reisen einen Tag daneben und die Flamme bliebe kalt, obwohl der
+  // Streak längst gefüttert ist.
+  const today = todayLocal();
   const reviewedToday = stats?.lastReviewDate === today;
 
   // The streak banner only glows once today's learning is done. A streak you

@@ -48,6 +48,7 @@ export const resources = {
 
       // LP (Lernpunkte)
       "lp.balance": "{{count}} LP",
+      "lp.balanceLoading": "Lernpunkte werden geladen",
       "lp.notEnough": "Nicht genug LP. Benötigt: {{cost}}, Vorhanden: {{balance}}.",
       "lp.earnToday": "Heute verdient: {{count}} / {{cap}} LP",
       "lp.milestone.first_deck": "Erstes Deck erstellt! +{{lp}} LP",
@@ -565,6 +566,7 @@ export const resources = {
 
       // LP (Lernpunkte)
       "lp.balance": "{{count}} LP",
+      "lp.balanceLoading": "Loading learning points",
       "lp.notEnough": "Not enough LP. Need: {{cost}}, have: {{balance}}.",
       "lp.earnToday": "Earned today: {{count}} / {{cap}} LP",
       "lp.milestone.first_deck": "First deck created! +{{lp}} LP",
