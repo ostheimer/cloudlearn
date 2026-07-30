@@ -391,13 +391,20 @@ export const resources = {
 
       "learn.noDueCards": "Keine fälligen Karten",
       "learn.noDueCardsMessage": "In diesem Ordner gibt es momentan keine fälligen Karten.",
+      "learn.noCardsToLearn": "Keine Karten zum Lernen",
+      "learn.noCardsToLearnMessage": "Die Decks in diesem Ordner haben noch keine lernbaren Karten.",
       "learn.loadError": "Karten konnten nicht geladen werden.",
 
       // Folder detail
       "folderDetail.rename": "Ordner umbenennen",
       "folderDetail.renamePrompt": "Neuer Ordnername:",
       "folderDetail.renameError": "Ordner konnte nicht umbenannt werden.",
-      "folderDetail.learnAll": "Alle lernen",
+      // Zwei Knöpfe statt einem (#610): vorher lernte "Alle lernen" nur die
+      // fälligen Karten und lief bei null Fälligen in eine Sackgasse (Meldung
+      // ohne Ausweg). Wortlaut wie im Web (folder/[id]/page.tsx).
+      "folderDetail.learnDueUnknown": "Fällige lernen",
+      "folderDetail.learnDue": "{{count}} fällig lernen",
+      "folderDetail.learnAllCards": "Alle {{count}} lernen",
       "folderDetail.editDescription": "Beschreibung bearbeiten",
       "folderDetail.descriptionPrompt": "Worum geht es in diesem Ordner? Leer speichern löscht die Beschreibung.",
       "folderDetail.descriptionPlaceholder": "z. B. Grundkurs Deutsch für Anfänger",
@@ -931,13 +938,17 @@ export const resources = {
 
       "learn.noDueCards": "No due cards",
       "learn.noDueCardsMessage": "There are currently no due cards in this folder.",
+      "learn.noCardsToLearn": "No cards to learn",
+      "learn.noCardsToLearnMessage": "The decks in this folder have no learnable cards yet.",
       "learn.loadError": "Could not load cards.",
 
       // Folder detail
       "folderDetail.rename": "Rename folder",
       "folderDetail.renamePrompt": "New folder name:",
       "folderDetail.renameError": "Could not rename folder.",
-      "folderDetail.learnAll": "Learn all",
+      "folderDetail.learnDueUnknown": "Learn due",
+      "folderDetail.learnDue": "Learn {{count}} due",
+      "folderDetail.learnAllCards": "Learn all {{count}}",
       "folderDetail.editDescription": "Edit description",
       "folderDetail.descriptionPrompt": "What is this folder about? Save empty to remove the description.",
       "folderDetail.descriptionPlaceholder": "e.g. Beginner German course",

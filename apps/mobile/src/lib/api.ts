@@ -872,6 +872,17 @@ export async function listDecksInFolder(
 }
 
 /**
+ * Alle Karten der Decks eines Ordners in einer Anfrage (#612, wie das Web) —
+ * für "Alle Karten lernen". Der Server macht daraus eine Abfrage statt einer
+ * pro Deck und blättert intern über die 1000-Zeilen-Grenze hinweg.
+ */
+export async function listCardsInFolder(
+  folderId: string
+): Promise<{ cards: Card[] }> {
+  return requestAuthenticated<{ cards: Card[] }>(`/api/v1/folders/${folderId}/cards`);
+}
+
+/**
  * Reihenfolge der Decks im Ordner speichern (#437). `deckIds` ist die
  * komplette gewünschte Reihenfolge, vorne = oben.
  */
