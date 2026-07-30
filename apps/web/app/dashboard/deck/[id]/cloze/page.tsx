@@ -26,13 +26,16 @@ import {
   type SessionAwardState,
 } from "@/lib/learn-session-lp";
 import {
-  clearSessionProgress,
   isProgressUsable,
-  loadSessionProgress,
   saveSessionProgress,
   type SessionProgress,
   type StoredCardResult,
 } from "@/lib/session-progress";
+import {
+  clearProgressEverywhere,
+  loadBestProgress,
+  pushProgressToAccount,
+} from "@/lib/session-progress-sync";
 import {
   ArrowLeft,
   X,
@@ -113,7 +116,13 @@ export default function ClozePage() {
   // nur, solange er zum Stapel der aktuellen Auswahl passt.
   useEffect(() => {
     if (!deckId) return;
-    setSaved(loadSessionProgress(deckId, "cloze"));
+    let active = true;
+    void loadBestProgress(deckId, "cloze").then((progress) => {
+      if (active) setSaved(progress);
+    });
+    return () => {
+      active = false;
+    };
   }, [deckId]);
 
   // #610: Die Schalter der letzten Runde sofort beim Öffnen vorbelegen — da
@@ -375,7 +384,9 @@ export default function ClozePage() {
   useEffect(() => {
     if (!deckId || round.length === 0) return;
     if (phase === "summary") {
-      clearSessionProgress(deckId, "cloze");
+      // Auch im Konto löschen (#610) — sonst böte das andere Gerät eine Runde
+      // an, die hier längst fertig ist.
+      void clearProgressEverywhere(deckId, "cloze");
       return;
     }
     if (phase !== "play") return;
@@ -400,6 +411,49 @@ export default function ClozePage() {
       ...(Object.keys(answered).length > 0 ? { results: answered } : {}),
     });
   }, [deckId, phase, round, idx, source, reverse, results]);
+
+  // Beim Verlassen der Runde den Stand ins Konto schreiben (#610). Bewusst
+  // NICHT bei jedem Kartenwechsel: Das wäre eine Anfrage je Karte. Der Ref
+  // trägt den jeweils aktuellen Stand, damit der Effekt nur einmal eingehängt
+  // werden muss und beim Abbau den letzten Stand sieht.
+  const accountPushRef = useRef<SessionProgress | null>(null);
+  {
+    const card = phase === "play" ? round[idx] : undefined;
+    if (card) {
+      const answered: Record<string, StoredCardResult> = {};
+      round.forEach((roundCard, i) => {
+        const r = results[i];
+        if (r) answered[roundCard.id] = { correct: r.correct, overridden: r.overridden };
+      });
+      accountPushRef.current = {
+        index: idx,
+        cardId: card.id,
+        source,
+        reverse,
+        total: round.length,
+        ...(Object.keys(answered).length > 0 ? { results: answered } : {}),
+      };
+    } else {
+      accountPushRef.current = null;
+    }
+  }
+  useEffect(() => {
+    if (!deckId) return;
+    const push = () => {
+      const pending = accountPushRef.current;
+      if (pending) void pushProgressToAccount(deckId, "cloze", pending);
+    };
+    // Ein geschlossener Tab läuft ohne Aufräum-Code — das Verstecken der Seite
+    // ist der letzte Moment, in dem eine Anfrage noch verlässlich rausgeht.
+    const onHide = () => {
+      if (document.visibilityState === "hidden") push();
+    };
+    document.addEventListener("visibilitychange", onHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      push();
+    };
+  }, [deckId]);
 
   async function quit() {
     // Auch die zurückgehaltene Bewertung gehört noch zu dieser Sitzung.
@@ -743,6 +797,13 @@ export default function ClozePage() {
           check();
         }}
       />
+
+      {/* Live-Region (#613): Das sichtbare Urteil darunter wird erst nach dem
+          Prüfen eingefügt — Screenreader lesen aber nur Änderungen in einer
+          schon vorhandenen Region zuverlässig vor. */}
+      <div className="sr-only" role="status">
+        {revealed ? (wasCorrect ? "Richtig." : `Falsch. Lösung: ${parsed?.answer ?? ""}`) : ""}
+      </div>
 
       {revealed && (
         <div className={`cl-fb ${wasCorrect ? "ok" : nearMiss ? "near" : "no"}`}>

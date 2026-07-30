@@ -69,10 +69,14 @@ import { useDisplayName } from "../../src/lib/useDisplayName";
 import { useUsageStore } from "../../src/store/usageStore";
 import { excludeOcclusionCards } from "../../src/lib/occlusion";
 import {
-  clearSessionProgress,
   saveSessionProgress,
+  type SessionProgress,
   type StoredCardResult,
 } from "../../src/features/review/sessionProgress";
+import {
+  clearProgressEverywhere,
+  pushProgressToAccount,
+} from "../../src/features/review/sessionProgressSync";
 import { summarizeCardMedia } from "../../src/lib/cardMedia";
 import { cleanTerm } from "../../src/lib/cardTerms";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
@@ -407,7 +411,9 @@ function AuthenticatedLearnScreen({
   useEffect(() => {
     if (!deckId || !source || cards.length === 0) return;
     if (completed) {
-      void clearSessionProgress(deckId, "flashcards");
+      // Auch im Konto löschen (#610) — sonst böte das andere Gerät eine Runde
+      // an, die hier längst fertig ist.
+      void clearProgressEverywhere(deckId, "flashcards");
       return;
     }
     const current = cards[index];
@@ -425,6 +431,30 @@ function AuthenticatedLearnScreen({
       ...(Object.keys(results).length > 0 ? { results } : {}),
     });
   }, [deckId, source, cards, index, completed, showBackFirst, history, ratingHistory]);
+
+  // Beim Verlassen der Runde den Stand ins Konto schreiben (#610). Bewusst
+  // NICHT bei jedem Kartenwechsel: Das wäre eine Anfrage je Karte. Der Ref
+  // trägt den jeweils aktuellen Stand, damit der Effekt nur einmal eingehängt
+  // werden muss und beim Abbau den letzten Stand sieht.
+  const accountPushRef = useRef<SessionProgress | null>(null);
+  const currentCard = cards[index];
+  accountPushRef.current =
+    deckId && source && !completed && currentCard
+      ? {
+          index,
+          cardId: currentCard.id,
+          source,
+          reverse: showBackFirst,
+          total: cards.length,
+        }
+      : null;
+  useEffect(() => {
+    if (!deckId) return;
+    return () => {
+      const pending = accountPushRef.current;
+      if (pending) void pushProgressToAccount(deckId, "flashcards", pending);
+    };
+  }, [deckId]);
 
   // The review session store is module-global, so a fresh screen can inherit
   // cards from a previous session. Reload whenever the source changes (a

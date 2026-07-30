@@ -22,10 +22,10 @@ import {
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
 import {
   isProgressUsable,
-  loadSessionProgress,
   type SessionProgress,
   type StoredCardResult,
 } from "../../src/features/review/sessionProgress";
+import { loadBestProgress } from "../../src/features/review/sessionProgressSync";
 import {
   loadSetup,
   resolveSource,
@@ -93,7 +93,8 @@ export default function DeckReviewScreen() {
   useEffect(() => {
     if (!id) return;
     let active = true;
-    void loadSessionProgress(id, "flashcards").then((progress) => {
+    // Lokal UND aus dem Konto lesen, der neuere gilt (#610).
+    void loadBestProgress(id, "flashcards").then((progress) => {
       if (active) setSaved(progress);
     });
     return () => {

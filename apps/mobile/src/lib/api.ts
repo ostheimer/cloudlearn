@@ -476,6 +476,57 @@ export async function getDueCards(
   return requestAuthenticated<{ cards: Card[] }>(`/api/v1/learn/due?userId=${userId}`);
 }
 
+// ─── Lernstand im Konto (geräteübergreifendes „Weitermachen", #610) ──────────
+
+/** Lernarten mit merkbarer Position — wie sessionProgress.ts und der Server. */
+export type ServerProgressMode = "flashcards" | "cloze";
+
+export interface ServerSessionProgress {
+  index: number;
+  cardId: string;
+  source: string;
+  reverse: boolean;
+  total: number;
+  results?: Record<string, { correct: boolean; overridden: boolean }>;
+  /** Server-Zeitstempel — entscheidet gegen den lokalen Stand (progressMerge). */
+  savedAt?: string;
+}
+
+export async function getServerProgress(
+  deckId: string,
+  mode: ServerProgressMode
+): Promise<ServerSessionProgress | null> {
+  const res = await requestAuthenticated<{
+    progress: (Omit<ServerSessionProgress, "savedAt"> & { updatedAt?: string }) | null;
+  }>(`/api/v1/learn/progress?deckId=${encodeURIComponent(deckId)}&mode=${mode}`);
+  if (!res.progress) return null;
+  const { updatedAt, ...rest } = res.progress;
+  // Der Server nennt es updatedAt; im Client heißt der Zeitstempel überall
+  // savedAt, damit die Vergleichsregel beide Seiten gleich behandelt.
+  return { ...rest, ...(updatedAt ? { savedAt: updatedAt } : {}) };
+}
+
+export async function putServerProgress(
+  deckId: string,
+  mode: ServerProgressMode,
+  progress: Omit<ServerSessionProgress, "savedAt">
+): Promise<{ saved: boolean }> {
+  return requestAuthenticated<{ saved: boolean }>("/api/v1/learn/progress", {
+    method: "PUT",
+    body: JSON.stringify({ deckId, mode, ...progress }),
+  });
+}
+
+export async function deleteServerProgress(
+  deckId: string,
+  mode: ServerProgressMode
+): Promise<{ cleared: boolean }> {
+  return requestAuthenticated<{ cleared: boolean }>(
+    `/api/v1/learn/progress?deckId=${encodeURIComponent(deckId)}&mode=${mode}`,
+    { method: "DELETE" }
+  );
+}
+
 /**
  * Fällige Karten je Deck, nur als Zahlen (#612). Für die "N fällig"-Abzeichen —
  * getDueCards würde den ganzen Rückstand mit Kartentext übertragen und wird ab

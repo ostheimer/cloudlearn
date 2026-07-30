@@ -9,11 +9,8 @@ import { useWobblyIds } from "@/lib/use-wobbly-ids";
 import { filterBySource, isCardDue, type CardSource } from "@/lib/card-source";
 import { loadSetup, resolveSource, saveSetup } from "@/lib/setup-memory";
 import { CardSourcePicker } from "@/components/app/card-source-picker";
-import {
-  isProgressUsable,
-  loadSessionProgress,
-  type SessionProgress,
-} from "@/lib/session-progress";
+import { isProgressUsable, type SessionProgress } from "@/lib/session-progress";
+import { loadBestProgress } from "@/lib/session-progress-sync";
 import { Layers, ArrowLeft, AlertTriangle } from "@/components/icons";
 
 export default function LearnPage() {
@@ -75,11 +72,18 @@ export default function LearnPage() {
     load();
   }, [load]);
 
-  // Gemerkten Lernstand einmal je Seite lesen; das Angebot unten erscheint
-  // nur, solange er zum Stapel der aktuellen Auswahl passt.
+  // Gemerkten Lernstand einmal je Seite lesen — lokal UND aus dem Konto, der
+  // neuere gilt (#610). Das Angebot unten erscheint nur, solange er zum Stapel
+  // der aktuellen Auswahl passt.
   useEffect(() => {
     if (!deckId) return;
-    setSaved(loadSessionProgress(deckId, "flashcards"));
+    let active = true;
+    void loadBestProgress(deckId, "flashcards").then((progress) => {
+      if (active) setSaved(progress);
+    });
+    return () => {
+      active = false;
+    };
   }, [deckId]);
 
   // #610: Die Kartenquelle der letzten Runde vorbelegen — erst wenn Karten UND
