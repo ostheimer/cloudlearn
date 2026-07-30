@@ -600,6 +600,7 @@ Die initiale Migration oben ist nur das Basisschema. Die vollständige, maßgebl
 │   └── POST   /:id/review   # Review-Ergebnis speichern (FSRS-Update)
 ├── /learn
 │   ├── GET    /due          # Fällige Karten abrufen
+│   ├── GET|PUT|DELETE /progress # „Weitermachen"-Merker je Deck+Lernart, geräteübergreifend (#610)
 │   └── POST   /sync         # FSRS-Daten synchronisieren (Device <-> Server)
 ├── /stats
 │   ├── GET    /             # Lernstatistiken
