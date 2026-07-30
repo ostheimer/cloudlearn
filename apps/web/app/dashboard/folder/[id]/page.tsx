@@ -15,7 +15,7 @@ import {
   createFolder,
   updateFolder,
   deleteFolder,
-  getDueCards,
+  getDueCountsByDeck,
   isApiError,
   type Deck,
   type Folder,
@@ -117,20 +117,23 @@ export default function FolderDetailPage() {
         setSubCounts({});
       }
 
-      // How many of this folder's cards are due today. getDueCards is global,
-      // so filter by the folder's decks — same source the learn page uses, so
-      // the number on the button matches the round it starts.
+      // How many of this folder's cards are due today. The grouped count is
+      // global, so filter by the folder's decks — the server applies the same
+      // filters as /learn/due (#612), so the number on the button still
+      // matches the round the learn page starts.
       try {
         const ids = new Set(inFolder.map((d) => d.id));
-        const { cards: due } = await getDueCards(userId);
-        const relevant = due.filter((c) => ids.has(c.deckId) && c.type !== "occlusion");
-        setDueCount(relevant.length);
-        // Dieselben Karten noch je Deck gezählt — fürs "N fällig"-Abzeichen
-        // auf den Kacheln (wie in der App-Bibliothek).
+        const { dueByDeck: allCounts } = await getDueCountsByDeck();
+        // Je Deck fürs "N fällig"-Abzeichen auf den Kacheln, die Summe für
+        // den Lern-Knopf (wie in der App-Bibliothek).
         const counts: Record<string, number> = {};
-        for (const card of relevant) {
-          counts[card.deckId] = (counts[card.deckId] ?? 0) + 1;
+        let total = 0;
+        for (const [deckId, n] of Object.entries(allCounts)) {
+          if (!ids.has(deckId)) continue;
+          counts[deckId] = n;
+          total += n;
         }
+        setDueCount(total);
         setDueByDeck(counts);
       } catch {
         // A missing count must not break the page — the button just says „Fällige lernen".

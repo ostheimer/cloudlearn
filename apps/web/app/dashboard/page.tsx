@@ -19,7 +19,7 @@ import {
   deleteFolder,
   listDecksInFolder,
   addDeckToFolder,
-  getDueCards,
+  getDueCountsByDeck,
   searchCards,
   isApiError,
   type Deck,
@@ -97,16 +97,14 @@ export default function LibraryPage() {
     try {
       // Das Abzeichen ist best-effort: eine scheiternde Fällig-Abfrage darf
       // die Bibliothek nicht brechen (gleiche Logik wie im App-Deck-Tab).
-      const [{ decks: fetched }, due] = await Promise.all([
+      // Gezählt wird auf dem Server (#612): getDueCards überträgt den ganzen
+      // Rückstand mit Kartentext und wird ab 1000 Karten still gekappt.
+      const [{ decks: fetched }, { dueByDeck: due }] = await Promise.all([
         listDecks(userId),
-        getDueCards(userId).catch(() => ({ cards: [] })),
+        getDueCountsByDeck().catch(() => ({ dueByDeck: {} })),
       ]);
       setDecks(fetched);
-      const counts: Record<string, number> = {};
-      for (const card of due.cards) {
-        counts[card.deckId] = (counts[card.deckId] ?? 0) + 1;
-      }
-      setDueByDeck(counts);
+      setDueByDeck(due);
       setPageError(null);
     } catch (e) {
       setPageError(
