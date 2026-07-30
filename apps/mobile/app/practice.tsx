@@ -1,8 +1,9 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { StudyResult } from "../src/components/StudyResult";
+import { LpRoundSummary } from "../src/components/LpRoundSummary";
 import {
   useReviewSession,
   missedCardsFrom,
@@ -61,6 +62,9 @@ export default function PracticeScreen() {
   const knownCount = Math.max(0, cards.length - missedCards.length);
   const enqueueOfflineReview = useOfflineQueueStore((s) => s.enqueue);
   const setUsage = useUsageStore((s) => s.setUsage);
+  // Punkte-Rückmeldung der Runde (#611): Zahlen aus der Server-Antwort.
+  const [earnedLp, setEarnedLp] = useState(0);
+  const [earnCapReached, setEarnCapReached] = useState(false);
   const [saveError, setSaveError] = useState(false);
   // Disables the rating buttons while a review is being submitted, so rapid
   // taps can't rate the next (still unseen) cards. Mirrors the learn screen.
@@ -90,7 +94,9 @@ export default function PracticeScreen() {
             const result = await earnLp("session", reviewedCount);
             if (result.granted > 0) {
               setUsage({ lpBalance: result.newBalance });
+              setEarnedLp(result.granted);
             }
+            setEarnCapReached(result.capReached);
             if (isSessionEarnFinalized(result, reviewedCount)) {
               state.finalized = true;
               break;
@@ -121,6 +127,36 @@ export default function PracticeScreen() {
       };
     }, [awardSession]),
   );
+
+  // Punkte JETZT abrechnen, nicht erst beim Verlassen (#611, wie das Web).
+  // Vorher lief die Gutschrift ausschließlich im Blur-Cleanup — das Ergebnis
+  // konnte deshalb nichts über Punkte sagen. Der Blur-Cleanup bleibt als Netz;
+  // `beginSessionAward` verhindert die Doppel-Gutschrift.
+  useEffect(() => {
+    if (!completed || cards.length === 0) return;
+    void awardSession(
+      getSessionReviewedCount(sessionReviewsRef.current, pendingReviewsRef.current.length),
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [completed]);
+
+  /**
+   * Eine Folgerunde vom Ergebnis aus. Nötig, seit bei „fertig" abgerechnet wird:
+   * `finalized` steht dann auf true, und die Wiederholungsknöpfe starten ohne
+   * neuen Fokus — ohne diese Klammer liefen Folgerunden dauerhaft ohne Punkte.
+   * Reihenfolge wie cloze.startRound: erst die alte Gutschrift zu Ende, dann
+   * entschärfen.
+   */
+  const rearmForNextRound = useCallback(async () => {
+    await awardSession(
+      getSessionReviewedCount(sessionReviewsRef.current, pendingReviewsRef.current.length),
+    );
+    awardStateRef.current.finalized = false;
+    pendingReviewsRef.current = [];
+    sessionReviewsRef.current = 0;
+    setEarnedLp(0);
+    setEarnCapReached(false);
+  }, [awardSession]);
 
   const handleRate = async (rating: ReviewRating) => {
     if (!revealed) reveal();
@@ -264,19 +300,33 @@ export default function PracticeScreen() {
               subtitle={`Du hast ${cards.length} ${
                 cards.length === 1 ? "Karte" : "Karten"
               } wiederholt — ${knownCount} davon sicher gewusst.`}
+              // Bis #611 sagte dieser Bildschirm nichts zu den Punkten: Er
+              // rechnete erst beim Verlassen ab, hier konnte also gar nichts
+              // stehen.
+              accessory={<LpRoundSummary earned={earnedLp} capReached={earnCapReached} />}
               actions={[
                 ...(missedCards.length > 0
                   ? [
                       {
                         label: `Nur die nicht gewussten (${missedCards.length})`,
-                        onPress: () => start(missedCards),
+                        onPress: () => {
+                          void (async () => {
+                            await rearmForNextRound();
+                            start(missedCards);
+                          })();
+                        },
                         variant: "primary" as const,
                       },
                     ]
                   : []),
                 {
                   label: "Alle nochmal",
-                  onPress: () => start(cards),
+                  onPress: () => {
+                    void (async () => {
+                      await rearmForNextRound();
+                      start(cards);
+                    })();
+                  },
                   variant: missedCards.length > 0 ? ("secondary" as const) : ("primary" as const),
                   reload: true,
                 },

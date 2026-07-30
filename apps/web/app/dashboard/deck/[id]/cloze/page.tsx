@@ -5,7 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
 import { listCardsInDeck, reviewCard, earnLp, isApiError, type Card } from "@/lib/api";
-import { isAnswerCorrect } from "@/lib/answerCheck";
+import { isAnswerCorrect, isCaseOnlyMismatch } from "@/lib/answerCheck";
+import { shouldAdvanceOnEnter } from "@/lib/learn-keys";
 import { buildPrompt, hasTypeable } from "@/lib/cloze-prompt";
 import { createReviewSendBuffer } from "@/lib/review-send-buffer";
 import {
@@ -15,7 +16,7 @@ import {
 } from "@/lib/unsaved-reviews";
 import { useDisplayName } from "@/lib/use-display-name";
 import { useWobblyIds } from "@/lib/use-wobbly-ids";
-import { filterBySource, type CardSource } from "@/lib/card-source";
+import { filterBySource, isCardDue, type CardSource } from "@/lib/card-source";
 import { loadSetup, resolveSource, saveSetup } from "@/lib/setup-memory";
 import { CardSourcePicker } from "@/components/app/card-source-picker";
 import {
@@ -25,13 +26,16 @@ import {
   type SessionAwardState,
 } from "@/lib/learn-session-lp";
 import {
-  clearSessionProgress,
   isProgressUsable,
-  loadSessionProgress,
   saveSessionProgress,
   type SessionProgress,
   type StoredCardResult,
 } from "@/lib/session-progress";
+import {
+  clearProgressEverywhere,
+  loadBestProgress,
+  pushProgressToAccount,
+} from "@/lib/session-progress-sync";
 import {
   ArrowLeft,
   X,
@@ -112,7 +116,13 @@ export default function ClozePage() {
   // nur, solange er zum Stapel der aktuellen Auswahl passt.
   useEffect(() => {
     if (!deckId) return;
-    setSaved(loadSessionProgress(deckId, "cloze"));
+    let active = true;
+    void loadBestProgress(deckId, "cloze").then((progress) => {
+      if (active) setSaved(progress);
+    });
+    return () => {
+      active = false;
+    };
   }, [deckId]);
 
   // #610: Die Schalter der letzten Runde sofort beim Öffnen vorbelegen — da
@@ -131,11 +141,17 @@ export default function ClozePage() {
     if (sourceRestoredRef.current || sourceTouchedRef.current) return;
     if (phase !== "setup" || loading || !wobblySettled) return;
     sourceRestoredRef.current = true;
-    const wanted = resolveSource(loadSetup(deckId, "cloze")?.source, {
+    const stored = loadSetup(deckId, "cloze");
+    const counts = {
       starred: allCards.filter((c) => c.starred).length,
       wobbly: allCards.filter((c) => wobblyIds.has(c.id)).length,
-    });
+      due: allCards.filter((c) => isCardDue(c)).length,
+    };
+    const wanted = resolveSource(stored?.source, counts);
     if (wanted) setSource(wanted);
+    // Ohne gemerkte Wahl ist das Tagespensum die Voreinstellung (#610):
+    // „Nur fällige", sobald es gerade welche gibt.
+    else if (!stored?.source && counts.due > 0) setSource("due");
   }, [deckId, phase, loading, wobblySettled, allCards, wobblyIds]);
 
   const studyPool = filterBySource(allCards, source, wobblyIds);
@@ -152,6 +168,13 @@ export default function ClozePage() {
   const result = results[idx] ?? null;
   const revealed = result !== null;
   const wasCorrect = result ? result.correct || result.overridden : false;
+  // Gelbe „Fast"-Stufe (#610, Laras Entscheidung): Die Antwort scheitert NUR
+  // an der Groß-/Kleinschreibung. Sie zählt nicht automatisch als richtig —
+  // der „Trotzdem als richtig zählen"-Knopf darunter entscheidet.
+  const nearMiss =
+    revealed && !wasCorrect && parsed
+      ? isCaseOnlyMismatch(result?.input ?? "", parsed.answer)
+      : false;
 
   // Eingabefeld bei neuer, unbeantworteter Karte fokussieren.
   useEffect(() => {
@@ -327,6 +350,33 @@ export default function ClozePage() {
     setInput("");
   }
 
+  // Enter führt auch nach dem Prüfen weiter (#610). Vorher endete die Tastatur
+  // dort: Enter im Feld prüfte die Antwort, danach war das Feld gesperrt und
+  // für „Weiter" musste man zur Maus greifen — mitten im Tippfluss.
+  // Der Horcher hängt am Fenster, weil das gesperrte Feld keine Tasten mehr
+  // bekommt, und läuft nur im aufgedeckten Zustand.
+  useEffect(() => {
+    if (phase !== "play" || !revealed) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const advance = shouldAdvanceOnEnter({
+        key: e.key,
+        ctrlKey: e.ctrlKey,
+        metaKey: e.metaKey,
+        altKey: e.altKey,
+        targetTag: target?.tagName,
+      });
+      if (!advance) return;
+      e.preventDefault();
+      next();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+    // `next` ist bei jedem Render neu, hängt aber nur an Werten, die in den
+    // Abhängigkeiten stehen — der Horcher wird pro Karte einmal neu gesetzt.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, revealed, idx, round.length, floor]);
+
   // ─── Merken, wo eine unterbrochene Runde stand (Weitermachen) ────────────
   // Bei jedem Kartenwechsel geschrieben statt beim Verlassen: Ein Tab lässt
   // sich schließen, ohne dass irgendein Aufräum-Code läuft. Die Auswertung
@@ -334,7 +384,9 @@ export default function ClozePage() {
   useEffect(() => {
     if (!deckId || round.length === 0) return;
     if (phase === "summary") {
-      clearSessionProgress(deckId, "cloze");
+      // Auch im Konto löschen (#610) — sonst böte das andere Gerät eine Runde
+      // an, die hier längst fertig ist.
+      void clearProgressEverywhere(deckId, "cloze");
       return;
     }
     if (phase !== "play") return;
@@ -359,6 +411,49 @@ export default function ClozePage() {
       ...(Object.keys(answered).length > 0 ? { results: answered } : {}),
     });
   }, [deckId, phase, round, idx, source, reverse, results]);
+
+  // Beim Verlassen der Runde den Stand ins Konto schreiben (#610). Bewusst
+  // NICHT bei jedem Kartenwechsel: Das wäre eine Anfrage je Karte. Der Ref
+  // trägt den jeweils aktuellen Stand, damit der Effekt nur einmal eingehängt
+  // werden muss und beim Abbau den letzten Stand sieht.
+  const accountPushRef = useRef<SessionProgress | null>(null);
+  {
+    const card = phase === "play" ? round[idx] : undefined;
+    if (card) {
+      const answered: Record<string, StoredCardResult> = {};
+      round.forEach((roundCard, i) => {
+        const r = results[i];
+        if (r) answered[roundCard.id] = { correct: r.correct, overridden: r.overridden };
+      });
+      accountPushRef.current = {
+        index: idx,
+        cardId: card.id,
+        source,
+        reverse,
+        total: round.length,
+        ...(Object.keys(answered).length > 0 ? { results: answered } : {}),
+      };
+    } else {
+      accountPushRef.current = null;
+    }
+  }
+  useEffect(() => {
+    if (!deckId) return;
+    const push = () => {
+      const pending = accountPushRef.current;
+      if (pending) void pushProgressToAccount(deckId, "cloze", pending);
+    };
+    // Ein geschlossener Tab läuft ohne Aufräum-Code — das Verstecken der Seite
+    // ist der letzte Moment, in dem eine Anfrage noch verlässlich rausgeht.
+    const onHide = () => {
+      if (document.visibilityState === "hidden") push();
+    };
+    document.addEventListener("visibilitychange", onHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      push();
+    };
+  }, [deckId]);
 
   async function quit() {
     // Auch die zurückgehaltene Bewertung gehört noch zu dieser Sitzung.
@@ -507,6 +602,7 @@ export default function ClozePage() {
           allCount={allCards.length}
           starredCount={allCards.filter((c) => c.starred).length}
           wobblyCount={allCards.filter((c) => wobblyIds.has(c.id)).length}
+          dueCount={allCards.filter((c) => isCardDue(c)).length}
         />
 
         {/* Weitermachen — nur solange eine unterbrochene Runde noch passt */}
@@ -679,7 +775,7 @@ export default function ClozePage() {
 
       <input
         ref={inputRef}
-        className={`cl-input${revealed ? (wasCorrect ? " ok" : " no") : ""}`}
+        className={`cl-input${revealed ? (wasCorrect ? " ok" : nearMiss ? " near" : " no") : ""}`}
         placeholder="Antwort eintippen…"
         value={revealed ? result?.input ?? "" : input}
         disabled={revealed}
@@ -689,20 +785,45 @@ export default function ClozePage() {
         spellCheck={false}
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === "Enter" && input.trim().length > 0) {
-            e.preventDefault();
-            check();
-          }
+          if (e.key !== "Enter") return;
+          // Dieses Enter gehört dem Feld und darf NICHT weiter ans Fenster
+          // wandern: Dort wartet der „Weiter"-Horcher, und weil das Prüfen
+          // ihn im selben Wimpernschlag scharf schaltet, hätte ein einziger
+          // Tastendruck sonst geprüft UND weitergeblättert — die Rückmeldung
+          // wäre nie zu sehen gewesen.
+          e.stopPropagation();
+          if (input.trim().length === 0) return;
+          e.preventDefault();
+          check();
         }}
       />
 
+      {/* Live-Region (#613): Das sichtbare Urteil darunter wird erst nach dem
+          Prüfen eingefügt — Screenreader lesen aber nur Änderungen in einer
+          schon vorhandenen Region zuverlässig vor. */}
+      <div className="sr-only" role="status">
+        {revealed ? (wasCorrect ? "Richtig." : `Falsch. Lösung: ${parsed?.answer ?? ""}`) : ""}
+      </div>
+
       {revealed && (
-        <div className={`cl-fb ${wasCorrect ? "ok" : "no"}`}>
+        <div className={`cl-fb ${wasCorrect ? "ok" : nearMiss ? "near" : "no"}`}>
           <span className="cl-fb__ic" aria-hidden>
-            {wasCorrect ? <CheckCircle size={22} /> : <X size={22} />}
+            {wasCorrect ? (
+              <CheckCircle size={22} />
+            ) : nearMiss ? (
+              <AlertTriangle size={22} />
+            ) : (
+              <X size={22} />
+            )}
           </span>
           <div>
-            <b>{wasCorrect ? "Richtig" : "Falsch"}</b>
+            <b>
+              {wasCorrect
+                ? "Richtig"
+                : nearMiss
+                  ? "Fast — achte auf die Großschreibung"
+                  : "Falsch"}
+            </b>
             <div className="cl-fb__sol">Lösung: {parsed?.answer}</div>
           </div>
         </div>

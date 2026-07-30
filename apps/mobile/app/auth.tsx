@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   ScrollView,
   Text,
@@ -30,13 +31,24 @@ import {
   rememberPendingGender,
 } from "../src/lib/displayNamePending";
 import type { Gender } from "../src/lib/api";
+import { IMPRESSUM_URL, PRIVACY_URL } from "../src/lib/publicLinks";
 
 type AuthMode = "login" | "register" | "reset";
 
-const GENDER_OPTIONS: { value: Gender; label: string }[] = [
+// „Sag ich nicht" seit #609 (Laras Entscheidung): Pflichtfeld bleibt, aber
+// niemand muss etwas Persönliches preisgeben. Die längere Beschriftung bekommt
+// eine eigene Zeile — zu viert nebeneinander wäre es am Handy gequetscht.
+// Überschrift für fehlende Angaben (#609, Laras Wortlaut): Es ist nichts
+// kaputt — es fehlt nur noch etwas. „Fehler" stand vorher selbst dann da,
+// wenn man bloß den Namen vergessen hatte. Echte Fehlschläge (Anmeldung
+// abgelehnt, E-Mail nicht gesendet) behalten ihre ehrliche Überschrift.
+const INCOMPLETE_TITLE = "Fast geschafft";
+
+const GENDER_OPTIONS: { value: Gender; label: string; wide?: boolean }[] = [
   { value: "female", label: "Weiblich" },
   { value: "male", label: "Männlich" },
   { value: "diverse", label: "Divers" },
+  { value: "prefer_not_to_say", label: "Sag ich nicht", wide: true },
 ];
 
 const webFormStyle = {
@@ -126,9 +138,11 @@ export default function AuthScreen() {
   const handleOAuth = async (provider: "google" | "apple") => {
     if (!availableProviders[provider]) {
       const providerLabel = provider === "google" ? "Google" : "Apple";
+      // Ohne Technik-Wörter (#609): „Supabase" und „dieses Projekt" sagen einer
+      // Schülerin nichts — wichtig ist nur, dass der E-Mail-Weg schon geht.
       Alert.alert(
-        `${providerLabel}-Login wird noch freigeschaltet`,
-        `${providerLabel} ist in Supabase für dieses Projekt noch nicht aktiviert. E-Mail und Passwort funktionieren bereits.`
+        "Noch nicht verfügbar",
+        `Die Anmeldung mit ${providerLabel} ist noch nicht eingerichtet. Mit E-Mail und Passwort funktioniert es schon.`
       );
       return;
     }
@@ -137,11 +151,11 @@ export default function AuthScreen() {
     // nicht umgehen (wie im Web). Beim Login bleibt alles wie bisher.
     if (mode === "register") {
       if (displayName.trim().length < 2) {
-        Alert.alert("Fehler", "Bitte gib deinen Namen ein (mindestens 2 Zeichen).");
+        Alert.alert(INCOMPLETE_TITLE, "Bitte gib deinen Namen ein (mindestens 2 Zeichen).");
         return;
       }
       if (!gender) {
-        Alert.alert("Fehler", "Bitte wähle aus, wie clearn dich nennen soll.");
+        Alert.alert(INCOMPLETE_TITLE, "Bitte wähle aus, wie clearn dich nennen soll.");
         return;
       }
       // Nach dem Provider-Redirect speichert die Namensabfrage beide Angaben
@@ -156,8 +170,8 @@ export default function AuthScreen() {
       if (!cancelled && error) {
         if (error.toLowerCase().includes("unsupported provider")) {
           Alert.alert(
-            "Anbieter noch nicht aktiv",
-            "Google- oder Apple-Login ist für dieses Projekt noch nicht freigeschaltet. Nutze vorerst E-Mail und Passwort."
+            "Noch nicht verfügbar",
+            "Die Anmeldung mit Google oder Apple ist noch nicht eingerichtet. Mit E-Mail und Passwort funktioniert es schon."
           );
           return;
         }
@@ -170,32 +184,32 @@ export default function AuthScreen() {
 
   const handleSubmit = async () => {
     if (mode === "register" && displayName.trim().length < 2) {
-      Alert.alert("Fehler", "Bitte gib deinen Namen ein (mindestens 2 Zeichen).");
+      Alert.alert(INCOMPLETE_TITLE, "Bitte gib deinen Namen ein (mindestens 2 Zeichen).");
       return;
     }
 
     if (mode === "register" && !gender) {
-      Alert.alert("Fehler", "Bitte wähle aus, wie clearn dich nennen soll.");
+      Alert.alert(INCOMPLETE_TITLE, "Bitte wähle aus, wie clearn dich nennen soll.");
       return;
     }
 
     if (!email.trim()) {
-      Alert.alert("Fehler", "Bitte E-Mail-Adresse eingeben.");
+      Alert.alert(INCOMPLETE_TITLE, "Bitte E-Mail-Adresse eingeben.");
       return;
     }
 
     if (mode !== "reset" && !password) {
-      Alert.alert("Fehler", "Bitte Passwort eingeben.");
+      Alert.alert(INCOMPLETE_TITLE, "Bitte Passwort eingeben.");
       return;
     }
 
     if (mode === "register" && password !== confirmPassword) {
-      Alert.alert("Fehler", "Passwörter stimmen nicht überein.");
+      Alert.alert(INCOMPLETE_TITLE, "Passwörter stimmen nicht überein.");
       return;
     }
 
     if (mode === "register" && password.length < 6) {
-      Alert.alert("Fehler", "Passwort muss mindestens 6 Zeichen lang sein.");
+      Alert.alert(INCOMPLETE_TITLE, "Passwort muss mindestens 6 Zeichen lang sein.");
       return;
     }
 
@@ -228,7 +242,8 @@ export default function AuthScreen() {
       } else {
         const { error } = await resetPassword(email);
         if (error) {
-          Alert.alert("Fehler", error);
+          // Echter Fehlschlag — hier bleibt es bei einer ehrlichen Überschrift.
+          Alert.alert("E-Mail nicht gesendet", error);
         } else {
           Alert.alert(
             "E-Mail gesendet",
@@ -539,7 +554,7 @@ export default function AuthScreen() {
                   >
                     Geschlecht
                   </Text>
-                  <View style={{ flexDirection: "row", gap: spacing.sm }}>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm }}>
                     {GENDER_OPTIONS.map((opt) => {
                       const selected = gender === opt.value;
                       return (
@@ -549,7 +564,8 @@ export default function AuthScreen() {
                           disabled={isBusy}
                           activeOpacity={0.8}
                           style={{
-                            flex: 1,
+                            // „Sag ich nicht" belegt eine eigene Zeile (#609)
+                            ...(opt.wide ? { width: "100%" } : { flex: 1 }),
                             backgroundColor: selected ? brandButtonBackground : brandSurface,
                             borderWidth: 1,
                             borderColor: selected ? brandButtonBackground : brandBorder,
@@ -824,7 +840,9 @@ export default function AuthScreen() {
                 </TouchableOpacity>
               ) : null}
 
-              {mode === "login" ? (
+              {/* Face ID/Touch ID gibt es nur bei Apple — auf Android und im
+                  Browser wäre der Satz eine leere Behauptung (#609). */}
+              {mode === "login" && Platform.OS === "ios" ? (
                 <Text
                   style={{
                     color: brandTextTertiary,
@@ -838,6 +856,44 @@ export default function AuthScreen() {
                   oder Touch ID entsperren.
                 </Text>
               ) : null}
+
+              {/* Datenschutz und Impressum direkt am Formular (#609): Wer ein
+                  Konto anlegt, soll vorher nachlesen können, was mit seinen
+                  Daten passiert — bisher standen die Links nur im Profil, also
+                  erst NACH der Anmeldung. */}
+              <View
+                style={{
+                  marginTop: spacing.lg,
+                  flexDirection: "row",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  gap: spacing.sm,
+                }}
+              >
+                <TouchableOpacity onPress={() => void Linking.openURL(PRIVACY_URL)}>
+                  <Text
+                    style={{
+                      color: brandTextTertiary,
+                      fontSize: typography.xs,
+                      textDecorationLine: "underline",
+                    }}
+                  >
+                    Datenschutz
+                  </Text>
+                </TouchableOpacity>
+                <Text style={{ color: brandTextTertiary, fontSize: typography.xs }}>·</Text>
+                <TouchableOpacity onPress={() => void Linking.openURL(IMPRESSUM_URL)}>
+                  <Text
+                    style={{
+                      color: brandTextTertiary,
+                      fontSize: typography.xs,
+                      textDecorationLine: "underline",
+                    }}
+                  >
+                    Impressum
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </FormContainer>
           </View>
         </ScrollView>

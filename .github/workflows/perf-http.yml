@@ -1,0 +1,85 @@
+name: Perf HTTP
+
+# Echte Latenz-Messung gegen das Deployment (scripts/perf-smoke.ts --http, #86).
+# Ersetzt die frühere Attrappe, die nur Programmteile im Arbeitsspeicher gemessen
+# hat. Siehe docs/runbooks/performance-budgets.md.
+#
+# Läuft NUR auf Knopfdruck ("Run workflow" im Actions-Tab) — bewusst nicht bei
+# jedem Pull Request: Messungen gegen das Internet schwanken und würden als
+# Blockade nur falschen Alarm auslösen. Und bewusst nicht nach Zeitplan, damit
+# die tägliche Live-E2E-Suite (#85) nicht gedoppelt oder verteuert wird.
+#
+# Der Lauf fragt ausschliesslich LESEND ab: keine Schreibvorgänge, keine
+# KI-Aufrufe, keine Kosten.
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "API-Adresse, gegen die gemessen wird"
+        required: false
+        default: "https://clearn-api.vercel.app"
+      samples:
+        description: "Messungen je Endpunkt (mindestens 5)"
+        required: false
+        default: "20"
+
+# Nie zwei Messungen gleichzeitig — sonst messen sie sich gegenseitig.
+concurrency:
+  group: perf-http
+  cancel-in-progress: false
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.29.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # Ohne Zugangsdaten kann nur der öffentliche Endpunkt gemessen werden.
+      # Das wird offen gemeldet, statt eine vollständige Messung vorzutäuschen.
+      - name: Zugangsdaten vorhanden?
+        id: creds
+        env:
+          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+        run: |
+          if [ -n "$TEST_USER_PASSWORD" ]; then
+            echo "authed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "authed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Kein TEST_USER_PASSWORD als Secret — es wird nur der oeffentliche Endpunkt gemessen. Siehe docs/runbooks/e2e-live-ci.md"
+          fi
+
+      - name: Messung (angemeldet)
+        if: steps.creds.outputs.authed == 'true'
+        run: >-
+          pnpm run perf:http
+          --base-url=${{ inputs.base_url }}
+          --samples=${{ inputs.samples }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
+          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+
+      - name: Messung (nur oeffentlich)
+        if: steps.creds.outputs.authed != 'true'
+        run: >-
+          pnpm run perf:http
+          --public-only
+          --base-url=${{ inputs.base_url }}
+          --samples=${{ inputs.samples }}

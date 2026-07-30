@@ -88,21 +88,16 @@ export interface GenerateOptions {
   allowTrueFalse?: boolean;
 }
 
-export function generateQuestions(
-  cards: QuizCardInput[],
-  count = 10,
-  copy: QuizCopy = defaultQuizCopyDe,
-  randomFn: () => number = Math.random,
-  opts: GenerateOptions = {}
-): QuizQuestion[] {
-  if (cards.length < 2) return [];
-  const reverse = opts.reverse ?? false;
-  const allowMc = opts.allowMc ?? true;
-  const allowTrueFalse = opts.allowTrueFalse ?? true;
-  if (!allowMc && !allowTrueFalse) return [];
-
+/**
+ * Der Fragen-Pool hinter generateQuestions: beide Seiten vorhanden (ein Bild
+ * zählt als Seite), Duplikate einmal. Herausgelöst, damit die Anzahl-Auswahl
+ * im Setup („Alle (N)", #612) mit EXAKT derselben Regel zählt — vorher prüfte
+ * sie nur rohen Text beider Seiten: Bild-Karten fehlten in der Zahl,
+ * Doppel-Scans zählten doppelt, und „Alle (12)" lieferte dann 10 Fragen.
+ */
+function buildQuestionPool(cards: QuizCardInput[], reverse: boolean) {
   const seenPairs = new Set<string>();
-  const enriched = cards.flatMap((card) => {
+  return cards.flatMap((card) => {
     // Prepared like the web (#592): image markdown out, translation wrappers
     // out; a side that is only an image falls back to its caption — raw
     // ![…](…) code never reaches a question, an option or an answer.
@@ -148,6 +143,31 @@ export function generateQuestions(
       },
     ];
   });
+}
+
+/**
+ * Wie viele Fragen „Alle (N)" höchstens verspricht (#612) — dieselbe Regel,
+ * mit der generateQuestions seinen Pool baut. Die Richtung spielt für die
+ * Anzahl keine Rolle.
+ */
+export function countQuizableCards(cards: QuizCardInput[]): number {
+  return buildQuestionPool(cards, false).length;
+}
+
+export function generateQuestions(
+  cards: QuizCardInput[],
+  count = 10,
+  copy: QuizCopy = defaultQuizCopyDe,
+  randomFn: () => number = Math.random,
+  opts: GenerateOptions = {}
+): QuizQuestion[] {
+  if (cards.length < 2) return [];
+  const reverse = opts.reverse ?? false;
+  const allowMc = opts.allowMc ?? true;
+  const allowTrueFalse = opts.allowTrueFalse ?? true;
+  if (!allowMc && !allowTrueFalse) return [];
+
+  const enriched = buildQuestionPool(cards, reverse);
 
   const questions: QuizQuestion[] = [];
   const shuffledCards = shuffle(enriched, randomFn);

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
+import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
 import { Modal } from "@/components/app/modal";
 import {
   listDecks,
@@ -18,16 +19,20 @@ import {
   deleteFolder,
   listDecksInFolder,
   addDeckToFolder,
-  getDueCards,
+  getDueCountsByDeck,
   searchCards,
   isApiError,
   type Deck,
   type Folder,
   type CardSearchResult,
 } from "@/lib/api";
+import { adviceForLimit } from "@/lib/import-limits";
 import { descendantFolders, folderPath } from "@/lib/folders";
+import { handleMenuKey } from "@/lib/menu-keys";
 import { FolderCard, DeleteFolderModal } from "@/components/app/folder-ui";
 import { deckCountLabel } from "@/lib/deck-count-label";
+import { deckSlotsSummary, isDeckLimitReached } from "@/lib/import-limits";
+import { loadPlanLimits } from "@/lib/plan-limits";
 import {
   SPEECH_LANGUAGES,
   toSpeechLanguage,
@@ -50,9 +55,22 @@ import {
   Link as LinkIcon,
   RefreshSync,
   CheckCircle,
+  ArrowsSort,
 } from "@/components/icons";
+import {
+  DEFAULT_FOLDER_SORT,
+  loadFolderSort,
+  saveFolderSort,
+  sortFolders,
+  type FolderSort,
+} from "@/lib/folder-sort";
 
 type TabKey = "decks" | "folders";
+
+// Ab dieser Listenlänge zeigen Auswahl-Fenster (Ordner-/Deck-Picker) ein
+// Suchfeld (#612) — darunter wäre es nur Rauschen. Gleicher Wert im
+// Ordner-Deck-Picker und in den App-Pickern (FolderPickerModal/DeckPickerModal).
+const PICKER_SEARCH_THRESHOLD = 6;
 
 // Interne Etiketten, die die API beim KI-Import ans Deck hängt — in der
 // Datenbank bleiben sie erhalten (Suche/App nutzen sie), angezeigt werden sie nicht.
@@ -90,22 +108,48 @@ export default function LibraryPage() {
   // genau wie der Deck-Tab der App.
   const [cardHits, setCardHits] = useState<CardSearchResult[]>([]);
   const [cardsSearching, setCardsSearching] = useState(false);
+  // Ordner-Reihenfolge (#612): A–Z oder neueste zuerst, Wahl bleibt gemerkt.
+  // Erst nach dem Mount aus dem Speicher lesen — beim Serverrendern gibt es
+  // kein localStorage, und ein Unterschied zwischen Server- und Browser-Lauf
+  // würde React als Hydrierungsfehler melden.
+  const [folderSort, setFolderSort] = useState<FolderSort>(DEFAULT_FOLDER_SORT);
+  useEffect(() => {
+    setFolderSort(loadFolderSort());
+  }, []);
+  // Tarif-Grenzen für den Füllstand (#611). Der /usage-Endpunkt liefert sie
+  // seit #411 mit, diese Seite fragte sie nur nie ab — deshalb war die
+  // Deck-Grenze unsichtbar, bis sie riss. `undefined` heißt „unbekannt"
+  // (älterer Server oder Abfrage fehlgeschlagen): dann wird nichts behauptet.
+  const [maxDecks, setMaxDecks] = useState<number | undefined>(undefined);
+  const deckSlotsLabel = deckSlotsSummary(loading ? null : decks.length, maxDecks);
+  const decksAtLimit = isDeckLimitReached(decks.length, maxDecks);
+
+  useEffect(() => {
+    if (!userId) return;
+    let active = true;
+    // loadPlanLimits holt die Grenzen je Sitzung einmal und teilt sie mit der
+    // Deck-Seite — der Füllstand kostet damit keine Anfrage pro Seitenwechsel.
+    void loadPlanLimits().then((limits) => {
+      if (active) setMaxDecks(limits.maxDecks);
+    });
+    return () => {
+      active = false;
+    };
+  }, [userId]);
 
   const loadDecks = useCallback(async () => {
     if (!userId) return;
     try {
       // Das Abzeichen ist best-effort: eine scheiternde Fällig-Abfrage darf
       // die Bibliothek nicht brechen (gleiche Logik wie im App-Deck-Tab).
-      const [{ decks: fetched }, due] = await Promise.all([
+      // Gezählt wird auf dem Server (#612): getDueCards überträgt den ganzen
+      // Rückstand mit Kartentext und wird ab 1000 Karten still gekappt.
+      const [{ decks: fetched }, { dueByDeck: due }] = await Promise.all([
         listDecks(userId),
-        getDueCards(userId).catch(() => ({ cards: [] })),
+        getDueCountsByDeck().catch(() => ({ dueByDeck: {} })),
       ]);
       setDecks(fetched);
-      const counts: Record<string, number> = {};
-      for (const card of due.cards) {
-        counts[card.deckId] = (counts[card.deckId] ?? 0) + 1;
-      }
-      setDueByDeck(counts);
+      setDueByDeck(due);
       setPageError(null);
     } catch (e) {
       setPageError(
@@ -144,11 +188,23 @@ export default function LibraryPage() {
     loadFolders();
   }, [loadDecks, loadFolders]);
 
+  // Nach dem Lernen am Handy standen die „N fällig"-Abzeichen im offenen
+  // Laptop-Tab weiter auf dem alten Stand (#610). Nur die Decks nachladen —
+  // die Ordner-Zählung macht eine Anfrage je Ordner und ändert sich beim
+  // Lernen nicht.
+  useRefreshOnFocus(loadDecks);
+
   useEffect(() => {
     if (!openMenu) return;
     const close = () => setOpenMenu(null);
+    // Escape schließt (Fokus zurück zum Auslöser), Pfeiltasten wandern (#613).
+    const onKey = (e: KeyboardEvent) => handleMenuKey(e, close);
     document.addEventListener("click", close);
-    return () => document.removeEventListener("click", close);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("click", close);
+      document.removeEventListener("keydown", onKey);
+    };
   }, [openMenu]);
 
   // Karten-Suche: entprellt (300 ms), damit nicht jeder Tastendruck eine
@@ -204,13 +260,14 @@ export default function LibraryPage() {
 
   const filteredFolders = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const sorted = [...folders].sort((a, b) => a.title.localeCompare(b.title, "de"));
+    // Reihenfolge ist umschaltbar (#612) — A–Z oder neueste zuerst.
+    const sorted = sortFolders(folders, folderSort);
     // Default view is a tree: show only the top level, you click into a folder
     // to see its subfolders. Searching lifts that — it reaches every folder at
     // any depth (with its path shown) so nothing nested becomes unfindable.
     if (!q) return sorted.filter((f) => !f.parentId);
     return sorted.filter((f) => f.title.toLowerCase().includes(q));
-  }, [folders, query]);
+  }, [folders, query, folderSort]);
 
   // Karten-Treffer über der Deck-Liste, wie im Deck-Tab der App: Überschrift
   // („Karten werden durchsucht…" bzw. „Karten · N Treffer"), darunter je Treffer
@@ -292,12 +349,23 @@ export default function LibraryPage() {
         <div>
           {/* „Bibliothek" wie der App-Bildschirm (library.title), nicht „Meine …" */}
           <h1>Bibliothek</h1>
-          <p className="muted" style={{ marginTop: 4 }}>
-            {/* Solange die Liste lädt, keine falsche „0 Decks" zeigen (#499) */}
+          <p
+            className="muted"
+            style={{
+              marginTop: 4,
+              // Am Anschlag warnfarben — die Zahl IST dann die Nachricht (#611).
+              ...(decksAtLimit && tab === "decks" ? { color: "var(--amber)" } : {}),
+            }}
+          >
+            {/* Solange die Liste lädt, keine falsche „0 Decks" zeigen (#499).
+                Ist die Grenze bekannt, steht statt der nackten Zahl der
+                Füllstand: „19 von 20 Decks belegt" (#611) — vorher erfuhr man
+                von der Grenze erst, wenn sie riss. */}
             {loading
               ? "Lädt…"
               : tab === "decks"
-                ? `${decks.length} ${decks.length === 1 ? "Deck" : "Decks"}`
+                ? (deckSlotsLabel ??
+                  `${decks.length} ${decks.length === 1 ? "Deck" : "Decks"}`)
                 : `${folders.length} ${folders.length === 1 ? "Ordner" : "Ordner"}`}
           </p>
         </div>
@@ -354,6 +422,7 @@ export default function LibraryPage() {
           <input
             className="input"
             placeholder="Suchen..."
+            aria-label="Suchen"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -376,6 +445,35 @@ export default function LibraryPage() {
             onCreate={() => setModal({ type: "createFolder" })}
           />
         ) : (
+          <>
+          {/* Reihenfolge umschalten (#612) — erst ab zwei Ordnern, darunter
+              gibt es nichts zu sortieren. */}
+          {folders.length > 1 && (
+            <div className="folder-sort" role="group" aria-label="Reihenfolge der Ordner">
+              <span className="folder-sort__icon" aria-hidden>
+                <ArrowsSort size={15} />
+              </span>
+              {(
+                [
+                  ["alpha", "A–Z"],
+                  ["recent", "Neueste"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={`folder-sort__chip${folderSort === value ? " active" : ""}`}
+                  aria-pressed={folderSort === value}
+                  onClick={() => {
+                    setFolderSort(value);
+                    saveFolderSort(value);
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="deck-grid">
             {filteredFolders.map((folder) => (
               <FolderCard
@@ -401,6 +499,7 @@ export default function LibraryPage() {
               />
             ))}
           </div>
+          </>
         )
       ) : filtered.length === 0 && !cardSection ? (
         <EmptyState hasDecks={decks.length > 0} onCreate={() => setModal({ type: "create" })} />
@@ -437,8 +536,10 @@ export default function LibraryPage() {
                 try {
                   await duplicateDeck(deck.id);
                   await loadDecks();
-                } catch {
-                  setPageError("Duplizieren fehlgeschlagen.");
+                } catch (e) {
+                  // An der Deck-Grenze sagt der Server, woran es liegt und ob
+                  // ein Upgrade hilft (#611) — „fehlgeschlagen" verschwieg das.
+                  setPageError(adviceForLimit(e) ?? "Duplizieren fehlgeschlagen.");
                 }
               }}
               onShare={async () => {
@@ -775,6 +876,7 @@ function DeckCard({
           type="button"
           className="icon-btn"
           aria-label="Deck-Optionen"
+          aria-haspopup="menu"
           aria-expanded={menuOpen}
           onClick={onToggleMenu}
         >
@@ -785,22 +887,22 @@ function DeckCard({
             <Link href={`/dashboard/deck/${deck.id}`} role="menuitem">
               <Play size={15} /> Lernen
             </Link>
-            <button type="button" onClick={onRename}>
+            <button type="button" role="menuitem" onClick={onRename}>
               <Pencil size={15} /> Umbenennen
             </button>
-            <button type="button" onClick={onSpeechLanguages}>
+            <button type="button" role="menuitem" onClick={onSpeechLanguages}>
               <Volume2 size={15} /> Sprache zum Vorlesen
             </button>
-            <button type="button" onClick={onAddToFolder}>
+            <button type="button" role="menuitem" onClick={onAddToFolder}>
               <FolderIcon size={15} /> Zu Ordner hinzufügen
             </button>
-            <button type="button" onClick={onDuplicate}>
+            <button type="button" role="menuitem" onClick={onDuplicate}>
               <Copy size={15} /> Duplizieren
             </button>
-            <button type="button" onClick={onShare}>
+            <button type="button" role="menuitem" onClick={onShare}>
               <Share size={15} /> Teilen
             </button>
-            <button type="button" className="danger" onClick={onDelete}>
+            <button type="button" role="menuitem" className="danger" onClick={onDelete}>
               <Trash size={15} /> Löschen
             </button>
           </div>
@@ -850,10 +952,20 @@ function AddToFolderModal({
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
   const sorted = useMemo(
     () => [...folders].sort((a, b) => a.title.localeCompare(b.title, "de")),
     [folders]
   );
+  // Gefiltert wird über den vollen Pfad ("Schule / Bio"), damit die Suche auch
+  // Unterordner über den Namen des Elternordners findet.
+  const shown = useMemo(() => {
+    const q = search.trim().toLocaleLowerCase("de");
+    if (!q) return sorted;
+    return sorted.filter((f) =>
+      [...folderPath(f, folders), f.title].join(" / ").toLocaleLowerCase("de").includes(q)
+    );
+  }, [sorted, folders, search]);
 
   return (
     <Modal title="Zu Ordner hinzufügen" onClose={onClose}>
@@ -868,8 +980,25 @@ function AddToFolderModal({
           </button>
         </>
       ) : (
-        <div style={{ display: "grid", gap: 8 }}>
-          {sorted.map((f) => {
+        <>
+        {sorted.length >= PICKER_SEARCH_THRESHOLD && (
+          <div className="input-icon">
+            <span aria-hidden>
+              <Search size={16} />
+            </span>
+            <input
+              className="input"
+              placeholder="Ordner suchen..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+        )}
+        {shown.length === 0 && (
+          <p className="muted">Kein Ordner passt zu deiner Suche.</p>
+        )}
+        <div className="modal__scroll" style={{ display: "grid", gap: 8 }}>
+          {shown.map((f) => {
             const path = folderPath(f, folders);
             return (
               <button
@@ -902,6 +1031,7 @@ function AddToFolderModal({
             );
           })}
         </div>
+        </>
       )}
       {error && (
         <div className="form-error" role="alert">
@@ -986,8 +1116,10 @@ function CreateOrRenameModal({
     setBusy(true);
     try {
       await onSubmit(value.trim());
-    } catch {
-      setError("Das hat nicht geklappt. Bitte versuche es erneut.");
+    } catch (e) {
+      // Bei erreichter Deck-Grenze hilft kein zweiter Versuch — dann steht
+      // hier der Klartext des Servers samt Ausweg (#611).
+      setError(adviceForLimit(e) ?? "Das hat nicht geklappt. Bitte versuche es erneut.");
       setBusy(false);
     }
   }

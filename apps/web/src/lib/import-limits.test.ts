@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   DECK_LIMIT_LABEL,
   OVERFLOW_CONFIRM_TITLE,
+  adviceForLimit,
+  deckSlotsSummary,
   deckLimitMessage,
   deckLimitNotice,
   deckOptionLabel,
@@ -35,6 +37,24 @@ describe("Deck-Grenze im Browser (#411)", () => {
 
   it("schweigt, solange noch Platz ist", () => {
     expect(deckLimitNotice(19, 20)).toBeNull();
+  });
+
+  describe("Füllstand der Bibliothek (#611)", () => {
+    it("nennt den Stand, lange bevor die Grenze reißt", () => {
+      // Der eigentliche Punkt: Bei 19 von 20 schweigt deckLimitNotice noch —
+      // hier steht der Stand trotzdem, damit die Grenze nicht überrascht.
+      expect(deckSlotsSummary(19, 20)).toBe("19 von 20 Decks belegt");
+      expect(deckSlotsSummary(3, 20)).toBe("3 von 20 Decks belegt");
+    });
+
+    it("sagt auch am Anschlag die Zahlen", () => {
+      expect(deckSlotsSummary(20, 20)).toBe("20 von 20 Decks belegt");
+    });
+
+    it("schweigt bei unbekannter Grenze und beim Laden", () => {
+      expect(deckSlotsSummary(19, undefined)).toBeNull();
+      expect(deckSlotsSummary(null, 20)).toBeNull();
+    });
   });
 
   it("benennt die Sperre so, wie sie über den Kacheln steht", () => {
@@ -204,5 +224,76 @@ describe("Grenz-Ablehnung statt „Lernpunkte kaufen“ (#371/#411)", () => {
     // Umkehr des früheren Tests: An der Deck-Grenze ist ein bestehendes Deck der
     // schnellere Weg — kein Löschen nötig, das Speichern läuft sofort weiter.
     expect(planLimitMessage({ code: "DECK_LIMIT_REACHED" })).toContain("bestehendes Deck");
+  });
+});
+
+describe("Klartext statt Bitte-versuche-es-erneut (#611)", () => {
+  it("reicht den Server-Satz durch — er kennt Tarif und Zahlen", () => {
+    expect(
+      adviceForLimit({
+        status: 409,
+        code: "DECK_LIMIT_REACHED",
+        message:
+          "Deck-Grenze erreicht: Dein Tarif erlaubt 20 Decks. Mit Pro hast du deutlich mehr Platz.",
+      })
+    ).toBe(
+      "Deck-Grenze erreicht: Dein Tarif erlaubt 20 Decks. Mit Pro hast du deutlich mehr Platz."
+    );
+  });
+
+  it("reicht auch den Pro-Rat durch, statt einen Kauf zu behaupten", () => {
+    // Wer schon Pro hat, dem hilft kein Kauf — der Server sagt das bereits,
+    // und genau dieser Halbsatz ging bisher verloren (#371).
+    const proText =
+      "Dieses Deck ist voll: Dein Tarif erlaubt 2000 Karten pro Deck. " +
+      "Leg für weitere Karten ein zweites Deck an.";
+    expect(adviceForLimit({ status: 409, code: "DECK_FULL", message: proText })).toBe(proText);
+  });
+
+  it("bleibt vom Import-Wortlaut getrennt", () => {
+    // planLimitMessage beruhigt „bleiben in der Vorschau" — außerhalb des
+    // Imports gibt es keine Vorschau, der Satz wäre schlicht falsch.
+    const advice = adviceForLimit({
+      status: 409,
+      code: "DECK_FULL",
+      message: "Dieses Deck ist voll: Dein Tarif erlaubt 150 Karten pro Deck.",
+    });
+    expect(advice).not.toContain("Vorschau");
+    expect(advice).not.toContain("zurückgebucht");
+  });
+
+  it("schweigt bei allem, was keine Tarifgrenze ist", () => {
+    // Dann bleibt der bildschirmeigene Satz stehen.
+    expect(
+      adviceForLimit({ status: 402, code: "INSUFFICIENT_LP", message: "Zu wenig LP" })
+    ).toBeNull();
+    expect(adviceForLimit({ status: 500, message: "Serverfehler" })).toBeNull();
+    expect(adviceForLimit(new Error("Netzwerk"))).toBeNull();
+    expect(adviceForLimit(null)).toBeNull();
+  });
+
+  it("geht NICHT über den Status — 409 heißt in dieser API auch anderes", () => {
+    expect(
+      adviceForLimit({ status: 409, code: "NO_INVITE", message: "Kein Einladungscode" })
+    ).toBeNull();
+  });
+
+  it("erfindet einen Satz, wenn der Server keinen mitschickt", () => {
+    expect(adviceForLimit({ status: 409, code: "DECK_FULL" })).toBe(
+      "Dieses Deck ist voll. Leg für weitere Karten ein zweites Deck an."
+    );
+    expect(adviceForLimit({ status: 409, code: "DECK_LIMIT_REACHED" })).toBe(
+      "Die Deck-Grenze deines Tarifs ist erreicht. Lösche ein Deck, um Platz zu schaffen."
+    );
+  });
+
+  it("zeigt niemals den technischen Platzhalter aus api.ts", () => {
+    // request() baut „API error 409", wenn der Server ohne Text antwortet.
+    expect(adviceForLimit({ status: 409, code: "DECK_FULL", message: "API error 409" })).toBe(
+      "Dieses Deck ist voll. Leg für weitere Karten ein zweites Deck an."
+    );
+    expect(adviceForLimit({ status: 409, code: "DECK_FULL", message: "   " })).toBe(
+      "Dieses Deck ist voll. Leg für weitere Karten ein zweites Deck an."
+    );
   });
 });

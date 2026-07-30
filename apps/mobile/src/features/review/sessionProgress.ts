@@ -36,7 +36,7 @@ export interface SessionProgress {
   index: number;
   /** Id of the card at `index` when it was saved — see isProgressUsable. */
   cardId: string;
-  /** Card source the session ran with ("all" | "starred" | "wobbly"). */
+  /** Card source the session ran with ("all" | "starred" | "wobbly" | "due"). */
   source: string;
   /** Whether the session asked back-to-front. */
   reverse: boolean;
@@ -50,6 +50,12 @@ export interface SessionProgress {
    * current sitting.
    */
   results?: Record<string, StoredCardResult>;
+  /**
+   * When this entry was written (ISO). Only needed to weigh it against the
+   * account-side entry — the newer one wins (#610). Optional: markers from
+   * before this field count as older than any stamped one, which is true.
+   */
+  savedAt?: string;
 }
 
 /** Keep only entries shaped like a result; a corrupt map must not kill the bookmark. */
@@ -86,7 +92,16 @@ export function parseSessionProgress(raw: string | null): SessionProgress | null
     // An index at or past the end is a finished session, not a resumable one.
     if (index >= total) return null;
     const results = parseStoredResults(value.results);
-    return { index, cardId, source, reverse: reverse === true, total, ...(results ? { results } : {}) };
+    const savedAt = typeof value.savedAt === "string" && value.savedAt ? value.savedAt : undefined;
+    return {
+      index,
+      cardId,
+      source,
+      reverse: reverse === true,
+      total,
+      ...(results ? { results } : {}),
+      ...(savedAt ? { savedAt } : {}),
+    };
   } catch {
     return null;
   }
@@ -121,7 +136,9 @@ export async function saveSessionProgress(
   progress: SessionProgress
 ): Promise<void> {
   try {
-    await AsyncStorage.setItem(storageKey(deckId, mode), JSON.stringify(progress));
+    // Stamp on write so the local and account entries can be compared (#610).
+    const stamped: SessionProgress = { ...progress, savedAt: new Date().toISOString() };
+    await AsyncStorage.setItem(storageKey(deckId, mode), JSON.stringify(stamped));
   } catch {
     // Best-effort — losing the marker costs a resume offer, never a rating.
   }

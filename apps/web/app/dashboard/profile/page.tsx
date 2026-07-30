@@ -43,10 +43,13 @@ const THEME_OPTIONS: { value: ThemeChoice; label: string }[] = [
   { value: "dark", label: "Dunkel" },
   { value: "system", label: "System" },
 ];
-const GENDER_OPTIONS: { value: Gender; label: string }[] = [
+// Gleiche vier Optionen wie die Registrierung (#609); „Sag ich nicht" bekommt
+// wegen der längeren Beschriftung eine eigene Zeile.
+const GENDER_OPTIONS: { value: Gender; label: string; wide?: boolean }[] = [
   { value: "female", label: "Weiblich" },
   { value: "male", label: "Männlich" },
   { value: "diverse", label: "Divers" },
+  { value: "prefer_not_to_say", label: "Sag ich nicht", wide: true },
 ];
 
 export default function ProfilePage() {
@@ -253,12 +256,14 @@ export default function ProfilePage() {
                 {genderErr ?? "So nennt dich clearn bei deinen Freunden"}
               </span>
             </div>
-            <div className="seg" role="group" aria-label="Geschlecht">
+            <div className="seg seg--wrap" role="group" aria-label="Geschlecht">
               {GENDER_OPTIONS.map((opt) => (
                 <button
                   key={opt.value}
                   type="button"
-                  className={`seg__btn${gender === opt.value ? " is-on" : ""}`}
+                  className={`seg__btn${opt.wide ? " seg__btn--row" : ""}${
+                    gender === opt.value ? " is-on" : ""
+                  }`}
                   aria-pressed={gender === opt.value}
                   onClick={() => chooseGender(opt.value)}
                   disabled={genderBusy}

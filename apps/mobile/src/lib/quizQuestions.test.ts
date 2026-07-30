@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generateQuestions, type QuizCardInput, type QuizCopy } from "./quizQuestions";
+import { countQuizableCards, generateQuestions, type QuizCardInput, type QuizCopy } from "./quizQuestions";
 
 // Deterministic PRNG so the generation is reproducible in tests.
 function seeded(seed: number): () => number {
@@ -436,5 +436,37 @@ describe("quizQuestions — image cards never print raw markdown (#592)", () => 
         expect(q.options).not.toContain("auch halb leer");
       }
     }
+  });
+});
+
+describe("countQuizableCards — dieselbe Regel wie die Fragen-Erzeugung (#612)", () => {
+  it("zählt Karten mit beiden Seiten; einseitige fallen raus", () => {
+    const cards: QuizCardInput[] = [
+      { id: "a", front: "la courbe", back: "die Kurve" },
+      { id: "b", front: "Nur Vorderseite", back: "" },
+      { id: "c", front: "   ", back: "nur Rückseite" },
+    ];
+    expect(countQuizableCards(cards)).toBe(1);
+  });
+
+  it("zählt Doppel-Scans nur einmal — wie die Erzeugung sie dedupliziert", () => {
+    const cards: QuizCardInput[] = [
+      { id: "a", front: "la courbe", back: "die Kurve" },
+      { id: "a2", front: "la courbe", back: "die Kurve" },
+      { id: "b", front: "le tableau", back: "die Tabelle" },
+    ];
+    // Die alte Setup-Zählung prüfte nur rohen Text: "Alle (3)" versprach eine
+    // Frage mehr, als die Erzeugung liefern kann.
+    expect(countQuizableCards(cards)).toBe(2);
+  });
+
+  it("zählt ein Bild als Seite — wie die Bild-Fragen der Erzeugung", () => {
+    const cards: QuizCardInput[] = [
+      { id: "i1", front: "![Zellkern](https://example.com/zelle.png)", back: "Zellkern" },
+      { id: "a", front: "la courbe", back: "die Kurve" },
+    ];
+    // Die alte Text-Prüfung liess die Bild-Karte im Zähler fehlen, obwohl die
+    // Erzeugung aus ihr eine Frage baut.
+    expect(countQuizableCards(cards)).toBe(2);
   });
 });

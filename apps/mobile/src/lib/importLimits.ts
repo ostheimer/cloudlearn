@@ -91,6 +91,27 @@ export function deckOverflowWarning(freeSlots: number | null, cardCount: number)
 }
 
 /**
+ * Füllstand der Bibliothek: „19 von 20 Decks belegt" — oder `null`, wenn nichts
+ * zu sagen ist (#611).
+ *
+ * Die Grenze war bisher unsichtbar, bis man sie riss: Der Endpunkt liefert
+ * `usage.limits` seit #411 mit, nur fragte keine Bibliothek sie ab. Wer beim
+ * 20. Deck „Deck-Grenze erreicht" liest, hat vorher nie erfahren, dass es
+ * überhaupt eine gibt.
+ *
+ * `null` bei unbekannter Grenze (#603) und solange die Deckliste lädt.
+ *
+ * Wortgleich mit `deckSlotsSummary` in apps/web/src/lib/import-limits.ts.
+ */
+export function deckSlotsSummary(
+  deckCount: number | null,
+  maxDecks: number | null
+): string | null {
+  if (deckCount === null || typeof maxDecks !== "number") return null;
+  return `${deckCount} von ${maxDecks} Decks belegt`;
+}
+
+/**
  * Beschriftung eines Decks in der Auswahl: „Biologie (12 Plätze frei)".
  * Bei unbekannter Grenze (`null`, #603) steht nur der Titel — wie
  * `deckOptionLabel` im Web.
@@ -101,6 +122,20 @@ export function deckSlotsLabel(title: string, freeSlots: number | null): string 
   if (freeSlots === 1) return `${title} (1 Platz frei)`;
   if (freeSlots < NEARLY_FULL_THRESHOLD) return `${title} (${freeSlots} Plätze frei)`;
   return title;
+}
+
+/**
+ * Platz-Hinweis für die Untertitel-Zeile des Scan-Ziel-Pickers (#612) — die
+ * gleiche Staffel wie deckSlotsLabel, nur ohne den Titel davor: erst kurz vor
+ * voll (NEARLY_FULL_THRESHOLD) gibt es überhaupt einen Hinweis, `null` heisst
+ * „nichts anzeigen" (auch bei unbekannter Grenze, #603).
+ */
+export function deckSlotsHint(freeSlots: number | null): string | null {
+  if (freeSlots === null) return null;
+  if (freeSlots <= 0) return "voll — kein Platz mehr";
+  if (freeSlots === 1) return "1 Platz frei";
+  if (freeSlots < NEARLY_FULL_THRESHOLD) return `${freeSlots} Plätze frei`;
+  return null;
 }
 
 /**
@@ -151,9 +186,54 @@ export function selectEvenlySpread<T>(items: T[], keep: number): T[] {
   return picked;
 }
 
+/** Die drei Preise, die der Scan-Bildschirm kennt (aus /usage). */
+export interface ScanSourceCosts {
+  aiScan: number;
+  urlImport: number;
+  pdfImport: number;
+}
+
+export interface ScanAffordability {
+  /** Foto, Galerie und Text — alle drei kosten `aiScan`. */
+  aiScan: boolean;
+  urlImport: boolean;
+  pdfImport: boolean;
+  /** Der günstigste Weg. Reicht es dafür nicht, geht gar nichts. */
+  cheapest: number;
+  /** Ist überhaupt eine Quelle bezahlbar? */
+  anyAffordable: boolean;
+}
+
+/**
+ * Welche Scan-Quellen sind mit diesem Guthaben bezahlbar? (#611)
+ *
+ * Der Warnstreifen prüfte nur gegen `lpCostAiScan` — den GÜNSTIGSTEN Preis. Bei
+ * 12 LP erschien also keine Warnung, obwohl URL (15) und PDF (20) unbezahlbar
+ * waren; wer PDF antippte, wählte eine Datei, wartete auf den Upload und bekam
+ * dann 402. Das Web rechnet längst je Modus (`enoughLp` in dashboard/import).
+ *
+ * Bewusst eine Funktion und keine drei Vergleiche im Bildschirm: Genau das
+ * Auseinanderfallen von „ein Preis geprüft, drei Preise angeboten" war der
+ * Fehler.
+ */
+export function affordableScanSources(
+  balance: number,
+  costs: ScanSourceCosts
+): ScanAffordability {
+  const cheapest = Math.min(costs.aiScan, costs.urlImport, costs.pdfImport);
+  return {
+    aiScan: balance >= costs.aiScan,
+    urlImport: balance >= costs.urlImport,
+    pdfImport: balance >= costs.pdfImport,
+    cheapest,
+    anyAffordable: balance >= cheapest,
+  };
+}
+
 interface ErrorLike {
   status?: number;
   code?: string;
+  message?: string;
 }
 
 function asErrorLike(error: unknown): ErrorLike {
@@ -162,6 +242,7 @@ function asErrorLike(error: unknown): ErrorLike {
   return {
     ...(typeof candidate.status === "number" ? { status: candidate.status } : {}),
     ...(typeof candidate.code === "string" ? { code: candidate.code } : {}),
+    ...(typeof candidate.message === "string" ? { message: candidate.message } : {}),
   };
 }
 
@@ -186,4 +267,53 @@ export function shouldOpenLpModal(error: unknown): boolean {
   if (code === "INSUFFICIENT_LP") return true;
   if (code === "PAYWALL_REQUIRED") return false;
   return status === 402;
+}
+
+/**
+ * Brauchbarer Server-Text — oder `null`, wenn nur ein Platzhalter ankam.
+ *
+ * `request()` in api.ts setzt „API error 409", wenn der Server gar keinen Text
+ * mitschickt. Der darf niemals als Erklärung durchgereicht werden.
+ */
+function usableServerMessage(message: string | undefined): string | null {
+  if (!message) return null;
+  const trimmed = message.trim();
+  if (!trimmed) return null;
+  if (/^API error \d+$/i.test(trimmed)) return null;
+  return trimmed;
+}
+
+/**
+ * Der Satz zu einer Grenz-Ablehnung AUSSERHALB des Imports — oder `null`, wenn
+ * der Fehler keine Tarifgrenze ist (dann bleibt der Satz des Bildschirms).
+ *
+ * Genau der Helfer, den der Kommentar in `src/lib/api.ts` seit #371 versprach
+ * („ob dort ein Kauf hilft, entscheidet der Bildschirm über adviceForLimit()")
+ * und den nie jemand gebaut hat. Bis #611 fingen Duplizieren, Übernehmen und
+ * Karte-von-Hand den Fehler blind ab: „Übernehmen fehlgeschlagen. Bitte versuch
+ * es nochmal." forderte an der Deck-Grenze zu einer Endlosschleife auf.
+ *
+ * Die Tarif-Beratung leistet der Server längst selbst („Mit Pro hast du
+ * deutlich mehr Platz." für Free, „lösche ein Deck, um Platz zu schaffen." für
+ * Pro — `assertDeckLimit`/`assertCardLimit` in apps/api/src/lib/limits.ts). Der
+ * Text wird deshalb durchgereicht statt neu erfunden: Er nennt die echten
+ * Zahlen des Tarifs und ist auf Deutsch, weil der Server ihn bewusst für alte
+ * App-Builds übersetzt liefert.
+ *
+ * Wichtig: Geprüft wird NUR der Code — anders als `isPlanLimitError`, das für
+ * die Scan-Ansicht zusätzlich jeden 409 nimmt. Das ist dort zulässig, weil sie
+ * ausschließlich Import-Endpunkte aufruft; Deck-Detail und geteiltes Deck rufen
+ * viele andere auf, und 409 steht in dieser API auch für NO_INVITE,
+ * ALREADY_REFERRED und den Streak-Schutz.
+ */
+export function adviceForLimit(error: unknown): string | null {
+  const { code, message } = asErrorLike(error);
+  if (code !== "DECK_LIMIT_REACHED" && code !== "DECK_FULL") return null;
+  const fromServer = usableServerMessage(message);
+  if (fromServer) return fromServer;
+  // Nur für den Fall, dass der Server schweigt: ohne Zahlen, weil der Client
+  // die Tarifgrenzen an dieser Stelle nicht zwingend kennt.
+  return code === "DECK_LIMIT_REACHED"
+    ? "Die Deck-Grenze deines Tarifs ist erreicht. Lösche ein Deck, um Platz zu schaffen."
+    : "Dieses Deck ist voll. Leg für weitere Karten ein zweites Deck an.";
 }

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getSupabase } from "@/lib/supabase-browser";
+import { toGermanAuthError } from "@/lib/auth-errors";
 import { AlertTriangle } from "@/components/icons";
 
 /**
@@ -23,10 +24,9 @@ export default function AuthCallbackPage() {
     const get = (key: string) => query.get(key) ?? hash.get(key);
 
     if (get("error") || get("error_code")) {
-      setError(
-        get("error_description") ??
-          "Die Anmeldung ist fehlgeschlagen. Bitte versuche es erneut."
-      );
+      // Supabase liefert die Beschreibung englisch ("Email link is invalid or
+      // has expired") — durch die vorhandene Übersetzung schicken (#609).
+      setError(toGermanAuthError(get("error_description")));
       return;
     }
 

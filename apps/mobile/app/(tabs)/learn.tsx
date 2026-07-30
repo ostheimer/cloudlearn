@@ -64,15 +64,20 @@ import {
   type SpeechLanguage,
 } from "../../src/lib/speechLanguages";
 import { formatCloze } from "../../src/lib/cloze";
+import { groupCardsByDeck } from "../../src/lib/groupByDeck";
 import { setLastUsedDeck } from "../../src/lib/lastUsedDeck";
 import { useDisplayName } from "../../src/lib/useDisplayName";
 import { useUsageStore } from "../../src/store/usageStore";
 import { excludeOcclusionCards } from "../../src/lib/occlusion";
 import {
-  clearSessionProgress,
   saveSessionProgress,
+  type SessionProgress,
   type StoredCardResult,
 } from "../../src/features/review/sessionProgress";
+import {
+  clearProgressEverywhere,
+  pushProgressToAccount,
+} from "../../src/features/review/sessionProgressSync";
 import { summarizeCardMedia } from "../../src/lib/cardMedia";
 import { cleanTerm } from "../../src/lib/cardTerms";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
@@ -85,6 +90,7 @@ import {
   useOfflineQueueStore,
 } from "../../src/features/sync/offlineQueueStore";
 import { AuthPromptCard } from "../../src/components/AuthPromptCard";
+import { LpRoundSummary } from "../../src/components/LpRoundSummary";
 import { shouldRetryLater } from "../../src/features/sync/sendReview";
 import {
   filterBySource,
@@ -362,10 +368,14 @@ function AuthenticatedLearnScreen({
       const fetched = excludeOcclusionCards(raw);
       // Deck setup may restrict the session to a chosen source (all / starred /
       // wobbly). The global tab (no deckId/source) always studies the full pile.
-      const loaded =
+      // Global mode runs deck by deck instead of shuffled across decks (#609,
+      // Laras Entscheidung gegen das Vermischen) — the card faces show the
+      // deck name so the learner always knows which deck they are in.
+      const filtered =
         deckId && source
           ? filterBySource(fetched, source, new Set(wobblyIds ?? []))
           : fetched;
+      const loaded = deckId ? filtered : groupCardsByDeck(filtered);
       if (loaded.length > 0) {
         const starMap: Record<string, boolean> = {};
         loaded.forEach((card) => { starMap[card.id] = card.starred ?? false; });
@@ -405,7 +415,9 @@ function AuthenticatedLearnScreen({
   useEffect(() => {
     if (!deckId || !source || cards.length === 0) return;
     if (completed) {
-      void clearSessionProgress(deckId, "flashcards");
+      // Auch im Konto löschen (#610) — sonst böte das andere Gerät eine Runde
+      // an, die hier längst fertig ist.
+      void clearProgressEverywhere(deckId, "flashcards");
       return;
     }
     const current = cards[index];
@@ -423,6 +435,30 @@ function AuthenticatedLearnScreen({
       ...(Object.keys(results).length > 0 ? { results } : {}),
     });
   }, [deckId, source, cards, index, completed, showBackFirst, history, ratingHistory]);
+
+  // Beim Verlassen der Runde den Stand ins Konto schreiben (#610). Bewusst
+  // NICHT bei jedem Kartenwechsel: Das wäre eine Anfrage je Karte. Der Ref
+  // trägt den jeweils aktuellen Stand, damit der Effekt nur einmal eingehängt
+  // werden muss und beim Abbau den letzten Stand sieht.
+  const accountPushRef = useRef<SessionProgress | null>(null);
+  const currentCard = cards[index];
+  accountPushRef.current =
+    deckId && source && !completed && currentCard
+      ? {
+          index,
+          cardId: currentCard.id,
+          source,
+          reverse: showBackFirst,
+          total: cards.length,
+        }
+      : null;
+  useEffect(() => {
+    if (!deckId) return;
+    return () => {
+      const pending = accountPushRef.current;
+      if (pending) void pushProgressToAccount(deckId, "flashcards", pending);
+    };
+  }, [deckId]);
 
   // The review session store is module-global, so a fresh screen can inherit
   // cards from a previous session. Reload whenever the source changes (a
@@ -566,19 +602,26 @@ function AuthenticatedLearnScreen({
   const [deckLangs, setDeckLangs] = useState<
     Record<string, { front: SpeechLanguage; back: SpeechLanguage }>
   >({});
+  // Deck-Titel für die kleine Beschriftung auf der Karte (#609): Die globale
+  // Runde läuft Deck für Deck, und jede Karte sagt, zu welchem Deck sie
+  // gehört — Laras Bedingung gegen das Vermischen.
+  const [deckTitles, setDeckTitles] = useState<Record<string, string>>({});
   useEffect(() => {
     let cancelled = false;
     listDecks(userId)
       .then(({ decks }) => {
         if (cancelled) return;
         const map: Record<string, { front: SpeechLanguage; back: SpeechLanguage }> = {};
+        const titles: Record<string, string> = {};
         for (const d of decks) {
           map[d.id] = {
             front: toSpeechLanguage(d.speechLangFront),
             back: toSpeechLanguage(d.speechLangBack),
           };
+          titles[d.id] = d.title;
         }
         setDeckLangs(map);
+        setDeckTitles(titles);
       })
       .catch(() => {
         /* Ohne Zuordnung bleibt es bei Deutsch — Vorlesen muss trotzdem gehen */
@@ -610,6 +653,9 @@ function AuthenticatedLearnScreen({
 
   const deductLp = useUsageStore((s) => s.deductLp);
   const setUsage = useUsageStore((s) => s.setUsage);
+  // Punkte-Rückmeldung der Runde (#611): Zahlen kommen aus der Server-Antwort.
+  const [earnedLp, setEarnedLp] = useState(0);
+  const [earnCapReached, setEarnCapReached] = useState(false);
   const {
     toast: milestoneToast,
     celebration: milestoneCelebration,
@@ -642,7 +688,9 @@ function AuthenticatedLearnScreen({
             const result = await earnLp("session", reviewedCount);
             if (result.granted > 0) {
               setUsage({ lpBalance: result.newBalance });
+              setEarnedLp(result.granted);
             }
+            setEarnCapReached(result.capReached);
             if (isSessionEarnFinalized(result, reviewedCount)) {
               state.finalized = true;
               break;
@@ -678,11 +726,50 @@ function AuthenticatedLearnScreen({
     }, [reviewBuffer, sendReview, awardSession]),
   );
 
+  /**
+   * Eine Folgerunde vom Ergebnis-Bildschirm aus (#611).
+   *
+   * Seit die Runde BEI FERTIG abrechnet, steht `finalized` auf true, sobald das
+   * Ergebnis erscheint. „Nur die nicht gewussten" und „Alle nochmal" starten
+   * direkt aus diesem Bildschirm, also ohne neuen Fokus — ohne diese Klammer
+   * liefen alle Folgerunden dauerhaft ohne Punkte.
+   *
+   * Reihenfolge wie in cloze.startRound: erst die vorige Gutschrift zu Ende
+   * laufen lassen, dann entschärfen. Andernfalls setzt der noch laufende Lauf
+   * `finalized` wieder auf true, NACHDEM wir es zurückgesetzt haben.
+   */
+  const rearmForNextRound = useCallback(async () => {
+    await awardSession(
+      getSessionReviewedCount(sessionReviewsRef.current, pendingReviewsRef.current.length),
+    );
+    awardStateRef.current.finalized = false;
+    pendingReviewsRef.current = [];
+    sessionReviewsRef.current = 0;
+    // Die Punkte-Anzeige gehört zur alten Runde — stehenbleiben würde für die
+    // neue eine Gutschrift behaupten, die noch nicht erfolgt ist.
+    setEarnedLp(0);
+    setEarnCapReached(false);
+  }, [awardSession]);
+
   // Milestone + streak rewards still fire when a session is fully completed.
   useEffect(() => {
     if (!completed || cards.length === 0 || !userId) return;
 
     const handleSessionComplete = async () => {
+      // Punkte JETZT abrechnen, nicht erst beim Verlassen (#611, Web-Vorbild
+      // learn-session.tsx). Vorher lief die Gutschrift ausschließlich im
+      // Blur-Cleanup: Das Ergebnis konnte deshalb gar nichts über Punkte sagen,
+      // und wer 20 Karten gelernt hatte, erfuhr nie, ob der Tagesdeckel griff.
+      //
+      // Der Puffer ist hier schon geleert: `handleRate` flusht die letzte
+      // Bewertung, sobald die Runde fertig ist (die letzte Karte hat kein
+      // „danach", das den Puffer freigäbe). Der Blur-Cleanup rechnet weiterhin
+      // ab — `beginSessionAward` verhindert die Doppel-Gutschrift, sobald
+      // dieser Lauf `finalized` gesetzt hat.
+      await awardSession(
+        getSessionReviewedCount(sessionReviewsRef.current, pendingReviewsRef.current.length),
+      );
+
       // Claim first_review milestone (idempotent – only fires once ever)
       claimOnceMilestone("first_review").catch(() => {});
 
@@ -811,6 +898,10 @@ function AuthenticatedLearnScreen({
   // zuerst gesprochen werden. Ohne diese Drehung läse die App bei getauschter
   // Richtung jede Seite in der Sprache der jeweils anderen vor.
   const cardLangs = current?.deckId ? deckLangs[current.deckId] : undefined;
+  // Deck-Name auf der Karte nur im globalen Modus (#609) — beim Ein-Deck-
+  // Lernen nennt die Kopfzeile das Deck bereits.
+  const currentDeckTitle =
+    !deckId && current?.deckId ? deckTitles[current.deckId] : undefined;
   const frontSideLang: SpeechLanguage = showBackFirst
     ? (cardLangs?.back ?? DEFAULT_SPEECH_LANGUAGE)
     : (cardLangs?.front ?? DEFAULT_SPEECH_LANGUAGE);
@@ -962,20 +1053,48 @@ function AuthenticatedLearnScreen({
                 <Text style={{ color: c.textSecondary, textAlign: "center", fontSize: typography.base }}>
                   {t("review.noCardsHint")}
                 </Text>
-                <TouchableOpacity
-                  onPress={loadDueCards}
-                  activeOpacity={0.8}
-                  style={{
-                    backgroundColor: c.primary, borderRadius: radius.md,
-                    paddingHorizontal: spacing.xxl, paddingVertical: 14,
-                    flexDirection: "row", gap: spacing.sm, alignItems: "center",
-                  }}
-                >
-                  <RotateCcw size={18} color="#fff" />
-                  <Text style={{ color: "#fff", fontWeight: typography.semibold, fontSize: typography.base }}>
-                    {t("review.reload")}
-                  </Text>
-                </TouchableOpacity>
+                {/* Auswege statt Sackgasse (#609): Der Hinweis riet zum Scannen,
+                    aber es gab keinen Knopf dorthin — nur "Neu laden". */}
+                <View style={{ width: "100%", maxWidth: 340, gap: spacing.sm }}>
+                  <TouchableOpacity
+                    onPress={() => router.push("/(tabs)/scan")}
+                    activeOpacity={0.8}
+                    style={{
+                      backgroundColor: c.primary, borderRadius: radius.md,
+                      paddingVertical: 14, alignItems: "center", justifyContent: "center",
+                    }}
+                  >
+                    <Text style={{ color: "#fff", fontWeight: typography.semibold, fontSize: typography.base }}>
+                      {t("review.emptyScan")}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => router.push("/(tabs)/decks")}
+                    activeOpacity={0.8}
+                    style={{
+                      backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
+                      borderRadius: radius.md, paddingVertical: 14,
+                      alignItems: "center", justifyContent: "center",
+                    }}
+                  >
+                    <Text style={{ color: c.text, fontWeight: typography.semibold, fontSize: typography.base }}>
+                      {t("review.emptyLibrary")}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={loadDueCards}
+                    activeOpacity={0.8}
+                    style={{
+                      paddingVertical: 12, flexDirection: "row", gap: spacing.sm,
+                      alignItems: "center", justifyContent: "center",
+                    }}
+                  >
+                    <RotateCcw size={16} color={c.textSecondary} />
+                    <Text style={{ color: c.textSecondary, fontWeight: typography.semibold, fontSize: typography.base }}>
+                      {t("review.reload")}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             ) : (
               // Result: how many known + re-study only the missed ones. Same
@@ -998,10 +1117,20 @@ function AuthenticatedLearnScreen({
                     ? t("review.resultBodyOne", { known: knownCount })
                     : t("review.resultBody", { total: resultTotal, known: knownCount })}
                 </Text>
+                {/* Punkte-Rückmeldung (#611). Vorher rechnete dieser Bildschirm
+                    erst beim VERLASSEN ab — hier konnte also gar nichts stehen,
+                    und wer 20 Karten gelernt hatte, erfuhr nie, ob und warum
+                    Punkte ausblieben. */}
+                <LpRoundSummary earned={earnedLp} capReached={earnCapReached} />
                 <View style={{ width: "100%", maxWidth: 340, gap: spacing.sm, marginTop: spacing.sm }}>
                   {missedCards.length > 0 && (
                     <TouchableOpacity
-                      onPress={() => start(missedCards)}
+                      onPress={() => {
+                        void (async () => {
+                          await rearmForNextRound();
+                          start(missedCards);
+                        })();
+                      }}
                       activeOpacity={0.85}
                       style={{
                         backgroundColor: c.primary, borderRadius: radius.md, paddingVertical: 14,
@@ -1014,7 +1143,12 @@ function AuthenticatedLearnScreen({
                     </TouchableOpacity>
                   )}
                   <TouchableOpacity
-                    onPress={loadDueCards}
+                    onPress={() => {
+                      void (async () => {
+                        await rearmForNextRound();
+                        await loadDueCards();
+                      })();
+                    }}
                     activeOpacity={0.85}
                     style={{
                       backgroundColor: missedCards.length > 0 ? c.surface : c.primary,
@@ -1133,6 +1267,19 @@ function AuthenticatedLearnScreen({
                         },
                       ]}
                     >
+                      {/* Deck-Name klein am oberen Rand — nur globale Runde (#609) */}
+                      {currentDeckTitle ? (
+                        <Text
+                          numberOfLines={1}
+                          style={{
+                            position: "absolute", top: spacing.lg, left: spacing.xl, right: spacing.xl,
+                            textAlign: "center", fontSize: typography.xs,
+                            fontWeight: typography.semibold, color: c.textTertiary,
+                          }}
+                        >
+                          {currentDeckTitle}
+                        </Text>
+                      ) : null}
                       {/* Text content fades out on swipe */}
                       <Animated.View style={[cardTextOpacity, { alignItems: "center", gap: spacing.md }]}>
                         {frontImage ? (
@@ -1173,6 +1320,19 @@ function AuthenticatedLearnScreen({
                         },
                       ]}
                     >
+                      {/* Deck-Name klein am oberen Rand — nur globale Runde (#609) */}
+                      {currentDeckTitle ? (
+                        <Text
+                          numberOfLines={1}
+                          style={{
+                            position: "absolute", top: spacing.lg, left: spacing.xl, right: spacing.xl,
+                            textAlign: "center", fontSize: typography.xs,
+                            fontWeight: typography.semibold, color: c.textTertiary,
+                          }}
+                        >
+                          {currentDeckTitle}
+                        </Text>
+                      ) : null}
                       {/* Text content fades out on swipe */}
                       <Animated.View style={[cardTextOpacity, { alignItems: "center", gap: spacing.md }]}>
                         {backImage ? (

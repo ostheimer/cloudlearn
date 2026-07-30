@@ -31,6 +31,7 @@ import { useUsageStore } from "../src/store/usageStore";
 import { excludeOcclusionCards } from "../src/lib/occlusion";
 import { matchTileTexts } from "../src/lib/cardDisplay";
 import { fetchDeckStats } from "../src/lib/statsApi";
+import { LpRoundSummary } from "../src/components/LpRoundSummary";
 import {
   loadSetup,
   resolveSource,
@@ -40,6 +41,7 @@ import {
 import {
   CardSourcePicker,
   filterBySource,
+  isCardDue,
   type CardSource,
 } from "../src/components/cardSourcePicker";
 import { useColors, spacing, radius, typography, shadows } from "../src/theme";
@@ -104,6 +106,7 @@ export default function MatchScreen() {
   // The chosen source; matching needs at least two cards from it.
   const starredCount = cards.filter((c) => c.starred).length;
   const wobblyCount = cards.filter((c) => wobblyIds.has(c.id)).length;
+  const dueCount = cards.filter((c) => isCardDue(c)).length;
   const pool = filterBySource(cards, source, wobblyIds);
   // Spielbar sind nur Karten, deren beide Seiten nach der Aufbereitung (#592)
   // Text haben — wie im Web: reine Bild-Karten ohne Beschriftung ergeben
@@ -120,6 +123,8 @@ export default function MatchScreen() {
   const [missedIds, setMissedIds] = useState<Set<string>>(new Set());
   // Punkte der Runde — Zahl aus der SERVER-Antwort, nie selbst gerechnet.
   const [earnedLp, setEarnedLp] = useState(0);
+  // Tagesdeckel des Servers (#611) — kam bisher an und wurde verworfen.
+  const [earnCapReached, setEarnCapReached] = useState(false);
   // Verhindert doppeltes Abrechnen: der Abschluss-Effekt kann mehrfach feuern.
   const awardedRef = useRef(false);
   const [elapsed, setElapsed] = useState(0);
@@ -182,14 +187,20 @@ export default function MatchScreen() {
     if (setupRestoredRef.current || loading || storedSetup === undefined) return;
     if (phase !== "setup") return;
     setupRestoredRef.current = true;
-    if (!storedSetup) return;
-    if (storedSetup.timed !== undefined) setTimed(storedSetup.timed);
-    const wanted = resolveSource(storedSetup.source, {
-      starred: starredCount,
-      wobbly: wobblyCount,
-    });
+    // Zuordnen braucht 2 Paare — eine Quelle mit weniger darf nie vorbelegt
+    // werden, sonst steht man vor gesperrtem Start.
+    const usable = (n: number) => (n >= 2 ? n : 0);
+    const counts = {
+      starred: usable(starredCount),
+      wobbly: usable(wobblyCount),
+      due: usable(dueCount),
+    };
+    if (storedSetup?.timed !== undefined) setTimed(storedSetup.timed);
+    const wanted = resolveSource(storedSetup?.source, counts);
     if (wanted) setSource(wanted);
-  }, [loading, storedSetup, phase, starredCount, wobblyCount]);
+    // Ohne gemerkte Wahl ist das Tagespensum die Voreinstellung (#610).
+    else if (!storedSetup?.source && counts.due > 0) setSource("due");
+  }, [loading, storedSetup, phase, starredCount, wobblyCount, dueCount]);
 
   const startGame = (allCards: Card[], withTimer: boolean) => {
     // Beim Start die Wahl für dieses Deck merken (#610).
@@ -235,6 +246,7 @@ export default function MatchScreen() {
     // keine weiteren Punkte — die alte Zahl stehen zu lassen wäre gelogen.
     awardedRef.current = false;
     setEarnedLp(0);
+    setEarnCapReached(false);
     setPhase("playing");
 
     // The stopwatch only runs in timed (Challenge) mode.
@@ -304,6 +316,9 @@ export default function MatchScreen() {
             }
           );
           setEarnedLp(result.granted);
+          // capReached kam schon immer bis hierher (rateModeRound reicht es
+          // durch) und wurde weggeworfen (#611).
+          setEarnCapReached(result.capReached);
         })();
       }
     }
@@ -610,6 +625,7 @@ export default function MatchScreen() {
                 allCount={cards.length}
                 starredCount={starredCount}
                 wobblyCount={wobblyCount}
+                dueCount={dueCount}
               />
               {source !== "all" && playable.length < 2 && (
                 <Text style={{ fontSize: typography.xs, color: colors.error }}>
@@ -723,33 +739,10 @@ export default function MatchScreen() {
               </View>
             )}
 
-            {/* Nur zeigen, wenn wirklich Punkte kamen. Eine zweite Runde mit
-                denselben Karten am selben Tag bringt keine — dann steht hier
-                nichts, statt „+0 Lernpunkte" zu behaupten. */}
-            {earnedLp > 0 && (
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: spacing.xs,
-                  backgroundColor: colors.successLight,
-                  paddingVertical: spacing.xs,
-                  paddingHorizontal: spacing.md,
-                  borderRadius: radius.full ?? 999,
-                }}
-              >
-                <Zap size={15} color={colors.success} />
-                <Text
-                  style={{
-                    fontSize: typography.sm,
-                    fontWeight: typography.semibold,
-                    color: colors.success,
-                  }}
-                >
-                  +{earnedLp} Lernpunkte
-                </Text>
-              </View>
-            )}
+            {/* Punkte-Rückmeldung, seit #611 geteilt: „+0 Lernpunkte" wird
+                weiterhin nicht behauptet — aber wenn der Tagesdeckel der Grund
+                ist, steht das jetzt da. */}
+            <LpRoundSummary earned={earnedLp} capReached={earnCapReached} />
 
             <View style={{ flexDirection: "row", gap: spacing.sm }}>
               {[0, 1, 2].map((i) => (

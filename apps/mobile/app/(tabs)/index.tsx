@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
 import {
   BookOpen,
   ScanLine,
@@ -25,8 +26,15 @@ import {
   Users,
 } from "lucide-react-native";
 import { useSessionStore } from "../../src/store/sessionStore";
+import { useUsageStore } from "../../src/store/usageStore";
+import {
+  canAffordStreakRepair,
+  streakRepairBannerLine,
+  streakRepairPrompt,
+} from "../../src/lib/streakRepair";
 import { getStats, listDecks, getFriendStreaks, buyStreakRepair, isApiError, type StatsResponse, type Deck, type FriendStreak } from "../../src/lib/api";
 import { getLastUsedDeck, pickShownDeck, type LastUsedDeck } from "../../src/lib/lastUsedDeck";
+import { todayLocal } from "../../src/lib/localDay";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
 import { LpBadge } from "../../src/components/LpBadge";
 import { AuthPromptCard } from "../../src/components/AuthPromptCard";
@@ -36,6 +44,7 @@ import { DisplayNamePrompt } from "../../src/components/DisplayNamePrompt";
 export default function HomeScreen() {
   const colors = useColors();
   const router = useRouter();
+  const { t } = useTranslation();
   const userId = useSessionStore((state) => state.userId);
   const setDueCount = useSessionStore((state) => state.setDueCount);
   const [stats, setStats] = useState<StatsResponse | null>(null);
@@ -100,10 +109,22 @@ export default function HomeScreen() {
   const waitingPartner =
     activeFriendStreaks.find((s) => s.friendStudiedToday && !s.youStudiedToday) ?? null;
 
+  // Reicht das Guthaben für die Reparatur? (#611) Vorher fragte die App ohne ein
+  // Wort zum Kontostand, und bei Ebbe endete das Ja in einer Sackgasse: „Dafür
+  // reichen deine LP noch nicht." — ohne zu sagen, wie viele fehlen oder wo es
+  // welche gibt. Der Kontostand liegt im Store, den das LP-Abzeichen dieses
+  // Bildschirms ohnehin lädt.
+  // Kontostand für die Reparatur (#611). `null` heißt „noch nicht geladen" — die
+  // Vorbelegung des Stores (10 LP) ist keine Auskunft und darf niemanden sperren.
+  const lpBalanceRaw = useUsageStore((state) => state.lpBalance);
+  const lpLoaded = useUsageStore((state) => state.isLoaded);
+  const lpBalance = lpLoaded ? lpBalanceRaw : null;
+  const canAffordRepair = canAffordStreakRepair(lpBalance, repairCost);
+
   const handleRepair = useCallback(() => {
     Alert.alert(
       "Streak zurückholen?",
-      `Das kostet ${repairCost} LP und stellt deinen ${repairBrokenStreak}-Tage-Streak wieder her.`,
+      streakRepairPrompt(lpBalance, repairCost, repairBrokenStreak),
       [
         { text: "Abbrechen", style: "cancel" },
         {
@@ -120,7 +141,16 @@ export default function HomeScreen() {
                 : isApiError(err) && err.code === "NO_REPAIR"
                   ? "Diese Reparatur ist nicht mehr möglich."
                   : "Zurückholen fehlgeschlagen. Versuch es später noch einmal.";
-              Alert.alert("Streak-Reparatur", message);
+              // Bei leerem Konto einen Weg anbieten statt nur „reicht nicht"
+              // (#611) — der Laden zeigt, wie man Punkte bekommt.
+              if (isApiError(err) && err.code === "INSUFFICIENT_LP") {
+                Alert.alert("Streak-Reparatur", message, [
+                  { text: "Später", style: "cancel" },
+                  { text: "Lernpunkte holen", onPress: () => router.push("/lp-store") },
+                ]);
+              } else {
+                Alert.alert("Streak-Reparatur", message);
+              }
               loadHomeData();
             } finally {
               setRepairing(false);
@@ -145,10 +175,11 @@ export default function HomeScreen() {
   // reviewsTotal is its matching denominator).
   const hasAccuracyData = (stats?.reviewsInWindow ?? stats?.reviewsTotal ?? 0) > 0;
 
-  // Determine whether user has reviewed today. The device's local calendar
-  // date (sv-SE renders YYYY-MM-DD) matches the server's local-day streak
-  // dates — toISOString() would flip to the next day at UTC midnight (#211).
-  const today = new Date().toLocaleDateString("sv-SE");
+  // Determine whether user has reviewed today. Gerechnet in der Zeitzone, in
+  // der der SERVER seine Streak-Tage stempelt (#612) — die Geräte-Zeitzone
+  // wäre auf Reisen einen Tag daneben und die Flamme bliebe kalt, obwohl der
+  // Streak längst gefüttert ist.
+  const today = todayLocal();
   const reviewedToday = stats?.lastReviewDate === today;
 
   // The streak banner only glows once today's learning is done. A streak you
@@ -370,16 +401,22 @@ export default function HomeScreen() {
                       Streak gerissen
                     </Text>
                     <Text style={{ fontSize: typography.sm, color: colors.textSecondary, marginTop: 2 }}>
-                      Dein {repairBrokenStreak}-Tage-Streak ist weg
+                      {/* Preis UND Kontostand direkt im Banner (#611): Vorher
+                          stand hier nur, dass der Streak weg ist, und der Knopf
+                          nannte die Kosten ohne Bezug zum Guthaben. */}
+                      {streakRepairBannerLine(lpBalance, repairCost, repairBrokenStreak)}
                     </Text>
                   </View>
                 </View>
                 <TouchableOpacity
                   onPress={handleRepair}
-                  disabled={repairing}
+                  // Nichts anbieten, was sicher scheitert (#611): Bei zu wenig
+                  // Punkten führte der Knopf über die Nachfrage in einen
+                  // Serverfehler und danach in eine Sackgasse.
+                  disabled={repairing || !canAffordRepair}
                   activeOpacity={0.8}
                   style={{
-                    backgroundColor: colors.primary,
+                    backgroundColor: canAffordRepair ? colors.primary : colors.border,
                     borderRadius: radius.md,
                     paddingVertical: spacing.md,
                     flexDirection: "row",
@@ -392,13 +429,40 @@ export default function HomeScreen() {
                     <ActivityIndicator color={colors.textInverse} />
                   ) : (
                     <>
-                      <HeartHandshake size={16} color={colors.textInverse} />
-                      <Text style={{ fontSize: typography.base, fontWeight: typography.bold, color: colors.textInverse }}>
+                      <HeartHandshake
+                        size={16}
+                        color={canAffordRepair ? colors.textInverse : colors.textSecondary}
+                      />
+                      <Text
+                        style={{
+                          fontSize: typography.base,
+                          fontWeight: typography.bold,
+                          color: canAffordRepair ? colors.textInverse : colors.textSecondary,
+                        }}
+                      >
                         Für {repairCost} LP zurückholen
                       </Text>
                     </>
                   )}
                 </TouchableOpacity>
+                {/* Der Ausweg — vorher gab es bei Ebbe keinen (#611). */}
+                {!canAffordRepair && !repairing ? (
+                  <TouchableOpacity
+                    onPress={() => router.push("/lp-store")}
+                    activeOpacity={0.8}
+                    style={{
+                      borderRadius: radius.md,
+                      paddingVertical: spacing.md,
+                      alignItems: "center",
+                      borderWidth: 1,
+                      borderColor: colors.primary,
+                    }}
+                  >
+                    <Text style={{ fontSize: typography.base, fontWeight: typography.bold, color: colors.primary }}>
+                      Lernpunkte holen
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
               </View>
             ) : null}
 
@@ -720,7 +784,12 @@ export default function HomeScreen() {
                 >
                   Decks
                 </Text>
-                <View
+                {/* Die Pille startet bei fälligen Karten die globale Runde
+                    (#609); die Kachel drumherum öffnet weiter die Bibliothek. */}
+                <TouchableOpacity
+                  disabled={dueCount === 0}
+                  onPress={() => router.push("/(tabs)/learn")}
+                  activeOpacity={0.7}
                   style={{
                     marginTop: 6,
                     backgroundColor: dueCount > 0 ? colors.warningLight : colors.surfaceSecondary,
@@ -738,7 +807,7 @@ export default function HomeScreen() {
                   >
                     {dueCount > 0 ? `${dueCount} fällig  ›` : "Bibliothek  ›"}
                   </Text>
-                </View>
+                </TouchableOpacity>
               </TouchableOpacity>
 
               {/* Accuracy */}
@@ -883,29 +952,100 @@ export default function HomeScreen() {
               </TouchableOpacity>
             )}
 
-            {/* Action buttons */}
-            <View style={{ gap: spacing.md }}>{/* The parked global "learn all
-              due cards" button is gone for good — learning starts from a deck
-              (Bibliothek shows which decks are due). */}
+            {/* Action buttons — Lern-Einstieg (#609, Laras Variante A): Bei
+                fälligen Karten ist "Jetzt lernen" der große violette Knopf und
+                startet die globale Runde Deck für Deck; Scannen tritt in den
+                Rahmen-Stil zurück. Ohne fällige Karten steht eine ruhige
+                "gut gemacht"-Fläche da und Scannen ist wieder Haupt-Aktion. */}
+            <View style={{ gap: spacing.md }}>
+              {dueCount > 0 ? (
+                <TouchableOpacity
+                  onPress={() => router.push("/(tabs)/learn")}
+                  activeOpacity={0.8}
+                  style={{
+                    backgroundColor: colors.primary,
+                    borderRadius: radius.lg,
+                    paddingVertical: spacing.md,
+                    paddingHorizontal: spacing.lg,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 2,
+                    ...shadows.md,
+                  }}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+                    <BookOpen size={20} color={colors.textInverse} />
+                    <Text
+                      style={{
+                        color: colors.textInverse,
+                        fontSize: typography.lg,
+                        fontWeight: typography.bold,
+                      }}
+                    >
+                      {t("home.learnNow")}
+                    </Text>
+                  </View>
+                  <Text
+                    style={{
+                      color: colors.textInverse,
+                      fontSize: typography.sm,
+                      fontWeight: typography.semibold,
+                      opacity: 0.85,
+                    }}
+                  >
+                    {dueCount === 1
+                      ? t("home.dueCardsOne")
+                      : t("home.dueCardsMany", { count: dueCount })}
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                <View
+                  style={{
+                    backgroundColor: colors.surface,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    borderRadius: radius.lg,
+                    paddingVertical: spacing.md,
+                    paddingHorizontal: spacing.lg,
+                    alignItems: "center",
+                    gap: 2,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: typography.base,
+                      fontWeight: typography.semibold,
+                      color: colors.textSecondary,
+                    }}
+                  >
+                    {t("home.nothingDue")}
+                  </Text>
+                  <Text style={{ fontSize: typography.sm, color: colors.textTertiary }}>
+                    {t("home.nothingDueHint")}
+                  </Text>
+                </View>
+              )}
 
               <TouchableOpacity
                 onPress={() => router.push("/(tabs)/scan")}
                 activeOpacity={0.8}
                 style={{
-                  backgroundColor: colors.primary,
+                  backgroundColor: dueCount > 0 ? colors.surface : colors.primary,
+                  borderWidth: dueCount > 0 ? 1.5 : 0,
+                  borderColor: colors.primary,
                   borderRadius: radius.lg,
                   padding: spacing.lg,
                   flexDirection: "row",
                   alignItems: "center",
                   justifyContent: "center",
                   gap: spacing.sm,
-                  ...shadows.md,
+                  ...(dueCount > 0 ? {} : shadows.md),
                 }}
               >
-                <ScanLine size={20} color={colors.textInverse} />
+                <ScanLine size={20} color={dueCount > 0 ? colors.primary : colors.textInverse} />
                 <Text
                   style={{
-                    color: colors.textInverse,
+                    color: dueCount > 0 ? colors.primary : colors.textInverse,
                     fontSize: typography.lg,
                     fontWeight: typography.bold,
                   }}

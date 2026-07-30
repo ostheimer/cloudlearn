@@ -116,6 +116,28 @@ export function freeSlots(
   return Math.max(0, maxCardsPerDeck - cardCount - (imageCardCount ?? 0));
 }
 
+/**
+ * Füllstand der Bibliothek: „19 von 20 Decks belegt" — oder `null`, wenn nichts
+ * zu sagen ist (#611).
+ *
+ * Die Grenze war bisher unsichtbar, bis man sie riss: Der Endpunkt liefert
+ * `usage.limits` seit #411 mit, nur fragte keine Bibliothek sie ab. Wer beim
+ * 20. Deck „Deck-Grenze erreicht" liest, hat vorher nie erfahren, dass es
+ * überhaupt eine gibt.
+ *
+ * `null` bei unbekannter Grenze (älterer Server) und solange die Deckliste
+ * lädt — dieselbe Zurückhaltung wie `deckLimitNotice`.
+ *
+ * Wortgleich mit `deckSlotsSummary` in apps/mobile/src/lib/importLimits.ts.
+ */
+export function deckSlotsSummary(
+  deckCount: number | null,
+  maxDecks: number | undefined
+): string | null {
+  if (deckCount === null || typeof maxDecks !== "number") return null;
+  return `${deckCount} von ${maxDecks} Decks belegt`;
+}
+
 /** Beschriftung eines Decks in der Zielauswahl: „Datenbanken · 43 Plätze frei". */
 export function deckOptionLabel(title: string, free: number | null): string {
   if (free === null) return title;
@@ -171,6 +193,7 @@ export function deckOverflowWarning(free: number | null, cardCount: number): str
 interface ErrorLike {
   status?: number;
   code?: string;
+  message?: string;
 }
 
 function asErrorLike(error: unknown): ErrorLike {
@@ -179,6 +202,7 @@ function asErrorLike(error: unknown): ErrorLike {
   return {
     ...(typeof candidate.status === "number" ? { status: candidate.status } : {}),
     ...(typeof candidate.code === "string" ? { code: candidate.code } : {}),
+    ...(typeof candidate.message === "string" ? { message: candidate.message } : {}),
   };
 }
 
@@ -233,4 +257,57 @@ export function planLimitMessage(error: unknown): string | null {
     );
   }
   return null;
+}
+
+/**
+ * Brauchbarer Server-Text — oder `null`, wenn nur ein Platzhalter ankam.
+ *
+ * `request()` in api.ts setzt „API error 409", wenn der Server gar keinen Text
+ * mitschickt. Der darf niemals als Erklärung durchgereicht werden.
+ */
+function usableServerMessage(message: string | undefined): string | null {
+  if (!message) return null;
+  const trimmed = message.trim();
+  if (!trimmed) return null;
+  if (/^API error \d+$/i.test(trimmed)) return null;
+  return trimmed;
+}
+
+/**
+ * Der Satz zu einer Grenz-Ablehnung AUSSERHALB des Imports — oder `null`, wenn
+ * der Fehler keine Tarifgrenze ist (dann bleibt der Satz des Bildschirms).
+ *
+ * Diesen Helfer versprach der Kommentar in `apps/mobile/src/lib/api.ts` seit
+ * #371 („ob dort ein Kauf hilft, entscheidet der Bildschirm über
+ * adviceForLimit()"); gebaut wurde er nie. Bis #611 fingen Deck-anlegen,
+ * Duplizieren, Übernehmen und Karte-von-Hand den Fehler deshalb blind ab und
+ * zeigten „Bitte versuche es erneut" — eine Aufforderung zu etwas, das
+ * garantiert wieder scheitert.
+ *
+ * Die Tarif-Beratung muss er nicht selbst leisten: Der Server hängt sie längst
+ * an die Meldung („Mit Pro hast du deutlich mehr Platz." für Free,
+ * „lösche ein Deck, um Platz zu schaffen." für Pro, `assertDeckLimit` in
+ * apps/api/src/lib/limits.ts). Sie ging nur unterwegs verloren.
+ *
+ * Anders als `planLimitMessage` (Import) wird deshalb der SERVER-Text
+ * durchgereicht: Er nennt die echten Zahlen des Tarifs, und außerhalb des
+ * Imports gibt es keine Vorschau, in der Karten liegen bleiben könnten — die
+ * Import-Sätze („bleiben so lange in der Vorschau", „zurückgebucht") wären hier
+ * schlicht falsch.
+ *
+ * Geprüft wird nur der CODE, nie der Status: 409 steht in dieser API auch für
+ * NO_INVITE, ALREADY_REFERRED und den Streak-Schutz. Anders als beim Import
+ * (`isPlanLimitError` der App) rufen diese Bildschirme viele verschiedene
+ * Endpunkte auf — ein Statusvergleich gäbe fremde Konflikte als Tarifgrenze aus.
+ */
+export function adviceForLimit(error: unknown): string | null {
+  const { code, message } = asErrorLike(error);
+  if (code !== "DECK_LIMIT_REACHED" && code !== "DECK_FULL") return null;
+  const fromServer = usableServerMessage(message);
+  if (fromServer) return fromServer;
+  // Nur für den Fall, dass der Server schweigt: ohne Zahlen, weil der Client
+  // die Tarifgrenzen an dieser Stelle nicht zwingend kennt.
+  return code === "DECK_LIMIT_REACHED"
+    ? "Die Deck-Grenze deines Tarifs ist erreicht. Lösche ein Deck, um Platz zu schaffen."
+    : "Dieses Deck ist voll. Leg für weitere Karten ein zweites Deck an.";
 }

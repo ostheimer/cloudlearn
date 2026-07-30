@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   getProfile,
   updateDisplayName,
@@ -8,6 +8,7 @@ import {
   displayNameErrorMessage,
 } from "@/lib/api";
 import { AlertTriangle, User } from "@/components/icons";
+import { useDialogFocus } from "@/components/app/modal";
 
 /**
  * Einmalige Namensabfrage für Konten ohne Anzeigenamen (mit Lara abgestimmt:
@@ -24,6 +25,10 @@ export function DisplayNamePrompt() {
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Fokus-Falle wie im geteilten Modal (#613); startet erst, wenn der Dialog
+  // wirklich aufgeht — vorher gibt es das Element noch gar nicht.
+  const boxRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(boxRef, open);
 
   useEffect(() => {
     let active = true;
@@ -97,7 +102,7 @@ export function DisplayNamePrompt() {
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="dnp-title">
-      <div className="modal">
+      <div className="modal" ref={boxRef}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span className="pf-ic pf-ic--indigo" aria-hidden>
             <User size={18} />

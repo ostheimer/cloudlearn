@@ -13,7 +13,9 @@ import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-rou
 import { AlertTriangle, ImagePlus, Pencil, Trash2, X, Zap } from "lucide-react-native";
 import { useColors, spacing, radius, typography } from "../src/theme";
 import { StudyResult } from "../src/components/StudyResult";
+import { LpRoundSummary } from "../src/components/LpRoundSummary";
 import { useSessionStore } from "../src/store/sessionStore";
+import { useUsageStore } from "../src/store/usageStore";
 import { listCardsInDeck, earnLp, deleteCard } from "../src/lib/api";
 import { sendReview } from "../src/features/sync/sendReview";
 import {
@@ -48,6 +50,7 @@ export default function OcclusionStudyScreen() {
   const colors = useColors();
   const router = useRouter();
   const userId = useSessionStore((s) => s.userId);
+  const setUsage = useUsageStore((s) => s.setUsage);
   const displayName = useDisplayName();
   const { deckId, deckTitle } = useLocalSearchParams<{ deckId?: string; deckTitle?: string }>();
 
@@ -136,6 +139,10 @@ export default function OcclusionStudyScreen() {
           const res = await earnLp("session", count);
           setEarned(res.granted);
           setEarnCapReached(res.capReached);
+          // Kontostand im Store nachziehen (#612) — alle anderen Lernmodi tun
+          // das; nur hier blieb die LP-Pille in der Kopfzeile auf dem alten
+          // Stand stehen, bis irgendetwas anderes sie neu lud.
+          if (res.granted > 0) setUsage({ lpBalance: res.newBalance });
 
           if (isSessionEarnFinalized(res, count)) {
             state.finalized = true;
@@ -146,7 +153,7 @@ export default function OcclusionStudyScreen() {
         /* LP-Gutschrift ist best-effort */
       }
     });
-  }, []);
+  }, [setUsage]);
 
   useEffect(() => {
     if (done) void awardSession(total);
@@ -314,17 +321,9 @@ export default function OcclusionStudyScreen() {
   }
 
   if (done) {
-    const lpAccessory =
-      earned !== null && earned > 0 ? (
-        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.xs, backgroundColor: colors.successLight, paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: radius.full }}>
-          <Zap size={15} color={colors.success} />
-          <Text style={{ color: colors.success, fontWeight: typography.semibold }}>+{earned} Lernpunkte</Text>
-        </View>
-      ) : earned === 0 && earnCapReached ? (
-        <Text style={{ color: colors.textSecondary, fontSize: typography.sm, textAlign: "center" }}>
-          Heutiges Lernpunkte-Limit erreicht — morgen gibt es wieder welche.
-        </Text>
-      ) : null;
+    // Seit #611 in der geteilten Komponente: Der Wortlaut war hier hartkodiert
+    // und dieser Modus der EINZIGE, der den Tagesdeckel überhaupt nannte.
+    const lpAccessory = <LpRoundSummary earned={earned} capReached={earnCapReached} />;
     return wrap(
       <StudyResult
         headline={`Runde geschafft${displayName ? `, ${displayName}` : ""}!`}

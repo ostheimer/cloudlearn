@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getLpBalance, isApiError, type LpBalanceResponse } from "@/lib/api";
+import { REAL_ADS_ENABLED } from "@/lib/ads-mode";
 import {
   ArrowLeft,
   ChevronRight,
@@ -136,7 +137,11 @@ export default function LpPage() {
               <i style={{ width: `${earnPct}%` }} />
             </div>
 
-            {isFree && (
+            {/* Der Werbe-Balken stand bisher auch dann da, wenn Werbung gar
+                keine Punkte auszahlt — ein „0 / 20 LP" liest sich wie ein
+                Versprechen, das man nur noch abholen muss (#611). Solange die
+                Belohnung aus ist, gibt es hier nichts zu füllen. */}
+            {isFree && REAL_ADS_ENABLED && (
               <>
                 <div
                   style={{
@@ -212,6 +217,12 @@ export default function LpPage() {
             </div>
           </div>
 
+          {/* Werbung: solange sie keine Punkte auszahlt, ist sie kein „Weg zu
+              Lernpunkten" (#611). Vorher stand hier „+5 LP pro Video · nur in
+              der App" — wer dem folgte, installierte die App und stand vor
+              derselben leeren Hand, denn dort läuft nur eine Attrappe (#149).
+              Der Eintrag bleibt sichtbar, sagt aber die Wahrheit und nennt
+              keine Zahl, die niemand bekommt. */}
           {isFree && (
             <div className="lp-way">
               <div className="lp-way__row">
@@ -220,10 +231,15 @@ export default function LpPage() {
                 </span>
                 <span className="lp-way__txt">
                   <span className="lp-way__t">
-                    Werbung ansehen<span className="lp-tag">nur in der App</span>
+                    Belohn-Werbung
+                    <span className="lp-tag">
+                      {REAL_ADS_ENABLED ? "nur in der App" : "noch nicht aktiv"}
+                    </span>
                   </span>
                   <span className="lp-way__s">
-                    +5 LP pro Video, bis {usage.lpAdCapToday} LP am Tag
+                    {REAL_ADS_ENABLED
+                      ? `+5 LP pro Video, bis ${usage.lpAdCapToday} LP am Tag`
+                      : "Sobald sie startet, gibt es hier Punkte fürs Ansehen. Bis dahin bringt Lernen sie am schnellsten."}
                   </span>
                 </span>
               </div>

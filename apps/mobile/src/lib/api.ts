@@ -90,8 +90,9 @@ async function request<T>(
     // Vorher trugen auch "Deck voll" und "zu viele Decks" den Code
     // PAYWALL_REQUIRED, weshalb ein Pro-Nutzer mit vollem Deck aufgefordert
     // wurde, Pro zu kaufen (#371). Seit dem Server-Fix haben die Grenzen ihre
-    // eigenen Codes; ob dort ein Kauf hilft, entscheidet der Bildschirm über
-    // adviceForLimit() — der kennt den Tarif der Nutzerin.
+    // eigenen Codes; ob dort ein Kauf hilft, sagt die Server-Meldung selbst —
+    // der Bildschirm zeigt sie über adviceForLimit() aus lib/importLimits.ts
+    // (seit #611 gebaut; vorher war dieser Verweis ein leeres Versprechen).
     if (res.status === 402 && code === "PAYWALL_REQUIRED") {
       _paywallTrigger?.();
     }
@@ -473,6 +474,66 @@ export async function getDueCards(
   return requestAuthenticated<{ cards: Card[] }>(`/api/v1/learn/due?userId=${userId}`);
 }
 
+// ─── Lernstand im Konto (geräteübergreifendes „Weitermachen", #610) ──────────
+
+/** Lernarten mit merkbarer Position — wie sessionProgress.ts und der Server. */
+export type ServerProgressMode = "flashcards" | "cloze";
+
+export interface ServerSessionProgress {
+  index: number;
+  cardId: string;
+  source: string;
+  reverse: boolean;
+  total: number;
+  results?: Record<string, { correct: boolean; overridden: boolean }>;
+  /** Server-Zeitstempel — entscheidet gegen den lokalen Stand (progressMerge). */
+  savedAt?: string;
+}
+
+export async function getServerProgress(
+  deckId: string,
+  mode: ServerProgressMode
+): Promise<ServerSessionProgress | null> {
+  const res = await requestAuthenticated<{
+    progress: (Omit<ServerSessionProgress, "savedAt"> & { updatedAt?: string }) | null;
+  }>(`/api/v1/learn/progress?deckId=${encodeURIComponent(deckId)}&mode=${mode}`);
+  if (!res.progress) return null;
+  const { updatedAt, ...rest } = res.progress;
+  // Der Server nennt es updatedAt; im Client heißt der Zeitstempel überall
+  // savedAt, damit die Vergleichsregel beide Seiten gleich behandelt.
+  return { ...rest, ...(updatedAt ? { savedAt: updatedAt } : {}) };
+}
+
+export async function putServerProgress(
+  deckId: string,
+  mode: ServerProgressMode,
+  progress: Omit<ServerSessionProgress, "savedAt">
+): Promise<{ saved: boolean }> {
+  return requestAuthenticated<{ saved: boolean }>("/api/v1/learn/progress", {
+    method: "PUT",
+    body: JSON.stringify({ deckId, mode, ...progress }),
+  });
+}
+
+export async function deleteServerProgress(
+  deckId: string,
+  mode: ServerProgressMode
+): Promise<{ cleared: boolean }> {
+  return requestAuthenticated<{ cleared: boolean }>(
+    `/api/v1/learn/progress?deckId=${encodeURIComponent(deckId)}&mode=${mode}`,
+    { method: "DELETE" }
+  );
+}
+
+/**
+ * Fällige Karten je Deck, nur als Zahlen (#612). Für die "N fällig"-Abzeichen —
+ * getDueCards würde den ganzen Rückstand mit Kartentext übertragen und wird ab
+ * 1000 Karten still gekappt. Decks ohne fällige Karten fehlen im Objekt.
+ */
+export async function getDueCountsByDeck(): Promise<{ dueByDeck: Record<string, number> }> {
+  return requestAuthenticated<{ dueByDeck: Record<string, number> }>("/api/v1/stats/due-by-deck");
+}
+
 /**
  * Woher eine Wiederholung stammt. Der Server entscheidet daran, was sie
  * auslöst: Abruf-Modi bewegen den Lernplan, "test" gibt keine Lernpunkte,
@@ -684,7 +745,7 @@ export async function deleteAccount(): Promise<DeleteAccountResponse> {
 // nur die drei bekannten Werte); der Client übersetzt nur die Fehler-Codes.
 // gender null = keine Angabe (Bestandskonto) → Texte nutzen die neutrale Form.
 
-export type Gender = "female" | "male" | "diverse";
+export type Gender = "female" | "male" | "diverse" | "prefer_not_to_say";
 
 export interface ProfileResponse {
   displayName: string | null;
@@ -864,7 +925,10 @@ export interface DeckDetails {
   userId: string;
   title: string;
   tags: string[];
+  /** Text-Karten — gleiche Zähl-Regel wie die Deck-Liste (#612). */
   cardCount: number;
+  /** Bild-Occlusion-Karten, getrennt gezählt wie überall sonst. */
+  imageCardCount?: number;
   folders: Folder[];
   /** Vorlese-Sprachen je Seite (#571); `null` = nicht eingestellt → Deutsch. */
   speechLangFront?: string | null;

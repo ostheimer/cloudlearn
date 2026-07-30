@@ -24,6 +24,8 @@ export const resources = {
       "review.loadingCards": "Fällige Karten laden...",
       "review.noCards": "Keine fälligen Karten",
       "review.noCardsHint": "Scanne einen Text, um Flashcards zu generieren.",
+      "review.emptyScan": "Neuen Text scannen",
+      "review.emptyLibrary": "Zur Bibliothek",
       "review.completed": "Session abgeschlossen!",
       "review.cardsLearned": "{{count}} Karten gelernt.",
       "review.reload": "Neu laden",
@@ -37,12 +39,29 @@ export const resources = {
       "review.lpEarned": "+{{count}} LP verdient!",
       "review.saveError": "Antwort konnte nicht gespeichert werden.",
 
+      // Home: Lern-Einstieg zur globalen fälligen Runde (#609)
+      "home.learnNow": "Jetzt lernen",
+      "home.dueCardsOne": "1 Karte fällig",
+      "home.dueCardsMany": "{{count}} Karten fällig",
+      "home.nothingDue": "Nichts fällig — gut gemacht",
+      "home.nothingDueHint": "Alle Wiederholungen für heute sind erledigt.",
+
       // LP (Lernpunkte)
       "lp.balance": "{{count}} LP",
+      "lp.balanceLoading": "Lernpunkte werden geladen",
       "lp.notEnough": "Nicht genug LP. Benötigt: {{cost}}, Vorhanden: {{balance}}.",
+      // Endlich in Gebrauch (#611): Stand hier seit Langem, ohne dass ihn je
+      // jemand aufrief. Erscheint am Rundenende, wenn der Tagesdeckel greift —
+      // dann ist „verdient" per Definition gleich dem Deckel.
       "lp.earnToday": "Heute verdient: {{count}} / {{cap}} LP",
+      // Der Deckel-Satz, den bisher nur Bild-Abdecken zeigte — dort hartkodiert.
+      // Wortgleich mit dem Web (learn-session.tsx & die Modus-Seiten).
+      "lp.earnCapReachedToday": "Heutiges Lernpunkte-Limit erreicht — morgen gibt es wieder welche.",
+      // Die LP-Pille am Rundenende. Erscheint NUR, wenn wirklich Punkte kamen —
+      // „+0 Lernpunkte" wäre eine Behauptung, nicht eine Auskunft.
+      "lp.earnedThisRound": "+{{count}} Lernpunkte",
       "lp.milestone.first_deck": "Erstes Deck erstellt! +{{lp}} LP",
-      "lp.milestone.first_review": "Erste Review-Session! +{{lp}} LP",
+      "lp.milestone.first_review": "Erste Lernsitzung! +{{lp}} LP",
       "lp.milestone.streak_7": "7-Tage-Streak! +{{lp}} LP",
       "lp.milestone.streak_30": "30-Tage-Streak! +{{lp}} LP",
       "lp.milestone.streak_100": "100-Tage-Streak! +{{lp}} LP",
@@ -50,8 +69,14 @@ export const resources = {
       // LP Insufficient Modal
       "lp.insufficientTitle": "Nicht genug LP",
       "lp.insufficientDetail": "Dieses Feature kostet {{cost}} LP. Du hast {{balance}} LP.",
-      "lp.insufficientHint": "Du hast {{balance}} LP. KI-Scan kostet {{cost}} LP. Lade LP auf!",
+      "lp.insufficientHint": "Du hast {{balance}} LP. KI-Scan kostet {{cost}} LP. Neue Lernpunkte bekommst du durchs Lernen.",
+      // Untertitel einer gesperrten Scan-Quelle (#611). Wortlaut wie im Web
+      // (dashboard/import); der Lern-Hinweis steht im Warnstreifen darüber,
+      // damit er an fünf Kacheln nicht fünfmal wiederholt wird.
+      "lp.sourceTooExpensive": "Dafür reichen deine Lernpunkte nicht ({{balance}} von {{cost}})",
       "lp.earnMore": "Jetzt aufladen",
+      "lp.learnNow": "Jetzt lernen",
+      "lp.learnNowSubtitle": "+1 LP je gelernte Karte — gratis",
       "lp.watchAd": "Werbung ansehen",
       "lp.watchAdFull": "Werbung ansehen & LP verdienen",
       "lp.watchAdSubtitle": "+{{count}} LP sofort",
@@ -74,6 +99,10 @@ export const resources = {
       "lp.availableBalance": "Verfügbare Lernpunkte",
       "lp.dailyEarnTitle": "Täglicher Fortschritt",
       "lp.earnByLearning": "Durch Lernen",
+      // Lern-Kachel im Shop-Abschnitt „Jetzt LP verdienen" (#611). Wortlaut wie
+      // im Web (dashboard/lp), wo der Weg längst als erster steht.
+      "lp.earnByLearningTitle": "Lernen",
+      "lp.earnByLearningSubtitle": "1 LP je gelernter Karte, bis {{cap}} LP am Tag",
       "lp.earnByAds": "Durch Werbung",
       "lp.freeEarnSection": "Jetzt LP verdienen",
       "lp.packSection": "LP-Packs",
@@ -141,6 +170,25 @@ export const resources = {
       "scan.urlHint": "Webseite inkl. Bilder",
       "scan.generateBtn": "Flashcards generieren",
       "scan.analyzeBtn": "URL analysieren",
+      "scan.charCount": "{{current}} / {{max}} Zeichen",
+
+      // Verständliche Fehlermeldungen beim Scannen (#609, Laras Wortlaute) —
+      // die Zuordnung Fehler → Schlüssel liegt in src/lib/importErrors.ts.
+      "scanError.title": "Das hat nicht geklappt",
+      "scanError.imageTooLarge":
+        "Das Bild ist zu groß. Bitte versuch es mit einem kleineren Bild oder mach das Foto neu.",
+      "scanError.pdfTooLarge": "Die PDF ist zu groß. Bitte wähle eine kleinere Datei.",
+      "scanError.pdfNoText":
+        "Diese PDF enthält keinen lesbaren Text — reine Scans werden noch nicht unterstützt. Bitte eine PDF mit echtem Text wählen.",
+      "scanError.pdfFailed":
+        "Die PDF konnte nicht verarbeitet werden. Bitte versuch es mit einer anderen Datei.",
+      "scanError.generic":
+        "Beim Erstellen der Karten ist etwas schiefgegangen. Versuch es noch einmal — meist hilft ein zweiter Anlauf.",
+      "scanError.offline": "Keine Verbindung. Prüfe dein Internet und versuch es noch einmal.",
+      "scanError.url":
+        "Diese Seite konnte nicht gelesen werden. Prüfe die Adresse oder versuch es mit einer anderen Seite.",
+      "scanError.save":
+        "Speichern hat nicht geklappt. Versuch es noch einmal — deine Karten bleiben solange hier.",
       "quiz.trueLabel": "Richtig",
       "quiz.falseLabel": "Falsch",
       "quiz.trueFalsePrompt": "Stimmt diese Zuordnung?",
@@ -235,6 +283,9 @@ export const resources = {
       "deckAction.downloadError": "Download fehlgeschlagen",
       "deckAction.duplicateSuccess": "Deck wurde dupliziert",
       "deckAction.duplicateError": "Duplizieren fehlgeschlagen",
+      // Überschrift, wenn eine Tarifgrenze im Weg steht (#611): Der Grund
+      // kommt als Klartext vom Server, der Titel sagt nur, was nicht ging.
+      "deckAction.duplicateBlockedTitle": "Duplizieren nicht möglich",
       "deckAction.shareError": "Teilen fehlgeschlagen",
       "deckAction.revokeShareTitle": "Teilen-Link deaktivieren?",
       "deckAction.revokeShareMessage": "Der bisher geteilte Link funktioniert danach nicht mehr — wer ihn schon hat, kommt nicht mehr an das Deck. Beim nächsten Teilen entsteht ein neuer Link.",
@@ -245,6 +296,8 @@ export const resources = {
       "deckAction.deleteTitle": "Deck löschen?",
       "deckAction.deleteMessage": "\"{{title}}\" und alle Karten werden dauerhaft gelöscht.",
       "deckAction.deleteError": "Löschen fehlgeschlagen",
+      "deckAction.cardSaveError": "Karte konnte nicht gespeichert werden.",
+      "deckAction.cardSaveBlockedTitle": "Karte nicht gespeichert",
       "deckAction.alreadyOffline": "Bereits offline verfügbar",
 
       // Shared deck (received via link)
@@ -255,6 +308,9 @@ export const resources = {
       "sharedDeck.importing": "Wird übernommen…",
       "sharedDeck.importSuccess": "In deine Bibliothek übernommen",
       "sharedDeck.importError": "Übernehmen fehlgeschlagen. Bitte versuch es nochmal.",
+      // An der Deck-Grenze war „versuch es nochmal" eine Aufforderung zur
+      // Endlosschleife (#611) — dort steht jetzt der Grund vom Server.
+      "sharedDeck.importBlockedTitle": "Übernehmen nicht möglich",
       "sharedDeck.loadError": "Dieses Deck konnte nicht geladen werden. Vielleicht ist der Link abgelaufen.",
       "sharedDeck.empty": "Dieses Deck enthält noch keine Karten.",
       "sharedDeck.retry": "Nochmal versuchen",
@@ -266,6 +322,14 @@ export const resources = {
       "folder.addError": "Deck konnte nicht zum Ordner hinzugefügt werden.",
       "folder.addSuccess": "Zum Ordner \"{{title}}\" hinzugefügt",
       "folder.empty": "Noch keine Ordner vorhanden.\nErstelle einen neuen Ordner.",
+      "folder.loadError": "Ordner konnten nicht geladen werden.",
+      "folder.searchPlaceholder": "Ordner suchen...",
+      "folder.searchEmpty": "Kein Ordner passt zu deiner Suche.",
+      "folder.searchDecksPlaceholder": "Deck suchen...",
+      "folder.searchDecksEmpty": "Kein Deck passt zu deiner Suche.",
+      "scanSave.pickDeck": "Deck wählen",
+      "scanSave.addCountOne": "1 Karte hinzufügen zu:",
+      "scanSave.addCountMany": "{{count}} Karten hinzufügen zu:",
 
       // Deck edit
       "deckEdit.title": "Deck bearbeiten",
@@ -296,7 +360,10 @@ export const resources = {
       "library.searchPlaceholder": "Suchen...",
       "library.longPressHint": "Gedrückt halten zum Bearbeiten/Löschen",
       "library.emptyDecks": "Noch keine Decks.\nScanne einen Text, um dein erstes Deck zu erstellen.",
+      "library.scanCta": "Neuen Text scannen",
       "library.noMatchDecks": "Kein Deck gefunden.",
+      "library.sortAlpha": "A–Z",
+      "library.sortRecent": "Neueste",
       "library.emptyFolders": "Noch keine Ordner.\nErstelle einen Ordner für deine Decks.",
       "library.noMatchFolders": "Kein Ordner gefunden.",
       "library.newFolder": "Neuer Ordner",
@@ -390,6 +457,9 @@ export const resources = {
       "onboarding.howSubtitle": "Wische nach links = „Nochmal“, nach rechts = „Gewusst“. Tippe auf die Karte zum Umdrehen.",
       "onboarding.scanTitle": "Karten aus Fotos",
       "onboarding.scanSubtitle": "Fotografiere deine Notizen oder lade ein PDF hoch — die KI macht daraus fertige Karteikarten. Du findest das jederzeit im Tab „Scan“.",
+      "onboarding.lpTitle": "Was sind Lernpunkte?",
+      "onboarding.lpSubtitle":
+        "Lernpunkte (LP) sind das Guthaben der App: Du verdienst sie durchs Lernen — 1 LP für jede gelernte Karte — und gibst sie aus, wenn die KI für dich arbeitet, zum Beispiel beim Scannen. Lernen selbst ist immer gratis.",
       "onboarding.startTitle": "Dein erstes Deck",
       "onboarding.startSubtitle": "Wir legen dir 3 Beispielkarten an. Danach kannst du sofort loslegen.",
       "onboarding.next": "Weiter",
@@ -457,6 +527,7 @@ export const resources = {
       "gender.female": "Weiblich",
       "gender.male": "Männlich",
       "gender.diverse": "Divers",
+      "gender.prefer_not_to_say": "Sag ich nicht",
       "gender.errorTitle": "Nicht gespeichert",
       "gender.errorGeneric": "Konnte nicht gespeichert werden — versuch es noch einmal.",
 
@@ -499,6 +570,8 @@ export const resources = {
       "review.loadingCards": "Loading due cards...",
       "review.noCards": "No cards due",
       "review.noCardsHint": "Scan a text to generate flashcards.",
+      "review.emptyScan": "Scan a new text",
+      "review.emptyLibrary": "To your library",
       "review.completed": "Session complete!",
       "review.cardsLearned": "{{count}} cards studied.",
       "review.reload": "Reload",
@@ -512,12 +585,22 @@ export const resources = {
       "review.lpEarned": "+{{count}} LP earned!",
       "review.saveError": "Answer couldn't be saved.",
 
+      // Home: learn entry into the global due round (#609)
+      "home.learnNow": "Learn now",
+      "home.dueCardsOne": "1 card due",
+      "home.dueCardsMany": "{{count}} cards due",
+      "home.nothingDue": "Nothing due — well done",
+      "home.nothingDueHint": "All reviews for today are done.",
+
       // LP (Lernpunkte)
       "lp.balance": "{{count}} LP",
+      "lp.balanceLoading": "Loading learning points",
       "lp.notEnough": "Not enough LP. Need: {{cost}}, have: {{balance}}.",
       "lp.earnToday": "Earned today: {{count}} / {{cap}} LP",
+      "lp.earnCapReachedToday": "Today's LP limit is reached — there will be more tomorrow.",
+      "lp.earnedThisRound": "+{{count}} LP earned",
       "lp.milestone.first_deck": "First deck created! +{{lp}} LP",
-      "lp.milestone.first_review": "First review session! +{{lp}} LP",
+      "lp.milestone.first_review": "First study session! +{{lp}} LP",
       "lp.milestone.streak_7": "7-day streak! +{{lp}} LP",
       "lp.milestone.streak_30": "30-day streak! +{{lp}} LP",
       "lp.milestone.streak_100": "100-day streak! +{{lp}} LP",
@@ -525,8 +608,11 @@ export const resources = {
       // LP Insufficient Modal
       "lp.insufficientTitle": "Not enough LP",
       "lp.insufficientDetail": "This feature costs {{cost}} LP. You have {{balance}} LP.",
-      "lp.insufficientHint": "You have {{balance}} LP. AI scan costs {{cost}} LP. Top up!",
+      "lp.insufficientHint": "You have {{balance}} LP. AI scan costs {{cost}} LP. You earn new LP by studying.",
+      "lp.sourceTooExpensive": "Your LP aren't enough for this ({{balance}} of {{cost}})",
       "lp.earnMore": "Top up",
+      "lp.learnNow": "Learn now",
+      "lp.learnNowSubtitle": "+1 LP per studied card — free",
       "lp.watchAd": "Watch ad",
       "lp.watchAdFull": "Watch ad & earn LP",
       "lp.watchAdSubtitle": "+{{count}} LP instantly",
@@ -549,6 +635,8 @@ export const resources = {
       "lp.availableBalance": "Available Learning Points",
       "lp.dailyEarnTitle": "Daily Progress",
       "lp.earnByLearning": "By learning",
+      "lp.earnByLearningTitle": "Learning",
+      "lp.earnByLearningSubtitle": "1 LP per studied card, up to {{cap}} LP a day",
       "lp.earnByAds": "By watching ads",
       "lp.freeEarnSection": "Earn LP now",
       "lp.packSection": "LP packs",
@@ -616,6 +704,23 @@ export const resources = {
       "scan.urlHint": "Website incl. images",
       "scan.generateBtn": "Generate flashcards",
       "scan.analyzeBtn": "Analyze URL",
+      "scan.charCount": "{{current}} / {{max}} characters",
+
+      // Friendly scan error messages (#609) — mapping lives in
+      // src/lib/importErrors.ts.
+      "scanError.title": "That didn't work",
+      "scanError.imageTooLarge":
+        "The image is too large. Try a smaller image or take the photo again.",
+      "scanError.pdfTooLarge": "The PDF is too large. Please pick a smaller file.",
+      "scanError.pdfNoText":
+        "This PDF contains no readable text — pure scans aren't supported yet. Please pick a PDF with real text.",
+      "scanError.pdfFailed": "The PDF couldn't be processed. Please try a different file.",
+      "scanError.generic":
+        "Something went wrong while creating your cards. Try again — a second attempt usually works.",
+      "scanError.offline": "No connection. Check your internet and try again.",
+      "scanError.url":
+        "This page couldn't be read. Check the address or try a different page.",
+      "scanError.save": "Saving didn't work. Try again — your cards stay right here.",
       "quiz.trueLabel": "True",
       "quiz.falseLabel": "False",
       "quiz.trueFalsePrompt": "Is this pairing correct?",
@@ -710,6 +815,7 @@ export const resources = {
       "deckAction.downloadError": "Download failed",
       "deckAction.duplicateSuccess": "Deck duplicated",
       "deckAction.duplicateError": "Duplication failed",
+      "deckAction.duplicateBlockedTitle": "Can't duplicate this deck",
       "deckAction.shareError": "Sharing failed",
       "deckAction.revokeShareTitle": "Deactivate share link?",
       "deckAction.revokeShareMessage": "The shared link will stop working — anyone who already has it loses access to this deck. Sharing again creates a fresh link.",
@@ -720,6 +826,8 @@ export const resources = {
       "deckAction.deleteTitle": "Delete deck?",
       "deckAction.deleteMessage": "\"{{title}}\" and all cards will be permanently deleted.",
       "deckAction.deleteError": "Deletion failed",
+      "deckAction.cardSaveError": "Couldn't save the card.",
+      "deckAction.cardSaveBlockedTitle": "Card not saved",
       "deckAction.alreadyOffline": "Already available offline",
 
       // Shared deck (received via link)
@@ -730,6 +838,7 @@ export const resources = {
       "sharedDeck.importing": "Saving…",
       "sharedDeck.importSuccess": "Saved to your library",
       "sharedDeck.importError": "Couldn't save the deck. Please try again.",
+      "sharedDeck.importBlockedTitle": "Can't save this deck",
       "sharedDeck.loadError": "Couldn't load this deck. The link may have expired.",
       "sharedDeck.empty": "This deck has no cards yet.",
       "sharedDeck.retry": "Try again",
@@ -741,6 +850,14 @@ export const resources = {
       "folder.addError": "Could not add deck to folder.",
       "folder.addSuccess": "Added to folder \"{{title}}\"",
       "folder.empty": "No folders yet.\nCreate a new folder.",
+      "folder.loadError": "Could not load folders.",
+      "folder.searchPlaceholder": "Search folders...",
+      "folder.searchEmpty": "No folder matches your search.",
+      "folder.searchDecksPlaceholder": "Search decks...",
+      "folder.searchDecksEmpty": "No deck matches your search.",
+      "scanSave.pickDeck": "Choose deck",
+      "scanSave.addCountOne": "Add 1 card to:",
+      "scanSave.addCountMany": "Add {{count}} cards to:",
 
       // Deck edit
       "deckEdit.title": "Edit deck",
@@ -771,7 +888,10 @@ export const resources = {
       "library.searchPlaceholder": "Search...",
       "library.longPressHint": "Long press to edit/delete",
       "library.emptyDecks": "No decks yet.\nScan a text to create your first deck.",
+      "library.scanCta": "Scan a new text",
       "library.noMatchDecks": "No deck found.",
+      "library.sortAlpha": "A–Z",
+      "library.sortRecent": "Newest",
       "library.emptyFolders": "No folders yet.\nCreate a folder for your decks.",
       "library.noMatchFolders": "No folder found.",
       "library.newFolder": "New folder",
@@ -863,6 +983,9 @@ export const resources = {
       "onboarding.howSubtitle": "Swipe left = \"Again\", right = \"Got it\". Tap the card to flip.",
       "onboarding.scanTitle": "Cards from photos",
       "onboarding.scanSubtitle": "Snap your notes or upload a PDF — AI turns them into ready-made flashcards. You'll find it anytime in the \"Scan\" tab.",
+      "onboarding.lpTitle": "What are learning points?",
+      "onboarding.lpSubtitle":
+        "Learning points (LP) are the app's balance: you earn them by studying — 1 LP per studied card — and spend them when AI works for you, for example when scanning. Studying itself is always free.",
       "onboarding.startTitle": "Your first deck",
       "onboarding.startSubtitle": "We'll create 3 sample cards for you. Then you can start right away.",
       "onboarding.next": "Next",
@@ -930,6 +1053,7 @@ export const resources = {
       "gender.female": "Female",
       "gender.male": "Male",
       "gender.diverse": "Diverse",
+      "gender.prefer_not_to_say": "Prefer not to say",
       "gender.errorTitle": "Not saved",
       "gender.errorGeneric": "Could not save — please try again.",
 

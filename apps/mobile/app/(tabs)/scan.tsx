@@ -18,6 +18,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
+import * as ImageManipulator from "expo-image-manipulator";
 import {
   Camera,
   FileText,
@@ -38,6 +39,7 @@ import {
 } from "lucide-react-native";
 import { useSessionStore } from "../../src/store/sessionStore";
 import { useOcrEditorState } from "../../src/features/ocr/ocrEditorState";
+import { normalizeOcrText } from "../../src/features/ocr/normalizeOcrText";
 import {
   importPdf,
   importFromUrl,
@@ -53,16 +55,22 @@ import {
 } from "../../src/lib/api";
 import {
   DECK_LIMIT_LABEL,
+  affordableScanSources,
   deckLimitMessage,
-  deckSlotsLabel,
   freeCardSlots,
   isDeckLimitReached,
   deckOverflowWarning,
+  isPlanLimitError,
   roomForNewCards,
   savedSummary,
   selectEvenlySpread,
   shouldOpenLpModal,
 } from "../../src/lib/importLimits";
+import {
+  IMPORT_ERROR_TITLE_KEY,
+  importErrorKey,
+} from "../../src/lib/importErrors";
+import { cardTypeLabel, difficultyLabel } from "../../src/lib/cardLabels";
 import { summarizeCardMedia } from "../../src/lib/cardMedia";
 import {
   blankCard,
@@ -85,10 +93,69 @@ import {
 import { usageFromBalanceResponse, useUsageStore } from "../../src/store/usageStore";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
 import { LpInsufficientModal } from "../../src/components/LpInsufficientModal";
+import TargetDeckPickerModal from "../../src/components/TargetDeckPickerModal";
 import { AuthPromptCard } from "../../src/components/AuthPromptCard";
 import { LpBadge } from "../../src/components/LpBadge";
 
 type InputMode = "choose" | "camera" | "text" | "url";
+
+// Dieselbe Grenze wie das Web-Textfeld (import/page.tsx MAX_TEXT) — der Server
+// lehnt längere Texte mit einem rohen Prüfbericht ab; hier stoppt die Eingabe
+// vorher und ein Zähler zeigt, wo man steht (#609).
+const MAX_TEXT = 20000;
+
+const getMimeType = (
+  uri: string
+): "image/jpeg" | "image/png" | "image/webp" => {
+  if (uri.toLowerCase().endsWith(".png")) return "image/png";
+  if (uri.toLowerCase().endsWith(".webp")) return "image/webp";
+  return "image/jpeg";
+};
+
+// Fotos vor dem Senden verkleinern (#609) — dasselbe Muster wie der
+// Occlusion-Editor: längste Seite auf 1600 Bildpunkte, JPEG mit 0,7. Ein
+// volles Handyfoto riss sonst die Sendegrenze des Servers ("API error 413");
+// für die Karten-Erzeugung reicht die kleine Fassung locker. Schlägt die
+// Verkleinerung fehl, geht das Original raus — Scannen bleibt möglich.
+const MAX_SCAN_IMAGE_DIM = 1600;
+async function shrinkImageForScan(asset: {
+  uri: string;
+  width?: number;
+  height?: number;
+  base64?: string | null;
+}): Promise<{
+  uri: string;
+  base64: string | null;
+  mime: "image/jpeg" | "image/png" | "image/webp";
+}> {
+  try {
+    const width = asset.width ?? 0;
+    const height = asset.height ?? 0;
+    const longSide = Math.max(width, height);
+    const actions: ImageManipulator.Action[] =
+      longSide > MAX_SCAN_IMAGE_DIM
+        ? [
+            {
+              resize:
+                width >= height
+                  ? { width: MAX_SCAN_IMAGE_DIM }
+                  : { height: MAX_SCAN_IMAGE_DIM },
+            },
+          ]
+        : [];
+    const out = await ImageManipulator.manipulateAsync(asset.uri, actions, {
+      compress: 0.7,
+      format: ImageManipulator.SaveFormat.JPEG,
+      base64: true,
+    });
+    if (out.base64) {
+      return { uri: out.uri, base64: out.base64, mime: "image/jpeg" };
+    }
+  } catch {
+    // Original weiterverwenden — lieber ein großer Upload als gar keiner.
+  }
+  return { uri: asset.uri, base64: asset.base64 ?? null, mime: getMimeType(asset.uri) };
+}
 
 export default function ScanScreen() {
   const router = useRouter();
@@ -108,6 +175,16 @@ export default function ScanScreen() {
   const maxDecks = useUsageStore((state) => state.maxDecks);
   const maxCardsPerDeck = useUsageStore((state) => state.maxCardsPerDeck);
 
+  // Welche Quelle ist bezahlbar? (#611) Der Warnstreifen prüfte nur gegen den
+  // GÜNSTIGSTEN Preis: Bei 12 LP kam keine Warnung, obwohl URL (15) und PDF (20)
+  // unbezahlbar waren — man wählte eine Datei, wartete auf den Upload und bekam
+  // dann 402. Jede Quelle prüft jetzt gegen ihren eigenen Preis.
+  const afford = affordableScanSources(lpBalance, {
+    aiScan: lpCostAiScan,
+    urlImport: lpCostUrlImport,
+    pdfImport: lpCostPdfImport,
+  });
+
   // LP-Insufficient-Modal state
   const [lpModalVisible, setLpModalVisible] = useState(false);
   const [lpModalFeature, setLpModalFeature] = useState<"aiScan" | "urlImport" | "pdfImport">("aiScan");
@@ -126,6 +203,9 @@ export default function ScanScreen() {
   }, [userId, setUsage, limitsKnown]);
 
   // Deckliste für die Grenz-Prüfung VOR dem Ausgeben von Lernpunkten (#411).
+  // Ziel-Deck-Auswahl fürs Speichern in ein bestehendes Deck (#612).
+  const [deckPickerVisible, setDeckPickerVisible] = useState(false);
+
   // Schlägt sie fehl, bleibt `decksLoaded` false und es wird nichts gesperrt —
   // der Server lehnt dann notfalls ab und bucht die Lernpunkte zurück.
   const [decks, setDecks] = useState<Deck[]>([]);
@@ -150,7 +230,9 @@ export default function ScanScreen() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [cards, setCards] = useState<Flashcard[]>([]);
-  const [model, setModel] = useState("");
+  // Notlösung statt KI? Der Server meldet das je Scan; nur dieser Zustand
+  // wird noch gebraucht — der Modellname selbst wird nicht mehr gezeigt (#609).
+  const [fallbackUsed, setFallbackUsed] = useState(false);
   const [deckTitle, setDeckTitle] = useState("");
   const [saved, setSaved] = useState(false);
   // Deck created for THIS scan. Kept so a retry after a partial save reuses the
@@ -314,12 +396,13 @@ export default function ScanScreen() {
     });
 
     if (!result.canceled && result.assets[0]) {
-      const asset = result.assets[0];
-      setImageUri(asset.uri);
-      setImageBase64(asset.base64 ?? null);
+      // Vor dem Senden verkleinern (#609) — verhindert "zu groß"-Abbrüche.
+      const shrunk = await shrinkImageForScan(result.assets[0]);
+      setImageUri(shrunk.uri);
+      setImageBase64(shrunk.base64);
       setMode("choose");
-      if (asset.base64) {
-        await processImage(asset.base64, getMimeType(asset.uri));
+      if (shrunk.base64) {
+        await processImage(shrunk.base64, shrunk.mime);
       }
     }
   };
@@ -332,15 +415,17 @@ export default function ScanScreen() {
         quality: 0.8,
       });
       if (photo) {
-        setImageUri(photo.uri);
-        setImageBase64(photo.base64 ?? null);
+        // Vor dem Senden verkleinern (#609) — verhindert "zu groß"-Abbrüche.
+        const shrunk = await shrinkImageForScan(photo);
+        setImageUri(shrunk.uri);
+        setImageBase64(shrunk.base64);
         setMode("choose");
-        if (photo.base64) {
-          await processImage(photo.base64, "image/jpeg");
+        if (shrunk.base64) {
+          await processImage(shrunk.base64, shrunk.mime);
         }
       }
     } catch (error) {
-      Alert.alert("Fehler", "Foto konnte nicht aufgenommen werden.");
+      Alert.alert(t(IMPORT_ERROR_TITLE_KEY), "Foto konnte nicht aufgenommen werden.");
     }
   };
 
@@ -359,14 +444,6 @@ export default function ScanScreen() {
   };
 
   // --- Processing ---
-
-  const getMimeType = (
-    uri: string
-  ): "image/jpeg" | "image/png" | "image/webp" => {
-    if (uri.toLowerCase().endsWith(".png")) return "image/png";
-    if (uri.toLowerCase().endsWith(".webp")) return "image/webp";
-    return "image/jpeg";
-  };
 
   const getImportAttemptKey = (signature: string, prefix: string): string => {
     const attempt = getStableImportAttemptKey(
@@ -428,8 +505,9 @@ export default function ScanScreen() {
       const fileBase64 = await readPickedPdfAsBase64(asset);
       await processPdf(fileBase64, asset.name);
     } catch (error: unknown) {
+      // Hier landen nur unsere eigenen deutschen Lese-Fehler (readPickedPdfAsBase64).
       const msg = error instanceof Error ? error.message : "PDF konnte nicht gelesen werden.";
-      Alert.alert("Fehler beim PDF-Import", msg);
+      Alert.alert(t(IMPORT_ERROR_TITLE_KEY), msg);
     }
   };
 
@@ -453,7 +531,7 @@ export default function ScanScreen() {
       // „Speichern" (sonst zwei Decks je Scan).
       const result = await scanImage(userId, base64, mimeType, "de", idempotencyKey, true);
       setCards(result.cards);
-      setModel(result.model);
+      setFallbackUsed(result.fallbackUsed);
       setDeckTitle(result.deckTitle ?? "");
       if (result.usage) {
         deductLp(result.usage.lpSpent);
@@ -468,9 +546,7 @@ export default function ScanScreen() {
         setLpModalVisible(true);
         return;
       }
-      const msg =
-        error instanceof Error ? error.message : "Unbekannter Fehler";
-      Alert.alert("Fehler bei der Bildverarbeitung", msg);
+      Alert.alert(t(IMPORT_ERROR_TITLE_KEY), t(importErrorKey(error, "image")));
     } finally {
       setLoading(false);
     }
@@ -495,7 +571,7 @@ export default function ScanScreen() {
       // #442: preview — Deck entsteht erst beim „Speichern".
       const result = await importPdf(userId, fileName, fileBase64, "de", idempotencyKey, true);
       setCards(result.cards);
-      setModel(result.model);
+      setFallbackUsed(result.fallbackUsed);
       setDeckTitle(result.deckTitle ?? "");
       setPdfFileName(result.fileName);
       setPdfPageCount(result.pageCount);
@@ -512,8 +588,7 @@ export default function ScanScreen() {
         setLpModalVisible(true);
         return;
       }
-      const msg = error instanceof Error ? error.message : "Unbekannter Fehler";
-      Alert.alert("Fehler beim PDF-Import", msg);
+      Alert.alert(t(IMPORT_ERROR_TITLE_KEY), t(importErrorKey(error, "pdf")));
     } finally {
       setLoading(false);
     }
@@ -530,12 +605,14 @@ export default function ScanScreen() {
     setPdfFileName("");
     setPdfPageCount(null);
     try {
-      const text = editedText.trim();
+      // Aufräumen erst hier statt bei jedem Tastendruck (#609) — die Eingabe
+      // selbst bleibt unangetastet, sonst frisst der Editor Leerzeichen.
+      const text = normalizeOcrText(editedText);
       const idempotencyKey = getImportAttemptKey(`scan:${text}`, "scan");
       // #442: preview — Deck entsteht erst beim „Speichern".
       const result = await scanText(userId, text, "de", idempotencyKey, true);
       setCards(result.cards);
-      setModel(result.model);
+      setFallbackUsed(result.fallbackUsed);
       setDeckTitle(result.deckTitle ?? "");
       if (result.usage) {
         deductLp(result.usage.lpSpent);
@@ -550,9 +627,7 @@ export default function ScanScreen() {
         setLpModalVisible(true);
         return;
       }
-      const msg =
-        error instanceof Error ? error.message : "Unbekannter Fehler";
-      Alert.alert("Fehler", msg);
+      Alert.alert(t(IMPORT_ERROR_TITLE_KEY), t(importErrorKey(error, "text")));
     } finally {
       setLoading(false);
     }
@@ -582,7 +657,7 @@ export default function ScanScreen() {
       // #442: preview — Deck entsteht erst beim „Speichern".
       const result = await importFromUrl(userId, normalizedUrl, 4, "de", idempotencyKey, true);
       setCards(result.cards);
-      setModel(result.model);
+      setFallbackUsed(result.fallbackUsed);
       setDeckTitle(result.deckTitle ?? "");
       if (result.usage) {
         deductLp(result.usage.lpSpent);
@@ -597,8 +672,7 @@ export default function ScanScreen() {
         setLpModalVisible(true);
         return;
       }
-      const msg = error instanceof Error ? error.message : "Unbekannter Fehler";
-      Alert.alert("Fehler beim URL-Import", msg);
+      Alert.alert(t(IMPORT_ERROR_TITLE_KEY), t(importErrorKey(error, "url")));
     } finally {
       setLoading(false);
     }
@@ -674,9 +748,13 @@ export default function ScanScreen() {
         ]
       );
     } catch (error: unknown) {
-      const msg =
-        error instanceof Error ? error.message : "Unbekannter Fehler";
-      Alert.alert("Fehler beim Speichern", msg);
+      // Tarifgrenzen (409) sprechen schon gutes Deutsch vom Server — die
+      // bleiben; alles andere übersetzt importErrors (#609).
+      if (isPlanLimitError(error) && error instanceof Error) {
+        Alert.alert(DECK_LIMIT_LABEL, error.message);
+      } else {
+        Alert.alert(t(IMPORT_ERROR_TITLE_KEY), t(importErrorKey(error, "save")));
+      }
     } finally {
       setSaving(false);
     }
@@ -709,9 +787,11 @@ export default function ScanScreen() {
       void reloadDecks();
       await saveCardsToDeck(deck.id, deck.title);
     } catch (error: unknown) {
-      const msg =
-        error instanceof Error ? error.message : "Unbekannter Fehler";
-      Alert.alert("Fehler beim Speichern", msg);
+      if (isPlanLimitError(error) && error instanceof Error) {
+        Alert.alert(DECK_LIMIT_LABEL, error.message);
+      } else {
+        Alert.alert(t(IMPORT_ERROR_TITLE_KEY), t(importErrorKey(error, "save")));
+      }
       setSaving(false);
     }
   };
@@ -763,15 +843,12 @@ export default function ScanScreen() {
         );
         return;
       }
-      const buttons = existingDecks.slice(0, 8).map((d: Deck) => ({
-        // Freie Plätze stehen am Deck, damit die Wahl vorher informiert ist.
-        text: deckSlotsLabel(d.title, freeCardSlots(d, maxCardsPerDeck)),
-        onPress: () => confirmSaveToDeck(d),
-      }));
-      buttons.push({ text: "Abbrechen", onPress: () => {} });
-      Alert.alert("Deck wählen", `${nonEmptyCards(cards).length} Karten hinzufügen zu:`, buttons);
+      // Eigenes Auswahl-Fenster statt Alert (#612, #571-Teil-C): der Alert
+      // zeigte höchstens 8 Decks (Android real ~2–3), ohne Scrollen und ohne
+      // Suche — Deck Nr. 9+ war als Ziel unerreichbar.
+      setDeckPickerVisible(true);
     } catch {
-      Alert.alert("Fehler", "Decks konnten nicht geladen werden.");
+      Alert.alert(t(IMPORT_ERROR_TITLE_KEY), "Decks konnten nicht geladen werden.");
     }
   };
 
@@ -801,7 +878,7 @@ export default function ScanScreen() {
 
   const resetAll = () => {
     setCards([]);
-    setModel("");
+    setFallbackUsed(false);
     setDeckTitle("");
     setSaved(false);
     setSavedDeckId(null);
@@ -970,6 +1047,7 @@ export default function ScanScreen() {
             multiline
             value={editedText}
             onChangeText={setEditedText}
+            maxLength={MAX_TEXT}
             placeholder="Tippe oder füge hier deinen Lerntext ein..."
             placeholderTextColor={colors.textTertiary}
             style={{
@@ -983,6 +1061,20 @@ export default function ScanScreen() {
               textAlignVertical: "top",
             }}
           />
+          {/* Zeichen-Zähler wie im Web (#609) — die Grenze sieht man, bevor
+              sie zuschlägt. */}
+          <Text
+            style={{
+              alignSelf: "flex-end",
+              fontSize: typography.xs,
+              color: colors.textTertiary,
+            }}
+          >
+            {t("scan.charCount", {
+              current: editedText.length.toLocaleString("de-DE"),
+              max: MAX_TEXT.toLocaleString("de-DE"),
+            })}
+          </Text>
 
           {/* Example text */}
           {!editedText && (
@@ -1012,11 +1104,13 @@ export default function ScanScreen() {
 
           <TouchableOpacity
             onPress={handleGenerateFromText}
-            disabled={loading || !editedText.trim()}
+            // Reichen die Punkte nicht, ist der Knopf zu (#611) — der
+            // Warnstreifen darüber sagt, woran es liegt.
+            disabled={loading || !editedText.trim() || !afford.aiScan}
             activeOpacity={0.8}
             style={{
               backgroundColor:
-                loading || !editedText.trim()
+                loading || !editedText.trim() || !afford.aiScan
                   ? colors.textTertiary
                   : colors.primary,
               borderRadius: radius.md,
@@ -1038,7 +1132,7 @@ export default function ScanScreen() {
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 2, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
                   <Zap size={13} color={colors.textInverse} />
                   <Text style={{ color: colors.textInverse, fontSize: typography.xs, fontWeight: typography.bold }}>
-                    {lpCostAiScan}
+                    {lpCostAiScan} LP
                   </Text>
                 </View>
               </>
@@ -1126,11 +1220,13 @@ export default function ScanScreen() {
 
           <TouchableOpacity
             onPress={handleGenerateFromUrl}
-            disabled={loading || !validUrl}
+            disabled={loading || !validUrl || !afford.urlImport}
             activeOpacity={0.8}
             style={{
               backgroundColor:
-                loading || !validUrl ? colors.textTertiary : colors.primary,
+                loading || !validUrl || !afford.urlImport
+                  ? colors.textTertiary
+                  : colors.primary,
               borderRadius: radius.md,
               paddingVertical: 16,
               flexDirection: "row",
@@ -1150,7 +1246,7 @@ export default function ScanScreen() {
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 2, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
                   <Zap size={13} color={colors.textInverse} />
                   <Text style={{ color: colors.textInverse, fontSize: typography.xs, fontWeight: typography.bold }}>
-                    {lpCostUrlImport}
+                    {lpCostUrlImport} LP
                   </Text>
                 </View>
               </>
@@ -1250,10 +1346,13 @@ export default function ScanScreen() {
           </View>
         )}
 
-        {/* LP insufficient hint */}
-        {lpBalance < lpCostAiScan && cards.length === 0 && !loading && (
+        {/* LP insufficient hint — jetzt gegen den GÜNSTIGSTEN Weg (#611).
+            Vorher stand hier fest lpCostAiScan: derselbe Wert, aber aus dem
+            falschen Grund. Reicht es nicht mal für den günstigsten, geht gar
+            nichts — die teureren Quellen sagen es an ihrer Kachel selbst. */}
+        {!afford.anyAffordable && cards.length === 0 && !loading && (
           <TouchableOpacity
-            onPress={() => { setLpModalFeature("aiScan"); setLpModalCost(lpCostAiScan); setLpModalVisible(true); }}
+            onPress={() => { setLpModalFeature("aiScan"); setLpModalCost(afford.cheapest); setLpModalVisible(true); }}
             activeOpacity={0.8}
             style={{
               backgroundColor: colors.warningLight,
@@ -1268,7 +1367,7 @@ export default function ScanScreen() {
           >
             <Zap size={16} color={colors.warning} />
             <Text style={{ flex: 1, color: colors.text, fontSize: typography.sm }}>
-              {t("lp.insufficientHint", { cost: lpCostAiScan, balance: lpBalance })}
+              {t("lp.insufficientHint", { cost: afford.cheapest, balance: lpBalance })}
             </Text>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
               <Text style={{ color: colors.warning, fontSize: typography.xs, fontWeight: typography.semibold }}>
@@ -1320,6 +1419,20 @@ export default function ScanScreen() {
           feature={lpModalFeature}
           onClose={() => setLpModalVisible(false)}
           onAdRewarded={(newBalance) => setUsage({ lpBalance: newBalance })}
+        />
+
+        {/* Ziel-Deck wählen (#612) — die Platz-Nachfragen übernimmt weiterhin
+            confirmSaveToDeck, das Fenster wählt nur aus. */}
+        <TargetDeckPickerModal
+          visible={deckPickerVisible}
+          cardCount={nonEmptyCards(cards).length}
+          decks={decks}
+          maxCardsPerDeck={maxCardsPerDeck}
+          onClose={() => setDeckPickerVisible(false)}
+          onSelect={(deck) => {
+            setDeckPickerVisible(false);
+            confirmSaveToDeck(deck);
+          }}
         />
 
         {/* Loading overlay */}
@@ -1386,6 +1499,10 @@ export default function ScanScreen() {
             {/* Camera button */}
             <TouchableOpacity
               onPress={openCamera}
+              // Nichts anbieten, was der Server sicher ablehnt (#611): Vorher
+              // startete die Kamera, man knipste, das Bild lud hoch — und DANN
+              // kam 402. Die Sperre kostet nichts, der Fehlweg kostete Zeit.
+              disabled={!afford.aiScan}
               activeOpacity={0.8}
               style={{
                 backgroundColor: colors.primary,
@@ -1394,6 +1511,7 @@ export default function ScanScreen() {
                 flexDirection: "row",
                 alignItems: "center",
                 gap: spacing.lg,
+                opacity: afford.aiScan ? 1 : 0.5,
                 ...shadows.md,
               }}
             >
@@ -1420,7 +1538,9 @@ export default function ScanScreen() {
                   Foto aufnehmen
                 </Text>
                 <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: typography.sm, marginTop: 2 }}>
-                  {t("scan.cameraHint")}
+                  {afford.aiScan
+                    ? t("scan.cameraHint")
+                    : t("lp.sourceTooExpensive", { balance: lpBalance, cost: lpCostAiScan })}
                 </Text>
               </View>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 }}>
@@ -1435,6 +1555,7 @@ export default function ScanScreen() {
             {/* Gallery button */}
             <TouchableOpacity
               onPress={handlePickFromGallery}
+              disabled={!afford.aiScan}
               activeOpacity={0.8}
               style={{
                 backgroundColor: colors.success,
@@ -1443,6 +1564,7 @@ export default function ScanScreen() {
                 flexDirection: "row",
                 alignItems: "center",
                 gap: spacing.lg,
+                opacity: afford.aiScan ? 1 : 0.5,
                 ...shadows.md,
               }}
             >
@@ -1469,7 +1591,9 @@ export default function ScanScreen() {
                   Aus Galerie wählen
                 </Text>
                 <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: typography.sm, marginTop: 2 }}>
-                  {t("scan.galleryHint")}
+                  {afford.aiScan
+                    ? t("scan.galleryHint")
+                    : t("lp.sourceTooExpensive", { balance: lpBalance, cost: lpCostAiScan })}
                 </Text>
               </View>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 }}>
@@ -1484,6 +1608,7 @@ export default function ScanScreen() {
             {/* Text input button */}
             <TouchableOpacity
               onPress={() => setMode("text")}
+              disabled={!afford.aiScan}
               activeOpacity={0.8}
               style={{
                 backgroundColor: colors.warning,
@@ -1492,6 +1617,7 @@ export default function ScanScreen() {
                 flexDirection: "row",
                 alignItems: "center",
                 gap: spacing.lg,
+                opacity: afford.aiScan ? 1 : 0.5,
                 ...shadows.md,
               }}
             >
@@ -1518,7 +1644,9 @@ export default function ScanScreen() {
                   Text eingeben
                 </Text>
                 <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: typography.sm, marginTop: 2 }}>
-                  {t("scan.textHint")}
+                  {afford.aiScan
+                    ? t("scan.textHint")
+                    : t("lp.sourceTooExpensive", { balance: lpBalance, cost: lpCostAiScan })}
                 </Text>
               </View>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 }}>
@@ -1533,8 +1661,10 @@ export default function ScanScreen() {
             {/* URL import button */}
             <TouchableOpacity
               onPress={() => setMode("url")}
+              disabled={!afford.urlImport}
               activeOpacity={0.8}
               style={{
+                opacity: afford.urlImport ? 1 : 0.5,
                 backgroundColor: colors.info,
                 borderRadius: radius.lg,
                 padding: spacing.xl,
@@ -1567,7 +1697,9 @@ export default function ScanScreen() {
                   URL importieren
                 </Text>
                 <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: typography.sm, marginTop: 2 }}>
-                  {t("scan.urlHint")}
+                  {afford.urlImport
+                    ? t("scan.urlHint")
+                    : t("lp.sourceTooExpensive", { balance: lpBalance, cost: lpCostUrlImport })}
                 </Text>
               </View>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 }}>
@@ -1582,6 +1714,9 @@ export default function ScanScreen() {
             {/* PDF import button */}
             <TouchableOpacity
               onPress={handlePickPdf}
+              // Der teuerste Weg (20 LP) und der mit dem längsten Fehlweg: Datei
+              // wählen, hochladen, warten — dann 402 (#611).
+              disabled={!afford.pdfImport}
               activeOpacity={0.8}
               style={{
                 backgroundColor: colors.text,
@@ -1590,6 +1725,7 @@ export default function ScanScreen() {
                 flexDirection: "row",
                 alignItems: "center",
                 gap: spacing.lg,
+                opacity: afford.pdfImport ? 1 : 0.5,
                 ...shadows.md,
               }}
             >
@@ -1616,7 +1752,9 @@ export default function ScanScreen() {
                   PDF importieren
                 </Text>
                 <Text style={{ color: "rgba(255,255,255,0.72)", fontSize: typography.sm, marginTop: 2 }}>
-                  Text-PDF direkt in Lernkarten umwandeln
+                  {afford.pdfImport
+                    ? "Text-PDF direkt in Lernkarten umwandeln"
+                    : t("lp.sourceTooExpensive", { balance: lpBalance, cost: lpCostPdfImport })}
                 </Text>
               </View>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 }}>
@@ -1725,13 +1863,12 @@ export default function ScanScreen() {
               </Text>
             ) : null}
 
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
+            {/* Kopfzeile der Vorschau (#609): Der Modellname („via
+                gemini-2.0-flash", im Notfall „via heuristic-fallback") sagt
+                niemandem etwas und ist weg. Stattdessen der Satz aus dem Web,
+                der die wichtigste Frage beantwortet: Ist das schon gespeichert?
+                Nein — erst nach dem Speichern-Knopf. */}
+            <View style={{ gap: 2 }}>
               <Text
                 style={{
                   fontSize: typography.base,
@@ -1739,14 +1876,33 @@ export default function ScanScreen() {
                   color: colors.textSecondary,
                 }}
               >
-                {cards.length} Karten generiert
+                {cards.length === 1 ? "1 Karte erstellt" : `${cards.length} Karten erstellt`}
               </Text>
-              <Text
-                style={{ fontSize: typography.xs, color: colors.textTertiary }}
-              >
-                via {model}
+              <Text style={{ fontSize: typography.xs, color: colors.textTertiary }}>
+                Sieh sie dir an und ändere, was nicht passt — gespeichert wird erst danach.
               </Text>
             </View>
+
+            {/* Ehrlich bleiben, wenn die KI nicht erreichbar war: Dann hat eine
+                einfache Notlösung den Text nur grob zerteilt, und die Karten
+                sind spürbar schlechter. Der Server meldet das als
+                `fallbackUsed` — verlässlicher als der Modellname. */}
+            {fallbackUsed ? (
+              <View
+                style={{
+                  backgroundColor: colors.warningLight,
+                  borderWidth: 1,
+                  borderColor: colors.warning,
+                  borderRadius: radius.md,
+                  paddingHorizontal: spacing.md,
+                  paddingVertical: spacing.sm,
+                }}
+              >
+                <Text style={{ fontSize: typography.sm, color: colors.text }}>
+                  Ohne KI erstellt — die Karten sind nur grob aufgeteilt.
+                </Text>
+              </View>
+            ) : null}
 
             {cards.map((card, idx) => {
               const media = summarizeCardMedia(card);
@@ -1914,7 +2070,7 @@ export default function ScanScreen() {
                         overflow: "hidden",
                       }}
                     >
-                      {card.type}
+                      {cardTypeLabel(card.type)}
                     </Text>
                     <Text
                       style={{
@@ -1927,7 +2083,7 @@ export default function ScanScreen() {
                         overflow: "hidden",
                       }}
                     >
-                      {card.difficulty}
+                      {difficultyLabel(card.difficulty)}
                     </Text>
                   </View>
                   </View>

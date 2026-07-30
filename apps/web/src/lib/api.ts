@@ -301,6 +301,72 @@ export function getDueCards(userId: string): Promise<{ cards: Card[] }> {
   return authed<{ cards: Card[] }>(`/api/v1/learn/due?userId=${encodeURIComponent(userId)}`);
 }
 
+// ─── Lernstand im Konto (geräteübergreifendes „Weitermachen", #610) ──────────
+
+/** Lernarten mit merkbarer Position — wie session-progress.ts und der Server. */
+export type ServerProgressMode = "flashcards" | "cloze";
+
+export interface ServerSessionProgress {
+  index: number;
+  cardId: string;
+  source: string;
+  reverse: boolean;
+  total: number;
+  results?: Record<string, { correct: boolean; overridden: boolean }>;
+  /** Server-Zeitstempel — entscheidet gegen den lokalen Stand (progress-merge). */
+  savedAt?: string;
+}
+
+interface ServerProgressResponse {
+  progress:
+    | (Omit<ServerSessionProgress, "savedAt"> & { updatedAt?: string })
+    | null;
+}
+
+export async function getServerProgress(
+  deckId: string,
+  mode: ServerProgressMode
+): Promise<ServerSessionProgress | null> {
+  const res = await authed<ServerProgressResponse>(
+    `/api/v1/learn/progress?deckId=${encodeURIComponent(deckId)}&mode=${mode}`
+  );
+  if (!res.progress) return null;
+  const { updatedAt, ...rest } = res.progress;
+  // Der Server nennt es updatedAt; im Client heißt der Zeitstempel überall
+  // savedAt, damit die Vergleichsregel beide Seiten gleich behandelt.
+  return { ...rest, ...(updatedAt ? { savedAt: updatedAt } : {}) };
+}
+
+export function putServerProgress(
+  deckId: string,
+  mode: ServerProgressMode,
+  progress: Omit<ServerSessionProgress, "savedAt">
+): Promise<{ saved: boolean }> {
+  return authed<{ saved: boolean }>("/api/v1/learn/progress", {
+    method: "PUT",
+    body: JSON.stringify({ deckId, mode, ...progress }),
+  });
+}
+
+export function deleteServerProgress(
+  deckId: string,
+  mode: ServerProgressMode
+): Promise<{ cleared: boolean }> {
+  return authed<{ cleared: boolean }>(
+    `/api/v1/learn/progress?deckId=${encodeURIComponent(deckId)}&mode=${mode}`,
+    { method: "DELETE" }
+  );
+}
+
+/**
+ * Fällige Karten je Deck, nur als Zahlen (#612). Für die "N fällig"-Abzeichen —
+ * getDueCards würde den ganzen Rückstand mit Kartentext übertragen und wird ab
+ * 1000 Karten still gekappt. Decks ohne fällige Karten fehlen im Objekt.
+ */
+export function getDueCountsByDeck(): Promise<{ dueByDeck: Record<string, number> }> {
+  return authed<{ dueByDeck: Record<string, number> }>("/api/v1/stats/due-by-deck");
+}
+
 /**
  * Aus welchem Modus eine Wiederholung stammt. Der Server entscheidet daran, wer
  * sie mitzählt: Abruf-Modi bewegen den Lernplan, Rate-Modi nur bei Fehlern, und
@@ -678,11 +744,12 @@ export interface LpEarnResponse {
 
 /**
  * Schreibt Lernpunkte fürs Lernen gut — wie die App am Ende einer Lernsitzung.
- * Ab 5 gelernten Karten gibt es LP (Tageslimit serverseitig). Web nutzt nur
- * "session"/"dailyGoal" (keine Werbung im Browser).
+ * Ab 5 gelernten Karten gibt es LP (Tageslimit serverseitig). Nur "session":
+ * der Server erlaubt keinen anderen Typ mehr (dailyGoal/ad sind entfernt) —
+ * das alte "dailyGoal" hier war eine Einladung zu einem sicheren 400 (#612).
  */
 export function earnLp(
-  type: "session" | "dailyGoal",
+  type: "session",
   sessionCardCount?: number
 ): Promise<LpEarnResponse> {
   return authed<LpEarnResponse>("/api/v1/lp/earn", {
@@ -743,7 +810,7 @@ export function deleteAccount(): Promise<DeleteAccountResponse> {
 // Geprüft wird auf dem Server (Name: Länge, Zeichen, Sperrliste; Geschlecht:
 // nur die drei bekannten Werte) — der Client übersetzt die Fehler-Codes.
 // gender null = keine Angabe (Bestandskonto) → Texte nutzen die neutrale Form.
-export type Gender = "female" | "male" | "diverse";
+export type Gender = "female" | "male" | "diverse" | "prefer_not_to_say";
 export interface ProfileResponse {
   displayName: string | null;
   gender: Gender | null;

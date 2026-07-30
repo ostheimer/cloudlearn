@@ -7,8 +7,11 @@ import { useAuth } from "@/components/app/auth-context";
 import { Modal } from "@/components/app/modal";
 import { OcclusionShot } from "@/components/app/occlusion-shot";
 import { getCardImages, occlusionTarget, type CardImage } from "@/lib/card-images";
+import { cardListPreview } from "@/lib/card-display";
 import { deckCountLabel } from "@/lib/deck-count-label";
+import { adviceForLimit } from "@/lib/import-limits";
 import { useCoarsePointer } from "@/lib/use-coarse-pointer";
+import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
 import {
   getDeckDetails,
   listCardsInDeck,
@@ -19,6 +22,7 @@ import {
   type Card,
   type DeckDetails,
 } from "@/lib/api";
+import { loadPlanLimits } from "@/lib/plan-limits";
 import {
   ArrowLeft,
   ChevronRight,
@@ -82,6 +86,22 @@ export default function DeckDetailPage() {
   const [cardImages, setCardImages] = useState<Record<string, CardImage | null>>({});
   const fetchedPaths = useRef<Set<string>>(new Set());
   const coarsePointer = useCoarsePointer();
+  // Kartengrenze für den Füllstand im Kopf (#611). Über loadPlanLimits, das den
+  // Wert je Sitzung EINMAL holt — die Deck-Seite wird oft geöffnet, und ein
+  // Abruf bei jedem Öffnen war der Einwand von #376. `undefined` heißt
+  // „unbekannt": dann bleibt die nackte Kartenzahl und nichts wird gesperrt.
+  const [maxCardsPerDeck, setMaxCardsPerDeck] = useState<number | undefined>(undefined);
+
+  useEffect(() => {
+    if (!userId) return;
+    let active = true;
+    void loadPlanLimits().then((limits) => {
+      if (active) setMaxCardsPerDeck(limits.maxCardsPerDeck);
+    });
+    return () => {
+      active = false;
+    };
+  }, [userId]);
 
   const load = useCallback(async () => {
     if (!deckId) return;
@@ -103,6 +123,10 @@ export default function DeckDetailPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Nach dem Lernen am Handy zeigte die offene Deck-Seite am Laptop weiter den
+  // alten Stand (#610) — auch Karten, die inzwischen woanders geändert wurden.
+  useRefreshOnFocus(load);
 
   // Bilder nachladen, sobald die Karten da sind — die Liste soll darauf nicht
   // warten. Die Abhängigkeit ist die Menge der Pfade (dedupliziert, sortiert),
@@ -175,7 +199,16 @@ export default function DeckDetailPage() {
 
   // Dieselbe Regel wie Deck-Liste und Ordner-Seite (deck-count-label): Teile mit
   // null weglassen, leeres Deck → kein Label (der Leerzustand sagt es schon).
-  const cardCountLabel = deckCountLabel(textCards.length, occlusionCards.length);
+  // Ist die Tarif-Grenze bekannt, steht hier der Füllstand statt der nackten
+  // Anzahl: „142 von 150 Karten" (#611).
+  const cardCountLabel = deckCountLabel(
+    textCards.length,
+    occlusionCards.length,
+    maxCardsPerDeck
+  );
+  const deckIsFull =
+    typeof maxCardsPerDeck === "number" &&
+    textCards.length + occlusionCards.length >= maxCardsPerDeck;
 
   // Wie viele andere Karten hängen am selben Bild? Gezählt werden KARTEN, nicht
   // Regionen: extraData.regions führt gelöschte Stellen weiter mit, die Zahl
@@ -218,12 +251,21 @@ export default function DeckDetailPage() {
 
       <div className="detail-head">
         <div>
-          <h1 style={{ fontSize: "clamp(1.5rem, 4vw, 2rem)", fontWeight: 800 }}>
+          {/* overflowWrap: ein Titel ohne Leerzeichen darf die Seite nicht
+              horizontal aufschieben (#612). */}
+          <h1 style={{ fontSize: "clamp(1.5rem, 4vw, 2rem)", fontWeight: 800, overflowWrap: "anywhere" }}>
             {details?.title}
           </h1>
           {cardCountLabel && (
-            <p className="muted" style={{ marginTop: 4 }}>
-              {cardCountLabel}
+            <p
+              className="muted"
+              style={{
+                marginTop: 4,
+                // Am vollen Deck warnfarben — die Zahl IST die Nachricht (#611).
+                ...(deckIsFull ? { color: "var(--amber)" } : {}),
+              }}
+            >
+              {deckIsFull ? `${cardCountLabel} — voll` : cardCountLabel}
             </p>
           )}
         </div>
@@ -231,6 +273,11 @@ export default function DeckDetailPage() {
           type="button"
           className="btn btn-primary"
           onClick={() => setModal({ type: "add" })}
+          // Nichts anbieten, was der Server sicher ablehnt (#611): Am vollen Deck
+          // führte „+ Karte" bisher durch den ganzen Editor bis in eine
+          // Fehlermeldung. Der Grund steht als Füllstand direkt daneben.
+          disabled={deckIsFull}
+          title={deckIsFull ? "Dieses Deck ist voll" : undefined}
         >
           + Karte
         </button>
@@ -335,7 +382,9 @@ export default function DeckDetailPage() {
                 <span className="mode-card__sub">
                   {hasOcclusion
                     ? "Bildteile verdecken & abfragen"
-                    : "Noch kein Bild — zum Erstellen klicken"}
+                    : coarsePointer
+                      ? "Noch kein Bild — zum Erstellen antippen"
+                      : "Noch kein Bild — zum Erstellen klicken"}
                 </span>
               </span>
               <ChevronRight size={20} className="mode-card__chevron" />
@@ -367,12 +416,18 @@ export default function DeckDetailPage() {
             Karten
           </h2>
           <div className="card-list">
-            {textCards.map((card, i) => (
+            {textCards.map((card, i) => {
+              // Aufbereitet wie in den Lernmodi (#612): Lücken als Strich statt
+              // rohem {{c1::…}}, kein Bild-Markdown. Eine Seite ohne Text (reines
+              // Bild ohne Unterschrift) sagt das, statt leer zu bleiben.
+              const preview = cardListPreview(card);
+              const emptySide = preview.hasImage ? "(Bild)" : "";
+              return (
             <div key={card.id} className="card-row">
               <span className="card-row__num">{i + 1}</span>
               <div className="card-row__faces">
-                <div className="card-row__front">{card.front}</div>
-                <div className="card-row__back">{card.back}</div>
+                <div className="card-row__front">{preview.front || emptySide}</div>
+                <div className="card-row__back">{preview.back || emptySide}</div>
               </div>
               <div className="card-row__actions">
                 <button
@@ -402,7 +457,8 @@ export default function DeckDetailPage() {
                 </button>
               </div>
             </div>
-          ))}
+              );
+            })}
           </div>
           </>
           )}
@@ -648,8 +704,10 @@ function CardEditor({
     setBusy(true);
     try {
       await onSubmit(front.trim(), back.trim());
-    } catch {
-      setError("Speichern fehlgeschlagen. Bitte versuche es erneut.");
+    } catch (e) {
+      // Am vollen Deck hilft kein zweiter Versuch — dann steht hier, wie viele
+      // Karten der Tarif erlaubt und was der Ausweg ist (#611).
+      setError(adviceForLimit(e) ?? "Speichern fehlgeschlagen. Bitte versuche es erneut.");
       setBusy(false);
     }
   }

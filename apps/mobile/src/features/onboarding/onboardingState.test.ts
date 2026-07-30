@@ -18,15 +18,15 @@ describe("onboarding state", () => {
     expect(useOnboardingState.getState().completed).toBe(true);
   });
 
-  it("counts four steps since the scan step exists", () => {
-    expect(useOnboardingState.getState().totalSteps).toBe(4);
+  it("counts five steps since the LP step exists (#609)", () => {
+    expect(useOnboardingState.getState().totalSteps).toBe(5);
   });
 
   it("nextStep stops at the last step instead of overshooting", () => {
     for (let i = 0; i < 10; i++) {
       useOnboardingState.getState().nextStep();
     }
-    expect(useOnboardingState.getState().step).toBe(4);
+    expect(useOnboardingState.getState().step).toBe(5);
   });
 });
 

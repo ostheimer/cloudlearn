@@ -37,6 +37,7 @@ import { useUsageStore } from "../src/store/usageStore";
 import { excludeOcclusionCards } from "../src/lib/occlusion";
 import {
   defaultQuizCopyDe,
+  countQuizableCards,
   generateQuestions,
   type QuizQuestion,
 } from "../src/lib/quizQuestions";
@@ -44,9 +45,11 @@ import { fetchDeckStats } from "../src/lib/statsApi";
 import {
   CardSourcePicker,
   filterBySource,
+  isCardDue,
   type CardSource,
 } from "../src/components/cardSourcePicker";
 import { QuestionCountPicker } from "../src/components/questionCountPicker";
+import { LpRoundSummary } from "../src/components/LpRoundSummary";
 import {
   encodeCount,
   loadSetup,
@@ -100,6 +103,10 @@ export default function QuizScreen() {
   // Der Server zählt Rate-Modi je Karte und Lerntag nur einmal (Anti-Farming,
   // Schritt 8); eine eigene Rechnung würde bei der zweiten Runde lügen.
   const [earnedLp, setEarnedLp] = useState(0);
+  // Sagte der Server, dass der Tagesdeckel greift? (#611) Kam schon immer in der
+  // earn-Antwort mit und wurde hier weggeworfen — deshalb blieb offen, warum
+  // eine Runde ohne Punkte endete.
+  const [earnCapReached, setEarnCapReached] = useState(false);
 
   // LP-Abrechnung nach dem #397-Muster (wie Lernen/Lückentext): Antworten
   // werden sofort gemeldet, die eine Gutschrift je Runde wartet erst alle
@@ -124,13 +131,13 @@ export default function QuizScreen() {
   // The chosen source; choice questions need at least two cards from it.
   const starredCount = cards.filter((c) => c.starred).length;
   const wobblyCount = cards.filter((c) => wobblyIds.has(c.id)).length;
+  const dueCount = cards.filter((c) => isCardDue(c)).length;
   const pool = filterBySource(cards, source, wobblyIds);
   const canStart = anyType && pool.length >= 2;
-  // Obergrenze der Auswahl: wie die Prüfung nur Karten mit beiden Seiten —
-  // leere ergeben keine Frage, und „Alle (N)" soll nicht mehr versprechen.
-  const usableCount = pool.filter(
-    (c) => (c.front ?? "").trim() && (c.back ?? "").trim()
-  ).length;
+  // Obergrenze der Auswahl: EXAKT die Pool-Regel der Fragen-Erzeugung (#612) —
+  // ein Bild zählt als Seite, Doppel-Scans zählen einmal. Die alte reine
+  // Text-Prüfung versprach „Alle (12)" und lieferte dann 10 Fragen.
+  const usableCount = countQuizableCards(pool);
 
   // Schrumpft der Pool (andere Kartenquelle), darf die gewählte Anzahl nicht
   // darüber liegen; nur klemmen, nie zurückwachsen (10 bleibt der Standard).
@@ -159,15 +166,25 @@ export default function QuizScreen() {
     if (setupRestoredRef.current || loading || storedSetup === undefined) return;
     if (!inSetup) return;
     setupRestoredRef.current = true;
-    if (!storedSetup) return;
+    // Multiple Choice braucht 2 Karten (Ablenker) — eine Quelle mit weniger
+    // darf nie vorbelegt werden, sonst steht man vor gesperrtem Start.
+    const usable = (n: number) => (n >= 2 ? n : 0);
+    const counts = {
+      starred: usable(starredCount),
+      wobbly: usable(wobblyCount),
+      due: usable(dueCount),
+    };
+    // Ohne gemerkte Wahl ist das Tagespensum die Voreinstellung (#610).
+    if (!storedSetup) {
+      if (counts.due > 0) setSource("due");
+      return;
+    }
     if (storedSetup.reverse !== undefined) setReverse(storedSetup.reverse);
     if (storedSetup.typeMC !== undefined) setTypeMC(storedSetup.typeMC);
     if (storedSetup.typeTF !== undefined) setTypeTF(storedSetup.typeTF);
-    const wanted = resolveSource(storedSetup.source, {
-      starred: starredCount,
-      wobbly: wobblyCount,
-    });
+    const wanted = resolveSource(storedSetup.source, counts);
     if (wanted) setSource(wanted);
+    else if (!storedSetup.source && counts.due > 0) setSource("due");
     // Obergrenze der Anzahl ist der Vorrat der Quelle, die ab jetzt gilt —
     // der Klemm-Effekt oben zieht sie bei Quellenwechseln weiter mit.
     const wantedPool = filterBySource(cards, wanted ?? source, wobblyIds);
@@ -176,7 +193,7 @@ export default function QuizScreen() {
     ).length;
     const storedCount = resolveCount(storedSetup.count, wantedMax);
     if (storedCount !== null) setCount(storedCount);
-  }, [loading, storedSetup, inSetup, starredCount, wobblyCount, cards, source, wobblyIds]);
+  }, [loading, storedSetup, inSetup, starredCount, wobblyCount, dueCount, cards, source, wobblyIds]);
 
   // Load cards
   const loadCards = useCallback(async () => {
@@ -236,6 +253,7 @@ export default function QuizScreen() {
               setUsage({ lpBalance: result.newBalance });
               setEarnedLp(result.granted);
             }
+            setEarnCapReached(result.capReached);
             if (isSessionEarnFinalized(result, reviewedCount)) {
               state.finalized = true;
               break;
@@ -282,6 +300,7 @@ export default function QuizScreen() {
     pendingReviewsRef.current = [];
     sessionReviewsRef.current = 0;
     setEarnedLp(0);
+    setEarnCapReached(false);
     setQuestions(qs);
     setCurrentIdx(0);
     setSelections(new Array<number | null>(qs.length).fill(null));
@@ -687,12 +706,13 @@ export default function QuizScreen() {
               )}
             </View>
 
-            {/* Kartenquelle — Alle / Nur markierte / Nur Wackelkandidaten */}
+            {/* Kartenquelle — Nur fällige / Alle / Nur markierte / Nur Wackelkandidaten */}
             <CardSourcePicker
               value={source}
               onChange={setSource}
               allCount={cards.length}
               starredCount={starredCount}
+              dueCount={dueCount}
               wobblyCount={wobblyCount}
             />
             {source !== "all" && pool.length < 2 && (
@@ -807,33 +827,10 @@ export default function QuizScreen() {
                 : "Weiter üben! Wiederholung ist der Schlüssel."}
             </Text>
 
-            {/* Nur anzeigen, wenn wirklich Punkte kamen. Eine zweite Runde mit
-                denselben Karten am selben Tag bringt keine — dann steht hier
-                nichts, statt „+0 Lernpunkte" zu behaupten. */}
-            {earnedLp > 0 && (
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: spacing.xs,
-                  backgroundColor: colors.successLight,
-                  paddingVertical: spacing.xs,
-                  paddingHorizontal: spacing.md,
-                  borderRadius: radius.full ?? 999,
-                }}
-              >
-                <Zap size={15} color={colors.success} />
-                <Text
-                  style={{
-                    fontSize: typography.sm,
-                    fontWeight: typography.semibold,
-                    color: colors.success,
-                  }}
-                >
-                  +{earnedLp} Lernpunkte
-                </Text>
-              </View>
-            )}
+            {/* Punkte-Rückmeldung, seit #611 geteilt: „+0 Lernpunkte" wird
+                weiterhin nicht behauptet — aber wenn der Tagesdeckel der Grund
+                ist, steht das jetzt da, statt die Frage offen zu lassen. */}
+            <LpRoundSummary earned={earnedLp} capReached={earnCapReached} />
 
             {/* Answer summary */}
             <View style={{ width: "100%", gap: spacing.sm }}>

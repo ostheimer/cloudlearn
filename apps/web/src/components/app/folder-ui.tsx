@@ -80,6 +80,7 @@ export function FolderCard({
           type="button"
           className="icon-btn"
           aria-label="Ordner-Optionen"
+          aria-haspopup="menu"
           aria-expanded={menuOpen}
           onClick={onToggleMenu}
         >
@@ -90,10 +91,10 @@ export function FolderCard({
             <Link href={`/dashboard/folder/${folder.id}`} role="menuitem">
               <FolderIcon size={15} /> Öffnen
             </Link>
-            <button type="button" onClick={onRename}>
+            <button type="button" role="menuitem" onClick={onRename}>
               <Pencil size={15} /> Umbenennen
             </button>
-            <button type="button" className="danger" onClick={onDelete}>
+            <button type="button" role="menuitem" className="danger" onClick={onDelete}>
               <Trash size={15} /> Löschen
             </button>
           </div>

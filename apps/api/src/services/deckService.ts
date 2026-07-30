@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  countCardsInDeck,
   createDeck,
   listDecks,
   listCardsForDeck,
@@ -18,18 +19,25 @@ import { randomUUID } from "node:crypto";
 import { HttpError } from "@/lib/http";
 import { speechLangSchema, type SpeechLanguage } from "@/lib/speechLanguages";
 import { getSubscriptionStatus } from "./subscriptionService";
-import { assertDeckLimit, assertEntitlement } from "@/lib/limits";
+import { assertDeckCopyFits, assertDeckLimit, assertEntitlement } from "@/lib/limits";
+import { clampTitle } from "@/lib/titleLimit";
+
+// Titel (#612): trimmen, damit "   " kein gültiger Name ist, und auf 120
+// Zeichen KAPPEN statt abweisen — Scan-Titel schreibt die KI, und alte
+// App-Builds haben keinen Tipp-Stopp (siehe titleLimit.ts). Gleiches Schema
+// wie bei Ordnern (folderService).
+const titleSchema = z.string().trim().min(1).transform(clampTitle);
 
 const createDeckSchema = z.object({
   userId: z.string().uuid(),
-  title: z.string().min(1),
+  title: titleSchema,
   tags: z.array(z.string()).default([]),
 });
 
 const updateDeckSchema = z.object({
   userId: z.string().uuid(),
   deckId: z.string().uuid(),
-  title: z.string().min(1).optional(),
+  title: titleSchema.optional(),
   tags: z.array(z.string()).optional(),
   // Vorlese-Sprachen (#571): `null` löscht die Einstellung, ein fehlendes Feld
   // lässt sie unangetastet. Siehe speechLangSchema.
@@ -41,6 +49,26 @@ async function assertCanCreateDeck(userId: string): Promise<void> {
   const { tier } = await getSubscriptionStatus(userId);
   const existingDecks = await listDecks(userId);
   assertDeckLimit(tier, existingDecks.length);
+}
+
+/**
+ * Both limits for a deck COPY (#611): room for another deck, and room for all
+ * of the source deck's cards.
+ *
+ * The second check is the one that was missing — duplicating and importing
+ * copied every card without ever asking `maxCardsPerDeck`, so a shared link
+ * from a Pro account handed a free account a deck it could never have built
+ * itself.
+ *
+ * Deck limit first: if there is no room for another deck at all, the card count
+ * is beside the point, and that message names the more immediate problem.
+ * Tier is fetched once for both checks.
+ */
+async function assertCanCopyDeck(userId: string, sourceDeckId: string): Promise<void> {
+  const { tier } = await getSubscriptionStatus(userId);
+  const existingDecks = await listDecks(userId);
+  assertDeckLimit(tier, existingDecks.length);
+  assertDeckCopyFits(tier, await countCardsInDeck(sourceDeckId));
 }
 
 export async function createDeckForUser(input: unknown) {
@@ -81,7 +109,7 @@ export async function listCardsInDeck(userId: string, deckId: string) {
 export async function duplicateDeckForUser(userId: string, deckId: string) {
   const sourceDeck = await getDeck(deckId, userId);
   if (!sourceDeck) throw new Error("Deck not found");
-  await assertCanCreateDeck(userId);
+  await assertCanCopyDeck(userId, deckId);
   const newTitle = `${sourceDeck.title} (Kopie)`;
   return dbDuplicateDeck(userId, deckId, newTitle);
 }
@@ -127,7 +155,7 @@ export async function importSharedDeck(userId: string, shareToken: string) {
   if (!source) {
     throw new HttpError("Shared deck not found or link expired", 404, "DECK_NOT_FOUND");
   }
-  await assertCanCreateDeck(userId);
+  await assertCanCopyDeck(userId, source.id);
   const deck = await dbDuplicateDeck(userId, source.id, source.title);
   return { deck };
 }

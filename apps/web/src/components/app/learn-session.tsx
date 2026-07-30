@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/app/auth-context";
 import {
@@ -38,8 +38,11 @@ import {
   isSessionEarnFinalized,
   type SessionAwardState,
 } from "@/lib/learn-session-lp";
-import { clearSessionProgress, saveSessionProgress } from "@/lib/session-progress";
+import { useCoarsePointer } from "@/lib/use-coarse-pointer";
+import { saveSessionProgress, type SessionProgress } from "@/lib/session-progress";
+import { clearProgressEverywhere, pushProgressToAccount } from "@/lib/session-progress-sync";
 import { createReviewSendBuffer } from "@/lib/review-send-buffer";
+import { ratingKeyIndex } from "@/lib/learn-keys";
 import {
   isCardGone,
   persistedReviewCount,
@@ -99,6 +102,10 @@ export function LearnSession({
   const router = useRouter();
   const { userId } = useAuth();
 
+  // Am Handy tippt man die Karte an, am Laptop klickt man sie — der Hinweis
+  // auf der Kartenvorderseite muss die richtige Geste nennen (#521).
+  const coarsePointer = useCoarsePointer();
+
   // `cards` is the queue actually being studied — possibly a subset of `pool`
   // after „Nur die nicht gewussten".
   const [cards, setCards] = useState<Card[]>(pool);
@@ -142,6 +149,9 @@ export function LearnSession({
   // liegen, bis die nächste Karte bewertet ist — nur so kann der
   // Zurück-Pfeil sie folgenlos verwerfen.
   const reviewBufferRef = useRef(createReviewSendBuffer());
+  // Die Karte selbst — nach jeder Bewertung wandert der Tastatur-Fokus hierher
+  // zurück (siehe rate).
+  const cardRef = useRef<HTMLDivElement>(null);
 
   const total = cards.length;
   const current = cards[index];
@@ -170,6 +180,11 @@ export function LearnSession({
   const [deckLangs, setDeckLangs] = useState<
     Record<string, { front: SpeechLanguage; back: SpeechLanguage }>
   >({});
+  // Deck-Titel für die kleine Beschriftung auf der Karte (#609): Sobald der
+  // Stapel Karten aus MEHREREN Decks mischt (globale Runde, Ordner-Runde),
+  // sagt die Karte, zu welchem Deck sie gehört — Laras Bedingung dafür, dass
+  // die fällige Runde über alle Decks überhaupt gebaut wird.
+  const [deckTitles, setDeckTitles] = useState<Record<string, string>>({});
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
@@ -177,13 +192,16 @@ export function LearnSession({
       .then(({ decks }) => {
         if (cancelled) return;
         const map: Record<string, { front: SpeechLanguage; back: SpeechLanguage }> = {};
+        const titles: Record<string, string> = {};
         for (const d of decks) {
           map[d.id] = {
             front: toSpeechLanguage(d.speechLangFront),
             back: toSpeechLanguage(d.speechLangBack),
           };
+          titles[d.id] = d.title;
         }
         setDeckLangs(map);
+        setDeckTitles(titles);
       })
       .catch(() => {
         /* Ohne Zuordnung bleibt es bei Deutsch — Vorlesen muss trotzdem gehen */
@@ -192,6 +210,15 @@ export function LearnSession({
       cancelled = true;
     };
   }, [userId]);
+
+  // Nur bei gemischten Stapeln beschriften — im Ein-Deck-Lernen stünde sonst
+  // auf jeder Karte redundant der Titel, den die Kopfzeile schon nennt.
+  const multiDeck = useMemo(
+    () => new Set(pool.map((c) => c.deckId)).size > 1,
+    [pool]
+  );
+  const currentDeckTitle =
+    multiDeck && current?.deckId ? deckTitles[current.deckId] : undefined;
 
   // Die Sprache folgt dem TEXT, nicht der Position: „Richtung tauschen"
   // (reverse) zeigt die Rückseite zuerst, dann muss auch deren Sprache zuerst
@@ -337,7 +364,9 @@ export function LearnSession({
   useEffect(() => {
     if (!progressDeckId || !progressSource || total === 0) return;
     if (done) {
-      clearSessionProgress(progressDeckId, "flashcards");
+      // Auch im Konto löschen (#610) — sonst böte das andere Gerät eine Runde
+      // an, die hier längst fertig ist.
+      void clearProgressEverywhere(progressDeckId, "flashcards");
       return;
     }
     const card = cards[index];
@@ -350,6 +379,39 @@ export function LearnSession({
       total,
     });
   }, [progressDeckId, progressSource, cards, index, done, total, reverse]);
+
+  // Beim Verlassen der Runde den Stand ins Konto schreiben (#610). Bewusst
+  // NICHT bei jedem Kartenwechsel: Das wäre eine Anfrage je Karte. Der Ref
+  // trägt den jeweils aktuellen Stand, damit der Effekt selbst nur einmal
+  // eingehängt werden muss und beim Abbau den letzten Stand sieht.
+  const accountPushRef = useRef<SessionProgress | null>(null);
+  accountPushRef.current =
+    !done && progressDeckId && progressSource && cards[index]
+      ? {
+          index,
+          cardId: cards[index]!.id,
+          source: progressSource,
+          reverse,
+          total,
+        }
+      : null;
+  useEffect(() => {
+    if (!progressDeckId) return;
+    const push = () => {
+      const pending = accountPushRef.current;
+      if (pending) void pushProgressToAccount(progressDeckId, "flashcards", pending);
+    };
+    // Ein geschlossener Tab läuft ohne Aufräum-Code — das Verstecken der Seite
+    // ist der letzte Moment, in dem eine Anfrage noch verlässlich rausgeht.
+    const onHide = () => {
+      if (document.visibilityState === "hidden") push();
+    };
+    document.addEventListener("visibilitychange", onHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      push();
+    };
+  }, [progressDeckId]);
 
   // useCallback statt schlichter Funktion, weil der Auto-Abspielen-Timer sie
   // aus einem Effekt heraus aufruft.
@@ -366,9 +428,42 @@ export function LearnSession({
       setHistory((h) => [...h, { index, rating }]);
       setFlipped(false);
       window.setTimeout(() => setIndex((i) => i + 1), 160);
+      // Fokus zurück auf die Karte (#610). Sonst bleibt er auf dem eben
+      // geklickten Bewertungs-Knopf stehen — und die Leertaste, mit der man
+      // die nächste Karte umdrehen will, drückt stattdessen wieder denselben
+      // Knopf und bewertet die neue Karte ungesehen.
+      cardRef.current?.focus();
     },
     [cards, index, userId, sendReview]
   );
+
+  // Tasten 1–4 bewerten wie die vier Knöpfe — aber erst bei umgedrehter Karte
+  // (#610). Der Horcher hängt am Fenster, damit er auch greift, wenn der Fokus
+  // gerade nirgendwo Bestimmtem sitzt.
+  useEffect(() => {
+    if (done || total === 0) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const ratingIndex = ratingKeyIndex(
+        {
+          key: e.key,
+          ctrlKey: e.ctrlKey,
+          metaKey: e.metaKey,
+          altKey: e.altKey,
+          targetTag: target?.tagName,
+          targetIsEditable: target?.isContentEditable,
+        },
+        flipped
+      );
+      if (ratingIndex === null) return;
+      const rating = RATINGS[ratingIndex];
+      if (!rating) return;
+      e.preventDefault();
+      rate(rating.key);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [flipped, rate, done, total]);
 
   // Zurück zur vorigen Karte: die noch ungesendete Bewertung wird verworfen
   // (Rückgängig), Zähler und Wiederholungs-Stapel drehen zurück. Nur bis zur
@@ -654,6 +749,7 @@ export function LearnSession({
       </div>
 
       <div
+        ref={cardRef}
         className={`flip study-card${flipped ? " is-flipped" : ""}${
           frontImage || backImage ? " flip--media" : ""
         }`}
@@ -670,6 +766,7 @@ export function LearnSession({
       >
         <div className="flip__inner">
           <div className="flip__face flip__face--front">
+            {currentDeckTitle && <span className="flip__deck">{currentDeckTitle}</span>}
             <span className="flip__label">Frage</span>
             {frontImage && (
               // eslint-disable-next-line @next/next/no-img-element
@@ -678,9 +775,12 @@ export function LearnSession({
             <span className="flip__q">
               {frontParsed.display || frontImage?.alt || "Bildkarte"}
             </span>
-            <span className="flip__hint">Klicken zum Umdrehen</span>
+            <span className="flip__hint">
+              {coarsePointer ? "Tippen zum Umdrehen" : "Klicken zum Umdrehen"}
+            </span>
           </div>
           <div className="flip__face flip__face--back">
+            {currentDeckTitle && <span className="flip__deck">{currentDeckTitle}</span>}
             <span className="flip__label">Antwort</span>
             {backImage && (
               // eslint-disable-next-line @next/next/no-img-element
@@ -719,13 +819,17 @@ export function LearnSession({
         )}
       </div>
 
-      {/* Bewertungs-Knöpfe immer sichtbar — wie die App (Laras Wahl). */}
+      {/* Bewertungs-Knöpfe immer sichtbar — wie die App (Laras Wahl). Die
+          Zifferntaste steht im Tooltip und in aria-keyshortcuts: am Laptop
+          entdeckbar, ohne die Knöpfe am Handy mit sinnlosen Zahlen zu füllen. */}
       <div className="rating-row">
-        {RATINGS.map((r) => (
+        {RATINGS.map((r, i) => (
           <button
             key={r.key}
             type="button"
             className={`rating ${r.cls}`}
+            title={`${r.label} (Taste ${i + 1})`}
+            aria-keyshortcuts={String(i + 1)}
             onClick={() => rate(r.key)}
           >
             {r.label}

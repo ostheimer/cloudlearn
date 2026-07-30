@@ -600,9 +600,13 @@ Die initiale Migration oben ist nur das Basisschema. Die vollständige, maßgebl
 │   └── POST   /:id/review   # Review-Ergebnis speichern (FSRS-Update)
 ├── /learn
 │   ├── GET    /due          # Fällige Karten abrufen
+│   ├── GET|PUT|DELETE /progress # „Weitermachen"-Merker je Deck+Lernart, geräteübergreifend (#610)
 │   └── POST   /sync         # FSRS-Daten synchronisieren (Device <-> Server)
 ├── /stats
 │   ├── GET    /             # Lernstatistiken
+│   ├── GET    /due-by-deck  # Fällige Karten je Deck (Zählung fürs "N fällig"-Abzeichen, #612)
+│   ├── GET    /decks        # Deck-Vergleich: Antworten + Genauigkeit je Deck, 30 Tage (Pro, #246)
+│   ├── GET    /streak-calendar # Gelernte + eingefrorene Tage eines Monats (#237)
 │   └── GET    /tests        # Letzte fünf abgegebene Prüfungen (Deck, Datum, x von y)
 ├── /daily-goal
 │   └── PATCH  /             # Tagesziel setzen (Karten pro Tag)
@@ -1122,8 +1126,12 @@ pnpm run orchestrator:verify
 ./scripts/orchestrator.sh deploy
 ./scripts/orchestrator.sh poll <deployment-url>
 
-# Monatlicher Restore-Smoke-Test
-./scripts/restore-smoke.sh
+# Restore-Probe: baut die DB aus allen Migrationen in einer Wegwerf-Datenbank neu auf
+# (laeuft auch in CI; niemals gegen Produktion — siehe docs/runbooks/restore-test.md)
+DATABASE_URL=postgres://postgres:postgres@localhost:55432/clearn_test pnpm run restore:smoke
+
+# Echte Latenz-Messung gegen das Deployment (nur lesend, kostet nichts)
+pnpm run perf:http
 ```
 
 ---
@@ -1147,7 +1155,8 @@ clearn/
 │   ├── runbooks/              # 25+ Runbooks: DoD, Incident, Security, EAS, App Store, TestFlight, Passkeys, etc.
 │   └── screens/               # Screen-Map & Wireframes (SCREENS.md, wireframes/)
 ├── scripts/                   # Orchestrator, Build, Restore, Perf
-├── .github/workflows/ci.yml   # CI: lint + typecheck + test
+├── .github/workflows/         # ci.yml (lint/typecheck/test/Restore-Probe), e2e-live.yml
+│                              # (taeglich), perf-http.yml (echte Messung auf Knopfdruck)
 ├── BACKLOG.md
 ├── ROADMAP.md
 └── package.json               # Workspace-Skripte

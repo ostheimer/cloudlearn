@@ -7,7 +7,7 @@ import { useAuth } from "@/components/app/auth-context";
 import { listCardsInDeck, reviewCard, earnLp, isApiError, type Card } from "@/lib/api";
 import { useDisplayName } from "@/lib/use-display-name";
 import { useWobblyIds } from "@/lib/use-wobbly-ids";
-import { filterBySource, type CardSource } from "@/lib/card-source";
+import { filterBySource, isCardDue, type CardSource } from "@/lib/card-source";
 import {
   encodeCount,
   loadSetup,
@@ -17,7 +17,7 @@ import {
 } from "@/lib/setup-memory";
 import { CardSourcePicker } from "@/components/app/card-source-picker";
 import { QuestionCountPicker } from "@/components/app/question-count-picker";
-import { generateQuestions, type QuizQuestion } from "@/lib/quizQuestions";
+import { countQuizableCards, generateQuestions, type QuizQuestion } from "@/lib/quizQuestions";
 import {
   beginSessionAward,
   getSessionReviewedCount,
@@ -104,12 +104,11 @@ export default function QuizPage() {
     () => filterBySource(cards, source, wobblyIds),
     [cards, source, wobblyIds]
   );
-  // Obergrenze der Anzahl-Auswahl: wie die Prüfung nur Karten mit beiden
-  // Seiten — leere ergeben keine Frage, „Alle (N)" soll nicht mehr versprechen.
-  const usableCount = useMemo(
-    () => sourced.filter((c) => (c.front || "").trim() && (c.back || "").trim()).length,
-    [sourced]
-  );
+  // Obergrenze der Anzahl-Auswahl: EXAKT die Pool-Regel der Fragen-Erzeugung
+  // (#612) — nach der Aufbereitung leere Seiten fallen raus, Doppel-Scans
+  // zählen einmal. Die alte reine Text-Prüfung versprach „Alle (12)" und
+  // lieferte dann 10 Fragen.
+  const usableCount = useMemo(() => countQuizableCards(sourced), [sourced]);
 
   // Schrumpft der Pool (andere Kartenquelle), darf die gewählte Anzahl nicht
   // darüber liegen; nur klemmen, nie zurückwachsen (10 bleibt der Standard).
@@ -135,12 +134,22 @@ export default function QuizPage() {
     if (phase !== "setup" || loading || !wobblySettled) return;
     setupRestoredRef.current = true;
     const stored = loadSetup(deckId, "quiz");
-    if (!stored) return;
-    const wanted = resolveSource(stored.source, {
-      starred: cards.filter((c) => c.starred).length,
-      wobbly: cards.filter((c) => wobblyIds.has(c.id)).length,
-    });
+    // Multiple Choice braucht 2 Karten (Ablenker) — eine Quelle mit weniger
+    // darf nie vorbelegt werden, sonst steht man vor gesperrtem Start.
+    const usable = (n: number) => (n >= 2 ? n : 0);
+    const counts = {
+      starred: usable(cards.filter((c) => c.starred).length),
+      wobbly: usable(cards.filter((c) => wobblyIds.has(c.id)).length),
+      due: usable(cards.filter((c) => isCardDue(c)).length),
+    };
+    // Ohne gemerkte Wahl ist das Tagespensum die Voreinstellung (#610).
+    if (!stored) {
+      if (counts.due > 0) setSource("due");
+      return;
+    }
+    const wanted = resolveSource(stored.source, counts);
     if (wanted) setSource(wanted);
+    else if (!stored.source && counts.due > 0) setSource("due");
     // Obergrenze der Anzahl ist der Vorrat der Quelle, die ab jetzt gilt —
     // der Klemm-Effekt oben zieht sie bei Quellenwechseln weiter mit.
     const pool = filterBySource(cards, wanted ?? source, wobblyIds);
@@ -350,6 +359,7 @@ export default function QuizPage() {
           allCount={cards.length}
           starredCount={starredCount}
           wobblyCount={wobblyCount}
+          dueCount={cards.filter((c) => isCardDue(c)).length}
           minCount={2}
         />
 
@@ -512,6 +522,8 @@ export default function QuizPage() {
                 : null;
               return (
                 <div key={i} className={`quiz-sum__row ${ok ? "ok" : "no"}`}>
+                  {/* Häkchen/Kreuz sind aria-hidden — das Wort sagt es (#613). */}
+                  <span className="sr-only">{ok ? "Richtig:" : "Falsch:"}</span>
                   <span
                     aria-hidden
                     style={{ color: ok ? "var(--green)" : "#ef4444", flex: "none" }}
@@ -655,8 +667,24 @@ export default function QuizPage() {
         })}
       </div>
 
-      {answered && (
+      {/* Sichtbares Urteil + Live-Region (#613): Farbe und stumme Icons allein
+          erreichen weder Farbenblinde noch Screenreader-Nutzer. Die Region ist
+          dauerhaft da, weil Screenreader nur Änderungen in einer schon
+          vorhandenen Region zuverlässig vorlesen. */}
+      <div className="sr-only" role="status">
+        {answered && q
+          ? picked === q.correctIndex
+            ? "Richtig."
+            : q.type === "trueFalse"
+              ? "Falsch."
+              : `Falsch. Richtige Antwort: ${q.options[q.correctIndex] ?? ""}`
+          : ""}
+      </div>
+      {answered && q && (
         <div className="center" style={{ marginTop: 20 }}>
+          <p className={`quiz-verdict ${picked === q.correctIndex ? "ok" : "no"}`}>
+            {picked === q.correctIndex ? "Richtig!" : "Leider falsch."}
+          </p>
           <button type="button" className="btn btn-primary btn-lg" onClick={next}>
             {index + 1 >= total ? "Ergebnis" : "Weiter"}
           </button>

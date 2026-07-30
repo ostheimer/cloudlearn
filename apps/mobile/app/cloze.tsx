@@ -16,6 +16,7 @@ import { useTranslation } from "react-i18next";
 import {
   CheckCircle2,
   XCircle,
+  AlertTriangle,
   ArrowLeft,
   ArrowRight,
   HelpCircle,
@@ -31,13 +32,16 @@ import {
   type StoredSetup,
 } from "../src/lib/setupMemory";
 import {
-  clearSessionProgress,
   isProgressUsable,
-  loadSessionProgress,
   saveSessionProgress,
   type SessionProgress,
   type StoredCardResult,
 } from "../src/features/review/sessionProgress";
+import {
+  clearProgressEverywhere,
+  loadBestProgress,
+  pushProgressToAccount,
+} from "../src/features/review/sessionProgressSync";
 import {
   createReviewSendBuffer,
   type BufferedReview,
@@ -51,17 +55,19 @@ import { useUsageStore } from "../src/store/usageStore";
 import { excludeOcclusionCards } from "../src/lib/occlusion";
 import { summarizeCardMedia } from "../src/lib/cardMedia";
 import { formatCloze } from "../src/lib/cloze";
-import { isAnswerCorrect } from "../src/lib/answerCheck";
+import { isAnswerCorrect, isCaseOnlyMismatch } from "../src/lib/answerCheck";
 import { cleanTerm } from "../src/lib/cardTerms";
 import { fetchDeckStats } from "../src/lib/statsApi";
 import { useDisplayName } from "../src/lib/useDisplayName";
 import {
   CardSourcePicker,
   filterBySource,
+  isCardDue,
   type CardSource,
 } from "../src/components/cardSourcePicker";
 import { useColors, spacing, radius, typography, shadows } from "../src/theme";
 import { StudyResult } from "../src/components/StudyResult";
+import { LpRoundSummary } from "../src/components/LpRoundSummary";
 import { shouldRetryLater } from "../src/features/sync/sendReview";
 import {
   beginSessionAward,
@@ -141,6 +147,10 @@ export default function ClozeScreen() {
   const [wobblyIds, setWobblyIds] = useState<Set<string>>(new Set());
 
   const [phase, setPhase] = useState<Phase>("setup");
+  // Punkte-Rückmeldung der Runde (#611): Zahl und Deckel kommen aus der
+  // Server-Antwort, nie aus eigener Rechnung.
+  const [earnedLp, setEarnedLp] = useState(0);
+  const [earnCapReached, setEarnCapReached] = useState(false);
   const [round, setRound] = useState<Card[]>([]);
   const [idx, setIdx] = useState(0);
   // Earliest card the back button may reach. Non-zero only after resuming, so a
@@ -189,7 +199,8 @@ export default function ClozeScreen() {
   useEffect(() => {
     if (!deckId) return;
     let active = true;
-    void loadSessionProgress(deckId, "cloze").then((progress) => {
+    // Lokal UND aus dem Konto lesen, der neuere gilt (#610).
+    void loadBestProgress(deckId, "cloze").then((progress) => {
       if (active) setSaved(progress);
     });
     return () => {
@@ -216,6 +227,7 @@ export default function ClozeScreen() {
   // The chosen source decides which cards this round draws from.
   const starredCount = allCards.filter((c) => c.starred).length;
   const wobblyCount = allCards.filter((c) => wobblyIds.has(c.id)).length;
+  const dueCount = allCards.filter((c) => isCardDue(c)).length;
   const studyPool = filterBySource(allCards, source, wobblyIds);
 
   const setupRestoredRef = useRef(false);
@@ -223,15 +235,18 @@ export default function ClozeScreen() {
     if (setupRestoredRef.current || loading || storedSetup === undefined) return;
     if (phase !== "setup") return;
     setupRestoredRef.current = true;
-    if (!storedSetup) return;
-    if (storedSetup.strict !== undefined) setStrict(storedSetup.strict);
-    if (storedSetup.reverse !== undefined) setReverse(storedSetup.reverse);
-    const wanted = resolveSource(storedSetup.source, {
+    if (storedSetup?.strict !== undefined) setStrict(storedSetup.strict);
+    if (storedSetup?.reverse !== undefined) setReverse(storedSetup.reverse);
+    const wanted = resolveSource(storedSetup?.source, {
       starred: starredCount,
       wobbly: wobblyCount,
+      due: dueCount,
     });
     if (wanted) setSource(wanted);
-  }, [loading, storedSetup, phase, starredCount, wobblyCount]);
+    // Ohne gemerkte Wahl ist das Tagespensum die Voreinstellung (#610):
+    // „Nur fällige", sobald es gerade welche gibt.
+    else if (!storedSetup?.source && dueCount > 0) setSource("due");
+  }, [loading, storedSetup, phase, starredCount, wobblyCount, dueCount]);
 
   const canResume =
     saved !== null && isProgressUsable(saved, studyPool.map((card) => card.id), source);
@@ -245,6 +260,13 @@ export default function ClozeScreen() {
   const wasCorrect = currentResult
     ? currentResult.correct || currentResult.overridden
     : false;
+  // Gelbe „Fast"-Stufe (#610, Laras Entscheidung): Die Antwort scheitert NUR
+  // an der Groß-/Kleinschreibung. Sie zählt nicht automatisch als richtig —
+  // der „Trotzdem als richtig zählen"-Knopf darunter entscheidet.
+  const nearMiss =
+    revealed && !wasCorrect && parsed
+      ? isCaseOnlyMismatch(currentResult?.input ?? "", parsed.answer)
+      : false;
   const displayedInput = currentResult ? currentResult.input : input;
 
   const setResultAt = (
@@ -325,7 +347,11 @@ export default function ClozeScreen() {
 
           try {
             const result = await earnLp("session", reviewedCount);
-            if (result.granted > 0) setUsage({ lpBalance: result.newBalance });
+            if (result.granted > 0) {
+              setUsage({ lpBalance: result.newBalance });
+              setEarnedLp(result.granted);
+            }
+            setEarnCapReached(result.capReached);
             if (isSessionEarnFinalized(result, reviewedCount)) {
               state.finalized = true;
               break;
@@ -383,6 +409,10 @@ export default function ClozeScreen() {
     awardStateRef.current.finalized = false;
     pendingReviewsRef.current = [];
     sessionReviewsRef.current = 0;
+    // Die Punkte-Anzeige gehört zur alten Runde (#611): Stehenbleiben würde für
+    // die neue Runde eine Gutschrift behaupten, die noch nicht erfolgt ist.
+    setEarnedLp(0);
+    setEarnCapReached(false);
 
     // `startAt` resumes an interrupted round (sessionProgress.ts). The floor
     // travels with it: the skipped cards were answered and sent last time, so
@@ -474,7 +504,9 @@ export default function ClozeScreen() {
   useEffect(() => {
     if (!deckId || round.length === 0) return;
     if (phase === "summary") {
-      void clearSessionProgress(deckId, "cloze");
+      // Auch im Konto löschen (#610) — sonst böte das andere Gerät eine Runde
+      // an, die hier längst fertig ist.
+      void clearProgressEverywhere(deckId, "cloze");
       return;
     }
     if (phase !== "play") return;
@@ -499,6 +531,40 @@ export default function ClozeScreen() {
       ...(Object.keys(answered).length > 0 ? { results: answered } : {}),
     });
   }, [deckId, phase, round, idx, source, reverse, results]);
+
+  // Beim Verlassen der Runde den Stand ins Konto schreiben (#610). Bewusst
+  // NICHT bei jedem Kartenwechsel: Das wäre eine Anfrage je Karte. Der Ref
+  // trägt den jeweils aktuellen Stand, damit der Effekt nur einmal eingehängt
+  // werden muss und beim Abbau den letzten Stand sieht.
+  const accountPushRef = useRef<SessionProgress | null>(null);
+  {
+    const card = phase === "play" ? round[idx] : undefined;
+    if (deckId && card) {
+      const answered: Record<string, StoredCardResult> = {};
+      round.forEach((roundCard, i) => {
+        const result = results[i];
+        if (result)
+          answered[roundCard.id] = { correct: result.correct, overridden: result.overridden };
+      });
+      accountPushRef.current = {
+        index: idx,
+        cardId: card.id,
+        source,
+        reverse,
+        total: round.length,
+        ...(Object.keys(answered).length > 0 ? { results: answered } : {}),
+      };
+    } else {
+      accountPushRef.current = null;
+    }
+  }
+  useEffect(() => {
+    if (!deckId) return;
+    return () => {
+      const pending = accountPushRef.current;
+      if (pending) void pushProgressToAccount(deckId, "cloze", pending);
+    };
+  }, [deckId]);
 
   // Round outcome, derived from the per-card results.
   const correctCount = results.filter(
@@ -775,6 +841,7 @@ export default function ClozeScreen() {
                 allCount={allCards.length}
                 starredCount={starredCount}
                 wobblyCount={wobblyCount}
+                dueCount={dueCount}
               />
             </View>
 
@@ -900,18 +967,23 @@ export default function ClozeScreen() {
               headline={`${pct}%`}
               subtitle={`${correct} von ${total} richtig`}
               accessory={
-                <Text
-                  style={{
-                    textAlign: "center",
-                    fontSize: typography.base,
-                    color: allRight ? colors.success : colors.textSecondary,
-                    fontWeight: allRight ? typography.bold : typography.medium,
-                  }}
-                >
-                  {allRight
-                    ? `Alles richtig — stark${displayName ? `, ${displayName}` : ""}!`
-                    : `${wrongCount} ${wrongCount === 1 ? "Karte" : "Karten"} noch offen.`}
-                </Text>
+                <View style={{ gap: spacing.sm, alignItems: "center" }}>
+                  <Text
+                    style={{
+                      textAlign: "center",
+                      fontSize: typography.base,
+                      color: allRight ? colors.success : colors.textSecondary,
+                      fontWeight: allRight ? typography.bold : typography.medium,
+                    }}
+                  >
+                    {allRight
+                      ? `Alles richtig — stark${displayName ? `, ${displayName}` : ""}!`
+                      : `${wrongCount} ${wrongCount === 1 ? "Karte" : "Karten"} noch offen.`}
+                  </Text>
+                  {/* Bis #611 sagte dieser Modus kein Wort zu den Punkten —
+                      obwohl er längst abrechnet. */}
+                  <LpRoundSummary earned={earnedLp} capReached={earnCapReached} />
+                </View>
               }
               actions={[
                 ...(allRight
@@ -1042,7 +1114,9 @@ export default function ClozeScreen() {
                   ? colors.border
                   : wasCorrect
                     ? colors.success
-                    : colors.error,
+                    : nearMiss
+                      ? colors.warning
+                      : colors.error,
                 borderRadius: radius.md,
                 paddingHorizontal: 14,
                 paddingVertical: 14,
@@ -1061,13 +1135,19 @@ export default function ClozeScreen() {
                     flexDirection: "row",
                     alignItems: "center",
                     gap: spacing.sm,
-                    backgroundColor: wasCorrect ? colors.successLight : colors.errorLight,
+                    backgroundColor: wasCorrect
+                      ? colors.successLight
+                      : nearMiss
+                        ? colors.warningLight
+                        : colors.errorLight,
                     borderRadius: radius.md,
                     padding: spacing.md,
                   }}
                 >
                   {wasCorrect ? (
                     <CheckCircle2 size={22} color={colors.success} />
+                  ) : nearMiss ? (
+                    <AlertTriangle size={22} color={colors.warning} />
                   ) : (
                     <XCircle size={22} color={colors.error} />
                   )}
@@ -1076,10 +1156,18 @@ export default function ClozeScreen() {
                       style={{
                         fontSize: typography.base,
                         fontWeight: typography.bold,
-                        color: wasCorrect ? colors.success : colors.error,
+                        color: wasCorrect
+                          ? colors.success
+                          : nearMiss
+                            ? colors.warning
+                            : colors.error,
                       }}
                     >
-                      {wasCorrect ? "Richtig" : "Falsch"}
+                      {wasCorrect
+                        ? "Richtig"
+                        : nearMiss
+                          ? "Fast — achte auf die Großschreibung"
+                          : "Falsch"}
                     </Text>
                     <Text
                       style={{

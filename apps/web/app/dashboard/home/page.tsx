@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState, type CSSProperties } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState, type CSSProperties, type MouseEvent } from "react";
 import {
   getStats,
   getLpBalance,
@@ -13,7 +14,13 @@ import {
   type FriendStreak,
 } from "@/lib/api";
 import { useDisplayName } from "@/lib/use-display-name";
+import { useRefreshOnFocus } from "@/lib/use-refresh-on-focus";
 import { consumeFreshWelcome } from "@/lib/onboarding";
+import {
+  canAffordStreakRepair,
+  streakRepairBannerLine,
+  streakRepairPrompt,
+} from "@/lib/streak-repair";
 import { useAuth } from "@/components/app/auth-context";
 import {
   Flame,
@@ -36,6 +43,7 @@ import {
 // Deck und der Scan-Einstieg. Alles aus vorhandenen Daten — kein neues Backend.
 export default function HomePage() {
   const { userId } = useAuth();
+  const router = useRouter();
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [lp, setLp] = useState<number | null>(null);
   const [friendStreaks, setFriendStreaks] = useState<FriendStreak[]>([]);
@@ -72,6 +80,11 @@ export default function HomePage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Nach dem Lernen am Handy zeigte der offene Laptop-Tab weiter die alten
+  // Zahlen (#610): Streak, Tagesziel und „N fällig" stimmten erst nach einem
+  // manuellen Neuladen. Jetzt lädt die Seite bei der Rückkehr selbst nach.
+  useRefreshOnFocus(load);
 
   // Freunde-Streaks best-effort — ein sozialer Fehler darf die Home nie brechen.
   useEffect(() => {
@@ -117,6 +130,21 @@ export default function HomePage() {
   const hasAccuracyData = (stats?.reviewsInWindow ?? stats?.reviewsTotal ?? 0) > 0;
   const goalPct = goal > 0 ? Math.min(100, Math.round((today / goal) * 100)) : 0;
 
+  // Die Streak-Kachel leuchtet erst, wenn das heutige Lernen erledigt ist —
+  // dieselbe Regel wie das App-Banner (index.tsx, `fireBurning`). Vorher war
+  // sie IMMER warm-gelb und sah damit auch morgens um sieben nach „geschafft"
+  // aus, während die Unterzeile schon „Lerne heute, um deinen Streak zu
+  // halten!" sagte (#610, Laras Entscheidung 30.07.).
+  //
+  // Als Signal dient `reviewsToday` und nicht wie in der App der Vergleich von
+  // `lastReviewDate` mit dem heutigen Datum: Die Unterzeile hängt hier längst
+  // daran, und zwei verschiedene Signale könnten sich widersprechen — eine
+  // graue Kachel mit „Weiter so!" darunter wäre schlimmer als beides.
+  //
+  // Das ist NICHT der Zustand „Streak verloren": dafür gibt es das eigene
+  // Reparatur-Banner darüber.
+  const fireBurning = streak > 0 && today > 0;
+
   const activeFriend = friendStreaks.filter((s) => s.status === "active");
   const bestFriendStreak = activeFriend.reduce((m, s) => Math.max(m, s.currentStreak), 0);
   const waitingPartner =
@@ -128,15 +156,16 @@ export default function HomePage() {
   const repairBrokenStreak = stats?.repairBrokenStreak ?? 0;
   const repairCost = stats?.repairCost ?? 40;
 
+  // Reicht das Guthaben? (#611) `lp` ist `null`, solange nicht geladen — dann
+  // wird NICHT gesperrt, sonst wäre der Knopf für ein volles Konto kurz grau.
+  const canAffordRepair = canAffordStreakRepair(lp, repairCost);
+
   // Gerissenen Streak gegen LP zurückholen. Preis/Berechtigung entscheidet der
   // Server; danach Werte neu laden, damit Banner und LP-Pille stimmen.
   const handleRepair = async () => {
-    if (
-      !window.confirm(
-        `Deinen ${repairBrokenStreak}-Tage-Streak für ${repairCost} LP zurückholen?`
-      )
-    )
-      return;
+    // Kontostand mit in die Nachfrage (#611): Vorher stand dort nur der Preis,
+    // und bei Ebbe endete das Ja in einer Sackgasse.
+    if (!window.confirm(streakRepairPrompt(lp, repairCost, repairBrokenStreak))) return;
     setRepairing(true);
     setRepairMsg(null);
     try {
@@ -298,7 +327,9 @@ export default function HomePage() {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 700 }}>Streak gerissen</div>
               <div style={{ fontSize: "0.85rem", color: "var(--ink-3)" }}>
-                Dein {repairBrokenStreak}-Tage-Streak ist weg
+                {/* Preis UND Kontostand (#611) — vorher musste man raten, ob es
+                    reicht, und erfuhr es erst nach dem Klick. */}
+                {streakRepairBannerLine(lp, repairCost, repairBrokenStreak)}
               </div>
             </div>
           </div>
@@ -306,7 +337,9 @@ export default function HomePage() {
             type="button"
             className="btn btn-primary btn-block"
             onClick={handleRepair}
-            disabled={repairing}
+            // Nichts anbieten, was sicher scheitert (#611): Bei zu wenig Punkten
+            // führte der Knopf über die Nachfrage in einen Serverfehler.
+            disabled={repairing || !canAffordRepair}
             style={{ gap: 8 }}
           >
             {repairing ? (
@@ -317,6 +350,13 @@ export default function HomePage() {
               </>
             )}
           </button>
+          {/* Der Ausweg — vorher endete es bei Ebbe mit einem roten Satz und
+              ohne Hinweis, wo es Punkte gibt (#611). */}
+          {!canAffordRepair && !repairing && (
+            <Link href="/dashboard/lp" className="btn btn-ghost btn-block">
+              Lernpunkte holen
+            </Link>
+          )}
           {repairMsg && (
             <div style={{ fontSize: "0.85rem", color: "#dc2626", textAlign: "center" }}>
               {repairMsg}
@@ -343,8 +383,8 @@ export default function HomePage() {
             display: "flex",
             alignItems: "center",
             gap: 13,
-            background: "var(--amber-50)",
-            border: "1px solid var(--amber)",
+            background: fireBurning ? "var(--amber-50)" : "var(--bg-soft)",
+            border: `1px solid ${fireBurning ? "var(--amber)" : "var(--line)"}`,
             borderRadius: 14,
             padding: "14px 16px",
             textDecoration: "none",
@@ -356,22 +396,33 @@ export default function HomePage() {
               width: 44,
               height: 44,
               borderRadius: 999,
-              background: "rgba(245, 158, 11, 0.18)",
-              color: "var(--amber)",
+              // Im kalten Zustand die weiße Fläche, nicht dieselbe wie die
+              // Kachel: Gleich auf Gleich ließe den Kreis verschwinden
+              // (derselbe Fallstrick wie in der App).
+              background: fireBurning ? "rgba(245, 158, 11, 0.18)" : "var(--surface)",
+              color: fireBurning ? "var(--amber)" : "var(--ink-3)",
               display: "grid",
               placeItems: "center",
               flex: "none",
             }}
             aria-hidden
           >
-            <Flame size={24} />
+            {/* Gefüllt nur im warmen Zustand — wie die App-Flamme. */}
+            <Flame size={24} fill={fireBurning ? "currentColor" : "none"} />
           </span>
           {/* Große Tageszahl + Zuruf wie in der App: dort steht die Zahl groß
               („1 Tag") und darunter je nach Lage „Weiter so!", eine Erinnerung
               oder die Einladung zum Start. Der Bestwert sitzt rechts als
               eigene Spalte mit Auszeichnungs-Symbol, nicht in der Unterzeile. */}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: "1.75rem", fontWeight: 800, color: "var(--amber)", lineHeight: 1.1 }}>
+            <div
+              style={{
+                fontSize: "1.75rem",
+                fontWeight: 800,
+                color: fireBurning ? "var(--amber)" : "var(--ink-3)",
+                lineHeight: 1.1,
+              }}
+            >
               {streak} {streak === 1 ? "Tag" : "Tage"}
             </div>
             <div style={{ fontSize: "0.85rem", color: "var(--ink-3)", marginTop: 2 }}>
@@ -506,7 +557,29 @@ export default function HomePage() {
           </span>
           <span style={tileNum}>{decks}</span>
           <span style={tileLabel}>Decks</span>
-          <span style={badge(due > 0)}>{due > 0 ? `${due} fällig ›` : "Bibliothek ›"}</span>
+          {/* Die Pille führt bei fälligen Karten in die Lernrunde statt in die
+              Bibliothek (#609) — die Kachel drumherum bleibt der Bibliothek
+              treu. Verschachtelte Links sind ungültiges HTML, deshalb ein
+              Klick-Abfang auf der Pille selbst. */}
+          <span
+            style={{ ...badge(due > 0), ...(due > 0 ? { cursor: "pointer" } : {}) }}
+            {...(due > 0
+              ? {
+                  role: "link",
+                  "aria-label":
+                    due === 1
+                      ? "1 fällige Karte jetzt lernen"
+                      : `${due} fällige Karten jetzt lernen`,
+                  onClick: (e: MouseEvent) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    router.push("/dashboard/learn");
+                  },
+                }
+              : {})}
+          >
+            {due > 0 ? `${due} fällig ›` : "Bibliothek ›"}
+          </span>
         </Link>
 
         <Link href="/dashboard/stats" style={tileStyle}>
@@ -574,17 +647,79 @@ export default function HomePage() {
         </Link>
       )}
 
-      {/* Haupt-Aktion */}
+      {/* Lern-Einstieg (#609, Variante A): Bei fälligen Karten ist "Jetzt
+          lernen" der große violette Hauptknopf und startet die globale Runde
+          Deck für Deck; der Scan-Knopf tritt in den Rahmen-Stil zurück. Ohne
+          fällige Karten bleibt eine ruhige "gut gemacht"-Fläche stehen und
+          Scannen ist wieder die Haupt-Aktion — alles Laras Entscheidungen. */}
+      {/* Volle Breite wie die Kacheln darüber (Laras Variante A, 30.07.):
+          Am Desktop endet die ganze Startseite an einer Linie; die frühere
+          420px-Klammer ließ die Aktionen gegenüber „Zuletzt gelernt"
+          einspringen. Am Handy ändert das nichts — dort ist ohnehin alles
+          gleich breit. */}
+      {due > 0 ? (
+        <Link
+          href="/dashboard/learn"
+          className="btn btn-primary btn-lg btn-block"
+          style={{
+            marginTop: 4,
+            textDecoration: "none",
+            width: "100%",
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
+            paddingTop: 12,
+            paddingBottom: 12,
+          }}
+        >
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+            <BookOpen size={18} /> Jetzt lernen
+          </span>
+          <span style={{ fontSize: "0.78rem", fontWeight: 600, opacity: 0.85 }}>
+            {due === 1 ? "1 Karte fällig" : `${due} Karten fällig`}
+          </span>
+        </Link>
+      ) : (
+        <div
+          style={{
+            marginTop: 4,
+            width: "100%",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 2,
+            background: "var(--surface)",
+            border: "1px solid var(--line)",
+            borderRadius: 14,
+            padding: "13px 16px",
+          }}
+        >
+          <span style={{ fontWeight: 600, fontSize: "0.95rem", color: "var(--ink-3)" }}>
+            Nichts fällig — gut gemacht
+          </span>
+          <span style={{ fontSize: "0.8rem", color: "var(--ink-4)" }}>
+            Alle Wiederholungen für heute sind erledigt.
+          </span>
+        </div>
+      )}
+
+      {/* Haupt-Aktion Scannen — im Rahmen-Stil, solange Lernen der laute
+          Knopf ist; volle Breite wie der Lern-Knopf darüber. */}
       <Link
         href="/dashboard/import"
-        className="btn btn-primary btn-lg btn-block"
+        className={`btn btn-lg btn-block${due > 0 ? "" : " btn-primary"}`}
         style={{
           marginTop: 4,
           textDecoration: "none",
           width: "100%",
-          maxWidth: 420,
-          marginLeft: "auto",
-          marginRight: "auto",
+          ...(due > 0
+            ? {
+                background: "var(--surface)",
+                color: "var(--brand-600)",
+                border: "1.5px solid var(--brand)",
+                boxShadow: "none",
+              }
+            : {}),
         }}
       >
         <ScanLine size={18} /> Neuen Text scannen

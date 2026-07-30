@@ -8,8 +8,9 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { Zap, PlayCircle, ShoppingBag, X } from "lucide-react-native";
+import { Zap, PlayCircle, ShoppingBag, X, BookOpen } from "lucide-react-native";
 import { useColors, spacing, radius, typography, shadows } from "../theme";
+import { REAL_ADS_ENABLED } from "../features/ads/adsMode";
 import { useRewardedAd } from "../features/ads/useRewardedAd";
 import { resolveRewardedAdOutcome } from "../features/ads/resolveRewardedAdOutcome";
 import { lpInsufficientOptions } from "../features/paywall/proDisplay";
@@ -120,7 +121,36 @@ export function LpInsufficientModal({
             </Text>
           </View>
 
-          {/* Option 1: Watch ad — nur Free (#607) */}
+          {/* Erste Option (#609, Laras Entscheidung): der Gratis-Weg zuerst.
+              Führt in die globale fällige Runde — Lernen bringt 1 LP je Karte. */}
+          <TouchableOpacity
+            onPress={() => {
+              onClose();
+              router.push("/(tabs)/learn");
+            }}
+            activeOpacity={0.8}
+            style={{
+              backgroundColor: colors.primary,
+              borderRadius: radius.lg,
+              padding: spacing.lg,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: spacing.md,
+              ...shadows.sm,
+            }}
+          >
+            <BookOpen size={24} color={colors.textInverse} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.textInverse, fontSize: typography.base, fontWeight: typography.bold }}>
+                {t("lp.learnNow")}
+              </Text>
+              <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: typography.sm, marginTop: 2 }}>
+                {t("lp.learnNowSubtitle")}
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* Option 2: Watch ad — nur Free (#607) */}
           {showWatchAd ? (
             <TouchableOpacity
               onPress={handleWatchAd}
@@ -143,27 +173,40 @@ export function LpInsufficientModal({
               )}
               <View style={{ flex: 1 }}>
                 <Text style={{ color: colors.textInverse, fontSize: typography.base, fontWeight: typography.bold }}>
-                  {adState === "showing" ? t("lp.adWatching") : t("lp.watchAd")}
+                  {adState === "showing"
+                    ? t("lp.adWatching")
+                    : REAL_ADS_ENABLED
+                      ? t("lp.watchAd")
+                      : t("lp.watchAdMockFull")}
                 </Text>
                 <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: typography.sm, marginTop: 2 }}>
-                  {t("lp.watchAdSubtitle", { count: 5 })}
+                  {REAL_ADS_ENABLED
+                    ? t("lp.watchAdSubtitle", { count: 5 })
+                    : t("lp.watchAdMockSubtitle")}
                 </Text>
               </View>
-              <View
-                style={{
-                  backgroundColor: "rgba(255,255,255,0.25)",
-                  borderRadius: radius.sm,
-                  paddingHorizontal: spacing.sm,
-                  paddingVertical: 3,
-                }}
-              >
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
-                  <Zap size={12} color={colors.textInverse} />
-                  <Text style={{ color: colors.textInverse, fontSize: typography.xs, fontWeight: typography.bold }}>
-                    +5
-                  </Text>
+              {/* „+5"-Plakette nur, wenn die 5 LP wirklich kommen (#611). Solange
+                  REAL_ADS_ENABLED false ist, liefert watchAd() garantiert 0 LP
+                  (mock) — das Versprechen hier war schlicht falsch, und ehrlich
+                  wurde erst die Antwort danach. Der Shop macht es längst so
+                  (lp-store.tsx), das Fenster zieht nach. */}
+              {REAL_ADS_ENABLED ? (
+                <View
+                  style={{
+                    backgroundColor: "rgba(255,255,255,0.25)",
+                    borderRadius: radius.sm,
+                    paddingHorizontal: spacing.sm,
+                    paddingVertical: 3,
+                  }}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
+                    <Zap size={12} color={colors.textInverse} />
+                    <Text style={{ color: colors.textInverse, fontSize: typography.xs, fontWeight: typography.bold }}>
+                      +5
+                    </Text>
+                  </View>
                 </View>
-              </View>
+              ) : null}
             </TouchableOpacity>
           ) : null}
 
@@ -173,7 +216,7 @@ export function LpInsufficientModal({
             </Text>
           ) : null}
 
-          {/* Option 2: Buy LP pack */}
+          {/* Option 3: Buy LP pack */}
           <TouchableOpacity
             onPress={() => { onClose(); router.push("/lp-store"); }}
             activeOpacity={0.8}
@@ -199,7 +242,7 @@ export function LpInsufficientModal({
             </View>
           </TouchableOpacity>
 
-          {/* Option 3: Upgrade to Pro — nur Free (#607) */}
+          {/* Option 4: Upgrade to Pro — nur Free (#607) */}
           {showUpgrade ? (
             <TouchableOpacity
               onPress={() => { onClose(); router.push("/paywall"); }}

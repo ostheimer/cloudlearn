@@ -15,12 +15,13 @@ import {
   createFolder,
   updateFolder,
   deleteFolder,
-  getDueCards,
+  getDueCountsByDeck,
   isApiError,
   type Deck,
   type Folder,
 } from "@/lib/api";
 import { descendantFolders, folderPath } from "@/lib/folders";
+import { handleMenuKey } from "@/lib/menu-keys";
 import { FolderCard, DeleteFolderModal, FolderNameModal } from "@/components/app/folder-ui";
 import { deckCountLabel } from "@/lib/deck-count-label";
 import {
@@ -32,7 +33,12 @@ import {
   Play,
   Pencil,
   GripVertical,
+  Search,
 } from "@/components/icons";
+
+// Ab dieser Listenlänge zeigt der Deck-Picker ein Suchfeld (#612) — gleicher
+// Wert wie im Ordner-Picker der Bibliothek und in den App-Pickern.
+const PICKER_SEARCH_THRESHOLD = 6;
 
 type SubfolderModal =
   | { type: "create" }
@@ -117,20 +123,23 @@ export default function FolderDetailPage() {
         setSubCounts({});
       }
 
-      // How many of this folder's cards are due today. getDueCards is global,
-      // so filter by the folder's decks — same source the learn page uses, so
-      // the number on the button matches the round it starts.
+      // How many of this folder's cards are due today. The grouped count is
+      // global, so filter by the folder's decks — the server applies the same
+      // filters as /learn/due (#612), so the number on the button still
+      // matches the round the learn page starts.
       try {
         const ids = new Set(inFolder.map((d) => d.id));
-        const { cards: due } = await getDueCards(userId);
-        const relevant = due.filter((c) => ids.has(c.deckId) && c.type !== "occlusion");
-        setDueCount(relevant.length);
-        // Dieselben Karten noch je Deck gezählt — fürs "N fällig"-Abzeichen
-        // auf den Kacheln (wie in der App-Bibliothek).
+        const { dueByDeck: allCounts } = await getDueCountsByDeck();
+        // Je Deck fürs "N fällig"-Abzeichen auf den Kacheln, die Summe für
+        // den Lern-Knopf (wie in der App-Bibliothek).
         const counts: Record<string, number> = {};
-        for (const card of relevant) {
-          counts[card.deckId] = (counts[card.deckId] ?? 0) + 1;
+        let total = 0;
+        for (const [deckId, n] of Object.entries(allCounts)) {
+          if (!ids.has(deckId)) continue;
+          counts[deckId] = n;
+          total += n;
         }
+        setDueCount(total);
         setDueByDeck(counts);
       } catch {
         // A missing count must not break the page — the button just says „Fällige lernen".
@@ -150,12 +159,18 @@ export default function FolderDetailPage() {
     load();
   }, [load]);
 
-  // Klick irgendwo schließt ein offenes Unterordner-Menü (wie in der Bibliothek).
+  // Klick irgendwo schließt ein offenes Unterordner-Menü (wie in der Bibliothek);
+  // Escape und Pfeiltasten wie dort (#613).
   useEffect(() => {
     if (!openSubMenu) return;
     const close = () => setOpenSubMenu(null);
+    const onKey = (e: KeyboardEvent) => handleMenuKey(e, close);
     document.addEventListener("click", close);
-    return () => document.removeEventListener("click", close);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("click", close);
+      document.removeEventListener("keydown", onKey);
+    };
   }, [openSubMenu]);
 
   const folder = useMemo(() => folders.find((f) => f.id === folderId), [folders, folderId]);
@@ -276,7 +291,9 @@ export default function FolderDetailPage() {
               {path.join(" / ")}
             </p>
           )}
-          <h1 style={{ fontSize: "clamp(1.5rem, 4vw, 2rem)", fontWeight: 800 }}>
+          {/* overflowWrap: ein Titel ohne Leerzeichen darf die Seite nicht
+              horizontal aufschieben (#612). */}
+          <h1 style={{ fontSize: "clamp(1.5rem, 4vw, 2rem)", fontWeight: 800, overflowWrap: "anywhere" }}>
             {folder?.title ?? "Ordner"}
           </h1>
           <p className="muted" style={{ marginTop: 4 }}>
@@ -677,6 +694,14 @@ function AddDecksModal({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  // Nur die Anzeige wird gefiltert — die Auswahl bleibt erhalten, auch wenn
+  // ein bereits angehaktes Deck gerade nicht zur Suche passt.
+  const shown = useMemo(() => {
+    const q = search.trim().toLocaleLowerCase("de");
+    if (!q) return decks;
+    return decks.filter((d) => d.title.toLocaleLowerCase("de").includes(q));
+  }, [decks, search]);
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -694,8 +719,22 @@ function AddDecksModal({
       ) : (
         <>
           <p className="muted">Wähle die Decks aus, die in diesen Ordner sollen.</p>
-          <div style={{ display: "grid", gap: 8, maxHeight: 320, overflowY: "auto" }}>
-            {decks.map((deck) => (
+          {decks.length >= PICKER_SEARCH_THRESHOLD && (
+            <div className="input-icon">
+              <span aria-hidden>
+                <Search size={16} />
+              </span>
+              <input
+                className="input"
+                placeholder="Deck suchen..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+          )}
+          {shown.length === 0 && <p className="muted">Kein Deck passt zu deiner Suche.</p>}
+          <div className="modal__scroll" style={{ display: "grid", gap: 8 }}>
+            {shown.map((deck) => (
               <label
                 key={deck.id}
                 className="btn btn-ghost"

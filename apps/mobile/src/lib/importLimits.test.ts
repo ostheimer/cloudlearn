@@ -2,8 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   DECK_LIMIT_LABEL,
   NEARLY_FULL_THRESHOLD,
+  adviceForLimit,
+  affordableScanSources,
+  deckSlotsSummary,
   deckLimitMessage,
   deckSlotsLabel,
+  deckSlotsHint,
   freeCardSlots,
   isDeckLimitReached,
   isPlanLimitError,
@@ -13,6 +17,73 @@ import {
   selectEvenlySpread,
   shouldOpenLpModal,
 } from "./importLimits";
+
+describe("Füllstand der Bibliothek (#611)", () => {
+  it("nennt den Stand, lange bevor die Grenze reißt", () => {
+    expect(deckSlotsSummary(19, 20)).toBe("19 von 20 Decks belegt");
+    expect(deckSlotsSummary(3, 20)).toBe("3 von 20 Decks belegt");
+  });
+
+  it("sagt auch am Anschlag die Zahlen", () => {
+    expect(deckSlotsSummary(20, 20)).toBe("20 von 20 Decks belegt");
+  });
+
+  it("schweigt bei unbekannter Grenze und beim Laden", () => {
+    // maxDecks ist `null`, bis der Server die Grenzen geliefert hat (#603).
+    expect(deckSlotsSummary(19, null)).toBeNull();
+    expect(deckSlotsSummary(null, 20)).toBeNull();
+  });
+});
+
+describe("Kosten-Sperren je Scan-Quelle (#611)", () => {
+  const PREISE = { aiScan: 10, urlImport: 15, pdfImport: 20 };
+
+  it("erlaubt alles, wenn das Guthaben für die teuerste Quelle reicht", () => {
+    expect(affordableScanSources(20, PREISE)).toMatchObject({
+      aiScan: true,
+      urlImport: true,
+      pdfImport: true,
+      anyAffordable: true,
+    });
+  });
+
+  it("sperrt genau die Quellen, die zu teuer sind — der eigentliche Fehler", () => {
+    // Der Fall aus dem Audit: 12 LP. Der Warnstreifen prüfte nur gegen 10 (den
+    // günstigsten Preis) und schwieg, obwohl URL und PDF unbezahlbar waren.
+    const a = affordableScanSources(12, PREISE);
+    expect(a.aiScan).toBe(true);
+    expect(a.urlImport).toBe(false);
+    expect(a.pdfImport).toBe(false);
+    // Und weil Foto/Galerie/Text noch gehen, ist es KEIN Totalausfall.
+    expect(a.anyAffordable).toBe(true);
+  });
+
+  it("meldet den Totalausfall, wenn nicht mal die günstigste Quelle geht", () => {
+    const a = affordableScanSources(9, PREISE);
+    expect(a.anyAffordable).toBe(false);
+    expect(a.cheapest).toBe(10);
+  });
+
+  it("nennt den günstigsten Preis, statt ihn zu erraten", () => {
+    // Diese Zahl steht im Warnstreifen. Sie darf nicht hart auf lpCostAiScan
+    // verdrahtet sein: Pro zahlt 5/8/12, und Preise können sich ändern.
+    expect(affordableScanSources(0, { aiScan: 5, urlImport: 8, pdfImport: 12 }).cheapest).toBe(5);
+    expect(affordableScanSources(0, { aiScan: 30, urlImport: 8, pdfImport: 12 }).cheapest).toBe(8);
+  });
+
+  it("lässt eine Quelle zu, deren Preis genau dem Guthaben entspricht", () => {
+    expect(affordableScanSources(15, PREISE).urlImport).toBe(true);
+  });
+
+  it("sperrt bei leerem Konto alles", () => {
+    expect(affordableScanSources(0, PREISE)).toMatchObject({
+      aiScan: false,
+      urlImport: false,
+      pdfImport: false,
+      anyAffordable: false,
+    });
+  });
+});
 
 describe("Deck-Grenze in der App (#411)", () => {
   it("erkennt die erreichte Deck-Grenze", () => {
@@ -111,6 +182,17 @@ describe("Rückfrage vor dem Speichern (#570, Variante 3)", () => {
     expect(deckSlotsLabel("Biologie", NEARLY_FULL_THRESHOLD)).toBe("Biologie");
     expect(deckSlotsLabel("Biologie", 90)).toBe("Biologie");
   });
+
+  it("gibt dem Ziel-Deck-Picker denselben Platz-Hinweis ohne Titel (#612)", () => {
+    // Gleiche Staffel wie deckSlotsLabel: erst kurz vor voll ein Hinweis,
+    // unbekannte Grenze (#603) heisst "nichts anzeigen, nie sperren".
+    expect(deckSlotsHint(null)).toBeNull();
+    expect(deckSlotsHint(90)).toBeNull();
+    expect(deckSlotsHint(NEARLY_FULL_THRESHOLD)).toBeNull();
+    expect(deckSlotsHint(12)).toBe("12 Plätze frei");
+    expect(deckSlotsHint(1)).toBe("1 Platz frei");
+    expect(deckSlotsHint(0)).toBe("voll — kein Platz mehr");
+  });
 });
 
 describe("gleichmäßiges Ausdünnen (#411)", () => {
@@ -177,5 +259,65 @@ describe("Lernpunkte-Fenster nur bei fehlenden Lernpunkten (#371)", () => {
   it("erkennt Grenz-Ablehnungen auch ohne Code", () => {
     expect(isPlanLimitError({ status: 409 })).toBe(true);
     expect(isPlanLimitError({ status: 402, code: "INSUFFICIENT_LP" })).toBe(false);
+  });
+});
+
+describe("Klartext statt Bitte-versuch-es-nochmal (#611)", () => {
+  it("reicht den Server-Satz durch — er kennt Tarif und Zahlen", () => {
+    expect(
+      adviceForLimit({
+        status: 409,
+        code: "DECK_LIMIT_REACHED",
+        message:
+          "Deck-Grenze erreicht: Dein Tarif erlaubt 20 Decks. Mit Pro hast du deutlich mehr Platz.",
+      })
+    ).toBe(
+      "Deck-Grenze erreicht: Dein Tarif erlaubt 20 Decks. Mit Pro hast du deutlich mehr Platz."
+    );
+  });
+
+  it("reicht auch den Pro-Rat durch, statt einen Kauf zu behaupten", () => {
+    // Wer schon Pro hat, dem hilft kein Kauf — der Server sagt das bereits,
+    // und genau dieser Halbsatz ging bisher verloren (#371).
+    const proText =
+      "Deck-Grenze erreicht: Dein Tarif erlaubt 500 Decks. " +
+      "Mehr sind nicht möglich — lösche ein Deck, um Platz zu schaffen.";
+    expect(adviceForLimit({ status: 409, code: "DECK_LIMIT_REACHED", message: proText })).toBe(
+      proText
+    );
+  });
+
+  it("schweigt bei allem, was keine Tarifgrenze ist", () => {
+    // Dann bleibt der bildschirmeigene Satz stehen.
+    expect(adviceForLimit({ status: 402, code: "INSUFFICIENT_LP", message: "Zu wenig LP" })).toBeNull();
+    expect(adviceForLimit({ status: 500, message: "Serverfehler" })).toBeNull();
+    expect(adviceForLimit(new Error("Netzwerk"))).toBeNull();
+    expect(adviceForLimit(null)).toBeNull();
+  });
+
+  it("geht NICHT über den Status — 409 heißt in dieser API auch anderes", () => {
+    // NO_INVITE, ALREADY_REFERRED und der Streak-Schutz antworten ebenfalls 409.
+    // isPlanLimitError darf das für die Scan-Ansicht pauschal nehmen, dieser
+    // Helfer nicht: Er läuft auf Bildschirmen mit vielen Endpunkten.
+    expect(adviceForLimit({ status: 409, code: "NO_INVITE", message: "Kein Einladungscode" })).toBeNull();
+  });
+
+  it("erfindet einen Satz, wenn der Server keinen mitschickt", () => {
+    expect(adviceForLimit({ status: 409, code: "DECK_FULL" })).toBe(
+      "Dieses Deck ist voll. Leg für weitere Karten ein zweites Deck an."
+    );
+    expect(adviceForLimit({ status: 409, code: "DECK_LIMIT_REACHED" })).toBe(
+      "Die Deck-Grenze deines Tarifs ist erreicht. Lösche ein Deck, um Platz zu schaffen."
+    );
+  });
+
+  it("zeigt niemals den technischen Platzhalter aus api.ts", () => {
+    // request() baut „API error 409", wenn der Server ohne Text antwortet.
+    expect(adviceForLimit({ status: 409, code: "DECK_FULL", message: "API error 409" })).toBe(
+      "Dieses Deck ist voll. Leg für weitere Karten ein zweites Deck an."
+    );
+    expect(adviceForLimit({ status: 409, code: "DECK_FULL", message: "   " })).toBe(
+      "Dieses Deck ist voll. Leg für weitere Karten ein zweites Deck an."
+    );
   });
 });

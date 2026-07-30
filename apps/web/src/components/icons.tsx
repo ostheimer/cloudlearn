@@ -223,6 +223,14 @@ export const Search = (p: IconProps) => (
   </Icon>
 );
 
+/** Zwei Pfeile gegenläufig — die Sortier-Umschaltung der Ordner-Liste (#612). */
+export const ArrowsSort = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M7 4v16M4 8l3-4 3 4" />
+    <path d="M17 20V4M14 16l3 4 3-4" />
+  </Icon>
+);
+
 export const MoreHorizontal = (p: IconProps) => (
   <Icon fill="currentColor" stroke="none" {...p}>
     <circle cx="5" cy="12" r="1.6" />

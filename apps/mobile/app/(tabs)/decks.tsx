@@ -18,12 +18,13 @@ import {
   Layers,
   ChevronRight,
   FolderOpen,
+  ArrowUpDown,
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { useSessionStore } from "../../src/store/sessionStore";
 import {
   listDecks,
-  getDueCards,
+  getDueCountsByDeck,
   searchCards,
   type CardSearchResult,
   updateDeck,
@@ -32,15 +33,26 @@ import {
   createFolder,
   updateFolderApi,
   deleteFolderApi,
+  getLpBalance,
   type Deck,
   type Folder,
 } from "../../src/lib/api";
 import { searchDecks } from "../../src/lib/searchDecks";
 import { buildDeckCountLabel } from "../../src/lib/deckCountLabel";
+import { deckSlotsSummary, isDeckLimitReached } from "../../src/lib/importLimits";
+import { usageFromBalanceResponse, useUsageStore } from "../../src/store/usageStore";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
 import { buildLibraryFolderRoute } from "../../src/navigation/libraryRoutes";
 import { AuthPromptCard } from "../../src/components/AuthPromptCard";
 import TextPromptModal from "../../src/components/TextPromptModal";
+import { TITLE_MAX_LENGTH } from "../../src/lib/titleLimit";
+import {
+  DEFAULT_FOLDER_SORT,
+  loadFolderSort,
+  saveFolderSort,
+  sortFolders,
+  type FolderSort,
+} from "../../src/lib/folderSort";
 
 type TabKey = "decks" | "folders";
 
@@ -100,6 +112,24 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
   // Offenes Eingabe-Fenster (Anlegen / Umbenennen). null = keines.
   const [prompt, setPrompt] = useState<PromptState | null>(null);
 
+  // Füllstand „19 von 20 Decks belegt" (#611). `maxDecks` ist `null`, solange
+  // der Server die Grenzen nicht geliefert hat (#603) — dann steht hier nichts.
+  const maxDecks = useUsageStore((state) => state.maxDecks);
+  const setUsage = useUsageStore((state) => state.setUsage);
+  const deckSlotsLabel = deckSlotsSummary(decksLoading ? null : decks.length, maxDecks);
+  const decksAtLimit = isDeckLimitReached(decks.length, maxDecks);
+
+  // Grenzen einmalig nachladen, falls dieser Tab der erste ist. Über die
+  // Startseite hat das LP-Abzeichen sie längst geholt — dann kein Aufruf.
+  useEffect(() => {
+    if (maxDecks !== null) return;
+    void getLpBalance()
+      .then((res) => setUsage(usageFromBalanceResponse(res)))
+      .catch(() => {
+        // Ohne Grenzen bleibt der Füllstand aus — nichts behaupten (#603).
+      });
+  }, [maxDecks, setUsage]);
+
   // --- Load data ---
 
   const loadDecks = useCallback(async () => {
@@ -112,16 +142,14 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
     setDecksError(false);
     try {
       // The badge is best-effort: a failing due lookup must not break the list.
-      const [{ decks: fetched }, due] = await Promise.all([
+      // Gezählt wird auf dem Server (#612): getDueCards überträgt den ganzen
+      // Rückstand mit Kartentext und wird ab 1000 Karten still gekappt.
+      const [{ decks: fetched }, { dueByDeck: due }] = await Promise.all([
         listDecks(userId),
-        getDueCards(userId).catch(() => ({ cards: [] })),
+        getDueCountsByDeck().catch(() => ({ dueByDeck: {} })),
       ]);
       setDecks(fetched);
-      const counts: Record<string, number> = {};
-      for (const card of due.cards) {
-        counts[card.deckId] = (counts[card.deckId] ?? 0) + 1;
-      }
-      setDueByDeck(counts);
+      setDueByDeck(due);
     } catch {
       // Distinguish a load failure (offline / server error) from a genuinely
       // empty library so we can offer a retry instead of "noch keine Decks".
@@ -197,13 +225,26 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
     };
   }, [query, activeTab, userId]);
 
-  const filteredFolders = useMemo(
-    () =>
-      query.trim()
-        ? folders.filter((f) => f.title.toLowerCase().includes(query.toLowerCase()))
-        : folders,
-    [folders, query]
-  );
+  // Reihenfolge ist umschaltbar (#612): A–Z (Voreinstellung) oder neueste
+  // zuerst. Vorher zeigte die App nur die Server-Reihenfolge, das Web nur
+  // alphabetisch — dasselbe Konto, zwei Reihenfolgen.
+  const [folderSort, setFolderSort] = useState<FolderSort>(DEFAULT_FOLDER_SORT);
+  useEffect(() => {
+    let active = true;
+    void loadFolderSort().then((stored) => {
+      if (active) setFolderSort(stored);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const filteredFolders = useMemo(() => {
+    const sorted = sortFolders(folders, folderSort);
+    return query.trim()
+      ? sorted.filter((f) => f.title.toLowerCase().includes(query.toLowerCase()))
+      : sorted;
+  }, [folders, query, folderSort]);
 
   // --- Deck actions ---
 
@@ -527,7 +568,7 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
     </TouchableOpacity>
   );
 
-  const renderEmpty = (icon: React.ReactNode, message: string) => (
+  const renderEmpty = (icon: React.ReactNode, message: string, action?: React.ReactNode) => (
     <View style={{ alignItems: "center", paddingTop: 40, gap: spacing.md }}>
       <View
         style={{
@@ -544,6 +585,7 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
       <Text style={{ fontSize: typography.base, color: colors.textSecondary, textAlign: "center", lineHeight: 22 }}>
         {message}
       </Text>
+      {action}
     </View>
   );
 
@@ -641,7 +683,26 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
       if (filteredDecks.length === 0 && !cardSection) {
         return renderEmpty(
           <Layers size={28} color={colors.textTertiary} />,
-          decks.length === 0 ? t("library.emptyDecks") : t("library.noMatchDecks")
+          decks.length === 0 ? t("library.emptyDecks") : t("library.noMatchDecks"),
+          // Der Text rät zum Scannen — der Knopf führt auch hin (#609). Nur im
+          // wirklich leeren Zustand, nicht bei einer erfolglosen Suche.
+          decks.length === 0 ? (
+            <TouchableOpacity
+              onPress={() => router.push("/(tabs)/scan")}
+              activeOpacity={0.8}
+              style={{
+                backgroundColor: colors.primary,
+                borderRadius: radius.md,
+                paddingHorizontal: spacing.xxl,
+                paddingVertical: 14,
+                marginTop: spacing.sm,
+              }}
+            >
+              <Text style={{ color: "#fff", fontWeight: typography.semibold, fontSize: typography.base }}>
+                {t("library.scanCta")}
+              </Text>
+            </TouchableOpacity>
+          ) : undefined
         );
       }
       return (
@@ -658,7 +719,64 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
         folders.length === 0 ? t("library.emptyFolders") : t("library.noMatchFolders")
       );
     }
-    return filteredFolders.map(renderFolderItem);
+    return (
+      <>
+        {/* Reihenfolge umschalten (#612) — erst ab zwei Ordnern, darunter gibt
+            es nichts zu sortieren. */}
+        {folders.length > 1 && (
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: spacing.xs,
+              marginBottom: spacing.sm,
+            }}
+            accessibilityRole="radiogroup"
+          >
+            <ArrowUpDown size={15} color={colors.textTertiary} />
+            {(
+              [
+                ["alpha", t("library.sortAlpha")],
+                ["recent", t("library.sortRecent")],
+              ] as const
+            ).map(([value, label]) => {
+              const active = folderSort === value;
+              return (
+                <TouchableOpacity
+                  key={value}
+                  onPress={() => {
+                    setFolderSort(value);
+                    void saveFolderSort(value);
+                  }}
+                  activeOpacity={0.7}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: active }}
+                  style={{
+                    paddingVertical: 4,
+                    paddingHorizontal: spacing.md,
+                    borderRadius: radius.full ?? 999,
+                    borderWidth: 1,
+                    borderColor: active ? colors.primary : colors.border,
+                    backgroundColor: active ? colors.primaryLight : colors.surface,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: typography.sm,
+                      fontWeight: typography.semibold,
+                      color: active ? colors.primary : colors.textSecondary,
+                    }}
+                  >
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
+        {filteredFolders.map(renderFolderItem)}
+      </>
+    );
   };
 
   return (
@@ -666,9 +784,25 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
       <View style={{ flex: 1, padding: spacing.lg, gap: spacing.md }}>
         {/* Header */}
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-          <Text style={{ fontSize: typography.xxl, fontWeight: typography.bold, color: colors.text }}>
-            {t("library.title")}
-          </Text>
+          <View style={{ flexShrink: 1 }}>
+            <Text style={{ fontSize: typography.xxl, fontWeight: typography.bold, color: colors.text }}>
+              {t("library.title")}
+            </Text>
+            {/* Füllstand (#611): Die Deck-Grenze war unsichtbar, bis sie riss —
+                der Endpunkt liefert sie seit #411 mit, nur fragte sie hier
+                niemand ab. Bei unbekannter Grenze steht nichts (#603). */}
+            {deckSlotsLabel !== null && activeTab === "decks" && (
+              <Text
+                style={{
+                  fontSize: typography.sm,
+                  color: decksAtLimit ? colors.warning : colors.textSecondary,
+                  marginTop: 2,
+                }}
+              >
+                {deckSlotsLabel}
+              </Text>
+            )}
+          </View>
           <TouchableOpacity
             onPress={handleCreate}
             activeOpacity={0.8}
@@ -801,6 +935,8 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
           label={promptConfig.label}
           initialValue={promptConfig.initialValue}
           confirmLabel={promptConfig.confirmLabel}
+          // Alle drei Fenster hier sind Namen (Deck/Ordner) — Servergrenze 120 (#612).
+          maxLength={TITLE_MAX_LENGTH}
           onCancel={() => setPrompt(null)}
           onSubmit={handlePromptSubmit}
         />

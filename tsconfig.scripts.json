@@ -1,0 +1,19 @@
+{
+  // Die Skripte unter scripts/ gehören zu keinem Paket und wurden deshalb von
+  // `pnpm typecheck` (läuft je Paket) bisher gar nicht geprüft. Diese Datei holt
+  // sie in die Typprüfung — die Betriebs-Proben sollen nicht die einzigen
+  // ungeprüften Dateien im Projekt sein (#86).
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"],
+    // Gleiche lib-Auswahl wie apps/api/tsconfig.json: perf-smoke importiert
+    // API-Quellcode mit, der unter denselben Annahmen geprüft werden muss.
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["apps/api/src/*"]
+    }
+  },
+  "include": ["scripts/**/*.ts"]
+}

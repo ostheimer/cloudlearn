@@ -10,7 +10,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, ChevronRight, Zap, PlayCircle, Shield, ShoppingBag, TrendingUp, Star } from "lucide-react-native";
+import { ArrowLeft, BookOpen, ChevronRight, Zap, PlayCircle, Shield, ShoppingBag, TrendingUp, Star } from "lucide-react-native";
 import { useColors, spacing, radius, typography, shadows } from "../src/theme";
 import { usageFromBalanceResponse, useUsageStore } from "../src/store/usageStore";
 import { useRewardedAd } from "../src/features/ads/useRewardedAd";
@@ -321,12 +321,46 @@ export default function LpStoreScreen() {
               )}
             </View>
 
+            {/* „Jetzt LP verdienen": Lernen zuerst, Werbung danach (#611).
+                Vorher enthielt der Abschnitt NUR die Werbe-Kachel — also
+                ausgerechnet den Weg, der derzeit 0 LP bringt. Der einzige
+                Hinweis aufs Lernen war der Balken weiter oben, der nichts tut.
+                Reihenfolge und Wortlaut wie im Web (dashboard/lp).
+                Bewusst AUSSERHALB des tier-Blocks: Pro und Lifetime verdienen
+                ebenfalls durch Lernen, sahen im Shop aber gar keinen Weg. */}
+            <View style={{ gap: spacing.sm }}>
+              <Text style={{ fontSize: typography.sm, color: colors.textSecondary, fontWeight: typography.medium }}>
+                {t("lp.freeEarnSection")}
+              </Text>
+              <TouchableOpacity
+                onPress={() => router.push("/(tabs)/learn")}
+                activeOpacity={0.8}
+                style={{
+                  backgroundColor: colors.primary,
+                  borderRadius: radius.lg,
+                  padding: spacing.lg,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: spacing.md,
+                  ...shadows.sm,
+                }}
+              >
+                <BookOpen size={24} color={colors.textInverse} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: colors.textInverse, fontSize: typography.base, fontWeight: typography.bold }}>
+                    {t("lp.earnByLearningTitle")}
+                  </Text>
+                  <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: typography.sm, marginTop: 2 }}>
+                    {t("lp.earnByLearningSubtitle", { cap: lpEarnCapToday })}
+                  </Text>
+                </View>
+                <ChevronRight size={18} color="rgba(255,255,255,0.75)" />
+              </TouchableOpacity>
+            </View>
+
             {/* Rewarded ad (free only) */}
             {tier === "free" && (
               <View style={{ gap: spacing.sm }}>
-                <Text style={{ fontSize: typography.sm, color: colors.textSecondary, fontWeight: typography.medium }}>
-                  {t("lp.freeEarnSection")}
-                </Text>
                 <TouchableOpacity
                   onPress={handleWatchAd}
                   disabled={adBusy || adCapped}

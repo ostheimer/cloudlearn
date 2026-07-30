@@ -79,6 +79,42 @@ export function assertCardLimit(tier: SubscriptionTier, currentCardCount: number
   }
 }
 
+/**
+ * May a whole deck be copied into this tier? (#611, Laras Entscheidung)
+ *
+ * Duplicating and importing a shared deck copied EVERY card of the source deck
+ * without ever consulting the card limit — the one gap `importCapacity.ts`
+ * names in passing ("deck duplication, shared-deck import, sync"). A free
+ * account could take a 2000-card Pro deck through a share link and legally end
+ * up far above its 150-per-deck limit; the limit was one link away from being
+ * decorative.
+ *
+ * Rejected instead of truncated: a half-copied deck is worse than none. It
+ * looks complete, so the learner believes she has covered the whole subject
+ * while a third of it silently never arrived.
+ *
+ * Note the `>` (not `>=`): this asks "do all N cards fit", while
+ * `assertCardLimit` asks "is there room for one MORE". A deck with exactly
+ * `maxCardsPerDeck` cards copies fine — it lands exactly at the limit, and the
+ * next manual card is then refused by `assertCardLimit` as usual.
+ *
+ * Decks that are already over the limit are never touched (same rule as #411):
+ * they can just no longer be multiplied.
+ */
+export function assertDeckCopyFits(tier: SubscriptionTier, sourceCardCount: number): void {
+  const { maxCardsPerDeck } = getLimitsForTier(tier);
+  if (sourceCardCount > maxCardsPerDeck) {
+    throw new HttpError(
+      `Dieses Deck hat ${sourceCardCount} Karten — dein Tarif erlaubt ${maxCardsPerDeck} pro Deck.` +
+        (upgradeWouldHelp(tier, "maxCardsPerDeck")
+          ? upgradeHint
+          : " Kopieren ist deshalb nicht möglich."),
+      IMPORT_LIMIT_STATUS,
+      DECK_FULL
+    );
+  }
+}
+
 // Server-side Pro-feature gate (#235). Free tiers must not reach Pro-only server
 // endpoints just because they can craft the request. This is the ONE case where
 // "you need Pro" is literally true, so it keeps 402/PAYWALL_REQUIRED — and the
