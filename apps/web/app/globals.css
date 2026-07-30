@@ -3365,6 +3365,32 @@ a.mode-card:hover {
   position: relative;
 }
 
+/* Am Handy füllt die 220-px-Karte den Schirm; am Laptop und am iPad endet die
+   Runde nach einem Drittel der Höhe und darunter bleibt alles leer. Dort darf
+   die Karte mitwachsen.
+   Beide Höhen zusammen: `.study-card` ist die Hülle (300 px), `.flip__inner`
+   die eigentliche Karte (220 px) — die 80 px Unterschied sind toter Raum
+   zwischen Kartenunterkante und Bewertungsknöpfen. Ein gemeinsamer Wert macht
+   die Karte so hoch wie ihre Hülle.
+   Bedingungen: ab 768 px Breite (Handy bleibt unberührt) UND 700 px Höhe —
+   ohne die Höhen-Bedingung würde die Karte in einem flachen Fenster über den
+   sichtbaren Bereich hinauswachsen. `min(44vh, …)` wächst mit dem Fenster,
+   der Deckel verhindert riesige Karten auf hohen Schirmen.
+   Bildkarten (`.flip--media`, 400 px) sind ausgenommen: ihre Höhe richtet sich
+   nach dem Bild und liegt bereits über diesem Wert.
+   Der Griff `.study-card` gibt es nur in der Lernrunde — die Demo-Karte auf
+   der Startseite nutzt dieselbe `.flip`-Mechanik und bleibt unverändert. */
+@media (min-width: 768px) and (min-height: 700px) {
+  .study-card:not(.flip--media) {
+    --study-card-h: min(44vh, 420px);
+    min-height: var(--study-card-h);
+  }
+
+  .study-card:not(.flip--media) .flip__inner {
+    min-height: var(--study-card-h);
+  }
+}
+
 /* Vorlesen: runder Lautsprecher-Knopf in der Kartenecke. Er liegt bewusst
    NEBEN .flip__inner statt darin — so rotiert er beim Umdrehen nicht mit
    und erscheint nie spiegelverkehrt. */
