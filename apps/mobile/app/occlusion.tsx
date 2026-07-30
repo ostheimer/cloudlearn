@@ -14,6 +14,7 @@ import { AlertTriangle, ImagePlus, Pencil, Trash2, X, Zap } from "lucide-react-n
 import { useColors, spacing, radius, typography } from "../src/theme";
 import { StudyResult } from "../src/components/StudyResult";
 import { useSessionStore } from "../src/store/sessionStore";
+import { useUsageStore } from "../src/store/usageStore";
 import { listCardsInDeck, earnLp, deleteCard } from "../src/lib/api";
 import { sendReview } from "../src/features/sync/sendReview";
 import {
@@ -48,6 +49,7 @@ export default function OcclusionStudyScreen() {
   const colors = useColors();
   const router = useRouter();
   const userId = useSessionStore((s) => s.userId);
+  const setUsage = useUsageStore((s) => s.setUsage);
   const displayName = useDisplayName();
   const { deckId, deckTitle } = useLocalSearchParams<{ deckId?: string; deckTitle?: string }>();
 
@@ -136,6 +138,10 @@ export default function OcclusionStudyScreen() {
           const res = await earnLp("session", count);
           setEarned(res.granted);
           setEarnCapReached(res.capReached);
+          // Kontostand im Store nachziehen (#612) — alle anderen Lernmodi tun
+          // das; nur hier blieb die LP-Pille in der Kopfzeile auf dem alten
+          // Stand stehen, bis irgendetwas anderes sie neu lud.
+          if (res.granted > 0) setUsage({ lpBalance: res.newBalance });
 
           if (isSessionEarnFinalized(res, count)) {
             state.finalized = true;
@@ -146,7 +152,7 @@ export default function OcclusionStudyScreen() {
         /* LP-Gutschrift ist best-effort */
       }
     });
-  }, []);
+  }, [setUsage]);
 
   useEffect(() => {
     if (done) void awardSession(total);

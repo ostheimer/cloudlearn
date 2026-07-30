@@ -43,9 +43,11 @@ import {
   shareDeck,
   revokeDeckShare,
   exportDeckForOffline,
+  getDeckDetails,
   type Card,
 } from "../../../src/lib/api";
 import { summarizeCardMedia } from "../../../src/lib/cardMedia";
+import { cardKindLabel } from "../../../src/lib/cardDisplay";
 import {
   cardsFromOfflineDeckCache,
   offlineDeckStorageKey,
@@ -459,6 +461,17 @@ export default function DeckDetailScreen() {
   const loadCards = useCallback(async () => {
     if (!deckId) return;
     setLoadError(false);
+    // Deck-Kopfdaten mitladen (#612): Titel und Etiketten kamen bisher NUR aus
+    // dem Routen-Parameter, mit dem diese Seite geöffnet wurde. Eine Umbenennung
+    // auf einem anderen Gerät tauchte hier nie auf — auch nach Herunterziehen
+    // nicht. Best-effort: scheitert der Abruf (offline), bleibt der bisherige
+    // Titel stehen, die Kartenliste unten hat ihren eigenen Offline-Weg.
+    void getDeckDetails(deckId)
+      .then(({ details }) => {
+        if (details.title) setCurrentDeckTitle(details.title);
+        setCurrentDeckTags(details.tags ?? []);
+      })
+      .catch(() => { /* Titel aus dem Routen-Parameter behalten */ });
     try {
       const { cards: fetched } = await listCardsInDeck(deckId);
       setCards(fetched);
@@ -1101,10 +1114,10 @@ export default function DeckDetailScreen() {
                             fontWeight: typography.medium,
                           }}
                         >
-                          #{idx + 1} ·{" "}
-                          {card.type === "cloze"
-                            ? "Lückentext"
-                            : "Basic"}
+                          {/* Bild-Karten hießen hier „Basic" (#612) — der
+                              Kopf zählt sie längst getrennt, die Liste nannte
+                              sie wie eine gewöhnliche Karteikarte. */}
+                          #{idx + 1} · {cardKindLabel(card.type)}
                         </Text>
                         <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
                           <TouchableOpacity

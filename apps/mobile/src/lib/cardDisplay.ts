@@ -25,6 +25,21 @@ export function cardSideTexts(card: { front: string; back: string }): CardSideTe
   return { front, back, media };
 }
 
+/**
+ * Kurzes Etikett über einer Karte in der Kartenliste (#612).
+ *
+ * Bild-Occlusion-Karten liefen hier als „Basic" mit, obwohl der Deck-Kopf sie
+ * längst getrennt zählt („20 Karten · 10 Bild-Karten") — dieselbe Karte hiess
+ * oben Bild-Karte und in der Liste Karteikarte. „Bild-Karte" ist der bereits
+ * etablierte Wortlaut (deckCountLabel), „Basic" bleibt für gewöhnliche
+ * Karteikarten unverändert.
+ */
+export function cardKindLabel(type: string | undefined): string {
+  if (type === "cloze") return "Lückentext";
+  if (type === "occlusion") return "Bild-Karte";
+  return "Basic";
+}
+
 // Tile texts for the matching mode — like the web (match-tiles.ts): the front
 // of a cloze card shows its gap as a blank, because the raw {{cN::…}} would
 // print the matching back right on the question tile. A side left without any

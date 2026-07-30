@@ -36,9 +36,13 @@ describe("mobile deck screen – Ladefehler ist kein leeres Deck", () => {
 
   it("setzt die Fehler-Markierung zu Beginn JEDES Versuchs zurück", () => {
     // Ohne Reset bliebe ein alter Fehler nach einem geglückten Laden stehen.
-    // Der Reset steht vor dem try, gilt also auch für Retry und Pull-to-Refresh,
-    // weil beide über dasselbe loadCards laufen.
-    expect(loadCards).toMatch(/if \(!deckId\) return;\n\s*setLoadError\(false\);\n\s*try \{/);
+    // Der Reset ist die erste Anweisung nach der deckId-Prüfung und liegt vor
+    // dem try, gilt also auch für Retry und Pull-to-Refresh, weil beide über
+    // dasselbe loadCards laufen. Zwischen Reset und try darf weiterer Code
+    // stehen (seit #612 lädt loadCards dort die Deck-Kopfdaten mit) — geprüft
+    // wird die Reihenfolge, nicht die Nachbarschaft.
+    expect(loadCards).toMatch(/if \(!deckId\) return;\n\s*setLoadError\(false\);/);
+    expect(loadCards.indexOf("setLoadError(false)")).toBeLessThan(loadCards.indexOf("try {"));
     expect(source).toContain("const retryLoad = () => {");
     expect(source).toMatch(/const retryLoad = \(\) => \{[\s\S]*loadCards\(\);[\s\S]*\};/);
     expect(source).toMatch(/const onRefresh = \(\) => \{[\s\S]*loadCards\(\);[\s\S]*\};/);

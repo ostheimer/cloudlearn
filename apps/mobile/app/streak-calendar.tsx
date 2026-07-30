@@ -21,6 +21,7 @@ import {
 import { useColors, spacing, radius, typography } from "../src/theme";
 import { useSessionStore } from "../src/store/sessionStore";
 import { supabase } from "../src/lib/supabase";
+import { todayLocal } from "../src/lib/localDay";
 import {
   getStats,
   getStreakCalendar,
@@ -28,10 +29,10 @@ import {
   type StreakCalendarResponse,
 } from "../src/lib/api";
 
-// The device's local calendar date (sv-SE renders YYYY-MM-DD) matches the
-// server's local-day streak dates — same reasoning as on Home (#211).
+// „Heute" in der Server-Zeitzone (#612) — die Geräte-Zeitzone markierte auf
+// Reisen den falschen Tag im Kalender. Gleiche Quelle wie die Startseite.
 function todayLocalDate(): string {
-  return new Date().toLocaleDateString("sv-SE");
+  return todayLocal();
 }
 
 function shiftMonth(month: string, delta: number): string {

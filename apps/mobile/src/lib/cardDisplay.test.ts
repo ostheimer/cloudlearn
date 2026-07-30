@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cardSideTexts, matchTileTexts } from "./cardDisplay";
+import { cardKindLabel, cardSideTexts, matchTileTexts } from "./cardDisplay";
 
 describe("cardSideTexts (#592)", () => {
   it("lässt gewöhnliche Textkarten unverändert", () => {
@@ -76,5 +76,19 @@ describe("matchTileTexts (#592)", () => {
     ).toBeNull();
     expect(matchTileTexts({ front: "", back: "die Kurve" })).toBeNull();
     expect(matchTileTexts({ front: "la courbe", back: "   " })).toBeNull();
+  });
+});
+
+describe("cardKindLabel — Bild-Karten heissen nicht mehr Basic (#612)", () => {
+  it("nennt Bild-Occlusion-Karten wie der Deck-Kopf", () => {
+    // Der Kopf zaehlt "20 Karten · 10 Bild-Karten" — die Liste nannte dieselbe
+    // Karte "Basic".
+    expect(cardKindLabel("occlusion")).toBe("Bild-Karte");
+  });
+
+  it("behaelt die bekannten Etiketten fuer Text-Karten", () => {
+    expect(cardKindLabel("cloze")).toBe("Lückentext");
+    expect(cardKindLabel("basic")).toBe("Basic");
+    expect(cardKindLabel(undefined)).toBe("Basic");
   });
 });

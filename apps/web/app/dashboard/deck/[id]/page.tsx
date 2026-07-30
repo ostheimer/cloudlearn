@@ -7,6 +7,7 @@ import { useAuth } from "@/components/app/auth-context";
 import { Modal } from "@/components/app/modal";
 import { OcclusionShot } from "@/components/app/occlusion-shot";
 import { getCardImages, occlusionTarget, type CardImage } from "@/lib/card-images";
+import { cardListPreview } from "@/lib/card-display";
 import { deckCountLabel } from "@/lib/deck-count-label";
 import { useCoarsePointer } from "@/lib/use-coarse-pointer";
 import {
@@ -367,12 +368,18 @@ export default function DeckDetailPage() {
             Karten
           </h2>
           <div className="card-list">
-            {textCards.map((card, i) => (
+            {textCards.map((card, i) => {
+              // Aufbereitet wie in den Lernmodi (#612): Lücken als Strich statt
+              // rohem {{c1::…}}, kein Bild-Markdown. Eine Seite ohne Text (reines
+              // Bild ohne Unterschrift) sagt das, statt leer zu bleiben.
+              const preview = cardListPreview(card);
+              const emptySide = preview.hasImage ? "(Bild)" : "";
+              return (
             <div key={card.id} className="card-row">
               <span className="card-row__num">{i + 1}</span>
               <div className="card-row__faces">
-                <div className="card-row__front">{card.front}</div>
-                <div className="card-row__back">{card.back}</div>
+                <div className="card-row__front">{preview.front || emptySide}</div>
+                <div className="card-row__back">{preview.back || emptySide}</div>
               </div>
               <div className="card-row__actions">
                 <button
@@ -402,7 +409,8 @@ export default function DeckDetailPage() {
                 </button>
               </div>
             </div>
-          ))}
+              );
+            })}
           </div>
           </>
           )}

@@ -68,6 +68,34 @@ export function summarizeCardMedia(card: {
   };
 }
 
+/**
+ * Vorschau-Texte einer Karte für Listen (#612).
+ *
+ * Die Kartenliste der Deck-Seite zeigte den ROHTEXT: `{{c1::Mitochondrium}}`
+ * statt einer Lücke und `![](https://…/bild.png)` statt des Bildes — in den
+ * Lernmodi wird beides längst aufbereitet (#591), nur die Liste bekam es nie.
+ *
+ * Die Lücke wird zum Strich (der rohe Code hätte die Lösung direkt neben der
+ * Frage gedruckt); Bild-Markdown verschwindet, eine Seite aus nur einem Bild
+ * fällt auf ihre Bildunterschrift zurück. `hasImage` sagt der Liste, dass an
+ * dieser Karte ein Bild hängt, damit eine Seite ohne Unterschrift nicht als
+ * leer erscheint.
+ */
+export function cardListPreview(card: { front: string; back: string }): {
+  front: string;
+  back: string;
+  hasImage: boolean;
+} {
+  const media = summarizeCardMedia({ front: card.front || "", back: card.back || "" });
+  const front = formatCloze(media.plainFront).display || media.frontImages[0]?.alt || "";
+  const back = formatCloze(media.plainBack).display || media.backImages[0]?.alt || "";
+  return {
+    front,
+    back,
+    hasImage: media.frontImages.length > 0 || media.backImages.length > 0,
+  };
+}
+
 // Zieht aus einer Übersetzungsfrage den bloßen Begriff heraus, damit gescannte
 // Vokabelkarten in jedem Lernmodus als saubere Paare auftreten
 // (le record <-> der Rekord).
