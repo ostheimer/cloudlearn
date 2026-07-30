@@ -1705,6 +1705,33 @@ export async function listDeckIdsForUser(userId: string): Promise<string[]> {
 }
 
 /**
+ * Live cards of ONE deck, regardless of who owns it (#611).
+ *
+ * Deliberately without a `user_id` filter — unlike every other card read in
+ * this module. The shared-deck import copies a deck that belongs to SOMEBODY
+ * ELSE, so an ownership filter would always count 0 there and the limit check
+ * built on top would silently pass. Authorization happens before the call:
+ * `duplicateDeckForUser` resolves the deck through `getDeck(deckId, userId)`,
+ * `importSharedDeck` through the share token. `duplicateDeck` reads the cards
+ * it copies the same way, for the same reason.
+ *
+ * The filter mirrors that copy query exactly (`deck_id` + live cards), so what
+ * is counted here is precisely what would be written — including
+ * image-occlusion cards, which is what `assertCardLimit` counts on the manual
+ * path too.
+ */
+export async function countCardsInDeck(deckId: string): Promise<number> {
+  const db = getDb();
+  const { count, error } = await db
+    .from("cards")
+    .select("*", { count: "exact", head: true })
+    .eq("deck_id", deckId)
+    .is("deleted_at", null);
+  if (error) throw new Error(`countCardsInDeck: ${error.message}`);
+  return count ?? 0;
+}
+
+/**
  * Card ids of one deck in the same canonical order as `listDeckIdsForUser`.
  * Deliberately counts EVERY live card (image-occlusion cards included), which
  * is exactly what `assertCardLimit` on the manual path counts, so both paths

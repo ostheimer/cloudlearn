@@ -167,6 +167,12 @@ async function createDeckWithinLimit(
  *    radius than this issue asks for,
  * while a plain re-check before the insert would not hold at all: two writers
  * can both read "1 slot free" and both insert.
+ *
+ * The two copy paths named above were the loophole this deliberately left open:
+ * duplicating and importing a shared deck copied every card without asking the
+ * limit at all. #611 closed that with `assertDeckCopyFits` in the service layer
+ * — they now refuse a source deck that does not fit rather than truncate it, so
+ * the reconciliation dance below stays exclusive to the import path.
  */
 async function insertCardsWithinLimit(
   userId: string,
