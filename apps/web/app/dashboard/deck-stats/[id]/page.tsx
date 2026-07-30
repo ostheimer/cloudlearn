@@ -7,6 +7,7 @@ import { getDeckStats, isApiError, type DeckStats } from "@/lib/api";
 import { ArrowLeft, Lock, RotateCw } from "@/components/icons";
 import { AccuracyRing, AccuracyTrendChart } from "@/components/app/stats-charts";
 import { useCoarsePointer } from "@/lib/use-coarse-pointer";
+import { wobblySummary } from "@/lib/wobbly-summary";
 
 export default function DeckStatsPage() {
   const params = useParams<{ id: string }>();
@@ -124,7 +125,17 @@ export default function DeckStatsPage() {
   const acc = answersTotal > 0 ? (stats?.answersCorrect ?? 0) / answersTotal : 0;
   const accuracyByDay = stats?.accuracyByDay ?? [];
   const learningDays = accuracyByDay.filter((d) => d.count > 0).length;
+  // Angezeigt werden weiter 5 Zeilen — geübt wird aber die volle Menge (#682).
+  // `wobblyTotal` ist die echte Zahl der Karten mit mindestens einem Fehler,
+  // die Übe-Menge kappt der Server bei 100. Fehlen die Felder (ältere API
+  // während eines rollenden Deploys), gilt die Anzeige-Liste.
   const wobbly = stats?.wobblyCards ?? [];
+  const wobblyTotal = stats?.wobblyTotal ?? wobbly.length;
+  const { subtitle: wobblySubtitle, practiceLabel } = wobblySummary(
+    wobbly.length,
+    wobblyTotal,
+    (stats?.wobblyPracticeCards ?? wobbly).length
+  );
 
   const seg = (days: 7 | 30, label: string) => (
     <button
@@ -215,9 +226,14 @@ export default function DeckStatsPage() {
 
       {/* Wackelkandidaten */}
       <div className="panel">
-        <h3 className="h3" style={{ marginBottom: 12 }}>
+        <h3 className="h3" style={{ marginBottom: wobblySubtitle ? 2 : 12 }}>
           Deine Wackelkandidaten
         </h3>
+        {wobblySubtitle && (
+          <p className="muted" style={{ margin: "0 0 12px", fontSize: "0.85rem" }}>
+            {wobblySubtitle}
+          </p>
+        )}
         {wobbly.length > 0 ? (
           // minmax(0, 1fr): Kartentexte stehen auf nowrap und melden trotz
           // overflow:hidden ihre volle Breite — ohne die Klammer bläst eine
@@ -274,12 +290,15 @@ export default function DeckStatsPage() {
       </div>
 
       {wobbly.length > 0 && (
+        // `cards=wobbly` statt einer Liste aus bis zu 100 IDs: Die Lernseite
+        // holt die Menge selbst (useWobblyIds) — sonst stünden mehrere Kilobyte
+        // UUIDs in der Adresszeile, im Verlauf und in jedem Server-Log.
         <Link
-          href={`/dashboard/deck/${deckId}/learn?cards=${wobbly.map((w) => w.cardId).join(",")}`}
+          href={`/dashboard/deck/${deckId}/learn?cards=wobbly`}
           className="btn btn-primary btn-lg btn-block"
           style={{ textDecoration: "none", gap: 8 }}
         >
-          <RotateCw size={18} /> Wackelkandidaten üben ({wobbly.length})
+          <RotateCw size={18} /> {practiceLabel}
         </Link>
       )}
     </>

@@ -164,7 +164,7 @@ describe("getDeckWobblyCards – most-wrong cards, ordered", () => {
     const { db } = makeDbMock([{ data: WRONG_ROWS, error: null }]);
     mockedCreateDb.mockReturnValue(db);
 
-    const wobbly = await getDeckWobblyCards(USER_ID, DECK_ID, 5);
+    const { cards: wobbly } = await getDeckWobblyCards(USER_ID, DECK_ID, 5);
 
     expect(wobbly.map((w) => w.cardId)).toEqual(["c-3", "c-tie", "c-2", "c-1"]);
     expect(wobbly[0]).toEqual({
@@ -176,7 +176,7 @@ describe("getDeckWobblyCards – most-wrong cards, ordered", () => {
     });
   });
 
-  it("caps the list at `limit`", async () => {
+  it("caps the list at `limit` but reports the true total (#682)", async () => {
     const manyRows = ["a", "b", "c", "d", "e", "f", "g"].map((id, i) => ({
       card_id: `card-${id}`,
       reviewed_at: `2026-07-0${i + 1}T08:00:00.000Z`,
@@ -187,7 +187,35 @@ describe("getDeckWobblyCards – most-wrong cards, ordered", () => {
 
     const wobbly = await getDeckWobblyCards(USER_ID, DECK_ID, 5);
 
-    expect(wobbly).toHaveLength(5);
+    expect(wobbly.cards).toHaveLength(5);
+    // Sieben Karten waren falsch — die Kappung darf das nicht verschweigen.
+    expect(wobbly.total).toBe(7);
+  });
+
+  it("counts each card once in `total`, however often it was wrong", async () => {
+    // Eine einzige Karte, sieben Fehlversuche: total ist 1, nicht 7.
+    const sevenTries = Array.from({ length: 7 }, (_unused, i) => ({
+      card_id: "card-solo",
+      reviewed_at: `2026-07-0${i + 1}T08:00:00.000Z`,
+      cards: card("card-solo", "Was ist ein Switch?"),
+    }));
+    const { db } = makeDbMock([{ data: sevenTries, error: null }]);
+    mockedCreateDb.mockReturnValue(db);
+
+    const wobbly = await getDeckWobblyCards(USER_ID, DECK_ID, 5);
+
+    expect(wobbly.total).toBe(1);
+    expect(wobbly.cards).toHaveLength(1);
+    expect(wobbly.cards[0]?.wrongCount).toBe(7);
+  });
+
+  it("reports total 0 for a deck without wrong answers", async () => {
+    const { db } = makeDbMock([{ data: [], error: null }]);
+    mockedCreateDb.mockReturnValue(db);
+
+    const wobbly = await getDeckWobblyCards(USER_ID, DECK_ID, 5);
+
+    expect(wobbly).toEqual({ cards: [], total: 0 });
   });
 
   it("queries only wrong ratings (< 3) of non-deleted cards in this deck", async () => {

@@ -10,6 +10,17 @@ interface Params {
   params: Promise<{ id: string }>;
 }
 
+// Wie viele Wackelkandidaten die Liste auf dem Bildschirm zeigt. Bleibt bei 5:
+// Die Statistik-Seite soll kurz bleiben — und ausgelieferte App-Builds rendern
+// `wobblyCards` ungefragt vollständig.
+const WOBBLY_DISPLAY_LIMIT = 5;
+// Wie viele Karten der "Alle üben"-Knopf höchstens startet (#682). Die Anzeige-
+// Grenze war vorher unbemerkt auch die Lern-Grenze: Karte 6 und weiter waren
+// über diesen Weg nie erreichbar, weil `wrongCount` all-time zählt und die
+// vordersten 5 damit dauerhaft vorn bleiben. Eine Runde mit mehreren hundert
+// Karten ist trotzdem keine Runde, darum diese ehrlich benannte Obergrenze.
+const WOBBLY_PRACTICE_LIMIT = 100;
+
 /**
  * GET /api/v1/decks/:id/stats — Statistik für EIN Deck (#246), Pro-only:
  * Antworten gesamt/richtig + Genauigkeits-Verlauf (gewähltes 7-/30-Tage-
@@ -17,6 +28,11 @@ interface Params {
  * Karten, inkl. front/back, damit der Client eine Übungsrunde ohne weiteren
  * Fetch starten kann). Die Wackelkandidaten sind bewusst all-time, nicht
  * gefenstert. Free bekommt 403/PRO_REQUIRED (Laras Entscheidung 17.07.).
+ *
+ * Drei Felder zu den Wackelkandidaten (#682):
+ *   wobblyCards         — die 5 für die Liste (unverändert für alte Clients)
+ *   wobblyTotal         — wie viele Karten WIRKLICH mindestens einmal falsch waren
+ *   wobblyPracticeCards — was "Alle üben" startet (bis WOBBLY_PRACTICE_LIMIT)
  */
 export async function GET(request: NextRequest, { params }: Params) {
   const { requestId } = createRequestContext(request.headers);
@@ -50,9 +66,9 @@ export async function GET(request: NextRequest, { params }: Params) {
       return jsonError(requestId, "PRO_REQUIRED", "Deck statistics are part of Pro.", 403);
     }
 
-    const [stats, wobblyCards] = await Promise.all([
+    const [stats, wobbly] = await Promise.all([
       getDeckReviewStats(auth.userId, id, requestedDays),
-      getDeckWobblyCards(auth.userId, id, 5),
+      getDeckWobblyCards(auth.userId, id, WOBBLY_PRACTICE_LIMIT),
     ]);
 
     return jsonOk(requestId, {
@@ -61,7 +77,14 @@ export async function GET(request: NextRequest, { params }: Params) {
       answersTotal: stats.answersTotal,
       answersCorrect: stats.answersCorrect,
       accuracyByDay: stats.accuracyByDay,
-      wobblyCards,
+      // Die kurze Liste für die Anzeige — unverändert, damit alte App-Builds
+      // weiter genau 5 Zeilen zeigen.
+      wobblyCards: wobbly.cards.slice(0, WOBBLY_DISPLAY_LIMIT),
+      // Die ehrliche Gesamtzahl: alle Karten des Decks mit mindestens einer
+      // falschen Antwort. Neue Clients beschriften damit Liste und Knopf.
+      wobblyTotal: wobbly.total,
+      // Die Karten, die "Alle üben" wirklich startet (bis WOBBLY_PRACTICE_LIMIT).
+      wobblyPracticeCards: wobbly.cards,
     });
   } catch (error) {
     const normalized = normalizeError(error);

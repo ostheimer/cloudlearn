@@ -28,6 +28,7 @@ import {
   shortDate,
 } from "../../src/components/statsCharts";
 import { useReviewSession } from "../../src/features/review/reviewSession";
+import { wobblySummary } from "../../src/lib/wobblySummary";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
 
 // Deck-Statistik (#246, Laras Design): Genauigkeits-Ring + Verlauf für EIN
@@ -90,7 +91,18 @@ export default function DeckStatsScreen() {
   const answersCorrect = stats?.answersCorrect ?? 0;
   const accuracy = answersTotal > 0 ? answersCorrect / answersTotal : 0;
   const accuracyByDay = stats?.accuracyByDay ?? [];
+  // Angezeigt bleiben 5 Zeilen — geübt wird die volle Menge (#682).
+  // `wobblyTotal` ist die echte Zahl der Karten mit mindestens einem Fehler,
+  // die Übe-Menge kappt der Server bei 100. Fehlen die Felder (App im Umlauf
+  // gegen ältere API), gilt die Anzeige-Liste.
   const wobbly = stats?.wobblyCards ?? [];
+  const wobblyTotal = stats?.wobblyTotal ?? wobbly.length;
+  const practice = stats?.wobblyPracticeCards ?? wobbly;
+  const { subtitle: wobblySubtitle, practiceLabel } = wobblySummary(
+    wobbly.length,
+    wobblyTotal,
+    practice.length
+  );
 
   // Karteikarten-Runde mit genau diesen Karten starten (Session-Store-Weg).
   const practiceCards = (cards: DeckWobblyCard[]) => {
@@ -451,6 +463,17 @@ export default function DeckStatsScreen() {
                   <Text style={cardTitleStyle}>Deine Wackelkandidaten</Text>
                 </View>
 
+                {wobblySubtitle ? (
+                  <Text
+                    style={{
+                      fontSize: typography.xs,
+                      color: colors.textSecondary,
+                    }}
+                  >
+                    {wobblySubtitle}
+                  </Text>
+                ) : null}
+
                 {wobbly.length > 0 ? (
                   <>
                     <Text
@@ -527,7 +550,7 @@ export default function DeckStatsScreen() {
               {/* Üben + Deck öffnen */}
               {wobbly.length > 0 ? (
                 <TouchableOpacity
-                  onPress={() => practiceCards(wobbly)}
+                  onPress={() => practiceCards(practice)}
                   activeOpacity={0.85}
                   accessibilityRole="button"
                   style={{
@@ -549,7 +572,7 @@ export default function DeckStatsScreen() {
                       fontSize: typography.lg,
                     }}
                   >
-                    Wackelkandidaten üben ({wobbly.length})
+                    {practiceLabel}
                   </Text>
                 </TouchableOpacity>
               ) : null}

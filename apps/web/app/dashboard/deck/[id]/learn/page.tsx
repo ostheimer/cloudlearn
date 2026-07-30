@@ -39,6 +39,10 @@ export default function LearnPage() {
   // Gezielte Sonderrunde über ?cards= (z. B. „Wackelkandidaten üben" aus der
   // Statistik): kurze Runden ohne Weitermachen — weder speichern noch anbieten.
   const [adhocRound, setAdhocRound] = useState(false);
+  // ?cards=wobbly heißt „alle Wackelkandidaten dieses Decks" (#682). Die IDs
+  // stehen bewusst NICHT im Link — es können bis zu 100 sein. Aufgelöst wird
+  // erst, wenn Karten UND Wackelkandidaten da sind.
+  const [wobblyDeepLink, setWobblyDeepLink] = useState(false);
 
   const load = useCallback(async () => {
     if (!deckId) return;
@@ -53,12 +57,16 @@ export default function LearnPage() {
         typeof window !== "undefined"
           ? new URLSearchParams(window.location.search).get("cards")
           : null;
-      const wanted = cardsParam ? new Set(cardsParam.split(",").filter(Boolean)) : null;
-      if (wanted) {
-        const subset = study.filter((x) => wanted.has(x.id));
-        setPool(subset.length > 0 ? subset : study);
-        setAdhocRound(true);
-        setPhase("play");
+      if (cardsParam === "wobbly") {
+        setWobblyDeepLink(true);
+      } else {
+        const wanted = cardsParam ? new Set(cardsParam.split(",").filter(Boolean)) : null;
+        if (wanted) {
+          const subset = study.filter((x) => wanted.has(x.id));
+          setPool(subset.length > 0 ? subset : study);
+          setAdhocRound(true);
+          setPhase("play");
+        }
       }
       setError(null);
     } catch (e) {
@@ -71,6 +79,22 @@ export default function LearnPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // ?cards=wobbly auflösen, sobald Karten und Wackelkandidaten da sind (#682).
+  // Genau einmal — danach darf eine nachladende Statistik die laufende Runde
+  // nicht mehr umbauen.
+  const wobblyDeepLinkRef = useRef(false);
+  useEffect(() => {
+    if (wobblyDeepLinkRef.current) return;
+    if (!wobblyDeepLink || !studyable || !wobblySettled) return;
+    wobblyDeepLinkRef.current = true;
+    const subset = studyable.filter((c) => wobblyIds.has(c.id));
+    // Leere Menge (z. B. Statistik nicht erreichbar): lieber das ganze Deck als
+    // eine leere Runde — dieselbe Regel wie beim ?cards=-Deep-Link.
+    setPool(subset.length > 0 ? subset : studyable);
+    setAdhocRound(true);
+    setPhase("play");
+  }, [wobblyDeepLink, studyable, wobblyIds, wobblySettled]);
 
   // Gemerkten Lernstand einmal je Seite lesen — lokal UND aus dem Konto, der
   // neuere gilt (#610). Das Angebot unten erscheint nur, solange er zum Stapel
@@ -134,7 +158,11 @@ export default function LearnPage() {
     setPhase("play");
   }
 
-  if (loading) return <div className="spinner" />;
+  // Beim ?cards=wobbly-Deep-Link weiterdrehen, bis die Menge steht — sonst
+  // blitzt die Kartenquelle-Auswahl kurz auf, bevor die Runde startet. Ein
+  // Ladefehler geht vor, sonst drehte der Kreisel endlos.
+  if (loading || (wobblyDeepLink && phase === "setup" && !error))
+    return <div className="spinner" />;
 
   if (error) {
     return (
