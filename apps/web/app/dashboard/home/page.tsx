@@ -603,6 +603,11 @@ export default function HomePage() {
           Deck für Deck; der Scan-Knopf tritt in den Rahmen-Stil zurück. Ohne
           fällige Karten bleibt eine ruhige "gut gemacht"-Fläche stehen und
           Scannen ist wieder die Haupt-Aktion — alles Laras Entscheidungen. */}
+      {/* Volle Breite wie die Kacheln darüber (Laras Variante A, 30.07.):
+          Am Desktop endet die ganze Startseite an einer Linie; die frühere
+          420px-Klammer ließ die Aktionen gegenüber „Zuletzt gelernt"
+          einspringen. Am Handy ändert das nichts — dort ist ohnehin alles
+          gleich breit. */}
       {due > 0 ? (
         <Link
           href="/dashboard/learn"
@@ -611,9 +616,6 @@ export default function HomePage() {
             marginTop: 4,
             textDecoration: "none",
             width: "100%",
-            maxWidth: 420,
-            marginLeft: "auto",
-            marginRight: "auto",
             display: "flex",
             flexDirection: "column",
             gap: 2,
@@ -633,9 +635,6 @@ export default function HomePage() {
           style={{
             marginTop: 4,
             width: "100%",
-            maxWidth: 420,
-            marginLeft: "auto",
-            marginRight: "auto",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
@@ -656,7 +655,7 @@ export default function HomePage() {
       )}
 
       {/* Haupt-Aktion Scannen — im Rahmen-Stil, solange Lernen der laute
-          Knopf ist; gleiche Größe wie zuvor (Layout bleibt stabil). */}
+          Knopf ist; volle Breite wie der Lern-Knopf darüber. */}
       <Link
         href="/dashboard/import"
         className={`btn btn-lg btn-block${due > 0 ? "" : " btn-primary"}`}
@@ -664,9 +663,6 @@ export default function HomePage() {
           marginTop: 4,
           textDecoration: "none",
           width: "100%",
-          maxWidth: 420,
-          marginLeft: "auto",
-          marginRight: "auto",
           ...(due > 0
             ? {
                 background: "var(--surface)",
