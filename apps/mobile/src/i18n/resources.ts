@@ -26,8 +26,6 @@ export const resources = {
       "review.noCardsHint": "Scanne einen Text, um Flashcards zu generieren.",
       "review.emptyScan": "Neuen Text scannen",
       "review.emptyLibrary": "Zur Bibliothek",
-      "review.completed": "Session abgeschlossen!",
-      "review.cardsLearned": "{{count}} Karten gelernt.",
       "review.reload": "Neu laden",
       "review.resultTitle": "Runde geschafft!",
       "review.resultTitleNamed": "Runde geschafft, {{name}}!",
@@ -36,7 +34,6 @@ export const resources = {
       "review.onlyWrong": "Nur die nicht gewussten ({{count}})",
       "review.againAll": "Alle nochmal",
       "review.done": "Fertig",
-      "review.lpEarned": "+{{count}} LP verdient!",
       "review.saveError": "Antwort konnte nicht gespeichert werden.",
 
       // Home: Lern-Einstieg zur globalen fälligen Runde (#609)
@@ -314,7 +311,6 @@ export const resources = {
       "common.error": "Fehler",
       "common.success": "Erfolg",
       "common.delete": "Löschen",
-      "common.confirm": "Bestätigen",
       "common.retry": "Erneut versuchen",
       "common.loadError": "Konnte nicht laden — bist du offline?",
 
@@ -370,7 +366,6 @@ export const resources = {
       "sharedDeck.syncDoneWithSkipped": "{{added}} Karten sind dazugekommen. {{skipped}} haben nicht mehr ins Deck gepasst.",
       "sharedDeck.syncError": "Aktualisieren hat nicht funktioniert.",
       "sharedDeck.importing": "Wird übernommen…",
-      "sharedDeck.importSuccess": "In deine Bibliothek übernommen",
       "sharedDeck.importError": "Übernehmen fehlgeschlagen. Bitte versuch es nochmal.",
       // An der Deck-Grenze war „versuch es nochmal" eine Aufforderung zur
       // Endlosschleife (#611) — dort steht jetzt der Grund vom Server.
@@ -593,25 +588,8 @@ export const resources = {
       "lp.purchaseErrorGeneric": "Unbekannter Fehler beim Kauf.",
 
       // Referral
-      "referral.title": "Freunde einladen",
       "referral.profileButton": "Freunde einladen",
       "referral.profileButtonSubtitle": "Freunde hinzufügen, gemeinsam lernen, LP verdienen",
-      "referral.bonusTitle": "Gegenseitig belohnen",
-      "referral.statUsers": "Eingeladene\nFreunde",
-      "referral.statLp": "LP aus\nEinladungen",
-      "referral.yourCode": "Dein Einladungscode",
-      "referral.copy": "Kopieren",
-      "referral.copied": "Kopiert!",
-      "referral.share": "Teilen",
-      "referral.codePlaceholder": "z.B. ABC12345",
-      "referral.redeem": "Einlösen",
-      "referral.invalidCode": "Bitte gib einen gültigen Code ein.",
-      "referral.claimSuccess": "Geschafft!",
-      "referral.claimSuccessBody": "+{{lp}} LP erhalten! Dein neues Guthaben: {{balance}} LP.",
-      "referral.alreadyReferred": "Du hast bereits einen Einladungscode verwendet.",
-      "referral.codeNotFound": "Dieser Code existiert nicht.",
-      "referral.selfReferral": "Du kannst deinen eigenen Code nicht verwenden.",
-      "referral.claimError": "Fehler beim Einlösen des Codes. Bitte versuche es später erneut.",
 
       // Anzeigename
       "displayName.title": "Wie sollen wir dich nennen?",
@@ -678,8 +656,6 @@ export const resources = {
       "review.noCardsHint": "Scan a text to generate flashcards.",
       "review.emptyScan": "Scan a new text",
       "review.emptyLibrary": "To your library",
-      "review.completed": "Session complete!",
-      "review.cardsLearned": "{{count}} cards studied.",
       "review.reload": "Reload",
       "review.resultTitle": "Round complete!",
       "review.resultTitleNamed": "Round complete, {{name}}!",
@@ -688,7 +664,6 @@ export const resources = {
       "review.onlyWrong": "Only the missed ones ({{count}})",
       "review.againAll": "All again",
       "review.done": "Done",
-      "review.lpEarned": "+{{count}} LP earned!",
       "review.saveError": "Answer couldn't be saved.",
 
       // Home: learn entry into the global due round (#609)
@@ -950,7 +925,6 @@ export const resources = {
       "common.error": "Error",
       "common.success": "Success",
       "common.delete": "Delete",
-      "common.confirm": "Confirm",
       "common.retry": "Try again",
       "common.loadError": "Couldn't load — are you offline?",
 
@@ -1003,7 +977,6 @@ export const resources = {
       "sharedDeck.syncDoneWithSkipped": "{{added}} cards were added. {{skipped}} did not fit into the deck.",
       "sharedDeck.syncError": "Updating did not work.",
       "sharedDeck.importing": "Saving…",
-      "sharedDeck.importSuccess": "Saved to your library",
       "sharedDeck.importError": "Couldn't save the deck. Please try again.",
       "sharedDeck.importBlockedTitle": "Can't save this deck",
       "sharedDeck.loadError": "Couldn't load this deck. The link may have expired.",
@@ -1204,25 +1177,8 @@ export const resources = {
       "lp.purchaseErrorGeneric": "Unknown error during purchase.",
 
       // Referral
-      "referral.title": "Invite friends",
       "referral.profileButton": "Invite friends",
       "referral.profileButtonSubtitle": "Add friends, learn together, earn LP",
-      "referral.bonusTitle": "Reward each other",
-      "referral.statUsers": "Invited\nfriends",
-      "referral.statLp": "LP from\nreferrals",
-      "referral.yourCode": "Your referral code",
-      "referral.copy": "Copy",
-      "referral.copied": "Copied!",
-      "referral.share": "Share",
-      "referral.codePlaceholder": "e.g. ABC12345",
-      "referral.redeem": "Redeem",
-      "referral.invalidCode": "Please enter a valid code.",
-      "referral.claimSuccess": "Done!",
-      "referral.claimSuccessBody": "+{{lp}} LP received! New balance: {{balance}} LP.",
-      "referral.alreadyReferred": "You have already used a referral code.",
-      "referral.codeNotFound": "This code does not exist.",
-      "referral.selfReferral": "You cannot use your own referral code.",
-      "referral.claimError": "Error redeeming code. Please try again later.",
 
       // Display name
       "displayName.title": "What should we call you?",

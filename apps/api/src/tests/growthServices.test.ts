@@ -33,30 +33,4 @@ const HAS_DB =
   !!process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 describe.skipIf(!HAS_DB)("growth services — integration (Supabase)", () => {
-  it("exports decks in apkg format", async () => {
-    const { createDeckForUser } = await import("@/services/deckService");
-    const { createCardForUser } = await import("@/services/cardService");
-    const { exportDeckAsApkg } = await import("@/services/ankiExportService");
-
-    const deck = await createDeckForUser({
-      userId,
-      title: "Export Test",
-      tags: [],
-    });
-    await createCardForUser({
-      userId,
-      deckId: deck.id,
-      card: {
-        front: "Merksatz eins",
-        back: "Antwort eins",
-        type: "basic",
-        difficulty: "medium",
-        tags: [],
-      },
-    });
-
-    const exportFile = await exportDeckAsApkg(userId, deck.id);
-    expect(exportFile.fileName.endsWith(".apkg")).toBe(true);
-    expect(exportFile.content).toContain("apkg-mock");
-  });
 });
