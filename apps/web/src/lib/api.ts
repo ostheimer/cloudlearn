@@ -252,6 +252,45 @@ export function revokeDeckShare(deckId: string): Promise<{ revoked: boolean }> {
   });
 }
 
+// ─── Geteiltes Deck übernehmen (#708) ───────────────────────────────────────
+//
+// Diese drei gab es bisher nur in der App (apps/mobile/src/lib/api.ts). Im Web
+// war ein geteilter Link deshalb eine Sackgasse: Vorschau ansehen und sonst
+// nichts.
+
+export function importSharedDeck(shareToken: string): Promise<{ deck: Deck }> {
+  return authed<{ deck: Deck }>(`/api/v1/decks/share/${shareToken}/import`, {
+    method: "POST",
+  });
+}
+
+/** Habe ich von diesem Deck schon eine Kopie, und wie viele Karten wären neu? */
+export interface SharedDeckSyncPreview {
+  existingDeck: { id: string; title: string } | null;
+  newCardCount: number;
+  skipped: number;
+}
+
+export function previewSharedDeckSync(
+  shareToken: string
+): Promise<SharedDeckSyncPreview> {
+  return authed<SharedDeckSyncPreview>(`/api/v1/decks/share/${shareToken}/sync`);
+}
+
+/**
+ * „Aktualisieren": nur die fehlenden Karten in die eigene Kopie legen. Es wird
+ * nie gelöscht oder überschrieben; `added`/`skipped` sind die ehrlichen Zahlen.
+ */
+export function syncSharedDeck(
+  shareToken: string
+): Promise<{ deck: { id: string; title: string }; added: number; skipped: number }> {
+  return authed<{
+    deck: { id: string; title: string };
+    added: number;
+    skipped: number;
+  }>(`/api/v1/decks/share/${shareToken}/sync`, { method: "POST" });
+}
+
 export interface DeckDetails {
   id: string;
   title: string;
