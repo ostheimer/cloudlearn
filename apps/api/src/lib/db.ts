@@ -604,6 +604,26 @@ export async function findReviewByIdempotencyKey(
   return mapReviewRow(data);
 }
 
+/**
+ * Ob dieser Nutzer JEMALS einen Review verzeichnet hat — jeder Modus zählt,
+ * auch 'test' (#696). Server-seitige Wahrheit hinter dem "first_review"-
+ * Meilenstein: der soll "es wurde real gelernt" bedeuten, nicht "es wurde LP
+ * gutgeschrieben" — wer nur Prüfungen macht, bekommt ihn trotzdem, weil auch
+ * dafür review_logs-Zeilen entstehen (nur eben ohne LP-Anspruch).
+ *
+ * Reine Kopf-Zählung (`head: true` schickt keine Zeilen über die Leitung),
+ * derselbe Aufbau wie totalCountQuery in getReviewStats weiter unten.
+ */
+export async function hasAnyReviewLog(userId: string): Promise<boolean> {
+  const db = getDb();
+  const { count, error } = await db
+    .from("review_logs")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", userId);
+  if (error) throw new Error(`hasAnyReviewLog: ${error.message}`);
+  return (count ?? 0) > 0;
+}
+
 // ─── Learning (Due Cards) ───────────────────────────────────────────────────
 
 export async function listDueCards(
