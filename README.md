@@ -578,8 +578,6 @@ Die initiale Migration oben ist nur das Basisschema. Die vollständige, maßgebl
 │   ├── POST   /url          # URL importieren -> Web-Text + Bilder -> Karten
 │   ├── GET|POST /pdf        # PDF-Import-Job prüfen/starten (Scaffold; LP-Spend aktiv, Parsing noch Job-basiert)
 │   └── POST   /save         # Vorschau-Karten ablegen (#427; kostet keine LP, die flossen beim Erzeugen)
-├── /export
-│   └── POST   /anki         # Anki-Export (.apkg), Body: { "deckId": "uuid" } (Mock-Content, CL-D04)
 ├── /decks
 │   ├── GET    /             # Decks des Nutzers; ?archived=1 liefert das Archiv statt der Bibliothek (#614)
 │   ├── POST   /             # Neues Deck erstellen
@@ -647,8 +645,6 @@ Die initiale Migration oben ist nur das Basisschema. Die vollständige, maßgebl
 │   └── GET|PATCH /profile   # Anzeigename lesen/ändern mit Inhaltsfilter (via displayNameService.ts)
 ├── /math
 │   └── POST   /formula      # Stillgelegt (#425): antwortet 501, Mathpix ist nicht angebunden
-├── /beta
-│   └── GET|POST /feedback   # Beta-Feedback lesen/einreichen (via betaFeedbackService.ts)
 ├── /folders
 │   ├── GET    /             # Alle Ordner des Nutzers
 │   ├── POST   /             # Neuen Ordner erstellen
@@ -923,7 +919,7 @@ clearn.ai verwendet ein **LP-System (Lernpunkte)** als universelle In-App-Währu
 - [x] Mehrere Lernmodi (MCQ, Cloze+, Matching) + psychometrische Bewertung (Domain-Scaffold)
 - [x] PDF-Import (Queue/Retry Scaffold)
 - [ ] Mathpix-Integration (Kostenkontrolle steht, Route stillgelegt bis Mathpix angebunden ist — #425)
-- [x] Anki-Export (`.apkg` Export-Scaffold)
+- [ ] Anki-Export (Attrappe in #614 entfernt — sie baute JSON und nannte es `.apkg`)
 - [ ] Community-Decks (Skizze in #425 entfernt — sie hielt Daten im Arbeitsspeicher)
 - [x] Web-App (Landing + Learn-Client Scaffold)
 - [ ] B2B-Dashboard (Skizze in #425 entfernt — sie hielt Daten im Arbeitsspeicher)
@@ -981,8 +977,14 @@ Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testf�
 
 - Offline-Sync (Retry-Queue existiert; vollständige SQLite-Persistenz und Offline-Erstellung bleiben CL-D01)
 - PDF-Import (Job-Queue vorhanden, kein echtes Parsing)
-- Anki-Export (Mock-Daten)
 - Mathpix (`POST /api/v1/math/formula` antwortet 501; es gab nie einen echten Mathpix-Aufruf, siehe #425. Budget-Logik und Tabelle `mathpix_usage` bleiben für den späteren Anschluss erhalten)
+
+> **Entfernt in #614:** Der Anki-Export (`POST /export/anki`) und das Beta-Feedback
+> (`GET|POST /beta/feedback`). Der erste baute JSON und nannte die Datei `.apkg` —
+> kein Anki konnte sie öffnen. Das zweite legte Einsendungen in eine Modul-Variable,
+> die auf Vercel bei jeder Anfrage eine andere sein kann: die Antwort lautete `201`,
+> und der Text war sofort verloren. Kein Client rief eine der beiden Routen auf. Der
+> Code bleibt in der Git-Historie abrufbar.
 
 > **Entfernt in #425:** Community-Decks, B2B-Klassen und `POST /upload/sign`. Die ersten beiden hielten ihre Daten in einer Modul-Variable, waren also bei jedem Kaltstart wieder leer, meldeten aber `201 Created`. Die dritte gehörte zu einer Cloudflare-R2-Anbindung, die nie benutzt wurde. Kein Client rief eine der drei auf. Der Code bleibt in der Git-Historie abrufbar.
 

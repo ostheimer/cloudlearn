@@ -2,9 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HttpError } from "@/lib/http";
 import type { DeckRecord } from "@/lib/db";
 
-// #235: Offline download (deck export + Anki export) is a Pro entitlement.
-// These tests pin the server-side gate: a free user is rejected with
-// 402/PAYWALL_REQUIRED before any card data is read, while a Pro user passes.
+// #235: Offline download is a Pro entitlement. Diese Tests halten die
+// serverseitige Schranke fest: ein Gratis-Konto wird mit 402/PAYWALL_REQUIRED
+// abgewiesen, BEVOR Kartendaten gelesen werden; Pro kommt durch.
+//
+// Der zweite Export-Weg („Anki") ist mit #614 entfallen: er baute JSON und
+// nannte es .apkg — eine Datei, die kein Anki öffnen konnte.
 
 const dbMocks = vi.hoisted(() => ({
   createDeck: vi.fn(),
@@ -45,7 +48,6 @@ vi.mock("@/services/subscriptionService", () => ({
 }));
 
 import { exportDeckForOffline } from "@/services/deckService";
-import { exportDeckAsApkg } from "@/services/ankiExportService";
 
 const userId = "6e5db9e4-7e48-4e11-8d8c-6ca90c18d42a";
 const deckId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
@@ -87,16 +89,6 @@ describe("offline download entitlement (#235)", () => {
     expect(dbMocks.listCardsForDeck).not.toHaveBeenCalled();
   });
 
-  it("blocks a free user from the Anki export", async () => {
-    mockTier("free");
-
-    await expect(exportDeckAsApkg(userId, deckId)).rejects.toMatchObject({
-      status: 402,
-      code: "PAYWALL_REQUIRED",
-    } satisfies Partial<HttpError>);
-
-    expect(dbMocks.listCardsForDeck).not.toHaveBeenCalled();
-  });
 
   it("allows a pro user to export a deck for offline use", async () => {
     mockTier("pro");
@@ -106,11 +98,4 @@ describe("offline download entitlement (#235)", () => {
     expect(dbMocks.listCardsForDeck).toHaveBeenCalledWith(userId, deckId);
   });
 
-  it("allows a lifetime user to run the Anki export", async () => {
-    mockTier("lifetime");
-
-    const result = await exportDeckAsApkg(userId, deckId);
-    expect(result.fileName).toBe(`${deckId}.apkg`);
-    expect(dbMocks.listCardsForDeck).toHaveBeenCalledWith(userId, deckId);
-  });
 });
