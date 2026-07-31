@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth, type OAuthProvider } from "./auth-context";
 import { rememberPendingDisplayName, rememberPendingGender } from "./display-name-prompt";
@@ -25,7 +25,23 @@ const GENDER_OPTIONS: { value: Gender; label: string; wide?: boolean }[] = [
 
 export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { status, signIn, signUp, signInWithOAuth } = useAuth();
+
+  /**
+   * Wohin nach dem Anmelden? Normalerweise auf die Startseite — außer die
+   * Adresse trägt ein `?next=`, dann dorthin zurück (#708: wer über einen
+   * geteilten Deck-Link kommt, soll nach dem Anmelden wieder BEIM DECK
+   * landen, nicht auf der Startseite).
+   *
+   * Nur eigene Pfade: der Wert muss mit genau einem „/" beginnen. „//host"
+   * und „https://…" wären eine offene Weiterleitung — ein Link auf unsere
+   * Anmeldung könnte sonst nach dem Login auf eine fremde Seite schicken,
+   * die wie clearn aussieht.
+   */
+  const nextParam = searchParams.get("next");
+  const target =
+    nextParam && /^\/(?!\/)/.test(nextParam) ? nextParam : "/dashboard/home";
 
   const [name, setName] = useState("");
   const [gender, setGender] = useState<Gender | null>(null);
@@ -42,8 +58,8 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
 
   // Already signed in? Skip the form.
   useEffect(() => {
-    if (status === "authenticated") router.replace("/dashboard/home");
-  }, [status, router]);
+    if (status === "authenticated") router.replace(target);
+  }, [status, router, target]);
 
   useEffect(() => {
     let active = true;
@@ -84,7 +100,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
           setError(error);
           return;
         }
-        router.replace("/dashboard/home");
+        router.replace(target);
       } else {
         const { error, requiresEmailConfirmation } = await signUp(email, password);
         if (error) {
@@ -99,7 +115,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
           setConfirmSent(true);
           return;
         }
-        router.replace("/dashboard/home");
+        router.replace(target);
       }
     } finally {
       setBusy(false);
