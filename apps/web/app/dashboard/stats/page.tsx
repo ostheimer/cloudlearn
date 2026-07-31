@@ -245,7 +245,7 @@ export default function StatsPage() {
 
       {proHint && (
         <p className="muted" style={{ fontSize: "0.85rem", margin: "-6px 0 0", textAlign: "right" }}>
-          Den 30-Tage-Rückblick gibt es mit Pro — freischalten in der clearn-App.
+          Den 30-Tage-Rückblick gibt es mit Pro in der clearn-App.
         </p>
       )}
 

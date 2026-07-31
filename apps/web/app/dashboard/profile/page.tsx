@@ -284,7 +284,7 @@ export default function ProfilePage() {
               <span>
                 {tier === "pro" || tier === "lifetime"
                   ? "Pro ist auf deinem Konto aktiv — verwalten kannst du es in der clearn-App"
-                  : "Pro-Vorteile schaltest du in der clearn-App frei"}
+                  : "Pro gibt es in der clearn-App"}
               </span>
             </div>
             <span className={`tier-badge tier-badge--${tier ?? "free"}`}>

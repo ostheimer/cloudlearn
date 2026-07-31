@@ -55,13 +55,20 @@ async function waitForBackendSubscriptionSync(
   return "free";
 }
 
+// Dieselben acht Vorteile in derselben Reihenfolge wie die Web-Seite
+// (apps/web/app/dashboard/pro/page.tsx, #571). Jeder Punkt hat jetzt einen
+// erklärenden Nachsatz mit Zahlen — vorher standen hier sechs blanke
+// Stichworte, und „Mehr pro Tag verdienen" sowie „Erweiterte Statistik"
+// fehlten ganz, obwohl Pro beides kann.
 const PRO_FEATURES = [
-  "paywall.feature.scans",
-  "paywall.feature.url",
+  "paywall.feature.aiCosts",
+  "paywall.feature.monthlyLp",
+  "paywall.feature.earnMore",
+  "paywall.feature.space",
   "paywall.feature.adfree",
   "paywall.feature.occlusion",
+  "paywall.feature.stats",
   "paywall.feature.offline",
-  "paywall.feature.decks",
 ] as const;
 
 export default function PaywallScreen() {
@@ -301,11 +308,18 @@ export default function PaywallScreen() {
             {t("paywall.featuresTitle")}
           </Text>
           {PRO_FEATURES.map((key) => (
-            <View key={key} style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
-              <CheckCircle2 size={18} color={colors.success} />
-              <Text style={{ color: colors.text, fontSize: typography.sm, flex: 1 }}>
-                {t(key)}
-              </Text>
+            // alignItems: "flex-start" — der Nachsatz ist zweizeilig, das Häkchen
+            // gehört dann an die erste Zeile und nicht in die Mitte des Blocks.
+            <View key={key} style={{ flexDirection: "row", alignItems: "flex-start", gap: spacing.sm }}>
+              <CheckCircle2 size={18} color={colors.success} style={{ marginTop: 2 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: colors.text, fontSize: typography.sm, fontWeight: typography.semibold }}>
+                  {t(key)}
+                </Text>
+                <Text style={{ color: colors.textSecondary, fontSize: typography.sm }}>
+                  {t(`${key}Text`)}
+                </Text>
+              </View>
             </View>
           ))}
         </View>

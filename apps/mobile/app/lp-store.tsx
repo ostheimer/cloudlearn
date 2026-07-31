@@ -225,9 +225,15 @@ export default function LpStoreScreen() {
           <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}>
             <ArrowLeft size={22} color={colors.text} />
           </TouchableOpacity>
-          <Text style={{ fontSize: typography.xxl, fontWeight: typography.bold, color: colors.text }}>
-            {t("lp.storeTitle")}
-          </Text>
+          {/* Untertitel wie im Web (#571) — erklärt, wofür Lernpunkte gut sind. */}
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: typography.xxl, fontWeight: typography.bold, color: colors.text }}>
+              {t("lp.storeTitle")}
+            </Text>
+            <Text style={{ fontSize: typography.sm, color: colors.textSecondary, marginTop: 2 }}>
+              {t("lp.storeSubtitle")}
+            </Text>
+          </View>
         </View>
 
         {loading ? (

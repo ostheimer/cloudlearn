@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
 import Svg, { G, Line, Rect, Text as SvgText } from "react-native-svg";
 import {
   TrendingUp,
@@ -60,6 +61,9 @@ function dayTitle(iso: string): string {
 export default function StatsScreen() {
   const colors = useColors();
   const router = useRouter();
+  // Vorerst nur für Überschrift und Untertitel (#571) — der Rest dieses
+  // Bildschirms steht noch fest auf Deutsch im Code.
+  const { t } = useTranslation();
 
   // Startet auf 7 (dem Free-Fenster), obwohl die erste Anfrage 30 verlangt:
   // Free — der Normalfall — sieht so nie einen springenden Chip; bei Pro
@@ -492,7 +496,11 @@ export default function StatsScreen() {
               color: colors.text,
             }}
           >
-            Deine Statistik
+            {t("stats.title")}
+          </Text>
+          {/* Untertitel wie im Web (#571) — sagt vor dem Scrollen, was kommt. */}
+          <Text style={{ fontSize: typography.base, color: colors.textSecondary, marginTop: 4 }}>
+            {t("stats.subtitle")}
           </Text>
         </View>
 
