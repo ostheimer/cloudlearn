@@ -29,6 +29,12 @@ interface AuthContextValue {
   signUp: (email: string, password: string) => Promise<SignUpResult>;
   signInWithOAuth: (provider: OAuthProvider) => Promise<{ error: string | null }>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
+  /**
+   * E-Mail-Adresse ändern (#614). Supabase verschickt eine Bestätigung an die
+   * NEUE Adresse; erst der Klick darin stellt das Konto um. Bis dahin gilt
+   * die alte — die Anmeldung ändert sich also nicht sofort.
+   */
+  changeEmail: (email: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -121,6 +127,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { error } = await supabase.auth.resetPasswordForEmail(
           email.trim().toLowerCase(),
           { redirectTo: `${window.location.origin}/reset-password` }
+        );
+        return { error: error ? toGermanAuthError(error.message) : null };
+      },
+
+      changeEmail: async (email) => {
+        const { error } = await supabase.auth.updateUser(
+          { email: email.trim().toLowerCase() },
+          { emailRedirectTo: callbackUrl() }
         );
         return { error: error ? toGermanAuthError(error.message) : null };
       },

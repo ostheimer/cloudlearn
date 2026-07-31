@@ -229,6 +229,23 @@ export const resources = {
       "profile.passwordChange": "Ändern",
       "profile.passwordSent": "E-Mail gesendet",
       "profile.trash": "Papierkorb",
+      // E-Mail-Adresse ändern (#614) — Wortlaute wortgleich mit dem Web.
+      "profile.changeEmail": "Ändern",
+      "profile.changeEmailTitle": "E-Mail-Adresse ändern",
+      "profile.changeEmailLabel": "Neue E-Mail-Adresse",
+      "profile.changeEmailSubmit": "Senden",
+      "profile.changeEmailErrorTitle": "Ändern nicht möglich",
+      "profile.changeEmailSentTitle": "Bestätigung unterwegs",
+      "profile.changeEmailSentBody": "Bestätigung an {{email}} geschickt. Deine Adresse ändert sich erst, wenn du den Link darin anklickst.",
+      // Geräte-Übersicht (#614) — nur Anzeige.
+      "devices.title": "Geräte mit der clearn-App",
+      // Erst sagen, was drinsteht, dann was fehlt (Vorschlag der #571-Sitzung).
+      "devices.note": "Nur Geräte, auf denen die App installiert ist und Benachrichtigungen erlaubt sind. Ein Browser erscheint hier nie.",
+      // NICHT „Keine Geräte": Wer die App hat, aber Benachrichtigungen
+      // abgelehnt hat, sähe sonst die Behauptung, es gäbe kein Gerät.
+      "devices.empty": "Noch kein Gerät hat Benachrichtigungen erlaubt.",
+      "devices.loadError": "Geräte konnten nicht geladen werden.",
+      "devices.lastSeen": "zuletzt aktiv am {{date}}",
       "profile.trashSubtitle": "Gelöschte Decks und Karten zurückholen",
       // Papierkorb (#614) — Wortlaute wortgleich mit apps/web/app/dashboard/trash.
       "trash.title": "Papierkorb",
@@ -890,6 +907,18 @@ export const resources = {
       "profile.passwordChange": "Change",
       "profile.passwordSent": "Email sent",
       "profile.trash": "Trash",
+      "profile.changeEmail": "Change",
+      "profile.changeEmailTitle": "Change e-mail address",
+      "profile.changeEmailLabel": "New e-mail address",
+      "profile.changeEmailSubmit": "Send",
+      "profile.changeEmailErrorTitle": "Could not change it",
+      "profile.changeEmailSentTitle": "Confirmation sent",
+      "profile.changeEmailSentBody": "Confirmation sent to {{email}}. Your address only changes once you click the link in it.",
+      "devices.title": "Devices with the clearn app",
+      "devices.note": "Only devices with the app installed and notifications allowed. A browser never appears here.",
+      "devices.empty": "No device has allowed notifications yet.",
+      "devices.loadError": "Could not load your devices.",
+      "devices.lastSeen": "last active on {{date}}",
       "profile.trashSubtitle": "Restore deleted decks and cards",
       "trash.title": "Trash",
       "trash.intro": "Everything you deleted stays here until you remove it for good.",

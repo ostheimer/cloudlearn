@@ -2800,3 +2800,39 @@ export async function purgeAllTrash(
 
   return { decks: (deckData ?? []).length, cards: (cardData ?? []).length };
 }
+
+// ─── Geräte-Übersicht (#614) ─────────────────────────────────────────────────
+
+export interface PushDevice {
+  platform: string;
+  firstSeenAt: string;
+  lastSeenAt: string;
+}
+
+/**
+ * Geräte, auf denen die App Benachrichtigungen registriert hat.
+ *
+ * WICHTIG für den Wortlaut in den Clients: Das ist KEINE Liste aller Geräte,
+ * mit denen jemand angemeldet ist. `push_tokens` füllt nur `POST /push/register`
+ * — also die App, und auch die nur, wenn Benachrichtigungen erlaubt sind. Ein
+ * Browser taucht hier nie auf. Eine Überschrift „Deine Geräte" wäre deshalb
+ * falsch: Man säße vor dem Rechner und sähe ihn nicht in der Liste.
+ *
+ * Der Token selbst verlässt die Datenbank NICHT: er ist ein Zustellungs-Geheimnis
+ * (wer ihn hat, kann Benachrichtigungen an dieses Gerät schicken) und für die
+ * Anzeige ohne jeden Wert.
+ */
+export async function listPushDevices(userId: string): Promise<PushDevice[]> {
+  const db = getDb();
+  const { data, error } = await db
+    .from("push_tokens")
+    .select("platform, created_at, updated_at")
+    .eq("user_id", userId)
+    .order("updated_at", { ascending: false });
+  if (error) throw new Error(`listPushDevices: ${error.message}`);
+  return (data ?? []).map((row) => ({
+    platform: row.platform ?? "unbekannt",
+    firstSeenAt: row.created_at,
+    lastSeenAt: row.updated_at ?? row.created_at,
+  }));
+}

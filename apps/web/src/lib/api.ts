@@ -1199,3 +1199,22 @@ export function purgeTrashCard(cardId: string): Promise<PurgeResult> {
 export function emptyTrash(): Promise<PurgeResult> {
   return authed<PurgeResult>("/api/v1/trash?all=1", { method: "DELETE" });
 }
+
+// ─── Geräte-Übersicht (#614) ────────────────────────────────────────────────
+
+export interface PushDevice {
+  platform: string;
+  firstSeenAt: string;
+  lastSeenAt: string;
+}
+
+/**
+ * Geräte, auf denen die App Benachrichtigungen registriert hat.
+ *
+ * KEINE Liste aller angemeldeten Geräte: Browser tauchen hier nie auf, weil das
+ * Web keine Push-Token registriert. Die Beschriftung muss das sagen, sonst
+ * sucht man den eigenen Rechner in der Liste.
+ */
+export function listPushDevices(): Promise<{ devices: PushDevice[] }> {
+  return authed<{ devices: PushDevice[] }>("/api/v1/push/devices");
+}
