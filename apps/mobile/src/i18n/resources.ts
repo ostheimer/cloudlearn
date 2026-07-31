@@ -535,7 +535,9 @@ export const resources = {
       // ohne Ausweg). Wortlaut wie im Web (folder/[id]/page.tsx).
       "folderDetail.learnDueUnknown": "Fällige lernen",
       "folderDetail.learnDue": "{{count}} fällig lernen",
-      "folderDetail.learnAllCards": "Alle {{count}} lernen",
+      // Einzahl mitgeführt (#703): „Alle 1 lernen" war schlicht falsches Deutsch.
+      "folderDetail.learnAllCards_one": "Die eine Karte lernen",
+      "folderDetail.learnAllCards_other": "Alle {{count}} lernen",
       "folderDetail.editDescription": "Beschreibung bearbeiten",
       "folderDetail.descriptionPrompt": "Worum geht es in diesem Ordner? Leer speichern löscht die Beschreibung.",
       "folderDetail.descriptionPlaceholder": "z. B. Grundkurs Deutsch für Anfänger",
@@ -1183,7 +1185,8 @@ export const resources = {
       "folderDetail.renameError": "Could not rename folder.",
       "folderDetail.learnDueUnknown": "Learn due",
       "folderDetail.learnDue": "Learn {{count}} due",
-      "folderDetail.learnAllCards": "Learn all {{count}}",
+      "folderDetail.learnAllCards_one": "Learn the one card",
+      "folderDetail.learnAllCards_other": "Learn all {{count}}",
       "folderDetail.editDescription": "Edit description",
       "folderDetail.descriptionPrompt": "What is this folder about? Save empty to remove the description.",
       "folderDetail.descriptionPlaceholder": "e.g. Beginner German course",
