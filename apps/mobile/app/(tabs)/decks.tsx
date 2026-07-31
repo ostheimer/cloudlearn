@@ -19,11 +19,13 @@ import {
   ChevronRight,
   FolderOpen,
   ArrowUpDown,
+  Archive as ArchiveIcon,
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { useSessionStore } from "../../src/store/sessionStore";
 import {
   listDecks,
+  setDeckArchived,
   getDueCountsByDeck,
   getLastLearnedByDeck,
   searchCards,
@@ -112,6 +114,10 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
   // Due cards per deck ("N fällig" badge on each deck row).
   const [dueByDeck, setDueByDeck] = useState<Record<string, number>>({});
 
+  // Wie viele Decks im Archiv liegen (#614) — nur für den Einstieg unter der
+  // Liste. Ohne archivierte Decks steht dort nichts.
+  const [archivedCount, setArchivedCount] = useState(0);
+
   // Folders state
   const [folders, setFolders] = useState<Folder[]>([]);
   const [foldersLoading, setFoldersLoading] = useState(true);
@@ -125,8 +131,12 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
   // der Server die Grenzen nicht geliefert hat (#603) — dann steht hier nichts.
   const maxDecks = useUsageStore((state) => state.maxDecks);
   const setUsage = useUsageStore((state) => state.setUsage);
-  const deckSlotsLabel = deckSlotsSummary(decksLoading ? null : decks.length, maxDecks);
-  const decksAtLimit = isDeckLimitReached(decks.length, maxDecks);
+  // Belegt sind AKTIVE + ARCHIVIERTE Decks (#614): ein archiviertes Deck ist
+  // nicht weg und zählt weiter gegen die Grenze. Nur die sichtbaren zu zählen
+  // hieße „18 von 20 belegt" zu melden und trotzdem abgelehnt zu werden.
+  const usedDeckSlots = decks.length + archivedCount;
+  const deckSlotsLabel = deckSlotsSummary(decksLoading ? null : usedDeckSlots, maxDecks);
+  const decksAtLimit = isDeckLimitReached(usedDeckSlots, maxDecks);
 
   // Grenzen einmalig nachladen, falls dieser Tab der erste ist. Über die
   // Startseite hat das LP-Abzeichen sie längst geholt — dann kein Aufruf.
@@ -198,6 +208,24 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
       loadDecks();
       loadFolders();
     }, [loadDecks, loadFolders])
+  );
+
+  // Archiv-Zähler beim Fokus mitziehen: kommt man vom Archiv zurück, stimmt
+  // die Zahl sonst nicht mehr.
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      void listDecks(userId, { archived: true })
+        .then(({ decks: archived }) => {
+          if (active) setArchivedCount(archived.length);
+        })
+        .catch(() => {
+          // Ohne Zahl bleibt der Einstieg aus — nichts behaupten.
+        });
+      return () => {
+        active = false;
+      };
+    }, [userId])
   );
 
   // Deck-Reihenfolge (#614): Neueste (Voreinstellung, die bisherige Ordnung) /
@@ -303,6 +331,22 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
       {
         text: t("library.rename"),
         onPress: () => setPrompt({ kind: "renameDeck", deck }),
+      },
+      // Archivieren (#614) steht VOR dem Löschen und ist nicht rot markiert:
+      // es ist der harmlose Weg, ein Deck aus der Bibliothek zu nehmen.
+      {
+        text: t("library.archive"),
+        onPress: async () => {
+          setDecks((prev) => prev.filter((d) => d.id !== deck.id));
+          setArchivedCount((n) => n + 1);
+          try {
+            await setDeckArchived(deck.id, true);
+          } catch {
+            Alert.alert(t("common.error"), t("library.archiveError"));
+            setArchivedCount((n) => Math.max(0, n - 1));
+            await loadDecks();
+          }
+        },
       },
       {
         text: t("common.delete"),
@@ -817,6 +861,32 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
             </View>
           )}
           {filteredDecks.map(renderDeckItem)}
+          {/* Einstieg ins Archiv (#614) — nur, wenn dort etwas liegt. Wie im
+              Web unter der Liste, nicht im Profil. */}
+          {archivedCount > 0 && (
+            <TouchableOpacity
+              onPress={() => router.push("/archive")}
+              activeOpacity={0.7}
+              style={{
+                alignSelf: "center",
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 6,
+                paddingVertical: spacing.md,
+              }}
+            >
+              <ArchiveIcon size={16} color={colors.textSecondary} />
+              <Text
+                style={{
+                  color: colors.textSecondary,
+                  fontWeight: typography.bold,
+                  fontSize: typography.sm,
+                }}
+              >
+                {t("library.archiveEntry", { count: archivedCount })}
+              </Text>
+            </TouchableOpacity>
+          )}
         </>
       );
     }

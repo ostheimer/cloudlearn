@@ -150,6 +150,15 @@ export const Layers = (p: IconProps) => (
   </Icon>
 );
 
+/** Kiste mit Deckel — „Deck archivieren" (#614). Gegenstück: lucide `Archive`. */
+export const Archive = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3 4h18v4H3z" />
+    <path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8" />
+    <path d="M10 12h4" />
+  </Icon>
+);
+
 export const ListChecks = (p: IconProps) => (
   <Icon {...p}>
     <path d="M11 6h9M11 12h9M11 18h9" />

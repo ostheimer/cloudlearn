@@ -7,6 +7,7 @@ const dbMocks = vi.hoisted(() => ({
   countCardsInDeck: vi.fn(),
   createDeck: vi.fn(),
   listDecks: vi.fn(),
+  countUserDecks: vi.fn(),
   listCardsForDeck: vi.fn(),
   softDeleteDeck: vi.fn(),
   updateDeck: vi.fn(),
@@ -27,6 +28,7 @@ vi.mock("@/lib/db", () => ({
   countCardsInDeck: dbMocks.countCardsInDeck,
   createDeck: dbMocks.createDeck,
   listDecks: dbMocks.listDecks,
+  countUserDecks: dbMocks.countUserDecks,
   listCardsForDeck: dbMocks.listCardsForDeck,
   softDeleteDeck: dbMocks.softDeleteDeck,
   updateDeck: dbMocks.updateDeck,
@@ -64,6 +66,18 @@ function existingDecks(count: number): DeckRecord[] {
   }));
 }
 
+/**
+ * Die Deck-Grenze zählt seit dem Archivieren (#614) über `countUserDecks`
+ * statt über `listDecks`: `listDecks` liefert nur noch die AKTIVEN Decks,
+ * archivierte müssen aber mitzählen — sonst wäre Archivieren ein Weg um die
+ * Grenze herum. Beides wird gesetzt, damit die Tests unabhängig davon
+ * bleiben, welchen Weg der Service nimmt.
+ */
+function setDeckCount(count: number): void {
+  dbMocks.countUserDecks.mockResolvedValue(count);
+  dbMocks.listDecks.mockResolvedValue(existingDecks(count));
+}
+
 describe("deckService plan limits", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -81,7 +95,7 @@ describe("deckService plan limits", () => {
 
   it("blocks duplicating a deck when the user is at the deck limit", async () => {
     dbMocks.getDeck.mockResolvedValue(sourceDeck);
-    dbMocks.listDecks.mockResolvedValue(existingDecks(getLimitsForTier("free").maxDecks));
+    setDeckCount(getLimitsForTier("free").maxDecks);
 
     await expect(duplicateDeckForUser(userId, sourceDeckId)).rejects.toMatchObject({
       status: 409,
@@ -95,7 +109,7 @@ describe("deckService plan limits", () => {
 
   it("blocks importing a shared deck when the user is at the deck limit", async () => {
     dbMocks.getDeckByShareToken.mockResolvedValue(sourceDeck);
-    dbMocks.listDecks.mockResolvedValue(existingDecks(getLimitsForTier("free").maxDecks));
+    setDeckCount(getLimitsForTier("free").maxDecks);
 
     await expect(importSharedDeck(userId, "share-token")).rejects.toMatchObject({
       status: 409,
@@ -119,7 +133,7 @@ describe("Kopieren umgeht die Karten-Grenze nicht mehr (#611)", () => {
       isActive: false,
       expiresAt: null,
     });
-    dbMocks.listDecks.mockResolvedValue(existingDecks(2));
+    setDeckCount(2);
     dbMocks.getDeck.mockResolvedValue(sourceDeck);
     dbMocks.getDeckByShareToken.mockResolvedValue(sourceDeck);
   });

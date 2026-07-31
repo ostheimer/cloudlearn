@@ -40,6 +40,16 @@ export interface DeckRecord {
   speechLangFront?: string | null;
   speechLangBack?: string | null;
   deletedAt?: string | null;
+  /**
+   * Wann das Deck archiviert wurde (#614). `null` = aktiv.
+   *
+   * Archiviert heißt: raus aus Bibliothek und Fällig-Stapel, aber vollständig
+   * erhalten und auf Knopfdruck zurück. Anders als beim Papierkorb ist hier
+   * nichts gelöscht — deshalb zählt ein archiviertes Deck weiter gegen die
+   * Deck-Grenze des Tarifs. Täte es das nicht, wäre Archivieren ein Weg um
+   * die Grenze herum.
+   */
+  archivedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -101,6 +111,7 @@ function mapDeckRow(row: any): DeckRecord {
     speechLangFront: row.speech_lang_front ?? null,
     speechLangBack: row.speech_lang_back ?? null,
     deletedAt: row.deleted_at ?? null,
+    archivedAt: row.archived_at ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -177,9 +188,22 @@ export async function createDeck(
   return mapDeckRow(data);
 }
 
-export async function listDecks(userId: string): Promise<DeckRecord[]> {
+/**
+ * Decks des Nutzers.
+ *
+ * `archived` entscheidet, welche Hälfte kommt (#614): standardmäßig die aktiven
+ * (Bibliothek), mit `true` die archivierten (Archiv-Ansicht). Bewusst ein
+ * Entweder-oder statt „alle mit Kennzeichen": Jeder bestehende Aufrufer will
+ * die Bibliothek, und ein vergessener Filter würde archivierte Decks überall
+ * wieder einblenden — das wäre genau der Fehler, den Archivieren beheben soll.
+ */
+export async function listDecks(
+  userId: string,
+  options: { archived?: boolean } = {}
+): Promise<DeckRecord[]> {
   const db = getDb();
-  const { data, error } = await db
+  const archivedOnly = options.archived === true;
+  let query = db
     .from("decks")
     .select("*, cards(count)")
     // Bild-Occlusion-Karten sind ein eigener Modus und zählen nicht als „Karten"
@@ -190,8 +214,11 @@ export async function listDecks(userId: string): Promise<DeckRecord[]> {
     // Filter zählt der Embed sie mit und das Deck meldet dauerhaft zu viele Karten.
     .is("cards.deleted_at", null)
     .eq("user_id", userId)
-    .is("deleted_at", null)
-    .order("created_at", { ascending: false });
+    .is("deleted_at", null);
+  query = archivedOnly
+    ? query.not("archived_at", "is", null)
+    : query.is("archived_at", null);
+  const { data, error } = await query.order("created_at", { ascending: false });
   if (error) throw new Error(`listDecks: ${error.message}`);
 
   // Bild-Karten separat zählen. Sie im eingebetteten Zähler mitzuzählen ginge
@@ -273,6 +300,36 @@ export async function updateDeck(
     .maybeSingle();
   if (error || !data) return null;
   return mapDeckRow(data);
+}
+
+/**
+ * Deck archivieren oder zurückholen (#614).
+ *
+ * Ein einzelner Zeitstempel, wie bei `deleted_at`: setzen heißt archivieren,
+ * `null` heißt aktiv. Gelöschte Decks bleiben außen vor — was im Papierkorb
+ * liegt, wird nicht nebenbei archiviert.
+ *
+ * Die Karten werden NICHT mitmarkiert (anders als beim Löschen): Sie sollen
+ * beim Zurückholen exakt so wiederkommen, wie sie waren, und die Karten-Grenze
+ * zählt sie ohnehin weiter mit.
+ */
+export async function setDeckArchived(
+  deckId: string,
+  userId: string,
+  archived: boolean
+): Promise<DeckRecord | null> {
+  const db = getDb();
+  const now = new Date().toISOString();
+  const { data, error } = await db
+    .from("decks")
+    .update({ archived_at: archived ? now : null, updated_at: now })
+    .eq("id", deckId)
+    .eq("user_id", userId)
+    .is("deleted_at", null)
+    .select()
+    .maybeSingle();
+  if (error) throw new Error(`setDeckArchived: ${error.message}`);
+  return data ? mapDeckRow(data) : null;
 }
 
 export async function softDeleteDeck(deckId: string, userId: string): Promise<boolean> {
@@ -559,10 +616,15 @@ export async function listDueCards(
     // softDeleteDeck markiert historisch nur das Deck, nicht dessen Karten —
     // ohne den inner join auf lebende Decks zählen Karten aus gelöschten
     // Decks ewig weiter und die Fällig-Zahl lügt (#495).
-    .select("*, decks!inner(deleted_at)")
+    .select("*, decks!inner(deleted_at, archived_at)")
     .eq("user_id", userId)
     .is("deleted_at", null)
     .is("decks.deleted_at", null)
+    // Archivierte Decks fallen aus dem Fällig-Stapel (#614) — genau dafür
+    // archiviert man. Derselbe Filter steht in countDueCards und
+    // countDueCardsByDeck: fehlte er in einer, verspräche das Abzeichen Karten,
+    // die die Lernrunde nicht liefert.
+    .is("decks.archived_at", null)
     // "Due" means "due for a flashcard round" — that is what this list feeds
     // (/learn/due) and what the due counts on the home screen and the deck
     // badges promise. Occlusion cards are learned only in the Bild-Abdecken
@@ -588,10 +650,15 @@ export async function countDueCards(userId: string, nowIso: string): Promise<num
   const db = getDb();
   const { count, error } = await db
     .from("cards")
-    .select("*, decks!inner(deleted_at)", { count: "exact", head: true })
+    .select("*, decks!inner(deleted_at, archived_at)", { count: "exact", head: true })
     .eq("user_id", userId)
     .is("deleted_at", null)
     .is("decks.deleted_at", null)
+    // Archivierte Decks fallen aus dem Fällig-Stapel (#614) — genau dafür
+    // archiviert man. Derselbe Filter steht in listDueCards, countDueCards und
+    // countDueCardsByDeck: fehlte er in einer, verspräche das Abzeichen Karten,
+    // die die Lernrunde nicht liefert.
+    .is("decks.archived_at", null)
     .neq("card_type", "occlusion")
     .lte("fsrs_due", nowIso);
   if (error) throw new Error(`countDueCards: ${error.message}`);
@@ -616,10 +683,11 @@ export async function countDueCardsByDeck(
     (from, to) =>
       db
         .from("cards")
-        .select("deck_id, decks!inner(deleted_at)")
+        .select("deck_id, decks!inner(deleted_at, archived_at)")
         .eq("user_id", userId)
         .is("deleted_at", null)
         .is("decks.deleted_at", null)
+        .is("decks.archived_at", null)
         .neq("card_type", "occlusion")
         .lte("fsrs_due", nowIso)
         // Ohne deterministische Sortierung dürfen sich Seiten überlappen oder
@@ -1888,6 +1956,10 @@ export async function countUserCards(userId: string): Promise<number> {
     // write fails, the deck is already gone but its cards are still live rows.
     // Count through live decks as the same safety net used by due/search reads,
     // so an invisible deck can never keep consuming plan capacity (#495).
+    //
+    // ARCHIVIERTE Decks zählen hier bewusst MIT (#614): ihre Karten sind nicht
+    // gelöscht, nur ausgeblendet. Würden sie nicht zählen, wäre Archivieren ein
+    // Weg um die Karten-Grenze herum.
     .select("*, decks!inner(deleted_at)", { count: "exact", head: true })
     .eq("user_id", userId)
     .is("deleted_at", null)

@@ -16,6 +16,7 @@ import { TITLE_MAX, clampTitle } from "@/lib/titleLimit";
 
 const dbMocks = vi.hoisted(() => ({
   createDeck: vi.fn(),
+  countUserDecks: vi.fn(async () => 0),
   listDecks: vi.fn(),
   listCardsForDeck: vi.fn(),
   softDeleteDeck: vi.fn(),
