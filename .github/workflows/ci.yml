@@ -69,6 +69,19 @@ jobs:
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/clearn_test
 
+      # Der Produktions-Bau des Webs. `tsc` und die Tests sehen ihn NICHT: Sie
+      # pruefen Typen und Logik, nicht das Vorab-Erzeugen der Seiten. Genau
+      # dort brach der Bau am 31.07. — eine fehlende Suspense-Grenze auf
+      # /signup legte die gesamte Auslieferung lahm, und gemerkt hat es erst
+      # Vercel, also NACH dem Merge. Ein PR, der das Web kaputt macht, wird ab
+      # hier sofort rot.
+      #
+      # Ohne Umgebungsvariablen: Alle NEXT_PUBLIC_*-Werte haben Rueckfallwerte
+      # im Code (supabase-browser.ts, api.ts), der Bau braucht also keine
+      # Geheimnisse — nachgestellt, indem lokal ohne .env.local gebaut wurde.
+      - name: Build web (Produktions-Bau)
+        run: pnpm --filter @clearn/web build
+
       - name: Build cloudlearn preview
         run: pnpm --filter @clearn/mobile build
 
