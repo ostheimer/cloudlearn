@@ -611,30 +611,44 @@ export async function listDueCards(
   nowIso: string
 ): Promise<CardRecord[]> {
   const db = getDb();
-  const { data, error } = await db
-    .from("cards")
-    // softDeleteDeck markiert historisch nur das Deck, nicht dessen Karten —
-    // ohne den inner join auf lebende Decks zählen Karten aus gelöschten
-    // Decks ewig weiter und die Fällig-Zahl lügt (#495).
-    .select("*, decks!inner(deleted_at, archived_at)")
-    .eq("user_id", userId)
-    .is("deleted_at", null)
-    .is("decks.deleted_at", null)
-    // Archivierte Decks fallen aus dem Fällig-Stapel (#614) — genau dafür
-    // archiviert man. Derselbe Filter steht in countDueCards und
-    // countDueCardsByDeck: fehlte er in einer, verspräche das Abzeichen Karten,
-    // die die Lernrunde nicht liefert.
-    .is("decks.archived_at", null)
-    // "Due" means "due for a flashcard round" — that is what this list feeds
-    // (/learn/due) and what the due counts on the home screen and the deck
-    // badges promise. Occlusion cards are learned only in the Bild-Abdecken
-    // mode (their front is a placeholder, unanswerable without the image), so
-    // counting them here would show a number the learner cannot act on.
-    .neq("card_type", "occlusion")
-    .lte("fsrs_due", nowIso)
-    .order("fsrs_due", { ascending: true });
-  if (error) throw new Error(`listDueCards: ${error.message}`);
-  return (data ?? []).map(mapCardRow);
+  // Seitenweise laden wie listCardsForDeck/countDueCardsByDeck (#612): ein
+  // einfaches .select() blieb hier bislang unpaginiert und PostgREST kappt das
+  // still bei 1000 Zeilen. countDueCards/countDueCardsByDeck zählen dagegen
+  // schon per selectAllRows vollständig — die Fällig-Zahl auf der Startseite
+  // versprach so mehr Karten, als die Lernrunde tatsächlich lieferte (#698).
+  const rows = await selectAllRows<Record<string, unknown>>(
+    (from, to) =>
+      db
+        .from("cards")
+        // softDeleteDeck markiert historisch nur das Deck, nicht dessen Karten —
+        // ohne den inner join auf lebende Decks zählen Karten aus gelöschten
+        // Decks ewig weiter und die Fällig-Zahl lügt (#495).
+        .select("*, decks!inner(deleted_at, archived_at)")
+        .eq("user_id", userId)
+        .is("deleted_at", null)
+        .is("decks.deleted_at", null)
+        // Archivierte Decks fallen aus dem Fällig-Stapel (#614) — genau dafür
+        // archiviert man. Derselbe Filter steht in countDueCards und
+        // countDueCardsByDeck: fehlte er in einer, verspräche das Abzeichen Karten,
+        // die die Lernrunde nicht liefert.
+        .is("decks.archived_at", null)
+        // "Due" means "due for a flashcard round" — that is what this list feeds
+        // (/learn/due) and what the due counts on the home screen and the deck
+        // badges promise. Occlusion cards are learned only in the Bild-Abdecken
+        // mode (their front is a placeholder, unanswerable without the image), so
+        // counting them here would show a number the learner cannot act on.
+        .neq("card_type", "occlusion")
+        .lte("fsrs_due", nowIso)
+        .order("fsrs_due", { ascending: true })
+        // Stabiler Zweitschlüssel fürs Blättern (wie listCardsForDeck, #499/#612):
+        // Karten aus demselben Import-Batch teilen sich oft denselben fsrs_due,
+        // ohne zweite Sortierspalte dürften sich Seiten überlappen oder Zeilen
+        // auslassen. id ist eindeutig und ändert die fällig-zuerst-Reihenfolge nicht.
+        .order("id", { ascending: true })
+        .range(from, to),
+    "listDueCards"
+  );
+  return rows.map(mapCardRow);
 }
 
 /**

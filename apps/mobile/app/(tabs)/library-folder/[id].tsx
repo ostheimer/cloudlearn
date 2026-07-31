@@ -36,6 +36,7 @@ import {
   removeDeckFromFolder,
   setFolderDeckOrder,
   getDueCards,
+  getDueCountsByDeck,
   type Card,
   type Deck,
   type Folder,
@@ -78,7 +79,14 @@ export default function FolderDetailScreen() {
   // Fällige Karten dieses Ordners, vorab geladen (#610): so kann der Knopf die
   // Zahl gleich nennen ("N fällig lernen"), statt sie erst beim Antippen zu
   // holen. `null` = noch am Laden, `[]` = keine Decks oder nichts fällig.
+  // Bleibt bestehen, weil der Knopf die Runde mit diesen vorgeladenen Karten
+  // startet (App-Eigenheit #282) — die ANGEZEIGTE Zahl kommt aber aus dueCount.
   const [dueCards, setDueCards] = useState<Card[] | null>(null);
+  // Serverseitig gezählt (#698), analog zur Bibliothek (decks.tsx) und zur
+  // Web-Ordnerseite: dueCards.length zählte über die volle, textschwere
+  // Fällig-Liste und wich von der echten Lernrunde ab, sobald der globale
+  // Rückstand die PostgREST-Kappung überschritt.
+  const [dueCount, setDueCount] = useState<number | undefined>(undefined);
   const [deckPickerVisible, setDeckPickerVisible] = useState(false);
   // Eigenes Eingabe-Fenster statt Eingabe-Alert: den gibt es nur auf iOS (#396).
   const [renamePromptVisible, setRenamePromptVisible] = useState(false);
@@ -121,6 +129,7 @@ export default function FolderDetailScreen() {
   useEffect(() => {
     if (decks.length === 0) {
       setDueCards([]);
+      setDueCount(0);
       return;
     }
     if (!userId) return;
@@ -133,6 +142,22 @@ export default function FolderDetailScreen() {
       })
       .catch(() => {
         if (!cancelled) setDueCards(null);
+      });
+    // Eigene, leichte Anfrage für die angezeigte Zahl statt dueCards.length —
+    // die gruppierte Server-Zählung bleibt korrekt, auch wenn der globale
+    // Rückstand über mehrere Seiten läuft.
+    const idSet = new Set(deckIds);
+    getDueCountsByDeck()
+      .then(({ dueByDeck }) => {
+        if (cancelled) return;
+        let total = 0;
+        for (const [deckId, n] of Object.entries(dueByDeck)) {
+          if (idSet.has(deckId)) total += n;
+        }
+        setDueCount(total);
+      })
+      .catch(() => {
+        if (!cancelled) setDueCount(undefined);
       });
     return () => {
       cancelled = true;
@@ -389,7 +414,6 @@ export default function FolderDetailScreen() {
   // lernen" startet.
   const totalCards = decks.reduce((sum, d) => sum + (d.cardCount ?? 0), 0);
   const countLabel = buildFolderCountLabel(subfolders.length, decks.length, totalCards);
-  const dueCount = dueCards?.length;
 
   useLayoutEffect(() => {
     navigation.setOptions({
