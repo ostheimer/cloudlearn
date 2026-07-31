@@ -5,6 +5,7 @@ import {
   Alert,
   RefreshControl,
   ScrollView,
+  Share,
   Text,
   TextInput,
   TouchableOpacity,
@@ -20,6 +21,13 @@ import {
   FolderOpen,
   ArrowUpDown,
   Archive as ArchiveIcon,
+  Archive,
+  Play,
+  Pencil,
+  FolderPlus,
+  Copy,
+  Share2,
+  Trash2,
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { useSessionStore } from "../../src/store/sessionStore";
@@ -32,6 +40,9 @@ import {
   type CardSearchResult,
   updateDeck,
   deleteDeck,
+  createDeck,
+  duplicateDeck,
+  shareDeck,
   listFolders,
   createFolder,
   updateFolderApi,
@@ -49,6 +60,8 @@ import { useColors, spacing, radius, typography, shadows } from "../../src/theme
 import { buildLibraryFolderRoute } from "../../src/navigation/libraryRoutes";
 import { AuthPromptCard } from "../../src/components/AuthPromptCard";
 import TextPromptModal from "../../src/components/TextPromptModal";
+import ActionSheet, { type ActionSheetItem } from "../../src/components/ActionSheet";
+import FolderPickerModal from "../../src/components/FolderPickerModal";
 import { TITLE_MAX_LENGTH } from "../../src/lib/titleLimit";
 import {
   DEFAULT_FOLDER_SORT,
@@ -73,6 +86,7 @@ type TabKey = "decks" | "folders";
  */
 type PromptState =
   | { kind: "renameDeck"; deck: Deck }
+  | { kind: "createDeck" }
   | { kind: "createFolder" }
   | { kind: "renameFolder"; folder: Folder };
 
@@ -126,6 +140,9 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
 
   // Offenes Eingabe-Fenster (Anlegen / Umbenennen). null = keines.
   const [prompt, setPrompt] = useState<PromptState | null>(null);
+  // Deck-Menü und Ordner-Auswahl der Bibliothek (#571 Teil C).
+  const [deckMenu, setDeckMenu] = useState<Deck | null>(null);
+  const [folderPickerDeck, setFolderPickerDeck] = useState<Deck | null>(null);
 
   // Füllstand „19 von 20 Decks belegt" (#611). `maxDecks` ist `null`, solange
   // der Server die Grenzen nicht geliefert hat (#603) — dann steht hier nichts.
@@ -326,52 +343,110 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
   // --- Deck actions ---
 
 
-  const handleDeckLongPress = (deck: Deck) => {
-    Alert.alert(deck.title, t("library.deckLongPressPrompt"), [
-      {
-        text: t("library.rename"),
-        onPress: () => setPrompt({ kind: "renameDeck", deck }),
-      },
-      // Archivieren (#614) steht VOR dem Löschen und ist nicht rot markiert:
-      // es ist der harmlose Weg, ein Deck aus der Bibliothek zu nehmen.
-      {
-        text: t("library.archive"),
-        onPress: async () => {
-          setDecks((prev) => prev.filter((d) => d.id !== deck.id));
-          setArchivedCount((n) => n + 1);
-          try {
-            await setDeckArchived(deck.id, true);
-          } catch {
-            Alert.alert(t("common.error"), t("library.archiveError"));
-            setArchivedCount((n) => Math.max(0, n - 1));
-            await loadDecks();
-          }
-        },
-      },
+  const archiveDeck = async (deck: Deck) => {
+    setDecks((prev) => prev.filter((d) => d.id !== deck.id));
+    setArchivedCount((n) => n + 1);
+    try {
+      await setDeckArchived(deck.id, true);
+    } catch {
+      Alert.alert(t("common.error"), t("library.archiveError"));
+      setArchivedCount((n) => Math.max(0, n - 1));
+      await loadDecks();
+    }
+  };
+
+  const confirmDeleteDeck = (deck: Deck) => {
+    Alert.alert(t("deckAction.deleteTitle"), t("deckAction.deleteMessage", { title: deck.title }), [
+      { text: t("common.cancel"), style: "cancel" },
       {
         text: t("common.delete"),
         style: "destructive",
-        onPress: () => {
-          Alert.alert(t("deckAction.deleteTitle"), t("deckAction.deleteMessage", { title: deck.title }), [
-            { text: t("common.cancel"), style: "cancel" },
-            {
-              text: t("common.delete"),
-              style: "destructive",
-              onPress: async () => {
-                try {
-                  await deleteDeck(deck.id);
-                  setDecks((prev) => prev.filter((d) => d.id !== deck.id));
-                } catch {
-                  Alert.alert(t("common.error"), t("deckAction.deleteError"));
-                }
-              },
-            },
-          ]);
+        onPress: async () => {
+          try {
+            await deleteDeck(deck.id);
+            setDecks((prev) => prev.filter((d) => d.id !== deck.id));
+          } catch {
+            Alert.alert(t("common.error"), t("deckAction.deleteError"));
+          }
         },
       },
-      { text: t("common.cancel"), style: "cancel" },
     ]);
   };
+
+  const duplicateDeckFromLibrary = async (deck: Deck) => {
+    try {
+      await duplicateDeck(deck.id);
+      await loadDecks();
+    } catch {
+      Alert.alert(t("common.error"), t("deckMenu.duplicateError"));
+    }
+  };
+
+  const shareDeckFromLibrary = async (deck: Deck) => {
+    try {
+      const { shareUrl } = await shareDeck(deck.id);
+      await Share.share({ message: `${deck.title} - ${shareUrl}`, url: shareUrl });
+    } catch {
+      Alert.alert(t("common.error"), t("deckMenu.shareError"));
+    }
+  };
+
+  // Volles Deck-Menü in der Bibliothek (#571 Teil C). Vorher gab es hier nur
+  // Umbenennen/Archivieren/Löschen — für „Lernen", „Zu Ordner", „Duplizieren"
+  // und „Teilen" musste man erst das Deck öffnen, obwohl das Web sie direkt in
+  // der Liste anbietet. Ein Aktionsblatt statt eines Alerts: acht Einträge in
+  // einem Alert wären auf iOS ein Knopfturm.
+  const handleDeckLongPress = (deck: Deck) => setDeckMenu(deck);
+
+  const deckMenuItems: ActionSheetItem[] = deckMenu
+    ? [
+        {
+          key: "learn",
+          label: t("deckMenu.learn"),
+          icon: Play,
+          onPress: () => router.push({ pathname: "/(tabs)/deck/[id]", params: { id: deckMenu.id, title: deckMenu.title } }),
+        },
+        {
+          key: "rename",
+          label: t("library.rename"),
+          icon: Pencil,
+          onPress: () => setPrompt({ kind: "renameDeck", deck: deckMenu }),
+        },
+        {
+          key: "folder",
+          label: t("deckMenu.addToFolder"),
+          icon: FolderPlus,
+          onPress: () => setFolderPickerDeck(deckMenu),
+        },
+        {
+          key: "duplicate",
+          label: t("deckMenu.duplicate"),
+          icon: Copy,
+          onPress: () => void duplicateDeckFromLibrary(deckMenu),
+        },
+        {
+          key: "share",
+          label: t("deckMenu.share"),
+          icon: Share2,
+          onPress: () => void shareDeckFromLibrary(deckMenu),
+        },
+        // Archivieren (#614) steht VOR dem Löschen und ist nicht rot markiert:
+        // es ist der harmlose Weg, ein Deck aus der Bibliothek zu nehmen.
+        {
+          key: "archive",
+          label: t("library.archive"),
+          icon: Archive,
+          onPress: () => void archiveDeck(deckMenu),
+        },
+        {
+          key: "delete",
+          label: t("common.delete"),
+          icon: Trash2,
+          destructive: true,
+          onPress: () => confirmDeleteDeck(deckMenu),
+        },
+      ]
+    : [];
 
   // --- Folder actions ---
 
@@ -430,6 +505,14 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
           initialValue: prompt.deck.title,
           confirmLabel: t("common.save"),
         };
+      case "createDeck":
+        return {
+          icon: Layers,
+          title: t("library.newDeck"),
+          label: t("library.newDeckPrompt"),
+          initialValue: "",
+          confirmLabel: t("library.create"),
+        };
       case "createFolder":
         return {
           icon: FolderOpen,
@@ -463,6 +546,23 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
           loadDecks();
         } catch {
           Alert.alert(t("common.error"), t("library.renameDeckError"));
+        }
+        return;
+      }
+      // Leeres Deck anlegen (#571 Teil C): In der App entstanden Decks bisher
+      // nur über den Scan — wer einfach ein paar Karten von Hand tippen wollte,
+      // musste erst etwas scannen. Das Web hat den Knopf seit jeher.
+      case "createDeck": {
+        if (!value.trim() || !userId) return;
+        try {
+          const { deck } = await createDeck(userId, value.trim());
+          await loadDecks();
+          router.push({ pathname: "/(tabs)/deck/[id]", params: { id: deck.id, title: deck.title } });
+        } catch (error) {
+          // Die Deck-Grenze meldet der Server (#611) — seinen Klartext zeigen,
+          // statt ihn durch ein allgemeines „hat nicht geklappt" zu ersetzen.
+          const message = error instanceof Error ? error.message : t("library.createDeckError");
+          Alert.alert(t("common.error"), message);
         }
         return;
       }
@@ -783,21 +883,38 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
           // Der Text rät zum Scannen — der Knopf führt auch hin (#609). Nur im
           // wirklich leeren Zustand, nicht bei einer erfolglosen Suche.
           decks.length === 0 ? (
-            <TouchableOpacity
-              onPress={() => router.push("/(tabs)/scan")}
-              activeOpacity={0.8}
-              style={{
-                backgroundColor: colors.primary,
-                borderRadius: radius.md,
-                paddingHorizontal: spacing.xxl,
-                paddingVertical: 14,
-                marginTop: spacing.sm,
-              }}
-            >
-              <Text style={{ color: "#fff", fontWeight: typography.semibold, fontSize: typography.base }}>
-                {t("library.scanCta")}
-              </Text>
-            </TouchableOpacity>
+            // Zwei Wege wie im Web (#571 Teil C): Scannen bleibt der empfohlene,
+            // aber wer seine Karten selbst tippen will, kam in der App bisher
+            // gar nicht los — Decks entstanden ausschliesslich beim Scannen.
+            <View style={{ gap: spacing.sm, marginTop: spacing.sm, alignItems: "center" }}>
+              <TouchableOpacity
+                onPress={() => router.push("/(tabs)/scan")}
+                activeOpacity={0.8}
+                style={{
+                  backgroundColor: colors.primary,
+                  borderRadius: radius.md,
+                  paddingHorizontal: spacing.xxl,
+                  paddingVertical: 14,
+                }}
+              >
+                <Text style={{ color: "#fff", fontWeight: typography.semibold, fontSize: typography.base }}>
+                  {t("library.scanCta")}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setPrompt({ kind: "createDeck" })}
+                activeOpacity={0.8}
+                style={{
+                  borderRadius: radius.md,
+                  paddingHorizontal: spacing.xl,
+                  paddingVertical: 12,
+                }}
+              >
+                <Text style={{ color: colors.primary, fontWeight: typography.semibold, fontSize: typography.base }}>
+                  {t("library.newDeckCta")}
+                </Text>
+              </TouchableOpacity>
+            </View>
           ) : undefined
         );
       }
@@ -1113,10 +1230,30 @@ function AuthenticatedLibraryScreen({ userId }: { userId: string }) {
           label={promptConfig.label}
           initialValue={promptConfig.initialValue}
           confirmLabel={promptConfig.confirmLabel}
-          // Alle drei Fenster hier sind Namen (Deck/Ordner) — Servergrenze 120 (#612).
+          // Alle Fenster hier sind Namen (Deck/Ordner) — Servergrenze 120 (#612).
           maxLength={TITLE_MAX_LENGTH}
           onCancel={() => setPrompt(null)}
           onSubmit={handlePromptSubmit}
+        />
+      ) : null}
+
+      {/* Volles Deck-Menü der Bibliothek (#571 Teil C) */}
+      <ActionSheet
+        visible={deckMenu !== null}
+        title={deckMenu?.title ?? ""}
+        items={deckMenuItems}
+        onClose={() => setDeckMenu(null)}
+      />
+
+      {folderPickerDeck ? (
+        <FolderPickerModal
+          visible
+          deckId={folderPickerDeck.id}
+          onClose={() => setFolderPickerDeck(null)}
+          onAdded={() => {
+            setFolderPickerDeck(null);
+            loadFolders();
+          }}
         />
       ) : null}
     </SafeAreaView>

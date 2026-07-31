@@ -69,6 +69,7 @@ export default function ProfileScreen() {
   const userId = useSessionStore((state) => state.userId);
   const email = useSessionStore((state) => state.email);
   const signOut = useSessionStore((state) => state.signOut);
+  const resetPassword = useSessionStore((state) => state.resetPassword);
   const [tier, setTier] = useState("...");
   const [subExpiresAt, setSubExpiresAt] = useState<string | null>(null);
   const [billingIssueAt, setBillingIssueAt] = useState<string | null>(null);
@@ -79,6 +80,10 @@ export default function ProfileScreen() {
   const [nameEditVisible, setNameEditVisible] = useState(false);
   const [gender, setGender] = useState<Gender | null>(null);
   const [genderBusy, setGenderBusy] = useState(false);
+  // Passwort ändern (#571 Teil C) — wie im Web per Zurücksetz-Mail.
+  const [passwordBusy, setPasswordBusy] = useState(false);
+  const [passwordSent, setPasswordSent] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
   const isGuest = !userId;
   const startOnboardingReplay = useOnboardingState((state) => state.startReplay);
   const biometricEnabled = useBiometricLockStore((state) => state.enabled);
@@ -121,6 +126,22 @@ export default function ProfileScreen() {
     } catch (error) {
       // Blatt bleibt offen, der Wert steht noch im Feld — nur erklären, warum.
       Alert.alert(t("displayName.errorTitle"), t(displayNameErrorKey(error)));
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    if (!email || passwordBusy || passwordSent) return;
+    setPasswordBusy(true);
+    setPasswordError(null);
+    try {
+      const { error } = await resetPassword(email);
+      if (error) {
+        setPasswordError(error);
+        return;
+      }
+      setPasswordSent(true);
+    } finally {
+      setPasswordBusy(false);
     }
   };
 
@@ -517,6 +538,56 @@ export default function ProfileScreen() {
           </View>
           <ChevronRight size={18} color={c.primary} />
         </TouchableOpacity>
+
+        {/* Passwort ändern (#571 Teil C) — gab es nur im Web. Der Weg ist
+            derselbe wie dort: eine Zurücksetz-Mail an die eigene Adresse, kein
+            zweites Passwortfeld. Für Gäste ohne Konto zeigen wir die Zeile
+            nicht — es gibt kein Passwort zu ändern. */}
+        {!isGuest && (
+          <View style={{
+            backgroundColor: c.surface, borderRadius: radius.lg, padding: spacing.lg,
+            borderWidth: 1, borderColor: c.border, flexDirection: "row", alignItems: "center",
+            gap: spacing.md, ...shadows.sm,
+          }}>
+            <View style={{
+              width: 40, height: 40, borderRadius: radius.md,
+              backgroundColor: c.primaryLight,
+              justifyContent: "center", alignItems: "center",
+            }}>
+              <Shield size={18} color={c.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: typography.base, fontWeight: typography.semibold, color: c.text }}>
+                {t("profile.password")}
+              </Text>
+              <Text
+                style={{
+                  fontSize: typography.sm,
+                  color: passwordError ? c.error : c.textSecondary,
+                  marginTop: 2,
+                }}
+              >
+                {passwordError ?? t("profile.passwordSubtitle")}
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={handlePasswordReset}
+              disabled={passwordBusy || passwordSent}
+              activeOpacity={0.8}
+              style={{
+                backgroundColor: c.surfaceSecondary,
+                borderRadius: radius.md,
+                paddingHorizontal: spacing.md,
+                paddingVertical: 8,
+                opacity: passwordBusy || passwordSent ? 0.6 : 1,
+              }}
+            >
+              <Text style={{ color: c.primary, fontWeight: typography.semibold, fontSize: typography.sm }}>
+                {passwordSent ? t("profile.passwordSent") : t("profile.passwordChange")}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Geschlecht — steuert die Wortform bei Freunden (#498) */}
         <View style={{
