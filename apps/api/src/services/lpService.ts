@@ -413,9 +413,13 @@ const STREAK_MILESTONES: Array<{ streak: number; key: MilestoneKey }> = [
  * Wiederholung: das ist der heißeste Pfad der App, und ein einmaliger Bonus
  * rechtfertigt dort keine zusätzliche Datenbank-Runde je Karte.
  *
- * Der Streak-Stand wird gelesen, nicht vom Client geglaubt. Verglichen wird auf
- * GENAU 7/30/100 — dieselbe Regel, nach der die App ihre Feier zeigt; der
- * Streak wächst je Lerntag um eins, überspringt also keine Stufe.
+ * Der Streak-Stand wird gelesen, nicht vom Client geglaubt. Verglichen wird mit
+ * ERREICHT oder ÜBERSCHRITTEN (>=), nicht auf exakte Gleichheit: wer die
+ * Abrechnung genau an Tag 30 verpasst (App zu, kein Netz), hätte mit `===` die
+ * 100 LP für immer verloren, weil der Streak danach weiterzählt und nie wieder
+ * exakt 30 ist. `>=` holt den Bonus beim nächsten Sitzungsende nach — risikolos,
+ * weil claim_milestone_lp über den Unique-Index auf (user_id, reward_key) je
+ * Meilenstein ohnehin nur einmal auszahlt (#702).
  *
  * „Erste Lernsitzung" ebenso: erst NACH einem Blick in `review_logs` vergeben,
  * nicht mehr bedingungslos bei jedem Aufruf dieser Funktion (#696). Ohne die
@@ -453,7 +457,7 @@ export async function awardSessionMilestones(userId: string): Promise<MilestoneA
   }
 
   for (const { streak, key } of STREAK_MILESTONES) {
-    if (currentStreak !== streak) continue;
+    if (currentStreak < streak) continue;
     const award = await awardMilestone(userId, key);
     if (award) awards.push(award);
   }

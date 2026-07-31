@@ -35,6 +35,7 @@ function makeDbMock(responses: Record<string, unknown[]>) {
     for (const method of [
       "select",
       "eq",
+      "in",
       "is",
       "not",
       "update",
@@ -87,24 +88,42 @@ describe("listTrash", () => {
     ).toEqual([["deleted_at", "is", null]]);
   });
 
-  it("zählt beim gelöschten Deck ALLE Karten, nicht nur lebende", async () => {
-    const { db } = makeDbMock({
+  it("zählt beim gelöschten Deck nur Karten mit demselben Löschzeitpunkt wie das Deck (#702)", async () => {
+    const EARLIER = "2026-07-01T09:00:00.000Z";
+    const { db, calls } = makeDbMock({
       decks: [
+        { data: [{ id: DECK_ID, title: "Waidmannssprache", deleted_at: DELETED_AT }], error: null },
+      ],
+      cards: [
+        // 1. Zeitstempel-Abfrage für den Kartenzähler (neu, #702).
         {
           data: [
-            { id: DECK_ID, title: "Waidmannssprache", deleted_at: DELETED_AT, cards: [{ count: 16 }] },
+            { deck_id: DECK_ID, deleted_at: DELETED_AT },
+            { deck_id: DECK_ID, deleted_at: DELETED_AT },
+            // Individuell VOR dem Deck gelöscht (älterer Stempel) — restoreDeck
+            // holt diese Karte nicht zurück, sie darf also auch nicht mitzählen.
+            { deck_id: DECK_ID, deleted_at: EARLIER },
           ],
           error: null,
         },
+        // 2. „listTrash cards" — einzeln gelöschte Karten in lebenden Decks (hier keine).
+        { data: [], error: null },
       ],
-      cards: [{ data: [], error: null }],
     });
     mockedCreateDb.mockReturnValue(db);
 
     const trash = await listTrash(USER_ID);
+
+    // 3 gelöschte Karten insgesamt, aber nur 2 tragen denselben Stempel wie das
+    // Deck — genau die, die restoreDeck auch tatsächlich zurückholen würde.
     expect(trash.decks).toEqual([
-      { id: DECK_ID, title: "Waidmannssprache", cardCount: 16, deletedAt: DELETED_AT },
+      { id: DECK_ID, title: "Waidmannssprache", cardCount: 2, deletedAt: DELETED_AT },
     ]);
+
+    // Dieselbe Grundbedingung wie restoreDeck (user_id + deck_id + „gelöscht"),
+    // der exakte Zeitstempel-Abgleich läuft danach in JS.
+    const countQueryIn = calls.filter((c) => c.table === "cards" && c.method === "in");
+    expect(countQueryIn.map((c) => c.args)).toEqual([["deck_id", [DECK_ID]]]);
   });
 });
 

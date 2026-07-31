@@ -186,6 +186,30 @@ describe("PUT /api/v1/learn/progress", () => {
     expect((await PUT(putRequest({ ...validBody, mode: "quiz" }))).status).toBe(400);
     expect(mockedSave).not.toHaveBeenCalled();
   });
+
+  it("deckelt total gegen missbräuchlich große Runden (#702)", async () => {
+    const res = await PUT(putRequest({ ...validBody, index: 0, total: 2001 }));
+    expect(res.status).toBe(400);
+    expect(mockedSave).not.toHaveBeenCalled();
+  });
+
+  it("lehnt results mit mehr Einträgen als total ab (#702)", async () => {
+    // total: 1, aber zwei Ergebnis-Einträge — ohne Deckel ließe sich eine
+    // jsonb-Zeile beliebig groß machen, unabhängig von der echten Rundenlänge.
+    const res = await PUT(
+      putRequest({
+        ...validBody,
+        index: 0,
+        total: 1,
+        results: {
+          [CARD_ID]: { correct: true, overridden: false },
+          "55555555-5555-4555-8555-555555555555": { correct: false, overridden: false },
+        },
+      })
+    );
+    expect(res.status).toBe(400);
+    expect(mockedSave).not.toHaveBeenCalled();
+  });
 });
 
 describe("DELETE /api/v1/learn/progress", () => {

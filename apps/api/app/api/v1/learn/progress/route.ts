@@ -28,18 +28,29 @@ const storedResultSchema = z.object({
   overridden: z.boolean(),
 });
 
-const saveSchema = z.object({
-  deckId: z.string().uuid(),
-  mode: modeSchema,
-  index: z.number().int().min(0),
-  cardId: z.string().uuid(),
-  source: z.string().min(1).max(40),
-  reverse: z.boolean(),
-  total: z.number().int().min(1),
-  // Nur die Ausgänge, keine getippten Antworten — die Auswertung braucht mehr
-  // nicht, und was nicht übertragen wird, kann auch nicht verloren gehen.
-  results: z.record(z.string().uuid(), storedResultSchema).optional(),
-});
+const saveSchema = z
+  .object({
+    deckId: z.string().uuid(),
+    mode: modeSchema,
+    index: z.number().int().min(0),
+    cardId: z.string().uuid(),
+    source: z.string().min(1).max(40),
+    reverse: z.boolean(),
+    // Obergrenze gegen Missbrauch (#702): eine Lernrunde ist ohnehin ein
+    // begrenztes Deck, ohne Deckel ließe sich sonst eine jsonb-Zeile beliebig
+    // groß machen (bis zum Body-Limit) — pro Deck+Modus existiert nur eine Zeile.
+    total: z.number().int().min(1).max(2000),
+    // Nur die Ausgänge, keine getippten Antworten — die Auswertung braucht mehr
+    // nicht, und was nicht übertragen wird, kann auch nicht verloren gehen.
+    results: z.record(z.string().uuid(), storedResultSchema).optional(),
+  })
+  // Ohne diese Regel begrenzt `total` nur sich selbst — `results` ist ein
+  // eigenes, davon unabhängiges Feld und könnte trotzdem beliebig viele
+  // Einträge tragen (fremde oder erfundene Karten-IDs eingeschlossen).
+  .refine((data) => !data.results || Object.keys(data.results).length <= data.total, {
+    message: "results must not contain more entries than total",
+    path: ["results"],
+  });
 
 /** Position lesen: /api/v1/learn/progress?deckId=…&mode=flashcards */
 export async function GET(request: NextRequest) {
