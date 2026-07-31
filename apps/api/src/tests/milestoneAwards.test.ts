@@ -9,7 +9,9 @@
  *  - Ein zweiter Aufruf zahlt kein zweites Mal (die Kernbedingung dafür, dass
  *    man diese Aufrufe überhaupt automatisch auslösen darf).
  *  - Eine klemmende Gutschrift reißt nie den Aufruf mit, der sie ausgelöst hat.
- *  - Streak-Stufen zünden auf genau 7/30/100, nicht davor und nicht danach.
+ *  - Streak-Stufen zünden AB 7/30/100 (>=), nicht davor — und holen eine Stufe
+ *    auch nach, wenn ihr exakter Tag übersprungen wurde (App zu, kein Netz),
+ *    weil die Vergabe je Stufe ohnehin nur einmal zieht (#702).
  *
  * Statt die RPC-Antwort je Fall zu stellen, ahmt `makeLedgerDb` das echte
  * Verhalten von `claim_milestone_lp` nach (Sperrzeile + Gutschrift in EINER
@@ -187,7 +189,7 @@ describe("awardSessionMilestones", () => {
     expect(awards).toContainEqual({ key, lpGranted: lp });
   });
 
-  it.each([6, 8, 29, 31, 99, 101])("zahlt bei %i Tagen keinen Streak-Bonus", async (days) => {
+  it.each([0, 1, 3, 6])("zahlt unterhalb von 7 Tagen keinen Streak-Bonus", async (days) => {
     const db = makeLedgerDb();
     useDb(db);
     streak(days);
@@ -195,6 +197,43 @@ describe("awardSessionMilestones", () => {
     const awards = await awardSessionMilestones(USER);
 
     expect(awards.map((a) => a.key)).toEqual(["first_review"]);
+  });
+
+  it.each([
+    [8, ["streak_7"]],
+    [31, ["streak_7", "streak_30"]],
+    [101, ["streak_7", "streak_30", "streak_100"]],
+  ])(
+    "zahlt bei %i Tagen alle bis dahin erreichten Stufen (>=), nicht nur die exakte",
+    async (days, keys) => {
+      const db = makeLedgerDb();
+      useDb(db);
+      streak(days);
+
+      const awards = await awardSessionMilestones(USER);
+
+      expect(awards.map((a) => a.key).sort()).toEqual(["first_review", ...keys].sort());
+    }
+  );
+
+  it("holt den 30-Tage-Bonus nach, wenn Tag 30 genau verpasst wurde (#702)", async () => {
+    const db = makeLedgerDb();
+    useDb(db);
+
+    // Tag 7: regulär verrechnet, streak_7 fließt.
+    streak(7);
+    await awardSessionMilestones(USER);
+
+    // Tag 30 wird verpasst (App zu, kein Netz) — die nächste Sitzung endet
+    // erst bei Streak 31, „genau 30" wird nie wieder erreicht. Mit der alten
+    // `!==`-Prüfung wäre der Bonus für immer verloren; `>=` holt ihn nach.
+    streak(31);
+    const awards = await awardSessionMilestones(USER);
+
+    expect(awards).toEqual([{ key: "streak_30", lpGranted: LP_EARN_RULES.streakDay30 }]);
+    expect(db.balance()).toBe(
+      LP_EARN_RULES.firstReview + LP_EARN_RULES.streakDay7 + LP_EARN_RULES.streakDay30
+    );
   });
 
   it("zahlt denselben Streak-Bonus nicht zweimal, wenn am selben Tag zwei Sitzungen enden", async () => {

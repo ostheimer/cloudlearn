@@ -2604,7 +2604,7 @@ export async function listTrash(
     (from, to) =>
       db
         .from("decks")
-        .select("id, title, deleted_at, cards(count)")
+        .select("id, title, deleted_at")
         .eq("user_id", userId)
         .not("deleted_at", "is", null)
         .order("deleted_at", { ascending: false })
@@ -2612,6 +2612,41 @@ export async function listTrash(
         .range(from, to),
     "listTrash decks"
   );
+
+  // Der angezeigte Kartenzähler muss dieselbe Bedingung tragen wie restoreDeck
+  // (#702): restoreDeck holt nur Karten zurück, deren deleted_at EXAKT dem des
+  // Decks entspricht (softDeleteDeck stempelt Deck und die dann noch lebenden
+  // Karten gemeinsam; individuell VORHER gelöschte Karten tragen einen älteren
+  // Stempel und bleiben liegen — Laras Regel „selbst Gelöschtes kommt nicht
+  // zurück", siehe Kommentar oben). Ein ungefilterter `cards(count)` zählte
+  // früher auch diese liegen gebliebenen Karten mit, sodass „Deck · 50 Karten"
+  // anzeigte, obwohl restoreDeck nur 45 zurückholte.
+  const deletedAtByDeck = new Map(
+    (deckRows as Array<{ id: string; deleted_at: string }>).map((row) => [row.id, row.deleted_at])
+  );
+  const deckIds = [...deletedAtByDeck.keys()];
+  const cardCountByDeck = new Map<string, number>();
+  if (deckIds.length > 0) {
+    const deckCardStamps = await selectAllRows<{ deck_id: string; deleted_at: string | null }>(
+      (from, to) =>
+        db
+          .from("cards")
+          .select("deck_id, deleted_at")
+          .eq("user_id", userId)
+          .in("deck_id", deckIds)
+          .not("deleted_at", "is", null)
+          // Stabile Sortierung übers Blättern hinweg (siehe selectAllRows) —
+          // `id` ist eindeutig, auch wenn es nicht in der Projektion steht.
+          .order("id", { ascending: true })
+          .range(from, to),
+      "listTrash deck card counts"
+    );
+    for (const row of deckCardStamps) {
+      if (row.deleted_at !== null && row.deleted_at === deletedAtByDeck.get(row.deck_id)) {
+        cardCountByDeck.set(row.deck_id, (cardCountByDeck.get(row.deck_id) ?? 0) + 1);
+      }
+    }
+  }
 
   const cardRows = await selectAllRows<Record<string, unknown>>(
     (from, to) =>
@@ -2632,10 +2667,7 @@ export async function listTrash(
     decks: (deckRows as any[]).map((row) => ({
       id: row.id as string,
       title: (row.title as string) ?? "",
-      // Ein gelöschtes Deck hat ausschließlich gelöschte Karten, der eingebettete
-      // Zähler ist also die Gesamtzahl — anders als in listDecks, wo er bewusst
-      // auf lebende Karten gefiltert wird.
-      cardCount: Number(row.cards?.[0]?.count ?? 0),
+      cardCount: cardCountByDeck.get(row.id as string) ?? 0,
       deletedAt: row.deleted_at as string,
     })),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
