@@ -19,7 +19,6 @@ import {
   Pencil,
   HelpCircle,
   Puzzle,
-  CheckCircle2,
   Zap,
 } from "lucide-react-native";
 import { earnLp, getStats, listCardsInDeck, updateCard, type Card } from "../src/lib/api";
@@ -728,11 +727,9 @@ export default function MatchScreen() {
                 alignItems: "center",
               }}
             >
-              {timed ? (
-                <Trophy size={40} color={colors.success} />
-              ) : (
-                <CheckCircle2 size={40} color={colors.success} />
-              )}
+              {/* Immer die grüne Trophäe im grünen Kreis, auch ohne Zeit-Modus
+                  (App-Kanon, Stil A aus #595 Teil C / #699). */}
+              <Trophy size={40} color={colors.success} />
             </View>
 
             {/* Headline: time in Challenge, "Geschafft!" in Übungsmodus */}

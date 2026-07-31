@@ -3,13 +3,17 @@ import { Text, TouchableOpacity, View } from "react-native";
 import { Trophy, RotateCcw } from "lucide-react-native";
 import { useColors, spacing, radius, typography } from "../theme";
 
-// Shared result screen for the "learning" study modes (Karteikarten, Üben,
-// Lücken, Zuordnen, Occlusion, Quiz). One frame, so every mode's end screen
-// looks the same: a green trophy (a finished round is never a fail — the
-// red/yellow/green grade belongs to the Test), a big headline („Runde
-// geschafft, {Name}!" in den Lern-Modi, „80%" in den Mess-Modi — Laras
-// Aufteilung aus #571 Teil A), an optional subtitle, an optional accessory
-// (LP pill, status line), and a stack of actions.
+// Shared result screen for the modes that use this component (Karteikarten/
+// Üben via practice.tsx, Lücken via cloze.tsx, Occlusion). Zuordnen
+// (match.tsx) and Quiz (quiz.tsx) render their own matching result screen
+// inline instead of through this component (see #699). One frame, so every
+// mode's end screen looks the same: a green trophy — Stil A, Lara #595 Teil C
+// / reaffirmed #699: the trophy is always green, everywhere, including the
+// Prüfung; a grade, where one exists, is carried by the percentage text,
+// never by icon or ring color — a big headline („Runde geschafft, {Name}!"
+// in den Lern-Modi, „80%" in den Mess-Modi — Laras Aufteilung aus #571 Teil
+// A), an optional subtitle, an optional accessory (LP pill, status line),
+// and a stack of actions.
 export type StudyResultAction = {
   label: string;
   onPress: () => void;
