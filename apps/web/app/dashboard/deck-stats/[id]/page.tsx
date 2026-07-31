@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getDeckStats, isApiError, type DeckStats } from "@/lib/api";
-import { ArrowLeft, Lock, RotateCw } from "@/components/icons";
-import { AccuracyRing, AccuracyTrendChart } from "@/components/app/stats-charts";
+import { ArrowLeft, Lock, Play, RotateCw } from "@/components/icons";
+import { AccuracyRing, AccuracyTrendChart, shortDate } from "@/components/app/stats-charts";
 import { useCoarsePointer } from "@/lib/use-coarse-pointer";
 import { wobblySummary } from "@/lib/wobbly-summary";
 
@@ -239,9 +239,15 @@ export default function DeckStatsPage() {
           // overflow:hidden ihre volle Breite — ohne die Klammer bläst eine
           // lange Karte die Spalte und damit die Seite am Handy auf.
           <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 8 }}>
+            {/* Jede Zeile führt in eine Runde mit GENAU dieser Karte (#571
+                Teil B). In der App tippt man sie seit jeher an; im Web war die
+                Liste reine Anzeige — man sah, woran es hakt, und musste dann
+                das ganze Deck üben. Derselbe ?cards=-Deep-Link wie beim
+                „Wackelkandidaten üben"-Knopf darunter. */}
             {wobbly.map((card) => (
-              <div
+              <Link
                 key={card.cardId}
+                href={`/dashboard/deck/${deckId}/learn?cards=${card.cardId}`}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -249,19 +255,31 @@ export default function DeckStatsPage() {
                   background: "var(--bg-soft)",
                   borderRadius: 10,
                   padding: "10px 12px",
+                  color: "inherit",
+                  textDecoration: "none",
                 }}
               >
-                <span
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    fontSize: "0.9rem",
-                  }}
-                >
-                  {card.front}
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span
+                    style={{
+                      display: "block",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      fontSize: "0.9rem",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {card.front}
+                  </span>
+                  {/* Das Datum liefert der Server längst mit (lastWrongAt), das
+                      Web hat es nur nie gezeigt — dabei sagt erst es, ob eine
+                      Karte noch wackelt oder das Problem Wochen alt ist. */}
+                  {card.lastWrongAt && (
+                    <span className="muted" style={{ fontSize: "0.76rem" }}>
+                      zuletzt {shortDate(card.lastWrongAt.slice(0, 10))}
+                    </span>
+                  )}
                 </span>
                 <span
                   style={{
@@ -281,7 +299,8 @@ export default function DeckStatsPage() {
                       einen Karte. */}
                   {card.wrongCount} Fehler
                 </span>
-              </div>
+                <Play size={16} style={{ color: "var(--brand)", flex: "none" }} />
+              </Link>
             ))}
           </div>
         ) : (

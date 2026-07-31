@@ -93,6 +93,15 @@ export default function ImportPage() {
   const [prepping, setPrepping] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Zeigt die Fehlermeldung zusätzlich den Weg zur LP-Seite? (#571 Teil B)
+  // Nur bei „Punkte reichen nicht" — dort ist der Fehler kein Bedienfehler,
+  // sondern ein fehlender Vorrat, und genau dann braucht man den Ausweg.
+  //
+  // Bewusst ABGELEITET statt als eigener Zustand: Es gibt über ein Dutzend
+  // Stellen mit `setError(null)`, und ein zweiter Zustand müsste an jeder
+  // einzelnen mitgepflegt werden — eine vergessene ließe den Link an einem
+  // ganz anderen Fehler kleben.
+  const LP_SHORT_MESSAGE = "Dafür reichen deine Lernpunkte nicht.";
   const [usage, setUsage] = useState<LpBalanceResponse | null>(null);
   // #411: Die vorhandenen Decks — für die Grenz-Prüfung VOR dem Ausgeben von
   // Lernpunkten. `null` heißt „noch nicht geladen"; dann wird nichts gesperrt
@@ -408,9 +417,7 @@ export default function ImportPage() {
         setError("Diese Funktion gehört zu Pro — Pro gibt es in der clearn-App.");
       } else if (isApiError(e) && e.status === 402) {
         // Bleibt der Auffang für INSUFFICIENT_LP.
-        setError(
-          "Dafür reichen deine Lernpunkte nicht. Neue Lernpunkte bekommst du durchs Lernen — Aufladen und Pro gibt es in der clearn-App."
-        );
+        setError(LP_SHORT_MESSAGE);
       } else if (isApiError(e) && e.code === "PDF_TEXT_NOT_FOUND") {
         setError(
           "Diese PDF enthält keinen lesbaren Text — reine Scans werden noch nicht unterstützt. Bitte eine PDF mit echtem Text wählen."
@@ -838,7 +845,17 @@ export default function ImportPage() {
                 {error && (
                   <div className="form-error" role="alert" style={{ marginTop: 14 }}>
                     <AlertTriangle size={16} />
-                    <span>{error}</span>
+                    <span>
+                      {error}
+                      {error === LP_SHORT_MESSAGE && (
+                        <>
+                          {" "}
+                          <Link href="/dashboard/lp" style={{ fontWeight: 600 }}>
+                            Wie du Lernpunkte bekommst
+                          </Link>
+                        </>
+                      )}
+                    </span>
                   </div>
                 )}
 
@@ -910,8 +927,14 @@ export default function ImportPage() {
               <div className="lp-warn" role="status">
                 <Zap size={16} />
                 <span>
-                  Du hast {usage.lpBalance} LP. Ein Scan kostet ab {usage.lpCostAiScan} LP.
-                  Neue Lernpunkte bekommst du durchs Lernen.
+                  Du hast {usage.lpBalance} LP. Ein Scan kostet ab {usage.lpCostAiScan} LP.{" "}
+                  {/* Weg statt Sackgasse (#571 Teil B): Der Satz sagte, wo neue
+                      Punkte herkommen, und ließ einen dann stehen. Die App
+                      führt hier zur LP-Seite — dort steht, wie viel man heute
+                      noch verdienen kann und was die Pakete bringen. */}
+                  <Link href="/dashboard/lp" style={{ fontWeight: 600 }}>
+                    Wie du Lernpunkte bekommst
+                  </Link>
                 </span>
               </div>
             )}
@@ -1176,8 +1199,10 @@ export default function ImportPage() {
               <div className="lp-warn" role="status" style={{ marginTop: 14, marginBottom: 0 }}>
                 <Zap size={16} />
                 <span>
-                  Dafür reichen deine Lernpunkte nicht ({usage.lpBalance} von {cost}). Neue
-                  Lernpunkte bekommst du durchs Lernen.
+                  Dafür reichen deine Lernpunkte nicht ({usage.lpBalance} von {cost}).{" "}
+                  <Link href="/dashboard/lp" style={{ fontWeight: 600 }}>
+                    Wie du Lernpunkte bekommst
+                  </Link>
                 </span>
               </div>
             )}
@@ -1185,7 +1210,17 @@ export default function ImportPage() {
             {error && (
               <div className="form-error" role="alert" style={{ marginTop: 14 }}>
                 <AlertTriangle size={16} />
-                <span>{error}</span>
+                <span>
+                      {error}
+                      {error === LP_SHORT_MESSAGE && (
+                        <>
+                          {" "}
+                          <Link href="/dashboard/lp" style={{ fontWeight: 600 }}>
+                            Wie du Lernpunkte bekommst
+                          </Link>
+                        </>
+                      )}
+                    </span>
               </div>
             )}
 
