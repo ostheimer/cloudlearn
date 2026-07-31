@@ -325,6 +325,22 @@ export default function StreakCalendarScreen() {
                 {t("streakCal.legendFrozen")}
               </Text>
             </View>
+            {/* „Heute" wie im Web (#571): Der heutige Tag ist umrandet, was die
+                Legende bisher nicht erklärt hat. */}
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+              <View
+                style={{
+                  width: 11,
+                  height: 11,
+                  borderRadius: radius.full,
+                  borderWidth: 2,
+                  borderColor: colors.primary,
+                }}
+              />
+              <Text style={{ fontSize: typography.xs, color: colors.textSecondary }}>
+                {t("streakCal.legendToday")}
+              </Text>
+            </View>
             <Text style={{ fontSize: typography.xs, color: colors.textSecondary }}>
               {t("streakCal.legendEmpty")}
             </Text>

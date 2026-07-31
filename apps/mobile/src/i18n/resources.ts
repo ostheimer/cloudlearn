@@ -15,6 +15,10 @@ export const resources = {
       learnTab: "Lernen",
       decksTab: "Decks",
       profileTab: "Profil",
+      // Überschrift und Untertitel des Profil-Bildschirms wie im Web (#571).
+      // Der Tab-Reiter unten heißt weiter kurz „Profil" — dort ist kein Platz.
+      "profile.screenTitle": "Profil & Einstellungen",
+      "profile.screenSubtitle": "Dein Konto, Aussehen, Freunde und die Rangliste.",
       captureHeadline: "Foto aufnehmen oder importieren",
       ocrHeadline: "OCR Text bearbeiten",
       reviewHeadline: "Lernsession",
@@ -147,11 +151,17 @@ export const resources = {
 
       "streakCal.title": "Streak-Kalender",
       "streakCal.current": "Aktuell",
+      // „Vorrat" und „Bestwert" auf beiden Plattformen (#571) — deutsch und
+      // ausgeschrieben. Das Web sagte „Freezes"/„Bestwert", die App
+      // „Vorrat"/„Best": vier Wörter für zwei Dinge.
       "streakCal.freezes": "Vorrat",
-      "streakCal.best": "Best",
+      "streakCal.best": "Bestwert",
       "streakCal.weekdays": "Mo,Di,Mi,Do,Fr,Sa,So",
-      "streakCal.legendLearned": "gelernt",
+      "streakCal.legendLearned": "Gelernt",
       "streakCal.legendFrozen": "Schutz verwendet",
+      // Fehlte in der App (#571) — das Web erklärt den heutigen Tag, die App
+      // markierte ihn nur.
+      "streakCal.legendToday": "Heute",
       "streakCal.legendEmpty": "leer = nicht gelernt",
       "streakCal.buyFreeze": "Streak-Schutz kaufen",
       "streakCal.friendStreak": "Freunde-Streak",
@@ -637,7 +647,10 @@ export const resources = {
 
       // Anzeigename
       "displayName.title": "Wie sollen wir dich nennen?",
-      "displayName.label": "Dein Name erscheint in der Rangliste und bei deinen Freunden.",
+      // Der Nachsatz stand nur im Web (#571) — er nimmt die Angst, sich hier
+      // endgültig festzulegen.
+      "displayName.label":
+        "Dein Name erscheint in der Rangliste und bei deinen Freunden. Du kannst ihn später im Profil ändern.",
       "displayName.placeholder": "Dein Name",
       "displayName.save": "Speichern",
       "displayName.profileRow": "Anzeigename",
@@ -689,6 +702,8 @@ export const resources = {
       learnTab: "Learn",
       decksTab: "Decks",
       profileTab: "Profile",
+      "profile.screenTitle": "Profile & settings",
+      "profile.screenSubtitle": "Your account, appearance, friends and the leaderboard.",
       captureHeadline: "Capture or import image",
       ocrHeadline: "Edit OCR text",
       reviewHeadline: "Study session",
@@ -810,6 +825,7 @@ export const resources = {
       "streakCal.weekdays": "Mo,Tu,We,Th,Fr,Sa,Su",
       "streakCal.legendLearned": "learned",
       "streakCal.legendFrozen": "freeze used",
+      "streakCal.legendToday": "Today",
       "streakCal.legendEmpty": "empty = not learned",
       "streakCal.buyFreeze": "Buy streak freeze",
       "streakCal.friendStreak": "Friend streak",
@@ -1262,7 +1278,8 @@ export const resources = {
 
       // Display name
       "displayName.title": "What should we call you?",
-      "displayName.label": "Your name appears on the leaderboard and to your friends.",
+      "displayName.label":
+        "Your name appears on the leaderboard and to your friends. You can change it later in your profile.",
       "displayName.placeholder": "Your name",
       "displayName.save": "Save",
       "displayName.profileRow": "Display name",

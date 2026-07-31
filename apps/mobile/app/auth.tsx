@@ -209,7 +209,7 @@ export default function AuthScreen() {
     }
 
     if (mode === "register" && password.length < 6) {
-      Alert.alert(INCOMPLETE_TITLE, "Passwort muss mindestens 6 Zeichen lang sein.");
+      Alert.alert(INCOMPLETE_TITLE, "Das Passwort muss mindestens 6 Zeichen haben.");
       return;
     }
 
@@ -230,9 +230,13 @@ export default function AuthScreen() {
           await rememberPendingDisplayName(displayName.trim());
           if (gender) await rememberPendingGender(gender);
           if (requiresEmailConfirmation) {
+            // Beide Fassungen zusammengeführt (#571): Die App nannte nur den
+            // Spam-Ordner, das Web nur die Adresse und das automatische
+            // Anmelden. Jetzt steht auf beiden Seiten alles drei — wortgleich
+            // mit apps/web/src/components/app/auth-form.tsx.
             Alert.alert(
-              "Bestätigung gesendet",
-              "Wir haben dir eine Bestätigungs-E-Mail geschickt. Bitte prüfe auch Spam oder Werbung und klicke auf den Link, um dein Konto zu aktivieren.",
+              "Fast geschafft!",
+              `Wir haben dir eine Bestätigungs-E-Mail an ${email.trim()} geschickt. Klicke den Link darin, um dein Konto zu aktivieren — danach bist du automatisch angemeldet. Schau auch im Spam- oder Werbung-Ordner nach.`,
               [{ text: "OK", onPress: () => setMode("login") }]
             );
           } else {
@@ -265,7 +269,9 @@ export default function AuthScreen() {
 
   const buttonLabels: Record<AuthMode, string> = {
     login: "Anmelden",
-    register: "Registrieren",
+    // Wortlaut des Webs (#571): „Konto erstellen" sagt, was der Knopf tut —
+    // die Überschrift darüber heißt ohnehin schon so.
+    register: "Konto erstellen",
     reset: "Link senden",
   };
 
@@ -614,7 +620,7 @@ export default function AuthScreen() {
                   ref={emailInputRef}
                   value={email}
                   onChangeText={setEmail}
-                  placeholder="deine@email.de"
+                  placeholder="du@beispiel.de"
                   placeholderTextColor={brandTextTertiary}
                   keyboardType="email-address"
                   autoCapitalize="none"
@@ -809,7 +815,8 @@ export default function AuthScreen() {
                         fontSize: secondaryLinkFontSize,
                       }}
                     >
-                      Bereits ein Konto?{" "}
+                      {/* „Schon" statt „Bereits" — Wortlaut des Webs (#571). */}
+                      Schon ein Konto?{" "}
                       <Text
                         style={{
                           color: brandLink,
