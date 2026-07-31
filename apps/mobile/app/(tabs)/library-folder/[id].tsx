@@ -31,11 +31,13 @@ import {
   listCardsInFolder,
   listDecksInFolder,
   listFolders,
+  createFolder,
   updateFolderApi,
   deleteFolderApi,
   removeDeckFromFolder,
   setFolderDeckOrder,
   getDueCards,
+  getDueCountsByDeck,
   type Card,
   type Deck,
   type Folder,
@@ -78,10 +80,21 @@ export default function FolderDetailScreen() {
   // Fällige Karten dieses Ordners, vorab geladen (#610): so kann der Knopf die
   // Zahl gleich nennen ("N fällig lernen"), statt sie erst beim Antippen zu
   // holen. `null` = noch am Laden, `[]` = keine Decks oder nichts fällig.
+  // Bleibt bestehen, weil der Knopf die Runde mit diesen vorgeladenen Karten
+  // startet (App-Eigenheit #282) — die ANGEZEIGTE Zahl kommt aber aus dueCount.
   const [dueCards, setDueCards] = useState<Card[] | null>(null);
+  // Serverseitig gezählt (#698), analog zur Bibliothek (decks.tsx) und zur
+  // Web-Ordnerseite: dueCards.length zählte über die volle, textschwere
+  // Fällig-Liste und wich von der echten Lernrunde ab, sobald der globale
+  // Rückstand die PostgREST-Kappung überschritt.
+  const [dueCount, setDueCount] = useState<number | undefined>(undefined);
   const [deckPickerVisible, setDeckPickerVisible] = useState(false);
   // Eigenes Eingabe-Fenster statt Eingabe-Alert: den gibt es nur auf iOS (#396).
   const [renamePromptVisible, setRenamePromptVisible] = useState(false);
+  // Anlegen/Umbenennen eines Unterordners (#571 Teil C).
+  const [subfolderPrompt, setSubfolderPrompt] = useState<
+    { kind: "create" } | { kind: "rename"; folder: Folder } | null
+  >(null);
   const [descriptionPromptVisible, setDescriptionPromptVisible] = useState(false);
 
   const folderId = id ?? "";
@@ -121,6 +134,7 @@ export default function FolderDetailScreen() {
   useEffect(() => {
     if (decks.length === 0) {
       setDueCards([]);
+      setDueCount(0);
       return;
     }
     if (!userId) return;
@@ -134,6 +148,22 @@ export default function FolderDetailScreen() {
       .catch(() => {
         if (!cancelled) setDueCards(null);
       });
+    // Eigene, leichte Anfrage für die angezeigte Zahl statt dueCards.length —
+    // die gruppierte Server-Zählung bleibt korrekt, auch wenn der globale
+    // Rückstand über mehrere Seiten läuft.
+    const idSet = new Set(deckIds);
+    getDueCountsByDeck()
+      .then(({ dueByDeck }) => {
+        if (cancelled) return;
+        let total = 0;
+        for (const [deckId, n] of Object.entries(dueByDeck)) {
+          if (idSet.has(deckId)) total += n;
+        }
+        setDueCount(total);
+      })
+      .catch(() => {
+        if (!cancelled) setDueCount(undefined);
+      });
     return () => {
       cancelled = true;
     };
@@ -145,6 +175,70 @@ export default function FolderDetailScreen() {
   };
 
   const handleRenameFolder = useCallback(() => setRenamePromptVisible(true), []);
+
+  // Unterordner verwalten (#571 Teil C). Die App zeigte sie bisher nur an:
+  // anlegen ging gar nicht, umbenennen und löschen nur über die Bibliothek —
+  // und dort erscheinen tiefer liegende Ordner nicht. Der Löschsatz kommt aus
+  // demselben Helfer wie überall (nennt die mitgelöschten Unterordner).
+  const handleSubfolderLongPress = useCallback(
+    (sub: Folder) => {
+      Alert.alert(sub.title, t("library.folderLongPressPrompt"), [
+        {
+          text: t("library.rename"),
+          onPress: () => setSubfolderPrompt({ kind: "rename", folder: sub }),
+        },
+        {
+          text: t("common.delete"),
+          style: "destructive",
+          onPress: () => {
+            Alert.alert(
+              t("library.deleteFolderTitle"),
+              folderDeleteQuestion(
+                sub.title,
+                descendantFolders(sub.id, allFolders).map((f) => f.title)
+              ),
+              [
+                { text: t("common.cancel"), style: "cancel" },
+                {
+                  text: t("common.delete"),
+                  style: "destructive",
+                  onPress: async () => {
+                    try {
+                      await deleteFolderApi(sub.id);
+                      await loadContent();
+                    } catch {
+                      Alert.alert(t("common.error"), t("library.deleteFolderError"));
+                    }
+                  },
+                },
+              ]
+            );
+          },
+        },
+        { text: t("common.cancel"), style: "cancel" },
+      ]);
+    },
+    [t, allFolders, loadContent]
+  );
+
+  const handleSubfolderSubmit = useCallback(
+    async (value: string) => {
+      const current = subfolderPrompt;
+      setSubfolderPrompt(null);
+      if (!current || !value.trim()) return;
+      try {
+        if (current.kind === "create") await createFolder(value.trim(), folderId);
+        else await updateFolderApi(current.folder.id, { title: value.trim() });
+        await loadContent();
+      } catch {
+        Alert.alert(
+          t("common.error"),
+          current.kind === "create" ? t("folder.createError") : t("library.renameFolderError")
+        );
+      }
+    },
+    [subfolderPrompt, folderId, loadContent, t]
+  );
 
   // Das Fenster schliesst beim Bestätigen — wie zuvor der Alert — und die
   // eigentliche Arbeit läuft danach. Leerer Name wird wie bisher verworfen.
@@ -389,7 +483,6 @@ export default function FolderDetailScreen() {
   // lernen" startet.
   const totalCards = decks.reduce((sum, d) => sum + (d.cardCount ?? 0), 0);
   const countLabel = buildFolderCountLabel(subfolders.length, decks.length, totalCards);
-  const dueCount = dueCards?.length;
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -551,6 +644,28 @@ export default function FolderDetailScreen() {
               // Scrollen — sonst raten Geste und Liste gegeneinander.
               scrollEnabled={dragIndex === null}
             >
+              {/* Unterordner anlegen (#571 Teil C) — der Knopf steht auch dann
+                  da, wenn es noch keine gibt: sonst käme man nie zum ersten. */}
+              <TouchableOpacity
+                onPress={() => setSubfolderPrompt({ kind: "create" })}
+                activeOpacity={0.8}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: spacing.xs,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  borderRadius: radius.md,
+                  paddingVertical: spacing.md,
+                }}
+              >
+                <Plus size={16} color={colors.primary} strokeWidth={3} />
+                <Text style={{ color: colors.primary, fontWeight: typography.semibold, fontSize: typography.base }}>
+                  {t("folderDetail.newSubfolder")}
+                </Text>
+              </TouchableOpacity>
+
               {/* Subfolders */}
               {subfolders.length > 0 && (
                 <>
@@ -570,6 +685,10 @@ export default function FolderDetailScreen() {
                     <TouchableOpacity
                       key={sub.id}
                       onPress={() => router.push(buildLibraryFolderRoute(sub.id, sub.title))}
+                      // Umbenennen und Löschen per langem Druck (#571 Teil C) —
+                      // dieselbe Geste wie bei Ordnern in der Bibliothek. Vorher
+                      // liessen sich Unterordner in der App nur ansehen.
+                      onLongPress={() => handleSubfolderLongPress(sub)}
                       activeOpacity={0.7}
                       style={{
                         backgroundColor: colors.surface,
@@ -793,6 +912,31 @@ export default function FolderDetailScreen() {
             // dass die Decks da sind, zeigt die Liste selbst.
             loadContent();
           }}
+        />
+      ) : null}
+
+      {/* Unterordner anlegen oder umbenennen (#571 Teil C) */}
+      {subfolderPrompt ? (
+        <TextPromptModal
+          visible
+          icon={FolderOpen}
+          title={
+            subfolderPrompt.kind === "create"
+              ? t("folderDetail.newSubfolder")
+              : t("library.renameFolder")
+          }
+          label={
+            subfolderPrompt.kind === "create"
+              ? t("folderDetail.newSubfolderPrompt")
+              : t("library.renamePrompt", { title: subfolderPrompt.folder.title })
+          }
+          initialValue={subfolderPrompt.kind === "create" ? "" : subfolderPrompt.folder.title}
+          confirmLabel={
+            subfolderPrompt.kind === "create" ? t("library.create") : t("common.save")
+          }
+          maxLength={TITLE_MAX_LENGTH}
+          onCancel={() => setSubfolderPrompt(null)}
+          onSubmit={handleSubfolderSubmit}
         />
       ) : null}
 

@@ -23,10 +23,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LP_EARN_RULES } from "../lib/featureGates";
 import { awardFirstDeckMilestone, awardMilestone, awardSessionMilestones } from "@/services/lpService";
 import { createSupabaseAdminClient } from "@/lib/supabase";
-import { getStreakInfo } from "@/lib/db";
+import { getStreakInfo, hasAnyReviewLog } from "@/lib/db";
 
 vi.mock("@/lib/supabase", () => ({ createSupabaseAdminClient: vi.fn() }));
-vi.mock("@/lib/db", () => ({ getStreakInfo: vi.fn() }));
+vi.mock("@/lib/db", () => ({ getStreakInfo: vi.fn(), hasAnyReviewLog: vi.fn() }));
 vi.mock("@/lib/observability", () => ({ logError: vi.fn() }));
 
 const USER = "11111111-1111-4111-8111-111111111111";
@@ -79,6 +79,10 @@ function streak(currentStreak: number) {
 beforeEach(() => {
   vi.clearAllMocks();
   streak(0);
+  // Normalfall für alle bestehenden Tests unten: die Sitzung hat wirklich
+  // mindestens einen Review verzeichnet. Der Nicht-Normalfall (kein Review,
+  // #696) hat seine eigenen Tests weiter unten.
+  vi.mocked(hasAnyReviewLog).mockResolvedValue(true);
 });
 
 describe("awardMilestone", () => {
@@ -256,5 +260,35 @@ describe("awardSessionMilestones", () => {
     await expect(awardSessionMilestones(USER)).resolves.toEqual([
       { key: "first_review", lpGranted: LP_EARN_RULES.firstReview },
     ]);
+  });
+
+  // #696: kein Bonus ohne Nachweis. Vorher zahlte diese Funktion "first_review"
+  // bei JEDEM Aufruf — ein blanker POST /lp/earn (oder eine Prüfungsabgabe ohne
+  // je gesendeten Review) reichte für den Bonus auf einem Konto ganz ohne Karte.
+  it("zahlt KEINE erste Lernsitzung, wenn noch nie ein Review verzeichnet wurde", async () => {
+    const db = makeLedgerDb();
+    useDb(db);
+    vi.mocked(hasAnyReviewLog).mockResolvedValue(false);
+    streak(7); // Streak-Boni bleiben von der Review-Prüfung unberührt.
+
+    const awards = await awardSessionMilestones(USER);
+
+    expect(awards).not.toContainEqual(expect.objectContaining({ key: "first_review" }));
+    expect(awards).toContainEqual({ key: "streak_7", lpGranted: LP_EARN_RULES.streakDay7 });
+    // Die RPC wurde für first_review gar nicht erst angefragt — kein Claim-Versuch.
+    expect(db.calls()).toBe(1); // nur der streak_7-Claim
+  });
+
+  it("zahlt keine erste Lernsitzung, wenn die Review-Prüfung fehlschlägt (kein Bonus ins Blaue)", async () => {
+    const db = makeLedgerDb();
+    useDb(db);
+    vi.mocked(hasAnyReviewLog).mockRejectedValue(new Error("DB weg"));
+    streak(7);
+
+    const awards = await awardSessionMilestones(USER);
+
+    expect(awards).not.toContainEqual(expect.objectContaining({ key: "first_review" }));
+    // Eine klemmende Prüfung darf die Streak-Boni derselben Sitzung nicht mitreissen.
+    expect(awards).toContainEqual({ key: "streak_7", lpGranted: LP_EARN_RULES.streakDay7 });
   });
 });

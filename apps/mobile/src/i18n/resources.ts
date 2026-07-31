@@ -223,6 +223,11 @@ export const resources = {
       "profile.privacySubtitle": "So verarbeitet clearn deine Daten",
       "profile.tracking": "Werbung & Tracking",
       "profile.trackingSubtitle": "Personalisierte Werbung und Einwilligungen verwalten",
+      // Passwort ändern (#571 Teil C) — wortgleich mit der Profil-Zeile im Web.
+      "profile.password": "Passwort",
+      "profile.passwordSubtitle": "Setzt dein Passwort per E-Mail zurück",
+      "profile.passwordChange": "Ändern",
+      "profile.passwordSent": "E-Mail gesendet",
       "profile.trash": "Papierkorb",
       "profile.trashSubtitle": "Gelöschte Decks und Karten zurückholen",
       // Papierkorb (#614) — Wortlaute wortgleich mit apps/web/app/dashboard/trash.
@@ -336,6 +341,12 @@ export const resources = {
       "deckMenu.download": "Offline speichern",
       "deckMenu.edit": "Deck bearbeiten",
       "deckMenu.addToFolder": "Zu Ordner hinzufügen",
+      // Das Deck-Menü der Bibliothek (#571 Teil C) nutzt dieselben Beschriftungen
+      // wie das Menü auf der Deck-Seite — „Lernen" und die zwei Fehlermeldungen
+      // kommen dort neu dazu.
+      "deckMenu.learn": "Lernen",
+      "deckMenu.duplicateError": "Deck konnte nicht dupliziert werden.",
+      "deckMenu.shareError": "Teilen-Link konnte nicht erstellt werden.",
       "deckMenu.duplicate": "Duplizieren",
       "deckMenu.share": "Teilen",
       "deckMenu.revokeShare": "Teilen-Link deaktivieren",
@@ -438,7 +449,10 @@ export const resources = {
       "library.tabFolders": "Ordner",
       "library.searchPlaceholder": "Suchen...",
       // Nennt seit #614 auch das Archivieren — der Menüpunkt steht dort.
-      "library.longPressHint": "Gedrückt halten zum Umbenennen, Archivieren oder Löschen",
+      // Seit dem vollen Deck-Menü (#571 Teil C) stehen dort sieben Einträge —
+      // sie einzeln aufzuzählen würde die Zeile sprengen und wäre schon beim
+      // nächsten Eintrag wieder falsch.
+      "library.longPressHint": "Gedrückt halten für mehr Möglichkeiten",
       "library.emptyDecks": "Noch keine Decks.\nScanne einen Text, um dein erstes Deck zu erstellen.",
       "library.scanCta": "Neuen Text scannen",
       "library.noMatchDecks": "Kein Deck gefunden.",
@@ -466,6 +480,11 @@ export const resources = {
       "library.noMatchFolders": "Kein Ordner gefunden.",
       "library.newFolder": "Neuer Ordner",
       "library.newFolderPrompt": "Name für den neuen Ordner:",
+      // Leeres Deck anlegen (#571 Teil C) — den Weg gab es nur im Web.
+      "library.newDeck": "Neues Deck",
+      "library.newDeckPrompt": "Name für das neue Deck:",
+      "library.newDeckCta": "Leeres Deck anlegen",
+      "library.createDeckError": "Deck konnte nicht erstellt werden.",
       "library.create": "Erstellen",
       "library.deckLongPressPrompt": "Was möchtest du tun?",
       "library.folderLongPressPrompt": "Was möchtest du tun?",
@@ -510,6 +529,9 @@ export const resources = {
       "folderDetail.deleteError": "Ordner konnte nicht gelöscht werden.",
       // Die Kopfzeile („2 Unterordner · 5 Decks · 143 Karten", #571) baut
       // `buildFolderCountLabel` in src/lib/folders.ts — wortgleich mit dem Web.
+      // Unterordner anlegen (#571 Teil C) — Wortlaut wie im Web.
+      "folderDetail.newSubfolder": "Neuer Unterordner",
+      "folderDetail.newSubfolderPrompt": "Name für den neuen Unterordner:",
       "folderDetail.subfolders": "Unterordner",
       "folderDetail.decksSection": "Decks",
       "folderDetail.emptyFolder": "Noch keine Decks in diesem Ordner\nLeg Decks hier ab, um sie zusammen zu halten.",
@@ -863,6 +885,10 @@ export const resources = {
       "profile.privacySubtitle": "How clearn processes your data",
       "profile.tracking": "Ad & tracking settings",
       "profile.trackingSubtitle": "Control personalized ads and consent preferences",
+      "profile.password": "Password",
+      "profile.passwordSubtitle": "Sends a reset link to your email",
+      "profile.passwordChange": "Change",
+      "profile.passwordSent": "Email sent",
       "profile.trash": "Trash",
       "profile.trashSubtitle": "Restore deleted decks and cards",
       "trash.title": "Trash",
@@ -974,6 +1000,9 @@ export const resources = {
       "deckMenu.download": "Save offline",
       "deckMenu.edit": "Edit deck",
       "deckMenu.addToFolder": "Add to folder",
+      "deckMenu.learn": "Learn",
+      "deckMenu.duplicateError": "Could not duplicate the deck.",
+      "deckMenu.shareError": "Could not create the share link.",
       "deckMenu.duplicate": "Duplicate",
       "deckMenu.share": "Share",
       "deckMenu.revokeShare": "Deactivate share link",
@@ -1068,7 +1097,7 @@ export const resources = {
       "library.tabDecks": "Decks",
       "library.tabFolders": "Folders",
       "library.searchPlaceholder": "Search...",
-      "library.longPressHint": "Long press to rename, archive or delete",
+      "library.longPressHint": "Long press for more options",
       "library.emptyDecks": "No decks yet.\nScan a text to create your first deck.",
       "library.scanCta": "Scan a new text",
       "library.noMatchDecks": "No deck found.",
@@ -1094,6 +1123,10 @@ export const resources = {
       "library.noMatchFolders": "No folder found.",
       "library.newFolder": "New folder",
       "library.newFolderPrompt": "Name for the new folder:",
+      "library.newDeck": "New deck",
+      "library.newDeckPrompt": "Name for the new deck:",
+      "library.newDeckCta": "Create an empty deck",
+      "library.createDeckError": "Could not create the deck.",
       "library.create": "Create",
       "library.deckLongPressPrompt": "What would you like to do?",
       "library.folderLongPressPrompt": "What would you like to do?",
@@ -1130,6 +1163,8 @@ export const resources = {
       "folderDetail.moveDeck": "Move \"{{title}}\"",
       "folderDetail.deleteTitle": "Delete folder",
       "folderDetail.deleteError": "Could not delete folder.",
+      "folderDetail.newSubfolder": "New subfolder",
+      "folderDetail.newSubfolderPrompt": "Name for the new subfolder:",
       "folderDetail.subfolders": "Subfolders",
       "folderDetail.decksSection": "Decks",
       "folderDetail.emptyFolder": "No decks in this folder yet\nPut decks here to keep them together.",

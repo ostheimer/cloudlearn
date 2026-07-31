@@ -1,7 +1,7 @@
 import { createSupabaseAdminClient } from "@/lib/supabase";
 import { getLimitsForTier, LP_EARN_RULES, lpCostForFeature, STREAK_FREEZE, STREAK_REPAIR } from "@/lib/featureGates";
 import { todayLocal } from "@/lib/localDay";
-import { getStreakInfo } from "@/lib/db";
+import { getStreakInfo, hasAnyReviewLog } from "@/lib/db";
 import { logError } from "@/lib/observability";
 import type { MilestoneAward, MilestoneKey, SubscriptionTier } from "@/lib/contracts";
 
@@ -420,12 +420,30 @@ const STREAK_MILESTONES: Array<{ streak: number; key: MilestoneKey }> = [
  * exakt 30 ist. `>=` holt den Bonus beim nächsten Sitzungsende nach — risikolos,
  * weil claim_milestone_lp über den Unique-Index auf (user_id, reward_key) je
  * Meilenstein ohnehin nur einmal auszahlt (#702).
+ *
+ * „Erste Lernsitzung" ebenso: erst NACH einem Blick in `review_logs` vergeben,
+ * nicht mehr bedingungslos bei jedem Aufruf dieser Funktion (#696). Ohne die
+ * Prüfung reichte ein blanker POST /lp/earn (oder eine Prüfungsabgabe ohne
+ * jemals gesendeten Review) aus, um den Bonus auf einem Konto ganz ohne Karte
+ * zu bekommen. Schlägt die Prüfung fehl, bleibt der Bonus diesmal aus statt
+ * ungeprüft zu fließen — der nächste echte Sitzungs-Abschluss holt ihn nach.
  */
 export async function awardSessionMilestones(userId: string): Promise<MilestoneAward[]> {
   const awards: MilestoneAward[] = [];
 
-  const firstReview = await awardMilestone(userId, "first_review");
-  if (firstReview) awards.push(firstReview);
+  let hasReviewed = false;
+  try {
+    hasReviewed = await hasAnyReviewLog(userId);
+  } catch (error) {
+    logError("milestone_review_lookup_failed", {
+      userId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+  if (hasReviewed) {
+    const firstReview = await awardMilestone(userId, "first_review");
+    if (firstReview) awards.push(firstReview);
+  }
 
   let currentStreak = 0;
   try {

@@ -779,8 +779,11 @@ export default function TestScreen() {
         <SafeAreaView edges={["bottom"]} style={{ flex: 1, backgroundColor: colors.background }}>
           <ScrollView contentContainerStyle={{ padding: spacing.xl, gap: spacing.lg }} showsVerticalScrollIndicator={false}>
             <View style={{ alignItems: "center", gap: spacing.sm }}>
-              <View style={{ width: 76, height: 76, borderRadius: 38, backgroundColor: percent >= 80 ? colors.successLight : percent >= 50 ? colors.warningLight : colors.errorLight, justifyContent: "center", alignItems: "center" }}>
-                <Trophy size={38} color={percent >= 80 ? colors.success : percent >= 50 ? colors.warning : colors.error} />
+              {/* Immer die grüne Trophäe im grünen Kreis (App-Kanon, Stil A aus
+                  #595 Teil C / #699) — keine rote mehr unter 50 %: das Urteil
+                  trägt die Prozentzahl, nicht das Symbol (wie im Web). */}
+              <View style={{ width: 76, height: 76, borderRadius: 38, backgroundColor: colors.successLight, justifyContent: "center", alignItems: "center" }}>
+                <Trophy size={38} color={colors.success} />
               </View>
               <Text style={{ fontSize: typography.xxxl, fontWeight: typography.extrabold, color: colors.text }}>{percent}%</Text>
               <Text style={{ fontSize: typography.base, color: colors.textSecondary }}>{scoredCount} von {questions.length} richtig</Text>

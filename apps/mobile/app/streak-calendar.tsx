@@ -290,20 +290,25 @@ export default function StreakCalendarScreen() {
                         alignItems: "center",
                       }}
                     >
-                      {isFrozen ? (
-                        <Shield size={15} color={colors.warning} />
-                      ) : isLearned ? (
-                        <Flame size={15} color={colors.warning} fill={colors.warning} />
-                      ) : (
-                        <Text
-                          style={{
-                            fontSize: typography.xs,
-                            color: isFuture ? colors.textTertiary : colors.textSecondary,
-                          }}
-                        >
-                          {day}
-                        </Text>
-                      )}
+                      {/* Die Tagesnummer bleibt IMMER stehen (#496, jetzt auch in
+                          der App — #571 Teil C). Vorher verdeckte an gelernten
+                          Tagen eine Flamme und an geschützten ein Schild die
+                          Zahl: Genau die Tage, die man nachschlagen will, waren
+                          die einzigen ohne Datum. Der Zustand steht seitdem nur
+                          noch in Füllung und Rand — wie im Web. */}
+                      <Text
+                        style={{
+                          fontSize: typography.xs,
+                          fontWeight: isLearned || isFrozen ? typography.bold : typography.normal,
+                          color: isLearned
+                            ? colors.warning
+                            : isFuture
+                              ? colors.textTertiary
+                              : colors.textSecondary,
+                        }}
+                      >
+                        {day}
+                      </Text>
                     </View>
                   </View>
                 );
@@ -313,14 +318,33 @@ export default function StreakCalendarScreen() {
 
           {/* Legend */}
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.md }}>
+            {/* Farbpunkte statt Symbole (#571 Teil C): Im Kalender stehen jetzt
+                überall Zahlen — die Legende muss zeigen, woran man die Zustände
+                erkennt, nämlich an Füllung und Rand. Genau wie im Web. */}
             <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-              <Flame size={13} color={colors.warning} fill={colors.warning} />
+              <View
+                style={{
+                  width: 11,
+                  height: 11,
+                  borderRadius: radius.full,
+                  backgroundColor: colors.warningLight,
+                }}
+              />
               <Text style={{ fontSize: typography.xs, color: colors.textSecondary }}>
                 {t("streakCal.legendLearned")}
               </Text>
             </View>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-              <Shield size={13} color={colors.warning} />
+              <View
+                style={{
+                  width: 11,
+                  height: 11,
+                  borderRadius: radius.full,
+                  borderWidth: 1.5,
+                  borderStyle: "dashed",
+                  borderColor: colors.warning,
+                }}
+              />
               <Text style={{ fontSize: typography.xs, color: colors.textSecondary }}>
                 {t("streakCal.legendFrozen")}
               </Text>
