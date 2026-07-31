@@ -60,8 +60,10 @@ describe("mobile – kein iOS-only Eingabe-Alert mehr (#396)", () => {
 });
 
 // Seit #437 gibt es keine Kurse mehr — übrig sind die Bibliothek (Deck
-// umbenennen, Ordner anlegen/umbenennen) und die Ordner-Detailseite.
-describe("mobile – alle vier Stellen benutzen TextPromptModal", () => {
+// anlegen/umbenennen, Ordner anlegen/umbenennen) und die Ordner-Detailseite
+// (Ordner umbenennen, Unterordner anlegen/umbenennen). „Leeres Deck anlegen"
+// und die Unterordner-Verwaltung kamen mit #571 Teil C dazu.
+describe("mobile – alle Eingabe-Stellen benutzen TextPromptModal", () => {
   const decks = read("app/(tabs)/decks.tsx");
   const folder = read("app/(tabs)/library-folder/[id].tsx");
 
@@ -73,15 +75,25 @@ describe("mobile – alle vier Stellen benutzen TextPromptModal", () => {
     }
   });
 
-  it("deckt in decks.tsx alle drei Stellen ab", () => {
-    // Deck umbenennen, Ordner anlegen/umbenennen.
-    expect(decks).toContain('setPrompt({ kind: "renameDeck", deck })');
+  it("deckt in decks.tsx alle vier Stellen ab", () => {
+    // Deck anlegen/umbenennen, Ordner anlegen/umbenennen.
+    // Seit dem Deck-Menü (#571 Teil C) heisst das Deck dort `deckMenu`.
+    expect(decks).toContain('setPrompt({ kind: "renameDeck", deck: deckMenu })');
+    expect(decks).toContain('setPrompt({ kind: "createDeck" })');
     expect(decks).toContain('setPrompt({ kind: "createFolder" })');
     expect(decks).toContain('setPrompt({ kind: "renameFolder", folder })');
   });
 
   it("öffnet das Umbenennen-Fenster in der Detailseite", () => {
     expect(folder).toContain("setRenamePromptVisible(true)");
+  });
+
+  it("deckt auch die Unterordner der Detailseite ab (#571 Teil C)", () => {
+    // Anlegen und Umbenennen laufen über EIN Fenster mit zwei Fällen — beide
+    // müssen über den Modal-Weg gehen, sonst ist der Knopf auf Android tot.
+    expect(folder).toContain('setSubfolderPrompt({ kind: "create" })');
+    expect(folder).toContain('setSubfolderPrompt({ kind: "rename", folder: sub })');
+    expect(countOf(folder, /<TextPromptModal/g)).toBe(3);
   });
 
   it("zeigt je Fall ein passendes gezeichnetes Symbol", () => {
@@ -114,15 +126,18 @@ describe("mobile – Verhalten je Stelle unverändert", () => {
     }
   });
 
-  it("verwirft leere und reine Leerzeichen-Namen an jeder der vier Stellen", () => {
-    // Drei Wächter in decks.tsx, einer in der Detailseite = 4.
-    expect(countOf(decksSubmit, /if \(!value\.trim\(\)/g)).toBe(3);
+  it("verwirft leere und reine Leerzeichen-Namen an jeder Stelle", () => {
+    // Vier Wächter in decks.tsx (seit #571 auch „Deck anlegen"), einer in der
+    // Detailseite; der Unterordner-Wächter steht in handleSubfolderSubmit.
+    expect(countOf(decksSubmit, /if \(!value\.trim\(\)/g)).toBe(4);
     expect(countOf(folderSubmit, /if \(!value\.trim\(\)/g)).toBe(1);
+    expect(folder).toContain("if (!current || !value.trim()) return;");
   });
 
   it("verlangt beim Anlegen zusätzlich ein angemeldetes Konto", () => {
-    // Ordner anlegen hatte schon immer `|| !userId`.
-    expect(countOf(decksSubmit, /if \(!value\.trim\(\) \|\| !userId\) return;/g)).toBe(1);
+    // Ordner anlegen hatte schon immer `|| !userId`; „Deck anlegen" (#571)
+    // braucht die userId ohnehin als Argument.
+    expect(countOf(decksSubmit, /if \(!value\.trim\(\) \|\| !userId\) return;/g)).toBe(2);
   });
 
   it("ruft dieselben Schnittstellen mit gekürztem Namen auf", () => {
@@ -157,15 +172,17 @@ describe("mobile – Verhalten je Stelle unverändert", () => {
   });
 
   it("startet das Anlegen weiterhin mit leerem Feld", () => {
-    expect(countOf(decks, /initialValue: "",/g)).toBe(1);
+    // Zwei Anlege-Fälle seit #571: Deck und Ordner.
+    expect(countOf(decks, /initialValue: "",/g)).toBe(2);
   });
 
   it("behält dieselben Überschriften und Knopftexte", () => {
     expect(decks).toContain('title: t("library.renameDeck")');
+    expect(decks).toContain('title: t("library.newDeck")');
     expect(decks).toContain('title: t("library.newFolder")');
     expect(decks).toContain('title: t("library.renameFolder")');
-    // Anlegen sagt „Erstellen", Umbenennen sagt „Speichern" — wie vorher.
-    expect(countOf(decks, /confirmLabel: t\("library\.create"\)/g)).toBe(1);
+    // Anlegen sagt „Erstellen", Umbenennen sagt „Speichern" — jetzt je zweimal.
+    expect(countOf(decks, /confirmLabel: t\("library\.create"\)/g)).toBe(2);
     expect(countOf(decks, /confirmLabel: t\("common\.save"\)/g)).toBe(2);
     expect(folder).toContain('confirmLabel={t("common.save")}');
   });
