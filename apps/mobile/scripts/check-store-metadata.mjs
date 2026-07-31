@@ -66,7 +66,11 @@ function readDoc(label, filePath) {
   }
 
   record(true, `${label} exists`, path.relative(repoRoot, filePath));
-  return fs.readFileSync(filePath, "utf8");
+  // Normalize CRLF → LF: on a Windows checkout the docs have \r\n line
+  // endings, which silently breaks every \n-anchored regex below (each
+  // capture would need to match a stray \r first) and made this script
+  // report "missing" for content that was actually written and correct.
+  return fs.readFileSync(filePath, "utf8").replace(/\r\n/g, "\n");
 }
 
 function record(ok, label, detail) {
