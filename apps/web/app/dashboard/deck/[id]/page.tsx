@@ -17,6 +17,7 @@ import {
   listCardsInDeck,
   createCard,
   updateCard,
+  updateDeck,
   deleteCard,
   deleteCards,
   isApiError,
@@ -70,6 +71,9 @@ type CardModal =
   // Mehrfachauswahl (#614): löscht die angekreuzten Karten in EINEM Zug.
   | { type: "deleteMany"; ids: string[] }
   | { type: "view"; card: Card }
+  // Deck-Details samt Schlagwort-Bearbeitung (#571 Teil B) — beides konnte
+  // bisher nur die App.
+  | { type: "details" }
   | null;
 
 export default function DeckDetailPage() {
@@ -325,6 +329,17 @@ export default function DeckDetailPage() {
               {deckIsFull ? `${cardCountLabel} — voll` : cardCountLabel}
             </p>
           )}
+          {/* Details wie in der App (#571 Teil B): Anlegedatum, letzte Änderung,
+              Schlagwörter und Ordner standen im Web nirgends — der Server
+              liefert sie längst mit. */}
+          <button
+            type="button"
+            className="btn btn-ghost"
+            style={{ marginTop: 8, padding: "4px 10px", fontSize: "0.85rem" }}
+            onClick={() => setModal({ type: "details" })}
+          >
+            Details
+          </button>
         </div>
         <button
           type="button"
@@ -709,15 +724,30 @@ export default function DeckDetailPage() {
         <CardEditor
           initial={modal.type === "edit" ? modal.card : undefined}
           onClose={() => setModal(null)}
-          onSubmit={async (front, back) => {
+          onSubmit={async (front, back, difficulty) => {
             if (modal.type === "edit") {
-              await updateCard(modal.card.id, { front, back });
+              await updateCard(modal.card.id, { front, back, difficulty });
             } else {
               if (!userId) return;
-              await createCard(userId, deckId, { front, back });
+              await createCard(userId, deckId, { front, back, difficulty });
             }
             setModal(null);
             await load();
+          }}
+        />
+      )}
+
+      {modal?.type === "details" && details && (
+        <DeckDetailsModal
+          details={details}
+          textCount={textCards.length}
+          imageCount={occlusionCards.length}
+          onClose={() => setModal(null)}
+          onSaveTags={async (tags) => {
+            const { deck } = await updateDeck(deckId, { tags });
+            // Nur die Etiketten übernehmen — ein volles Neuladen würde die
+            // Kartenliste umsonst neu holen.
+            setDetails((prev) => (prev ? { ...prev, tags: deck.tags ?? tags } : prev));
           }}
         />
       )}
@@ -874,3 +904,149 @@ export default function DeckDetailPage() {
   );
 }
 
+
+/**
+ * Deck-Details (#571 Teil B) — das Web-Gegenstück zu `DeckDetailsModal` in der
+ * App. Zeigt, was der Server bei `/details` ohnehin liefert und im Browser nie
+ * ankam: Anlegedatum, letzte Änderung, Ordner-Zugehörigkeit.
+ *
+ * Die Schlagwörter sind hier zugleich BEARBEITBAR (der zweite offene Punkt):
+ * In der App gehen sie über „Deck bearbeiten", im Web ließen sie sich gar nicht
+ * ändern — eine beim Scannen vergebene Marke blieb für immer stehen.
+ */
+function DeckDetailsModal({
+  details,
+  textCount,
+  imageCount,
+  onClose,
+  onSaveTags,
+}: {
+  details: DeckDetails;
+  textCount: number;
+  imageCount: number;
+  onClose: () => void;
+  onSaveTags: (tags: string[]) => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  // Komma-getrennt wie im Deck-Bearbeiten-Fenster der App — kein Chip-Editor,
+  // der auf dem Handy mehr Ärger macht als er löst.
+  const [draft, setDraft] = useState(details.tags.join(", "));
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  // „7. Juli 2026" — die Uhrzeit sagt hier nichts.
+  const day = (iso: string | undefined) => {
+    if (!iso) return null;
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return null;
+    return d.toLocaleDateString("de-DE", { day: "numeric", month: "long", year: "numeric" });
+  };
+
+  const rows: { label: string; value: string }[] = [
+    {
+      label: "Karten",
+      value: imageCount > 0 ? `${textCount} · ${imageCount} Bild-Karten` : `${textCount}`,
+    },
+  ];
+  const created = day(details.createdAt);
+  const updated = day(details.updatedAt);
+  if (created) rows.push({ label: "Erstellt am", value: created });
+  if (updated) rows.push({ label: "Zuletzt geändert", value: updated });
+  rows.push({
+    label: "Ordner",
+    value:
+      details.folders && details.folders.length > 0
+        ? details.folders.map((f) => f.title).join(", ")
+        : "Keinem Ordner zugeordnet",
+  });
+
+  async function save() {
+    setBusy(true);
+    setErr(null);
+    try {
+      // Leere Einträge und Dubletten fallen weg — sonst entsteht aus „a,,a"
+      // eine Liste mit einem leeren und einem doppelten Schlagwort.
+      const tags = [
+        ...new Set(
+          draft
+            .split(",")
+            .map((t) => t.trim())
+            .filter(Boolean)
+        ),
+      ];
+      await onSaveTags(tags);
+      setEditing(false);
+    } catch {
+      setErr("Speichern fehlgeschlagen. Bitte versuche es erneut.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal title="Details" onClose={onClose}>
+      <div style={{ display: "grid", gap: 12 }}>
+        {rows.map((r) => (
+          <div key={r.label} style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+            <span className="muted">{r.label}</span>
+            <span style={{ fontWeight: 600, textAlign: "right", minWidth: 0, overflowWrap: "anywhere" }}>
+              {r.value}
+            </span>
+          </div>
+        ))}
+
+        <div style={{ display: "grid", gap: 8 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+            <span className="muted">Schlagwörter</span>
+            {!editing && (
+              <button
+                type="button"
+                className="btn btn-ghost"
+                style={{ padding: "2px 10px", fontSize: "0.85rem" }}
+                onClick={() => {
+                  setDraft(details.tags.join(", "));
+                  setEditing(true);
+                }}
+              >
+                Ändern
+              </button>
+            )}
+          </div>
+          {editing ? (
+            <>
+              <input
+                className="input"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                placeholder="z. B. Biologie, Zellen"
+                disabled={busy}
+                autoFocus
+              />
+              <span className="muted" style={{ fontSize: "0.8rem" }}>
+                Mehrere mit Komma trennen. Leer lassen entfernt alle.
+              </span>
+              {err && <p className="form-error">{err}</p>}
+              <div className="modal__actions">
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => setEditing(false)}
+                  disabled={busy}
+                >
+                  Abbrechen
+                </button>
+                <button type="button" className="btn btn-primary" onClick={save} disabled={busy}>
+                  {busy ? "Bitte warten…" : "Speichern"}
+                </button>
+              </div>
+            </>
+          ) : (
+            <span style={{ fontWeight: 600, overflowWrap: "anywhere" }}>
+              {details.tags.length > 0 ? details.tags.join(", ") : "Keine Schlagwörter"}
+            </span>
+          )}
+        </div>
+      </div>
+    </Modal>
+  );
+}

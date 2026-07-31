@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { Modal } from "@/components/app/modal";
 import { adviceForLimit } from "@/lib/import-limits";
 import { AlertTriangle } from "@/components/icons";
+import { DIFFICULTIES, difficultyLabel } from "@/lib/card-labels";
 import type { Card } from "@/lib/api";
 
 /**
@@ -18,16 +19,22 @@ export function CardEditor({
 }: {
   initial?: Card | undefined;
   onClose: () => void;
-  onSubmit: (front: string, back: string) => Promise<void>;
+  onSubmit: (front: string, back: string, difficulty: string) => Promise<void>;
 }) {
   const [front, setFront] = useState(initial?.front ?? "");
   const [back, setBack] = useState(initial?.back ?? "");
+  // Schwierigkeit (#571 Teil B) — die App kann sie seit jeher setzen, das Web
+  // nicht. „medium" ist auch serverseitig der Standard für neue Karten.
+  const [difficulty, setDifficulty] = useState(initial?.difficulty ?? "medium");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Nachfrage vor dem Verwerfen (#608): Escape, Klick neben das Fenster und
   // „Abbrechen" werfen sonst halbfertigen Text kommentarlos weg.
   const [confirmDiscard, setConfirmDiscard] = useState(false);
-  const dirty = front !== (initial?.front ?? "") || back !== (initial?.back ?? "");
+  const dirty =
+    front !== (initial?.front ?? "") ||
+    back !== (initial?.back ?? "") ||
+    difficulty !== (initial?.difficulty ?? "medium");
 
   function requestClose() {
     // Während des Speicherns nicht schließen — sonst wüsste niemand, ob die
@@ -53,7 +60,7 @@ export function CardEditor({
     }
     setBusy(true);
     try {
-      await onSubmit(front.trim(), back.trim());
+      await onSubmit(front.trim(), back.trim(), difficulty);
     } catch (e) {
       // Am vollen Deck hilft kein zweiter Versuch — dann steht hier, wie viele
       // Karten der Tarif erlaubt und was der Ausweg ist (#611).
@@ -86,6 +93,27 @@ export function CardEditor({
               onChange={(e) => setBack(e.target.value)}
               disabled={busy}
             />
+          </div>
+        </div>
+        {/* Schwierigkeit wie in der App (#571 Teil B). Drei Knöpfe statt einer
+            Auswahlliste — dieselbe Bedienung wie dort, und am Handy trifft man
+            sie besser. */}
+        <div className="field">
+          <span className="field__label">Schwierigkeit</span>
+          <div style={{ display: "flex", gap: 8 }}>
+            {DIFFICULTIES.map((d) => (
+              <button
+                key={d}
+                type="button"
+                onClick={() => setDifficulty(d)}
+                disabled={busy}
+                aria-pressed={difficulty === d}
+                className={difficulty === d ? "btn btn-primary" : "btn btn-ghost"}
+                style={{ flex: 1 }}
+              >
+                {difficultyLabel(d)}
+              </button>
+            ))}
           </div>
         </div>
         {error && (

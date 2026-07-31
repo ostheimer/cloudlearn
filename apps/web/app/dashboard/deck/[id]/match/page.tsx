@@ -631,8 +631,8 @@ export default function MatchPage() {
           <CardEditor
             initial={editingCard}
             onClose={() => setEditingCard(null)}
-            onSubmit={async (front, back) => {
-              const { card: updated } = await updateCard(editingCard.id, { front, back });
+            onSubmit={async (front, back, difficulty) => {
+              const { card: updated } = await updateCard(editingCard.id, { front, back, difficulty });
               setCards((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
               setEditingCard(null);
             }}
