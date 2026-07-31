@@ -1333,3 +1333,22 @@ export async function registerPushToken(
     body: JSON.stringify({ token, platform }),
   });
 }
+
+// --- Geräte-Übersicht (#614) ---
+
+export interface PushDevice {
+  platform: string;
+  firstSeenAt: string;
+  lastSeenAt: string;
+}
+
+/**
+ * Geräte, auf denen die App Benachrichtigungen registriert hat.
+ *
+ * KEINE Liste aller angemeldeten Geräte: Browser tauchen hier nie auf, weil das
+ * Web keine Push-Token registriert. Die Beschriftung muss das sagen.
+ * Web-Gegenstück: apps/web/src/lib/api.ts.
+ */
+export async function listPushDevices(): Promise<{ devices: PushDevice[] }> {
+  return requestAuthenticated<{ devices: PushDevice[] }>("/api/v1/push/devices");
+}

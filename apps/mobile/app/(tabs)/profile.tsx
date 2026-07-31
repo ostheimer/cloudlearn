@@ -17,6 +17,7 @@ import {
   CircleHelp,
   FileText,
   SlidersHorizontal,
+  Smartphone,
   Trash2,
   ChevronRight,
   UserRound,
@@ -24,6 +25,8 @@ import {
   BookOpen,
 } from "lucide-react-native";
 import { useSessionStore } from "../../src/store/sessionStore";
+import { supabase } from "../../src/lib/supabase";
+import { toGermanAuthError } from "../../src/lib/authErrorMessages";
 import { useOnboardingState } from "../../src/features/onboarding/onboardingState";
 import {
   deleteAccount,
@@ -32,7 +35,9 @@ import {
   updateDisplayName,
   updateGender,
   displayNameErrorKey,
+  listPushDevices,
   type Gender,
+  type PushDevice,
 } from "../../src/lib/api";
 import TextPromptModal from "../../src/components/TextPromptModal";
 import { APP_PROFILE_LABEL } from "../../src/lib/appInfo";
@@ -58,6 +63,22 @@ import { useBiometricLockStore } from "../../src/features/security/biometricLock
 const REMINDER_KEY = "clearn_reminder_enabled";
 const REMINDER_HOUR_KEY = "clearn_reminder_hour";
 
+/** „iPhone oder iPad" statt des rohen Plattform-Werts aus der Datenbank. */
+function platformLabel(platform: string): string {
+  const value = platform.trim().toLowerCase();
+  if (value === "ios") return "iPhone oder iPad";
+  if (value === "android") return "Android-Gerät";
+  if (value === "web") return "Browser";
+  return "Unbekanntes Gerät";
+}
+
+/** „7. Juli 2026" — ohne Uhrzeit, die sagt hier nichts. */
+function formatDay(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "unbekannt";
+  return date.toLocaleDateString("de-DE", { day: "numeric", month: "long", year: "numeric" });
+}
+
 export default function ProfileScreen() {
   const router = useRouter();
   const { t } = useTranslation();
@@ -78,6 +99,11 @@ export default function ProfileScreen() {
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [nameEditVisible, setNameEditVisible] = useState(false);
+  // E-Mail-Adresse ändern (#614)
+  const [mailEditVisible, setMailEditVisible] = useState(false);
+  // Geräte mit registrierten Benachrichtigungen (#614, nur Anzeige).
+  // `null` heißt „konnte nicht laden" — das ist etwas anderes als „keine".
+  const [devices, setDevices] = useState<PushDevice[] | null>(null);
   const [gender, setGender] = useState<Gender | null>(null);
   const [genderBusy, setGenderBusy] = useState(false);
   // Passwort ändern (#571 Teil C) — wie im Web per Zurücksetz-Mail.
@@ -145,6 +171,22 @@ export default function ProfileScreen() {
     }
   };
 
+  /**
+   * Die Adresse ändert sich NICHT sofort — Supabase schickt erst eine
+   * Bestätigung an die neue Adresse. Genau das sagt der Hinweis danach.
+   */
+  const handleMailSave = async (value: string) => {
+    const next = value.trim().toLowerCase();
+    if (!next) return;
+    const { error } = await supabase.auth.updateUser({ email: next });
+    if (error) {
+      Alert.alert(t("profile.changeEmailErrorTitle"), toGermanAuthError(error.message));
+      return;
+    }
+    setMailEditVisible(false);
+    Alert.alert(t("profile.changeEmailSentTitle"), t("profile.changeEmailSentBody", { email: next }));
+  };
+
   const handleGenderSelect = async (value: Gender) => {
     if (genderBusy || value === gender) return;
     const previous = gender;
@@ -172,6 +214,21 @@ export default function ProfileScreen() {
   useEffect(() => {
     void refreshBiometricAvailability();
   }, [refreshBiometricAvailability]);
+
+  useEffect(() => {
+    if (!userId) return;
+    let active = true;
+    void listPushDevices()
+      .then(({ devices: fetched }) => {
+        if (active) setDevices(fetched);
+      })
+      .catch(() => {
+        if (active) setDevices(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [userId]);
 
   const openExternalLink = async (url: string, label: string) => {
     try {
@@ -384,6 +441,26 @@ export default function ProfileScreen() {
                 {email ?? "Gastmodus"}
               </Text>
             </View>
+            {/* E-Mail-Adresse ändern (#614). Bis hierher klebte das Konto an der
+                Adresse, mit der es angelegt wurde — ein abgeschaltetes
+                Schul-Postfach hätte es unerreichbar gemacht. */}
+            {!isGuest && (
+              <TouchableOpacity
+                onPress={() => setMailEditVisible(true)}
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text
+                  style={{
+                    color: c.primary,
+                    fontWeight: typography.bold,
+                    fontSize: typography.sm,
+                  }}
+                >
+                  {t("profile.changeEmail")}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           <View style={{ height: 1, backgroundColor: c.borderLight }} />
@@ -901,6 +978,61 @@ export default function ProfileScreen() {
             hard-wired German (#213), so an English toggle would only deliver
             a half-translated app. Bring it back once i18n is complete. */}
 
+        {/* Geräte-Übersicht (#614), NUR Anzeige — Laras Abgrenzung. Überschrift
+            und Nachsatz nennen die Grenze ausdrücklich: Die Liste kommt aus den
+            Push-Registrierungen, und die gibt es nur in der App. Ein Browser
+            steht hier nie — „Deine Geräte" wäre schlicht falsch. */}
+        {!isGuest && (
+          <View
+            style={{
+              backgroundColor: c.surface,
+              borderRadius: radius.lg,
+              padding: spacing.lg,
+              borderWidth: 1,
+              borderColor: c.border,
+              gap: spacing.sm,
+              ...shadows.sm,
+            }}
+          >
+            <Text style={{ fontSize: typography.base, fontWeight: typography.semibold, color: c.text }}>
+              {t("devices.title")}
+            </Text>
+            <Text style={{ fontSize: typography.sm, color: c.textSecondary }}>
+              {t("devices.note")}
+            </Text>
+            {devices === null ? (
+              <Text style={{ fontSize: typography.sm, color: c.textSecondary }}>
+                {t("devices.loadError")}
+              </Text>
+            ) : devices.length === 0 ? (
+              <Text style={{ fontSize: typography.sm, color: c.textSecondary }}>
+                {t("devices.empty")}
+              </Text>
+            ) : (
+              devices.map((device, index) => (
+                <View
+                  key={`${device.platform}-${device.lastSeenAt}-${index}`}
+                  style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}
+                >
+                  <Smartphone size={16} color={c.textTertiary} />
+                  {/* „zuletzt aktiv" bewusst NICHT kleingedruckt: Ein Token
+                      verschwindet nicht, wenn jemand die App löscht oder das
+                      Handy weggibt — das Gerät stünde sonst mit einem winzigen
+                      Datum da und erschreckt mehr, als es hilft. */}
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: typography.sm, color: c.text }}>
+                      {platformLabel(device.platform)}
+                    </Text>
+                    <Text style={{ fontSize: typography.sm, color: c.text }}>
+                      {t("devices.lastSeen", { date: formatDay(device.lastSeenAt) })}
+                    </Text>
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
+        )}
+
         <View
           style={{
             backgroundColor: c.surface,
@@ -1068,6 +1200,19 @@ export default function ProfileScreen() {
           {APP_PROFILE_LABEL}
         </Text>
       </ScrollView>
+
+      <TextPromptModal
+        visible={mailEditVisible}
+        title={t("profile.changeEmailTitle")}
+        label={t("profile.changeEmailLabel")}
+        placeholder="neue@adresse.de"
+        confirmLabel={t("profile.changeEmailSubmit")}
+        icon={Mail}
+        onCancel={() => setMailEditVisible(false)}
+        onSubmit={(value) => {
+          void handleMailSave(value);
+        }}
+      />
 
       <TextPromptModal
         visible={nameEditVisible}

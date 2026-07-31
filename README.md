@@ -636,6 +636,7 @@ Die initiale Migration oben ist nur das Basisschema. Die vollständige, maßgebl
 │   └── DELETE /             # Freundschaft entfernen
 ├── /push
 │   ├── POST   /register     # Expo-Push-Token registrieren
+│   ├── GET    /devices      # Geräte mit registrierten Benachrichtigungen, nur Anzeige (#614) — Token bleibt in der DB
 │   └── POST   /streak-alerts # Cron-Trigger für Streak-Alerts
 ├── /referral
 │   ├── GET    /info         # Eigener Referral-Code und Referral-Status

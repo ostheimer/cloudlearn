@@ -14,7 +14,9 @@ import {
   displayNameErrorMessage,
   deleteAccount,
   isApiError,
+  listPushDevices,
   type Gender,
+  type PushDevice,
   type LeaderboardResponse,
   type ReferralInfoResponse,
 } from "@/lib/api";
@@ -23,6 +25,7 @@ import { onboardingReplayHref } from "@/lib/onboarding";
 import {
   User,
   Trash,
+  Smartphone,
   Users,
   UserPlus,
   Copy,
@@ -54,8 +57,24 @@ const GENDER_OPTIONS: { value: Gender; label: string; wide?: boolean }[] = [
   { value: "prefer_not_to_say", label: "Sag ich nicht", wide: true },
 ];
 
+/** „iOS" / „Android" statt des rohen Plattform-Werts aus der Datenbank. */
+function platformLabel(platform: string): string {
+  const value = platform.trim().toLowerCase();
+  if (value === "ios") return "iPhone oder iPad";
+  if (value === "android") return "Android-Gerät";
+  if (value === "web") return "Browser";
+  return "Unbekanntes Gerät";
+}
+
+/** „7. Juli 2026" — ohne Uhrzeit, die sagt hier nichts. */
+function formatDay(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "unbekannt";
+  return date.toLocaleDateString("de-DE", { day: "numeric", month: "long", year: "numeric" });
+}
+
 export default function ProfilePage() {
-  const { email, signOut, resetPassword } = useAuth();
+  const { email, signOut, resetPassword, changeEmail } = useAuth();
   const router = useRouter();
 
   const [theme, setTheme] = useState<ThemeChoice>("system");
@@ -68,6 +87,14 @@ export default function ProfilePage() {
   const [copied, setCopied] = useState(false);
   const [pwSent, setPwSent] = useState(false);
   const [pwErr, setPwErr] = useState<string | null>(null);
+  // E-Mail-Adresse ändern (#614)
+  const [mailEditing, setMailEditing] = useState(false);
+  const [mailDraft, setMailDraft] = useState("");
+  const [mailBusy, setMailBusy] = useState(false);
+  const [mailErr, setMailErr] = useState<string | null>(null);
+  const [mailNotice, setMailNotice] = useState<string | null>(null);
+  // Geräte mit registrierten Benachrichtigungen (#614, nur Anzeige)
+  const [devices, setDevices] = useState<PushDevice[] | null>(null);
   // Zweistufig wie in der App (#571): 0 = zu, 1 = erste Nachfrage samt
   // Abo-Warnung, 2 = letzte Nachfrage. Ein einziger Klick hat hier alles
   // gelöscht — und niemand erfuhr, dass ein laufendes Abo davon nicht endet
@@ -149,6 +176,46 @@ export default function ProfilePage() {
       return;
     }
     setPwSent(true);
+  }
+
+  /**
+   * Die Adresse ändert sich NICHT sofort — Supabase schickt erst eine
+   * Bestätigung an die neue Adresse. Genau das sagt der Hinweis danach,
+   * sonst wundert man sich, warum die Anmeldung noch die alte verlangt.
+   */
+  // Geräte einmal beim Öffnen holen. Scheitert es, bleibt `devices` auf
+  // `null` und der Abschnitt sagt das, statt eine leere Liste zu zeigen —
+  // „keine Geräte" wäre eine andere Aussage als „konnte nicht laden".
+  useEffect(() => {
+    let active = true;
+    void listPushDevices()
+      .then(({ devices: fetched }) => {
+        if (active) setDevices(fetched);
+      })
+      .catch(() => {
+        if (active) setDevices(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function handleMailSave(e: React.FormEvent) {
+    e.preventDefault();
+    const next = mailDraft.trim();
+    if (!next) return;
+    setMailBusy(true);
+    setMailErr(null);
+    const { error } = await changeEmail(next);
+    setMailBusy(false);
+    if (error) {
+      setMailErr(error);
+      return;
+    }
+    setMailEditing(false);
+    setMailNotice(
+      `Bestätigung an ${next} geschickt. Deine Adresse ändert sich erst, wenn du den Link darin anklickst.`
+    );
   }
 
   async function copyCode() {
@@ -340,6 +407,67 @@ export default function ProfilePage() {
               {pwSent ? "E-Mail gesendet" : "Ändern"}
             </button>
           </div>
+
+          {/* E-Mail-Adresse ändern (#614). Bis hierher klebte das Konto an der
+              Adresse, mit der es angelegt wurde — ein abgeschaltetes
+              Schul-Postfach hätte es unerreichbar gemacht. */}
+          <div className="pf-row">
+            <div className="pf-row__t">
+              <b>E-Mail-Adresse</b>
+              <span style={mailErr ? { color: "#dc2626" } : undefined}>
+                {mailErr ?? mailNotice ?? email ?? "—"}
+              </span>
+            </div>
+            {mailEditing ? (
+              <form
+                onSubmit={handleMailSave}
+                style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}
+              >
+                <input
+                  className="input"
+                  type="email"
+                  value={mailDraft}
+                  onChange={(e) => setMailDraft(e.target.value)}
+                  autoFocus
+                  disabled={mailBusy}
+                  aria-label="Neue E-Mail-Adresse"
+                  placeholder="neue@adresse.de"
+                  style={{ width: 200 }}
+                />
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={mailBusy || !mailDraft.trim()}
+                >
+                  {mailBusy ? "…" : "Senden"}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => {
+                    setMailEditing(false);
+                    setMailErr(null);
+                  }}
+                  disabled={mailBusy}
+                >
+                  Abbrechen
+                </button>
+              </form>
+            ) : (
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => {
+                  setMailDraft("");
+                  setMailErr(null);
+                  setMailNotice(null);
+                  setMailEditing(true);
+                }}
+              >
+                Ändern
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Community: Freunde + Rangliste */}
@@ -437,6 +565,54 @@ export default function ProfilePage() {
             </div>
             <ChevronRight size={18} />
           </Link>
+
+          {/* Geräte-Übersicht (#614), NUR Anzeige — Laras Abgrenzung.
+              Überschrift und Nachsatz nennen die Grenze ausdrücklich: Die Liste
+              kommt aus den Push-Registrierungen, und die gibt es nur in der App.
+              Ein Browser steht hier nie — „Deine Geräte" wäre schlicht falsch. */}
+          <div className="pf-row" style={{ alignItems: "flex-start" }}>
+            <div className="pf-row__t">
+              <b>Geräte mit der clearn-App</b>
+              {/* Erst sagen, was drinsteht, dann was fehlt (Vorschlag der
+                  #571-Sitzung). */}
+              <span>
+                Nur Geräte, auf denen die App installiert ist und Benachrichtigungen erlaubt
+                sind. Ein Browser erscheint hier nie.
+              </span>
+            </div>
+          </div>
+          {devices === null ? (
+            <p className="muted" style={{ margin: "0 0 8px", fontSize: "0.85rem" }}>
+              Geräte konnten nicht geladen werden.
+            </p>
+          ) : devices.length === 0 ? (
+            <p className="muted" style={{ margin: "0 0 8px", fontSize: "0.85rem" }}>
+              Noch kein Gerät hat Benachrichtigungen erlaubt.
+            </p>
+          ) : (
+            <ul style={{ listStyle: "none", margin: "0 0 8px", padding: 0, display: "grid", gap: 6 }}>
+              {devices.map((device, index) => (
+                <li
+                  key={`${device.platform}-${device.lastSeenAt}-${index}`}
+                  style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}
+                >
+                  <span style={{ flex: "none", display: "inline-flex" }} aria-hidden>
+                    <Smartphone size={16} />
+                  </span>
+                  {/* „zuletzt aktiv" bewusst NICHT kleingedruckt: Ein Token
+                      verschwindet nicht, wenn jemand die App löscht oder das
+                      Handy weggibt — das Gerät stünde sonst mit einem winzigen
+                      Datum da und erschreckt mehr, als es hilft. */}
+                  <span style={{ flex: 1, minWidth: 0, fontSize: "0.9rem" }}>
+                    <span style={{ display: "block" }}>{platformLabel(device.platform)}</span>
+                    <span style={{ display: "block" }}>
+                      zuletzt aktiv am {formatDay(device.lastSeenAt)}
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         {/* Hilfe & Rechtliches */}
