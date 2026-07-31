@@ -1076,8 +1076,8 @@ export default function TestPage() {
         <CardEditor
           initial={cards.find((c) => c.id === q.cardId)}
           onClose={() => setEditing(false)}
-          onSubmit={async (front, back) => {
-            const { card: updated } = await updateCard(q.cardId, { front, back });
+          onSubmit={async (front, back, difficulty) => {
+            const { card: updated } = await updateCard(q.cardId, { front, back, difficulty });
             // Nur die Karte selbst patchen (#610) — die schon gebaute Frage
             // dieser Runde bleibt unverändert. Die nächste Runde baut aus dem
             // aktualisierten Text neu.

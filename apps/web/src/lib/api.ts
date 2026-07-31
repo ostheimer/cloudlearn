@@ -298,6 +298,14 @@ export interface DeckDetails {
   cardCount: number;
   speechLangFront?: string | null;
   speechLangBack?: string | null;
+  // Der Server liefert diese Felder seit jeher (siehe
+  // apps/api/app/api/v1/decks/[id]/details/route.ts) — nur das Web hat sie nie
+  // deklariert und darum nie gezeigt (#571 Teil B). Optional, damit eine
+  // ältere API die Seite nicht bricht.
+  imageCardCount?: number;
+  folders?: { id: string; title: string }[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export function getDeckDetails(deckId: string): Promise<{ details: DeckDetails }> {

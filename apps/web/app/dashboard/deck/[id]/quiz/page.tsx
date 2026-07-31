@@ -821,8 +821,8 @@ export default function QuizPage() {
         <CardEditor
           initial={cards.find((c) => c.id === q.cardId)}
           onClose={() => setEditing(false)}
-          onSubmit={async (front, back) => {
-            const { card: updated } = await updateCard(q.cardId, { front, back });
+          onSubmit={async (front, back, difficulty) => {
+            const { card: updated } = await updateCard(q.cardId, { front, back, difficulty });
             // Nur die Karte selbst patchen (#610) — die schon gebauten Fragen
             // dieser Runde bleiben unverändert, damit Optionen und richtige
             // Antwort zueinander passen. Die nächste Runde baut aus dem

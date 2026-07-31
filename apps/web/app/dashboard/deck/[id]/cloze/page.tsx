@@ -923,8 +923,8 @@ export default function ClozePage() {
         <CardEditor
           initial={current}
           onClose={() => setEditing(false)}
-          onSubmit={async (front, back) => {
-            const { card: updated } = await updateCard(current.id, { front, back });
+          onSubmit={async (front, back, difficulty) => {
+            const { card: updated } = await updateCard(current.id, { front, back, difficulty });
             // Nur die editierte Karte patchen (#610) — ein Neuladen der Runde
             // würde Fortschritt, Index und Ergebnisse dieser Sitzung zerstören.
             setRound((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
