@@ -355,9 +355,11 @@ export function LearnSession({
     }
   }, [done, total, startIndex, awardSession, flushReview]);
 
-  // Tagesziel im Rundenergebnis (#610): jede Karte wurde schon während der
-  // Runde einzeln ans Backend gemeldet, `reviewsToday` ist beim Abschluss also
-  // schon aktuell.
+  // Tagesziel im Rundenergebnis (#610): jede Karte wird einzeln ans Backend
+  // gemeldet, aber die letzte Bewertung kann noch unterwegs sein, wenn diese
+  // Zahlen hier geladen werden — `reviewsToday` ist dann um eins zu niedrig
+  // (z. B. „29/30" bei tatsächlich 30 gelernten Karten). Bekannter Off-by-one,
+  // noch nicht behoben (#703).
   const [dailyGoalText, setDailyGoalText] = useState<string | null>(null);
   useEffect(() => {
     if (!done) return;

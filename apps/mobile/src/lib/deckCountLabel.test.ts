@@ -35,8 +35,8 @@ describe("buildDeckCountLabel", () => {
       expect(buildDeckCountLabel(130, 12, 150)).toBe("142 von 150 Karten · 12 Bild-Karten");
     });
 
-    it("sagt auch am leeren Deck, wie viel Platz da ist", () => {
-      expect(buildDeckCountLabel(0, 0, 150)).toBe("0 von 150 Karten");
+    it("nennt den Leerzustand beim Namen, statt '0 von 150 Karten' zu behaupten (#703)", () => {
+      expect(buildDeckCountLabel(0, 0, 150)).toBe("Noch keine Karten");
     });
 
     it("nennt das volle Deck beim Namen", () => {

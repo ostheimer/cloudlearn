@@ -22,6 +22,9 @@ export function deckCountLabel(
     // Tippen, wie viel Platz bleibt. Bild-Karten zählen in die Summe links vom
     // „von", weil der Server sie beim Durchsetzen der Grenze mitzählt — sie
     // bleiben rechts zusätzlich ausgewiesen, damit die Aufteilung sichtbar ist.
+    // Leeres Deck: „0 von 150 Karten" liest sich wie eine Auskunft übers Deck,
+    // ist aber nur eine leere Formel — der Leerzustand-Satz sagt es besser (#703).
+    if (cards + images === 0) return "Noch keine Karten";
     parts.push(`${cards + images} von ${maxCardsPerDeck} Karten`);
     if (images > 0) parts.push(`${images} Bild-${images === 1 ? "Karte" : "Karten"}`);
     return parts.join(" · ");

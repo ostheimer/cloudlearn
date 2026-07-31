@@ -595,6 +595,7 @@ Die initiale Migration oben ist nur das Basisschema. Die vollständige, maßgebl
 │   ├── GET    /share/:token # Geteiltes Deck samt Karten abrufen
 │   └── GET|POST /share/:token/sync # Eigene Kopie erkennen + neue Karten nachziehen (#614)
 ├── /cards
+│   ├── GET    /search       # Eigene Karten durchsuchen (Vorder-/Rückseite), Query-Param q (Bibliotheks-Suche)
 │   ├── POST   /             # Karte(n) erstellen
 │   ├── PATCH  /:id          # Karte bearbeiten
 │   ├── DELETE /:id          # Karte löschen

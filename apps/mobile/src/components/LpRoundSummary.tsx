@@ -9,7 +9,7 @@ interface LpRoundSummaryProps {
   earned: number | null;
   /** Sagte der Server, dass der Tagesdeckel greift? */
   capReached: boolean;
-  /** Fertiger Text wie "Tagesziel: 28/30 — noch 2" (#610), `null`/`undefined` = noch nicht geladen oder kein Ziel gesetzt. */
+  /** Fertiger Text wie "Tagesziel: 28/30 Karten — noch 2" (#610), `null`/`undefined` = noch nicht geladen oder kein Ziel gesetzt. */
   dailyGoalText?: string | null;
 }
 

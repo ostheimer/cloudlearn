@@ -35,10 +35,10 @@ describe("deckCountLabel", () => {
       expect(deckCountLabel(130, 12, 150)).toBe("142 von 150 Karten · 12 Bild-Karten");
     });
 
-    it("sagt auch am leeren Deck, wie viel Platz da ist", () => {
-      // Ohne Grenze liefert die Funktion hier null (der Leerzustand sagt es
-      // schon); MIT Grenze ist „0 von 150" eine echte Auskunft.
-      expect(deckCountLabel(0, 0, 150)).toBe("0 von 150 Karten");
+    it("nennt den Leerzustand beim Namen, statt '0 von 150 Karten' zu behaupten (#703)", () => {
+      // „0 von 150 Karten" liest sich wie eine Auskunft übers Deck, ist aber
+      // nur eine leere Formel — der Leerzustand-Satz sagt es besser.
+      expect(deckCountLabel(0, 0, 150)).toBe("Noch keine Karten");
     });
 
     it("nennt das volle Deck beim Namen", () => {
