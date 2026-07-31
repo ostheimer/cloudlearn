@@ -50,6 +50,7 @@ import {
   FileText,
   Star,
   Pencil,
+  Layers,
 } from "@/components/icons";
 
 const SECONDS_PER_QUESTION = 30;
@@ -836,6 +837,16 @@ export default function TestPage() {
             >
               Nur die nicht gewussten ({wrongCards.length})
             </button>
+            {/* „Als Karteikarten üben" wie in der App (#571 Teil B): Nach einer
+                Prüfung will man die Lücken meist erst in Ruhe durchgehen, nicht
+                sofort wieder abgefragt werden. Der Deep-Link ?cards= startet
+                genau diese Karten in der Karteikarten-Runde. */}
+            <Link
+              href={`/dashboard/deck/${deckId}/learn?cards=${wrongCards.map((c) => c.id).join(",")}`}
+              className="btn btn-ghost btn-block"
+            >
+              <Layers size={18} /> Als Karteikarten üben ({wrongCards.length})
+            </Link>
             <button type="button" className="btn btn-ghost btn-block" onClick={() => void startTest()}>
               <RotateCw size={18} /> Alle nochmal
             </button>

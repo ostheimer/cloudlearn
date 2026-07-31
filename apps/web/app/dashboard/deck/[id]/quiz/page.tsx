@@ -4,7 +4,16 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
-import { listCardsInDeck, reviewCard, updateCard, earnLp, getStats, isApiError, type Card } from "@/lib/api";
+import {
+  listCardsInDeck,
+  reviewCard,
+  updateCard,
+  earnLp,
+  getStats,
+  isApiError,
+  type Card,
+  type ReviewRating,
+} from "@/lib/api";
 import { CardEditor } from "@/components/app/card-editor";
 import { dailyGoalLine } from "@/lib/daily-goal-line";
 import { useDisplayName } from "@/lib/use-display-name";
@@ -21,6 +30,7 @@ import {
 import { CardSourcePicker } from "@/components/app/card-source-picker";
 import { QuestionCountPicker } from "@/components/app/question-count-picker";
 import { countQuizableCards, generateQuestions, type QuizQuestion } from "@/lib/quizQuestions";
+import { createReviewSendBuffer } from "@/lib/review-send-buffer";
 import {
   beginSessionAward,
   getSessionReviewedCount,
@@ -75,8 +85,12 @@ export default function QuizPage() {
   const [phase, setPhase] = useState<"setup" | "play" | "result">("setup");
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [index, setIndex] = useState(0);
+  // Ein-Schritt-Puffer für den Zurück-Pfeil (#571 Teil B, Muster aus #582).
+  const reviewBufferRef = useRef(createReviewSendBuffer());
   const [picked, setPicked] = useState<number | null>(null);
-  const [answers, setAnswers] = useState<boolean[]>([]);
+  // Lücken sind möglich: unbeantwortete Fragen beim vorzeitigen Beenden — und
+  // seit dem Zurück-Pfeil (#571 Teil B) auch eine zurückgenommene Antwort.
+  const [answers, setAnswers] = useState<(boolean | undefined)[]>([]);
 
   const [earned, setEarned] = useState<number | null>(null);
   const [earnCapReached, setEarnCapReached] = useState(false);
@@ -268,6 +282,26 @@ export default function QuizPage() {
     [startQuizWith, sourced]
   );
 
+  // Eine zurückgehaltene Bewertung wirklich abschicken. Inhalt unverändert
+  // gegenüber dem früheren Sofort-Versand — nur der Zeitpunkt ist später.
+  const sendReview = useCallback(
+    (cardId: string, rating: ReviewRating) => {
+      if (!userId) return;
+      const reviewPromise = reviewCard(userId, cardId, rating, { mode: "quiz" }).catch(
+        (error) => {
+          // Karte inzwischen gelöscht (#605): endgültig verloren — zählen und am
+          // Rundenende ehrlich ausweisen. Alles andere bleibt best-effort.
+          if (isCardGone(error)) {
+            unsavedRef.current += 1;
+            setUnsavedCount(unsavedRef.current);
+          }
+        }
+      );
+      pendingReviewsRef.current.push(reviewPromise);
+    },
+    [userId]
+  );
+
   function pick(i: number) {
     if (picked !== null || !q) return;
     setPicked(i);
@@ -278,6 +312,16 @@ export default function QuizPage() {
       return next;
     });
     if (userId) {
+      // Zurückgehalten statt sofort geschickt (#571 Teil B): Erst wenn die
+      // Frage wirklich hinter uns liegt („Weiter", Ergebnis, Verlassen), geht
+      // die Bewertung raus. Nur so kann der Zurück-Pfeil sie verwerfen, statt
+      // eine zweite, doppelt zählende Wiederholung abzufeuern — dasselbe
+      // Ein-Schritt-Muster wie in der Karteikarten-Runde (#582).
+      const previous = reviewBufferRef.current.rate({
+        cardId: q.cardId,
+        rating: correct ? "good" : "again",
+      });
+      if (previous) sendReview(previous.cardId, previous.rating);
       // Bis Schritt 8 schickte ein TREFFER gar nichts — nur so ließ sich
       // verhindern, dass Raten die Planung vorspult (#210). Der Preis war
       // absurd: Wer alles richtig hatte, bekam null Lernpunkte, weil die aus
@@ -288,22 +332,15 @@ export default function QuizPage() {
       // (Punkte, Streak, Statistik), lässt die Planung bei einem Treffer aber
       // in Ruhe — movesTheSchedule in reviewService. Das Versprechen aus #210
       // hält also weiterhin, nur ohne die Nebenwirkung.
-      const reviewPromise = reviewCard(userId, q.cardId, correct ? "good" : "again", {
-        mode: "quiz",
-      }).catch((error) => {
-        // Karte inzwischen gelöscht (#605): endgültig verloren — zählen und am
-        // Rundenende ehrlich ausweisen. Alles andere bleibt best-effort.
-        if (isCardGone(error)) {
-          unsavedRef.current += 1;
-          setUnsavedCount(unsavedRef.current);
-        }
-      });
-      pendingReviewsRef.current.push(reviewPromise);
     }
   }
 
   function next() {
     if (index + 1 >= total) {
+      // Die letzte Antwort hat kein „danach", das den Puffer freigäbe — und die
+      // Abrechnung zählt gleich, also muss sie vorher raus.
+      const last = reviewBufferRef.current.flush();
+      if (last) sendReview(last.cardId, last.rating);
       const reviewedCount = getSessionReviewedCount(total, pendingReviewsRef.current.length);
       void awardSession(reviewedCount);
       setPhase("result");
@@ -313,7 +350,26 @@ export default function QuizPage() {
     setIndex((i) => i + 1);
   }
 
+  // Eine Frage zurück (#571 Teil B). Die zurückgehaltene Bewertung wird
+  // verworfen, damit die Frage nicht doppelt zählt; bereits gesendete
+  // Bewertungen älterer Fragen bleiben, wie sie sind — deshalb reicht genau
+  // EIN Schritt zurück, wie in der Karteikarten-Runde.
+  function back() {
+    if (index === 0 || picked !== null) return;
+    reviewBufferRef.current.back();
+    setAnswers((prev) => {
+      const next = [...prev];
+      next[index - 1] = undefined;
+      return next;
+    });
+    setPicked(null);
+    setIndex((i) => i - 1);
+  }
+
   async function quit() {
+    // Beim Verlassen ist die zuletzt beantwortete Frage endgültig hinter uns.
+    const last = reviewBufferRef.current.flush();
+    if (last) sendReview(last.cardId, last.rating);
     const answeredCount = answers.filter((a) => a !== undefined).length;
     const reviewedCount = getSessionReviewedCount(
       answeredCount,
@@ -653,6 +709,20 @@ export default function QuizPage() {
           onClick={quit}
         >
           <X size={16} /> Beenden
+        </button>
+        {/* Eine Frage zurück (#571 Teil B) — wie in der App. Nur solange die
+            aktuelle Frage noch unbeantwortet ist: Wer schon geklickt hat, sieht
+            bereits die Auflösung; ein Rücksprung danach wäre ein Weg, eine
+            falsche Antwort zu verstecken. */}
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={back}
+          disabled={index === 0 || picked !== null}
+          aria-label="Vorherige Frage — Antwort zurücknehmen"
+          title="Vorherige Frage"
+        >
+          <ArrowLeft size={18} />
         </button>
         <div className="progress">
           <i style={{ width: `${((index + (answered ? 1 : 0)) / total) * 100}%` }} />

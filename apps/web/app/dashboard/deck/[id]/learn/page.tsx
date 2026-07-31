@@ -11,7 +11,7 @@ import { loadSetup, resolveSource, saveSetup } from "@/lib/setup-memory";
 import { CardSourcePicker } from "@/components/app/card-source-picker";
 import { isProgressUsable, type SessionProgress } from "@/lib/session-progress";
 import { loadBestProgress } from "@/lib/session-progress-sync";
-import { Layers, ArrowLeft, AlertTriangle } from "@/components/icons";
+import { Layers, ArrowLeft, AlertTriangle, RotateCw } from "@/components/icons";
 
 export default function LearnPage() {
   const params = useParams<{ id: string }>();
@@ -22,6 +22,8 @@ export default function LearnPage() {
   const [studyable, setStudyable] = useState<Card[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Abfrage-Richtung, schon im Setup wählbar (#571 Teil B).
+  const [startReverse, setStartReverse] = useState(false);
   const [source, setSource] = useState<CardSource>("all");
   const { ids: wobblyIds, settled: wobblySettled } = useWobblyIds(deckId);
   // Karteikarten hatten bisher keinen Vorschalt-Schritt. Jetzt wird die
@@ -172,9 +174,18 @@ export default function LearnPage() {
         </div>
         <h3>Konnte nicht laden</h3>
         <p>{error}</p>
-        <Link href={`/dashboard/deck/${deckId}`} className="btn btn-primary">
-          Zurück zum Deck
-        </Link>
+        {/* „Erneut versuchen" wie in der App (#571 Teil B): Ein kurzer
+            Netzausfall zwang im Web zurück ins Deck und von dort neu hinein —
+            der Knopf lädt einfach nochmal. Er steht vorn, weil er in den
+            meisten Fällen der richtige ist. */}
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+          <button type="button" className="btn btn-primary" onClick={() => void load()}>
+            <RotateCw size={16} /> Erneut versuchen
+          </button>
+          <Link href={`/dashboard/deck/${deckId}`} className="btn btn-ghost">
+            Zurück zum Deck
+          </Link>
+        </div>
       </div>
     );
   }
@@ -201,9 +212,10 @@ export default function LearnPage() {
         backHref={`/dashboard/deck/${deckId}`}
         backLabel="Zurück zum Deck"
         startAt={resumeAt}
-        // Die unterbrochene Runde lief in einer bestimmten Richtung — die
+        // Beim Weitermachen gewinnt die Richtung der unterbrochenen Runde — die
         // fortgesetzten Karten werden genauso herum abgefragt wie die davor.
-        startReverse={resumeAt !== undefined ? saved?.reverse : undefined}
+        // Sonst zählt, was im Setup gewählt wurde (#571 Teil B).
+        startReverse={resumeAt !== undefined ? saved?.reverse : startReverse}
         progressDeckId={adhocRound ? undefined : deckId}
         progressSource={adhocRound ? undefined : source}
       />
@@ -242,6 +254,22 @@ export default function LearnPage() {
         wobblyCount={studyable.filter((c) => wobblyIds.has(c.id)).length}
         dueCount={studyable.filter((c) => isCardDue(c)).length}
       />
+
+      {/* Richtung schon VOR dem Start wählen (#571 Teil B) — die App kann das
+          seit jeher, im Web ging es bisher nur mitten in der Runde. Wer ein
+          Vokabel-Deck andersherum abfragen will, musste also erst starten und
+          dann umschalten. Gleicher Baustein wie im Quiz-Setup. */}
+      <button type="button" className="cl-dir" onClick={() => setStartReverse((r) => !r)}>
+        <div className="cl-dir__lbl">Abgefragte Richtung</div>
+        <div className="cl-dir__row">
+          <b>{startReverse ? "Rückseite" : "Vorderseite"}</b>
+          <span className="cl-dir__arrow" aria-hidden>
+            <ArrowLeft size={20} style={{ transform: "rotate(180deg)" }} />
+          </span>
+          <b>{startReverse ? "Vorderseite" : "Rückseite"}</b>
+        </div>
+        <div className="cl-dir__hint">Richtung tauschen</div>
+      </button>
 
       {/* Weitermachen — nur solange eine unterbrochene Runde noch passt */}
       {canResume && saved && (
