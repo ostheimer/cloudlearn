@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/supabase", () => ({ createSupabaseAdminClient: vi.fn() }));
 
-import { listTrash, purgeAllTrash, restoreDeck } from "@/lib/db";
+import { listTrash, purgeAllTrash, restoreDeckWithinLimit } from "@/lib/db";
 import { createSupabaseAdminClient } from "@/lib/supabase";
 
 const mockedCreateDb = vi.mocked(createSupabaseAdminClient);
@@ -127,45 +127,17 @@ describe("listTrash", () => {
   });
 });
 
-describe("restoreDeck", () => {
-  it("holt nur die Karten zurück, die MIT dem Deck gelöscht wurden", async () => {
-    const { db, calls } = makeDbMock({
-      decks: [
-        // 1. getDeletedDeck
-        { data: { id: DECK_ID, title: "Waidmannssprache", deleted_at: DELETED_AT }, error: null },
-        // 2. Deck selbst wiederbeleben
-        { data: { id: DECK_ID }, error: null },
-      ],
-      cards: [{ data: null, error: null }],
+describe("restoreDeckWithinLimit", () => {
+  it("delegiert Limit-Prüfung und Restore an eine atomare Datenbankfunktion", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: "restored", error: null });
+    mockedCreateDb.mockReturnValue({ rpc } as never);
+
+    expect(await restoreDeckWithinLimit(DECK_ID, USER_ID, 20)).toBe("restored");
+    expect(rpc).toHaveBeenCalledWith("restore_deck_with_limit", {
+      p_deck: DECK_ID,
+      p_user: USER_ID,
+      p_max_decks: 20,
     });
-    mockedCreateDb.mockReturnValue(db);
-
-    expect(await restoreDeck(DECK_ID, USER_ID)).toBe(true);
-
-    // Der Kern der Regel: die Karten werden über den EXAKTEN Zeitstempel des
-    // Decks gefiltert (`eq`), nicht über „irgendwie gelöscht". Eine vorher
-    // einzeln weggeworfene Karte trägt einen älteren Stempel und bleibt weg —
-    // Laras Entscheidung „selbst Gelöschtes kommt nicht zurück".
-    const cardEqs = calls.filter((c) => c.table === "cards" && c.method === "eq");
-    expect(cardEqs.map((c) => c.args)).toEqual([
-      ["deck_id", DECK_ID],
-      ["user_id", USER_ID],
-      ["deleted_at", DELETED_AT],
-    ]);
-
-    // Reihenfolge Karten -> Deck: bricht der zweite Schritt ab, bleiben die
-    // Karten unter einem noch gelöschten Deck unsichtbar, statt ein sichtbar
-    // leeres Deck zu hinterlassen.
-    const updates = calls.filter((c) => c.method === "update").map((c) => c.table);
-    expect(updates).toEqual(["cards", "decks"]);
-  });
-
-  it("tut nichts, wenn das Deck nicht im Papierkorb liegt", async () => {
-    const { db, calls } = makeDbMock({ decks: [{ data: null, error: null }] });
-    mockedCreateDb.mockReturnValue(db);
-
-    expect(await restoreDeck(DECK_ID, USER_ID)).toBe(false);
-    expect(calls.some((c) => c.method === "update")).toBe(false);
   });
 });
 
