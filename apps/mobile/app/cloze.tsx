@@ -27,6 +27,7 @@ import {
 import { listCardsInDeck, reviewCard, updateCard, earnLp, getStats, type Card } from "../src/lib/api";
 import CardEditor from "../src/components/CardEditor";
 import { dailyGoalLine } from "../src/lib/dailyGoalLine";
+import { cardEditorErrorMessage } from "../src/lib/cardEditorError";
 import { toggleCardStar } from "../src/lib/toggleCardStar";
 import { setLastUsedDeck } from "../src/lib/lastUsedDeck";
 import {
@@ -162,6 +163,7 @@ export default function ClozeScreen() {
   // Stift-Knopf (#610): öffnet den Karten-Editor, ohne die Runde zu verlassen.
   const [editingCard, setEditingCard] = useState(false);
   const [savingCard, setSavingCard] = useState(false);
+  const [cardEditorError, setCardEditorError] = useState<string | null>(null);
   const [idx, setIdx] = useState(0);
   // Earliest card the back button may reach. Non-zero only after resuming, so a
   // continued round cannot step back into cards the earlier session rated.
@@ -1110,7 +1112,12 @@ export default function ClozeScreen() {
             >
               {current && (
                 <TouchableOpacity
-                  onPress={() => setEditingCard(true)}
+                  onPress={() => {
+                    setCardEditorError(null);
+                    setEditingCard(true);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Karte bearbeiten"
                   activeOpacity={0.6}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   style={{ position: "absolute", top: spacing.md, left: spacing.md }}
@@ -1121,6 +1128,11 @@ export default function ClozeScreen() {
               {current && (
                 <TouchableOpacity
                   onPress={() => toggleCardStar(current.id, starredMap, setStarredMap)}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    starredMap[current.id] ? "Markierung entfernen" : "Karte markieren"
+                  }
+                  accessibilityState={{ selected: starredMap[current.id] ?? false }}
                   activeOpacity={0.6}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   style={{ position: "absolute", top: spacing.md, right: spacing.md }}
@@ -1381,21 +1393,31 @@ export default function ClozeScreen() {
       </KeyboardAvoidingView>
       <CardEditor
         visible={editingCard}
-        card={current ? { front: current.front, back: current.back, difficulty: "medium" } : null}
+        card={
+          current
+            ? { front: current.front, back: current.back, difficulty: current.difficulty }
+            : null
+        }
         saving={savingCard}
-        onCancel={() => setEditingCard(false)}
-        onSave={async ({ front, back }) => {
+        error={cardEditorError}
+        onCancel={() => {
+          setEditingCard(false);
+          setCardEditorError(null);
+        }}
+        onSave={async ({ front, back, difficulty }) => {
           if (!current) return;
+          setCardEditorError(null);
           setSavingCard(true);
           try {
-            const { card: updated } = await updateCard(current.id, { front, back });
+            const { card: updated } = await updateCard(current.id, { front, back, difficulty });
             // Nur die editierte Karte patchen (#610) — ein Neuladen der Runde
             // würde Fortschritt, Index und Ergebnisse dieser Sitzung zerstören.
             setRound((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
             setEditingCard(false);
-          } catch {
+          } catch (error) {
             // Speichern fehlgeschlagen — Editor bleibt offen, statt den Text
             // kommentarlos zu verlieren.
+            setCardEditorError(cardEditorErrorMessage(error));
           } finally {
             setSavingCard(false);
           }
