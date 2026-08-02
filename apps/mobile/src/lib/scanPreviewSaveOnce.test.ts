@@ -99,3 +99,18 @@ describe("Karten-Vorschau ist bearbeitbar und löschbar (#427)", () => {
     expect(source).toContain("<GripVertical");
   });
 });
+
+describe("zu teure Scan-Quellen erklären ihren Ausweg (#701)", () => {
+  const source = readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), "../../app/(tabs)/scan.tsx"),
+    "utf-8"
+  ).replace(/\r\n/g, "\n");
+
+  it("lässt die Kacheln antippbar, damit sie das LP-Fenster öffnen können", () => {
+    expect(source).not.toContain("disabled={!afford.aiScan}");
+    expect(source).not.toContain("disabled={!afford.urlImport}");
+    expect(source).not.toContain("disabled={!afford.pdfImport}");
+    expect(source).toContain('openScanSource("urlImport", lpCostUrlImport, afford.urlImport');
+    expect(source).toContain('openScanSource("pdfImport", lpCostPdfImport, afford.pdfImport');
+  });
+});

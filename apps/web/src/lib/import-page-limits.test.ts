@@ -44,6 +44,18 @@ describe("Web-Import-Seite – Plan-Grenzen (#411)", () => {
     expect(source).toContain("{DECK_LIMIT_LABEL}");
   });
 
+  it("sperrt jede zu teure Quelle vor Datei- oder Kameraauswahl", () => {
+    expect(source).toContain("const afford = usage");
+    expect(source).toContain("disabled={!afford.aiScan}");
+    expect(source).toContain("disabled={!afford.urlImport}");
+    expect(source).toContain("disabled={!afford.pdfImport}");
+  });
+
+  it("zeigt auch dann den LP-Ausweg, wenn nur teurere Quellen gesperrt sind", () => {
+    expect(source).toContain("usage && !afford.allAffordable");
+    expect(source).toContain("Wie du Lernpunkte bekommst");
+  });
+
   it("erzeugt auf JEDEM der vier Wege nur die Vorschau (#427)", () => {
     // Vergisst ein Weg das preview-Flag, speichert der Server ihn sofort — und
     // die Nutzerin sieht ihre Karten erst, wenn das Deck schon steht.

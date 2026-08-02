@@ -3,6 +3,7 @@ import {
   DECK_LIMIT_LABEL,
   OVERFLOW_CONFIRM_TITLE,
   adviceForLimit,
+  affordableScanSources,
   deckSlotsSummary,
   deckLimitMessage,
   deckLimitNotice,
@@ -15,6 +16,14 @@ import {
   planLimitMessage,
   savedSummary,
 } from "./import-limits";
+
+describe("Kosten-Sperren je Web-Importquelle", () => {
+  it("sperrt bei 12 LP nur URL und PDF vor der Dateiauswahl", () => {
+    expect(
+      affordableScanSources(12, { aiScan: 10, urlImport: 15, pdfImport: 20 })
+    ).toEqual({ aiScan: true, urlImport: false, pdfImport: false, allAffordable: false });
+  });
+});
 
 describe("Deck-Grenze im Browser (#411)", () => {
   it("erkennt die erreichte Deck-Grenze", () => {
