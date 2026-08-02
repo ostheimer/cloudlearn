@@ -19,6 +19,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/supabase", () => ({ createSupabaseAdminClient: vi.fn() }));
+vi.mock("@/lib/rateLimit", () => ({ checkRateLimit: vi.fn().mockResolvedValue(true) }));
 vi.mock("@/lib/auth", () => ({ getAuthUser: vi.fn() }));
 vi.mock("@/lib/http", () => ({
   jsonOk: (_requestId: string, data: unknown, status = 200) => ({
