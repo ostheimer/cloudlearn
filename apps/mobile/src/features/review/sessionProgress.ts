@@ -119,15 +119,40 @@ export function parseSessionProgress(raw: string | null): SessionProgress | null
  * The source must match too — "Nur markierte" and "Alle" are different piles,
  * so an index from one says nothing about the other.
  */
+export function getResumeIndex(
+  progress: SessionProgress | null,
+  cardIds: string[],
+  source: string
+): number | null {
+  if (!progress) return null;
+  if (progress.source !== source) return null;
+
+  // A due pile shrinks as reviews are saved: cards answered before the
+  // interruption are no longer due on the next device, so the untouched
+  // current card moves toward the front. A results map proves that this is a
+  // new-format bookmark whose earlier outcomes can still be counted; find the
+  // current card by id instead of rejecting the shifted pile. Old bookmarks
+  // keep the strict positional check because they cannot restore those counts.
+  if (source === "due" && progress.results) {
+    const movedIndex = cardIds.indexOf(progress.cardId);
+    return movedIndex >= 0 ? movedIndex : null;
+  }
+
+  if (progress.index >= cardIds.length) return null;
+  return cardIds[progress.index] === progress.cardId ? progress.index : null;
+}
+
 export function isProgressUsable(
   progress: SessionProgress | null,
   cardIds: string[],
   source: string
 ): boolean {
-  if (!progress) return false;
-  if (progress.source !== source) return false;
-  if (progress.index >= cardIds.length) return false;
-  return cardIds[progress.index] === progress.cardId;
+  return getResumeIndex(progress, cardIds, source) !== null;
+}
+
+/** App lifecycle states in which the latest account bookmark must be flushed. */
+export function shouldPushProgressOnAppState(state: string): boolean {
+  return state === "inactive" || state === "background";
 }
 
 export async function saveSessionProgress(

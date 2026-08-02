@@ -21,7 +21,7 @@ import {
 } from "../../src/components/cardSourcePicker";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
 import {
-  isProgressUsable,
+  getResumeIndex,
   type SessionProgress,
   type StoredCardResult,
 } from "../../src/features/review/sessionProgress";
@@ -122,6 +122,13 @@ export default function DeckReviewScreen() {
   const wobblyCount = allCards.filter((card) => wobblyIds.has(card.id)).length;
   const dueCount = allCards.filter((card) => isCardDue(card)).length;
   const studyPool = filterBySource(allCards, source, wobblyIds);
+  // Bereits beantwortete Karten sind nach einer Bewertung nicht mehr fällig.
+  // Für ein geräteübergreifendes Weitermachen müssen sie trotzdem wieder im
+  // Stapel stehen, damit Position, Auswertung und Fehler-Wiederholung stimmen.
+  const resumePool =
+    source === "due" && saved?.results
+      ? allCards.filter((card) => isCardDue(card) || saved.results?.[card.id])
+      : studyPool;
 
   const setupRestoredRef = useRef(false);
   useEffect(() => {
@@ -144,8 +151,12 @@ export default function DeckReviewScreen() {
   // stored card still sits at the stored position (cards may have been added,
   // deleted or unstarred since). Switching the source hides the offer, because
   // an index into one pile says nothing about another.
-  const canResume =
-    saved !== null && isProgressUsable(saved, studyPool.map((card) => card.id), source);
+  const usableResumeIndex = getResumeIndex(
+    saved,
+    resumePool.map((card) => card.id),
+    source
+  );
+  const canResume = usableResumeIndex !== null;
 
   const beginSession = (startAt?: number) => {
     setResumeIndex(startAt);
@@ -381,7 +392,7 @@ export default function DeckReviewScreen() {
           {/* Weitermachen — only when an interrupted session still fits */}
           {canResume && saved && (
             <TouchableOpacity
-              onPress={() => beginSession(saved.index)}
+              onPress={() => beginSession(usableResumeIndex ?? undefined)}
               activeOpacity={0.85}
               style={{
                 backgroundColor: colors.primary,
@@ -408,7 +419,7 @@ export default function DeckReviewScreen() {
                   marginTop: 2,
                 }}
               >
-                {`Karte ${saved.index + 1} von ${studyPool.length}`}
+                {`Karte ${saved.index + 1} von ${saved.total}`}
               </Text>
             </TouchableOpacity>
           )}

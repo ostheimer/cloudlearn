@@ -9,10 +9,12 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import {
   clearSessionProgress,
+  getResumeIndex,
   isProgressUsable,
   loadSessionProgress,
   parseSessionProgress,
   saveSessionProgress,
+  shouldPushProgressOnAppState,
   type SessionProgress,
 } from "./sessionProgress";
 
@@ -138,6 +140,35 @@ describe("isProgressUsable", () => {
   // nothing about the other, even when the card ids happen to line up.
   it("declines when the session was run on a different card source", () => {
     expect(isProgressUsable(progress({ index: 3, cardId: "card-9" }), pile, "starred")).toBe(false);
+  });
+
+  it("finds the moved current card in a shrinking due pile when prior results exist", () => {
+    const dueProgress = progress({
+      index: 2,
+      cardId: "card-3",
+      source: "due",
+      total: 4,
+      results: {
+        "card-1": { correct: true, overridden: false },
+        "card-2": { correct: false, overridden: false },
+      },
+    });
+
+    expect(getResumeIndex(dueProgress, ["card-3", "card-4"], "due")).toBe(0);
+    expect(isProgressUsable(dueProgress, ["card-3", "card-4"], "due")).toBe(true);
+  });
+
+  it("does not guess a moved due position for old bookmarks without results", () => {
+    const oldDueProgress = progress({ index: 2, cardId: "card-3", source: "due", total: 4 });
+    expect(getResumeIndex(oldDueProgress, ["card-3", "card-4"], "due")).toBeNull();
+  });
+});
+
+describe("account progress on app backgrounding", () => {
+  it("pushes while iOS is inactive or the app is in the background", () => {
+    expect(shouldPushProgressOnAppState("inactive")).toBe(true);
+    expect(shouldPushProgressOnAppState("background")).toBe(true);
+    expect(shouldPushProgressOnAppState("active")).toBe(false);
   });
 });
 

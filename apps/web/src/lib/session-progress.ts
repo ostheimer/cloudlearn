@@ -126,15 +126,56 @@ export function parseSessionProgress(raw: string | null): SessionProgress | null
  * Die Kartenquelle muss ebenfalls passen — „Nur markierte“ und „Alle“ sind
  * verschiedene Stapel, ein Index in den einen sagt nichts über den anderen.
  */
+export function getResumeIndex(
+  progress: SessionProgress | null,
+  cardIds: string[],
+  source: string
+): number | null {
+  if (!progress) return null;
+  if (progress.source !== source) return null;
+
+  // Der Fällig-Stapel schrumpft mit jeder gespeicherten Bewertung. Auf dem
+  // nächsten Gerät rutscht die noch unbeantwortete aktuelle Karte deshalb
+  // nach vorn. Ein Ergebnis-Feld beweist, dass der neue Merker die bereits
+  // beantworteten Karten für die Auswertung mitführen kann; dann darf die
+  // aktuelle Karte über ihre Id gefunden werden. Alte Merker bleiben streng.
+  if (source === "due" && progress.results) {
+    const movedIndex = cardIds.indexOf(progress.cardId);
+    return movedIndex >= 0 ? movedIndex : null;
+  }
+
+  if (progress.index >= cardIds.length) return null;
+  return cardIds[progress.index] === progress.cardId ? progress.index : null;
+}
+
 export function isProgressUsable(
   progress: SessionProgress | null,
   cardIds: string[],
   source: string
 ): boolean {
-  if (!progress) return false;
-  if (progress.source !== source) return false;
-  if (progress.index >= cardIds.length) return false;
-  return cardIds[progress.index] === progress.cardId;
+  return getResumeIndex(progress, cardIds, source) !== null;
+}
+
+type StoredReviewRating = "again" | "hard" | "good" | "easy";
+
+/** Ergebnis-Merker der Vor-Sitzung mit den Bewertungen dieses Tabs verbinden. */
+export function resultsFromReviewHistory(
+  cards: Array<{ id: string }>,
+  history: Array<{ index: number; rating: StoredReviewRating }>,
+  initialResults?: Record<string, StoredCardResult>,
+  beforeIndex = Number.POSITIVE_INFINITY
+): Record<string, StoredCardResult> {
+  const results = { ...(initialResults ?? {}) };
+  for (const entry of history) {
+    if (entry.index >= beforeIndex) continue;
+    const card = cards[entry.index];
+    if (!card) continue;
+    results[card.id] = {
+      correct: entry.rating === "good" || entry.rating === "easy",
+      overridden: false,
+    };
+  }
+  return results;
 }
 
 export function saveSessionProgress(

@@ -10,9 +10,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   clearSessionProgress,
+  getResumeIndex,
   isProgressUsable,
   loadSessionProgress,
   parseSessionProgress,
+  resultsFromReviewHistory,
   saveSessionProgress,
   type SessionProgress,
 } from "./session-progress";
@@ -143,6 +145,69 @@ describe("isProgressUsable", () => {
   // einen sagt nichts über den anderen, selbst wenn die Ids zufällig passen.
   it("declines when the session was run on a different card source", () => {
     expect(isProgressUsable(progress({ index: 3, cardId: "card-9" }), pile, "starred")).toBe(false);
+  });
+
+  it("finds the moved current card in a shrinking due pile when prior results exist", () => {
+    const dueProgress = progress({
+      index: 2,
+      cardId: "card-3",
+      source: "due",
+      total: 4,
+      results: {
+        "card-1": { correct: true, overridden: false },
+        "card-2": { correct: false, overridden: false },
+      },
+    });
+
+    expect(getResumeIndex(dueProgress, ["card-3", "card-4"], "due")).toBe(0);
+    expect(isProgressUsable(dueProgress, ["card-3", "card-4"], "due")).toBe(true);
+  });
+
+  it("does not guess a moved due position for old bookmarks without results", () => {
+    const oldDueProgress = progress({ index: 2, cardId: "card-3", source: "due", total: 4 });
+    expect(getResumeIndex(oldDueProgress, ["card-3", "card-4"], "due")).toBeNull();
+  });
+});
+
+describe("resultsFromReviewHistory", () => {
+  it("keeps prior-device outcomes and adds ratings from the resumed sitting", () => {
+    expect(
+      resultsFromReviewHistory(
+        [{ id: "card-3" }, { id: "card-4" }],
+        [
+          { index: 0, rating: "good" },
+          { index: 1, rating: "hard" },
+        ],
+        {
+          "card-1": { correct: true, overridden: false },
+          "card-2": { correct: false, overridden: true },
+        }
+      )
+    ).toEqual({
+      "card-1": { correct: true, overridden: false },
+      "card-2": { correct: false, overridden: true },
+      "card-3": { correct: true, overridden: false },
+      "card-4": { correct: false, overridden: false },
+    });
+  });
+
+  it("does not persist the just-rated card until the UI advances past it", () => {
+    expect(
+      resultsFromReviewHistory(
+        [{ id: "card-1" }, { id: "card-2" }],
+        [{ index: 0, rating: "good" }],
+        undefined,
+        0
+      )
+    ).toEqual({});
+    expect(
+      resultsFromReviewHistory(
+        [{ id: "card-1" }, { id: "card-2" }],
+        [{ index: 0, rating: "good" }],
+        undefined,
+        1
+      )
+    ).toEqual({ "card-1": { correct: true, overridden: false } });
   });
 });
 

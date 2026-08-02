@@ -9,7 +9,7 @@ import { useWobblyIds } from "@/lib/use-wobbly-ids";
 import { filterBySource, isCardDue, type CardSource } from "@/lib/card-source";
 import { loadSetup, resolveSource, saveSetup } from "@/lib/setup-memory";
 import { CardSourcePicker } from "@/components/app/card-source-picker";
-import { isProgressUsable, type SessionProgress } from "@/lib/session-progress";
+import { getResumeIndex, type SessionProgress } from "@/lib/session-progress";
 import { loadBestProgress } from "@/lib/session-progress-sync";
 import { Layers, ArrowLeft, AlertTriangle, RotateCw } from "@/components/icons";
 
@@ -140,13 +140,16 @@ export default function LearnPage() {
   // Ein Wechsel der Quelle blendet das Angebot aus — ein Index in den einen
   // Stapel sagt nichts über den anderen.
   const chosenPool = studyable ? filterBySource(studyable, source, wobblyIds) : [];
-  const canResume =
-    saved !== null &&
-    isProgressUsable(
-      saved,
-      chosenPool.map((c) => c.id),
-      source
-    );
+  const resumePool =
+    source === "due" && saved?.results && studyable
+      ? studyable.filter((card) => isCardDue(card) || saved.results?.[card.id])
+      : chosenPool;
+  const usableResumeIndex = getResumeIndex(
+    saved,
+    resumePool.map((card) => card.id),
+    source
+  );
+  const canResume = usableResumeIndex !== null;
 
   function start(startAtCard?: number) {
     if (!studyable) return;
@@ -155,7 +158,8 @@ export default function LearnPage() {
     saveSetup(deckId, "flashcards", { source });
     // Leere Auswahl kann nur „all" sein (die anderen sind bei 0 gesperrt) —
     // dann bleibt es beim ganzen Deck.
-    setPool(chosenPool.length > 0 ? chosenPool : studyable);
+    const selected = startAtCard !== undefined ? resumePool : chosenPool;
+    setPool(selected.length > 0 ? selected : studyable);
     setResumeAt(startAtCard);
     setPhase("play");
   }
@@ -216,6 +220,7 @@ export default function LearnPage() {
         // fortgesetzten Karten werden genauso herum abgefragt wie die davor.
         // Sonst zählt, was im Setup gewählt wurde (#571 Teil B).
         startReverse={resumeAt !== undefined ? saved?.reverse : startReverse}
+        initialResults={resumeAt !== undefined ? saved?.results : undefined}
         progressDeckId={adhocRound ? undefined : deckId}
         progressSource={adhocRound ? undefined : source}
       />
@@ -276,11 +281,11 @@ export default function LearnPage() {
         <button
           type="button"
           className="btn btn-primary btn-lg btn-block btn-resume"
-          onClick={() => start(saved.index)}
+          onClick={() => start(usableResumeIndex ?? undefined)}
         >
           Weitermachen
           <small>
-            Karte {saved.index + 1} von {chosenPool.length}
+            Karte {saved.index + 1} von {saved.total}
           </small>
         </button>
       )}
