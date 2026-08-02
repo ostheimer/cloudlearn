@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import {
+  AppState,
   ActivityIndicator,
   Dimensions,
   Image,
@@ -75,6 +76,7 @@ import { useUsageStore } from "../../src/store/usageStore";
 import { excludeOcclusionCards } from "../../src/lib/occlusion";
 import {
   saveSessionProgress,
+  shouldPushProgressOnAppState,
   type SessionProgress,
   type StoredCardResult,
 } from "../../src/features/review/sessionProgress";
@@ -95,6 +97,7 @@ import { LpRoundSummary } from "../../src/components/LpRoundSummary";
 import { shouldRetryLater } from "../../src/features/sync/sendReview";
 import {
   filterBySource,
+  isCardDue,
   type CardSource,
 } from "../../src/components/cardSourcePicker";
 import {
@@ -377,7 +380,9 @@ function AuthenticatedLearnScreen({
       // deck name so the learner always knows which deck they are in.
       const filtered =
         deckId && source
-          ? filterBySource(fetched, source, new Set(wobblyIds ?? []))
+          ? source === "due" && initialResults
+            ? fetched.filter((card) => isCardDue(card) || initialResults[card.id])
+            : filterBySource(fetched, source, new Set(wobblyIds ?? []))
           : fetched;
       const loaded = deckId ? filtered : groupCardsByDeck(filtered);
       if (loaded.length > 0) {
@@ -446,6 +451,7 @@ function AuthenticatedLearnScreen({
   // werden muss und beim Abbau den letzten Stand sieht.
   const accountPushRef = useRef<SessionProgress | null>(null);
   const currentCard = cards[index];
+  const accountResults = storedResultsFrom(cards, history, ratingHistory);
   accountPushRef.current =
     deckId && source && !completed && currentCard
       ? {
@@ -454,13 +460,21 @@ function AuthenticatedLearnScreen({
           source,
           reverse: showBackFirst,
           total: cards.length,
+          ...(Object.keys(accountResults).length > 0 ? { results: accountResults } : {}),
         }
       : null;
   useEffect(() => {
     if (!deckId) return;
-    return () => {
+    const push = () => {
       const pending = accountPushRef.current;
       if (pending) void pushProgressToAccount(deckId, "flashcards", pending);
+    };
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (shouldPushProgressOnAppState(state)) push();
+    });
+    return () => {
+      subscription.remove();
+      push();
     };
   }, [deckId]);
 

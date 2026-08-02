@@ -45,7 +45,12 @@ import {
   type SessionAwardState,
 } from "@/lib/learn-session-lp";
 import { useCoarsePointer } from "@/lib/use-coarse-pointer";
-import { saveSessionProgress, type SessionProgress } from "@/lib/session-progress";
+import {
+  resultsFromReviewHistory,
+  saveSessionProgress,
+  type SessionProgress,
+  type StoredCardResult,
+} from "@/lib/session-progress";
 import { clearProgressEverywhere, pushProgressToAccount } from "@/lib/session-progress-sync";
 import { createReviewSendBuffer } from "@/lib/review-send-buffer";
 import { ratingKeyIndex } from "@/lib/learn-keys";
@@ -93,6 +98,7 @@ export function LearnSession({
   backLabel,
   startAt,
   startReverse,
+  initialResults,
   progressDeckId,
   progressSource,
 }: {
@@ -101,6 +107,7 @@ export function LearnSession({
   backLabel: string;
   startAt?: number | undefined;
   startReverse?: boolean | undefined;
+  initialResults?: Record<string, StoredCardResult> | undefined;
   progressDeckId?: string | undefined;
   progressSource?: string | undefined;
 }) {
@@ -124,8 +131,23 @@ export function LearnSession({
     Math.min(Math.max(startAt ?? 0, 0), Math.max(pool.length - 1, 0))
   );
   const [flipped, setFlipped] = useState(false);
-  const [correct, setCorrect] = useState(0);
-  const [notKnown, setNotKnown] = useState<Card[]>([]);
+  const initialCarriedResults = Object.fromEntries(
+    pool.flatMap((card) => {
+      const result = initialResults?.[card.id];
+      return result ? [[card.id, result] as const] : [];
+    })
+  );
+  const [carriedResults, setCarriedResults] = useState<
+    Record<string, StoredCardResult> | undefined
+  >(() =>
+    Object.keys(initialCarriedResults).length > 0 ? initialCarriedResults : undefined
+  );
+  const [correct, setCorrect] = useState(
+    () => Object.values(initialCarriedResults).filter((result) => result.correct).length
+  );
+  const [notKnown, setNotKnown] = useState<Card[]>(() =>
+    pool.filter((card) => initialCarriedResults[card.id]?.correct === false)
+  );
   // Abfrage-Richtung: false = Vorderseite zuerst. Mitten in der Runde
   // tauschbar wie in der App; beim Weitermachen wird die Richtung der
   // unterbrochenen Runde wiederhergestellt.
@@ -425,20 +447,23 @@ export function LearnSession({
     }
     const card = cards[index];
     if (!card) return;
+    const results = resultsFromReviewHistory(cards, history, carriedResults, index);
     saveSessionProgress(progressDeckId, "flashcards", {
       index,
       cardId: card.id,
       source: progressSource,
       reverse,
       total,
+      ...(Object.keys(results).length > 0 ? { results } : {}),
     });
-  }, [progressDeckId, progressSource, cards, index, done, total, reverse]);
+  }, [progressDeckId, progressSource, cards, index, done, total, reverse, history, carriedResults]);
 
   // Beim Verlassen der Runde den Stand ins Konto schreiben (#610). Bewusst
   // NICHT bei jedem Kartenwechsel: Das wäre eine Anfrage je Karte. Der Ref
   // trägt den jeweils aktuellen Stand, damit der Effekt selbst nur einmal
   // eingehängt werden muss und beim Abbau den letzten Stand sieht.
   const accountPushRef = useRef<SessionProgress | null>(null);
+  const accountResults = resultsFromReviewHistory(cards, history, carriedResults, index);
   accountPushRef.current =
     !done && progressDeckId && progressSource && cards[index]
       ? {
@@ -447,6 +472,7 @@ export function LearnSession({
           source: progressSource,
           reverse,
           total,
+          ...(Object.keys(accountResults).length > 0 ? { results: accountResults } : {}),
         }
       : null;
   useEffect(() => {
@@ -640,6 +666,7 @@ export function LearnSession({
     setEarned(null);
     setEarnCapReached(false);
     setCards(next);
+    setCarriedResults(undefined);
     setNotKnown([]);
     setIndex(0);
     // Folge-Runden („Nur die nicht gewussten" / „Alle nochmal") beginnen
