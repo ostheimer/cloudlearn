@@ -28,6 +28,7 @@ import {
 } from "@/lib/import-draft";
 import { useCoarsePointer } from "@/lib/use-coarse-pointer";
 import {
+  affordableScanSources,
   DECK_LIMIT_LABEL,
   deckLimitNotice,
   deckOptionLabel,
@@ -216,6 +217,13 @@ export default function ImportPage() {
         : usage.lpCostAiScan // text, photo, gallery
     : null;
   const enoughLp = usage && cost !== null ? usage.lpBalance >= cost : true;
+  const afford = usage
+    ? affordableScanSources(usage.lpBalance, {
+        aiScan: usage.lpCostAiScan,
+        urlImport: usage.lpCostUrlImport,
+        pdfImport: usage.lpCostPdfImport,
+      })
+    : { aiScan: true, urlImport: true, pdfImport: true, allAffordable: true };
   // Für den Hinweis im Auswahl-Menü: reicht es nicht mal für den günstigsten Import?
   const lowLp = usage ? usage.lpBalance < usage.lpCostAiScan : false;
 
@@ -256,6 +264,9 @@ export default function ImportPage() {
             : false;
 
   function choose(next: Exclude<Mode, "choose">) {
+    const sourceAffordable =
+      next === "url" ? afford.urlImport : next === "pdf" ? afford.pdfImport : afford.aiScan;
+    if (!sourceAffordable) return;
     setError(null);
     setMode(next);
     if (next === "photo" || next === "gallery") {
@@ -923,11 +934,11 @@ export default function ImportPage() {
               </div>
             )}
 
-            {usage && lowLp && (
+            {usage && !afford.allAffordable && (
               <div className="lp-warn" role="status">
                 <Zap size={16} />
                 <span>
-                  Du hast {usage.lpBalance} LP. Ein Scan kostet ab {usage.lpCostAiScan} LP.{" "}
+                  Du hast {usage.lpBalance} LP. Nicht alle Quellen sind damit verfügbar.{" "}
                   {/* Weg statt Sackgasse (#571 Teil B): Der Satz sagte, wo neue
                       Punkte herkommen, und ließ einen dann stehen. Die App
                       führt hier zur LP-Seite — dort steht, wie viel man heute
@@ -947,6 +958,7 @@ export default function ImportPage() {
                   type="button"
                   className="source-card source-card--photo"
                   onClick={() => choose("photo")}
+                  disabled={!afford.aiScan}
                 >
                   <span className="source-card__ic">
                     <Camera size={22} />
@@ -968,6 +980,7 @@ export default function ImportPage() {
                 type="button"
                 className="source-card source-card--gallery"
                 onClick={() => choose("gallery")}
+                disabled={!afford.aiScan}
               >
                 <span className="source-card__ic">
                   <ImageIcon size={22} />
@@ -989,6 +1002,7 @@ export default function ImportPage() {
                 type="button"
                 className="source-card source-card--text"
                 onClick={() => choose("text")}
+                disabled={!afford.aiScan}
               >
                 <span className="source-card__ic">
                   <TextType size={22} />
@@ -1009,6 +1023,7 @@ export default function ImportPage() {
                 type="button"
                 className="source-card source-card--url"
                 onClick={() => choose("url")}
+                disabled={!afford.urlImport}
               >
                 <span className="source-card__ic">
                   <LinkIcon size={22} />
@@ -1030,6 +1045,7 @@ export default function ImportPage() {
                   type="button"
                   className="source-card source-card--pdf"
                   onClick={() => choose("pdf")}
+                  disabled={!afford.pdfImport}
                 >
                   <span className="source-card__ic">
                     <FileText size={22} />

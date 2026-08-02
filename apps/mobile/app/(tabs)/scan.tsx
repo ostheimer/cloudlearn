@@ -191,6 +191,21 @@ export default function ScanScreen() {
   const [lpModalFeature, setLpModalFeature] = useState<"aiScan" | "urlImport" | "pdfImport">("aiScan");
   const [lpModalCost, setLpModalCost] = useState(0);
 
+  const openScanSource = (
+    feature: "aiScan" | "urlImport" | "pdfImport",
+    cost: number,
+    affordable: boolean,
+    open: () => void | Promise<void>
+  ) => {
+    if (affordable) {
+      void open();
+      return;
+    }
+    setLpModalFeature(feature);
+    setLpModalCost(cost);
+    setLpModalVisible(true);
+  };
+
   // #603: Nachgeladen wird, solange die GRENZEN unbekannt sind — nicht bis
   // `isLoaded` gesetzt ist. Das alte Tor stand schon zu, sobald irgendwer
   // (das LP-Abzeichen der Startseite) nur den Kontostand geladen hatte, und
@@ -1432,7 +1447,12 @@ export default function ScanScreen() {
           cardCount={nonEmptyCards(cards).length}
           decks={decks}
           maxCardsPerDeck={maxCardsPerDeck}
+          canCreateDeck={!deckLimitReached}
           onClose={() => setDeckPickerVisible(false)}
+          onCreateDeck={() => {
+            setDeckPickerVisible(false);
+            void handleSaveNewDeck();
+          }}
           onSelect={(deck) => {
             setDeckPickerVisible(false);
             confirmSaveToDeck(deck);
@@ -1502,11 +1522,9 @@ export default function ScanScreen() {
 
             {/* Camera button */}
             <TouchableOpacity
-              onPress={openCamera}
-              // Nichts anbieten, was der Server sicher ablehnt (#611): Vorher
-              // startete die Kamera, man knipste, das Bild lud hoch — und DANN
-              // kam 402. Die Sperre kostet nichts, der Fehlweg kostete Zeit.
-              disabled={!afford.aiScan}
+              onPress={() =>
+                openScanSource("aiScan", lpCostAiScan, afford.aiScan, openCamera)
+              }
               activeOpacity={0.8}
               style={{
                 backgroundColor: colors.primary,
@@ -1558,8 +1576,9 @@ export default function ScanScreen() {
 
             {/* Gallery button */}
             <TouchableOpacity
-              onPress={handlePickFromGallery}
-              disabled={!afford.aiScan}
+              onPress={() =>
+                openScanSource("aiScan", lpCostAiScan, afford.aiScan, handlePickFromGallery)
+              }
               activeOpacity={0.8}
               style={{
                 backgroundColor: colors.success,
@@ -1611,8 +1630,9 @@ export default function ScanScreen() {
 
             {/* Text input button */}
             <TouchableOpacity
-              onPress={() => setMode("text")}
-              disabled={!afford.aiScan}
+              onPress={() =>
+                openScanSource("aiScan", lpCostAiScan, afford.aiScan, () => setMode("text"))
+              }
               activeOpacity={0.8}
               style={{
                 backgroundColor: colors.warning,
@@ -1664,8 +1684,9 @@ export default function ScanScreen() {
 
             {/* URL import button */}
             <TouchableOpacity
-              onPress={() => setMode("url")}
-              disabled={!afford.urlImport}
+              onPress={() =>
+                openScanSource("urlImport", lpCostUrlImport, afford.urlImport, () => setMode("url"))
+              }
               activeOpacity={0.8}
               style={{
                 opacity: afford.urlImport ? 1 : 0.5,
@@ -1717,10 +1738,9 @@ export default function ScanScreen() {
 
             {/* PDF import button */}
             <TouchableOpacity
-              onPress={handlePickPdf}
-              // Der teuerste Weg (20 LP) und der mit dem längsten Fehlweg: Datei
-              // wählen, hochladen, warten — dann 402 (#611).
-              disabled={!afford.pdfImport}
+              onPress={() =>
+                openScanSource("pdfImport", lpCostPdfImport, afford.pdfImport, handlePickPdf)
+              }
               activeOpacity={0.8}
               style={{
                 backgroundColor: colors.text,
