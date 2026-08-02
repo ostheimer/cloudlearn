@@ -62,6 +62,7 @@ import {
   updateCard,
 } from "../../src/lib/api";
 import { dailyGoalLine } from "../../src/lib/dailyGoalLine";
+import { cardEditorErrorMessage } from "../../src/lib/cardEditorError";
 import {
   DEFAULT_SPEECH_LANGUAGE,
   toSpeechLanguage,
@@ -232,6 +233,7 @@ function AuthenticatedLearnScreen({
   // Stift-Knopf (#610): öffnet den Karten-Editor, ohne die Runde zu verlassen.
   const [editingCard, setEditingCard] = useState(false);
   const [savingCard, setSavingCard] = useState(false);
+  const [cardEditorError, setCardEditorError] = useState<string | null>(null);
 
   const awardStateRef = useRef<SessionAwardState>({ finalized: false, inFlight: null });
   const pendingReviewsRef = useRef<Promise<unknown>[]>([]);
@@ -389,6 +391,7 @@ function AuthenticatedLearnScreen({
             id: card.id,
             front: card.front,
             back: card.back,
+            difficulty: card.difficulty,
             starred: card.starred,
             // Fürs Vorlesen: sagt, welche Deck-Sprachen für diese Karte gelten.
             deckId: card.deckId,
@@ -1463,6 +1466,9 @@ function AuthenticatedLearnScreen({
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={toggleStar}
+                    accessibilityRole="button"
+                    accessibilityLabel={isStarred ? "Markierung entfernen" : "Karte markieren"}
+                    accessibilityState={{ selected: isStarred }}
                     activeOpacity={0.6}
                     hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
                     style={{ width: 44, height: 44, justifyContent: "center", alignItems: "center" }}
@@ -1470,7 +1476,12 @@ function AuthenticatedLearnScreen({
                     <Star size={22} color={isStarred ? c.warning : c.textTertiary} fill={isStarred ? c.warning : "none"} />
                   </TouchableOpacity>
                   <TouchableOpacity
-                    onPress={() => setEditingCard(true)}
+                    onPress={() => {
+                      setCardEditorError(null);
+                      setEditingCard(true);
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Karte bearbeiten"
                     activeOpacity={0.6}
                     hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
                     style={{ width: 44, height: 44, justifyContent: "center", alignItems: "center" }}
@@ -1485,21 +1496,35 @@ function AuthenticatedLearnScreen({
       </SafeAreaView>
       <CardEditor
         visible={editingCard}
-        card={current ? { front: current.front, back: current.back, difficulty: "medium" } : null}
+        card={
+          current
+            ? { front: current.front, back: current.back, difficulty: current.difficulty ?? "medium" }
+            : null
+        }
         saving={savingCard}
-        onCancel={() => setEditingCard(false)}
-        onSave={async ({ front, back }) => {
+        error={cardEditorError}
+        onCancel={() => {
+          setEditingCard(false);
+          setCardEditorError(null);
+        }}
+        onSave={async ({ front, back, difficulty }) => {
           if (!current) return;
+          setCardEditorError(null);
           setSavingCard(true);
           try {
-            const { card: updated } = await updateCard(current.id, { front, back });
+            const { card: updated } = await updateCard(current.id, { front, back, difficulty });
             // Nur die editierte Karte patchen (#610) — ein Neuladen der Runde
             // würde Fortschritt, Index und Bewertungen dieser Sitzung zerstören.
-            patchCard(current.id, { front: updated.front, back: updated.back });
+            patchCard(current.id, {
+              front: updated.front,
+              back: updated.back,
+              difficulty: updated.difficulty,
+            });
             setEditingCard(false);
-          } catch {
+          } catch (error) {
             // Speichern fehlgeschlagen — Editor bleibt offen, Lernerin kann es
             // erneut versuchen, statt den Text kommentarlos zu verlieren.
+            setCardEditorError(cardEditorErrorMessage(error));
           } finally {
             setSavingCard(false);
           }

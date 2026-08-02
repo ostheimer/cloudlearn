@@ -27,6 +27,7 @@ import {
 import { earnLp, getStats, listCardsInDeck, updateCard, type Card } from "../src/lib/api";
 import CardEditor from "../src/components/CardEditor";
 import { dailyGoalLine } from "../src/lib/dailyGoalLine";
+import { cardEditorErrorMessage } from "../src/lib/cardEditorError";
 import { toggleCardStar } from "../src/lib/toggleCardStar";
 import { sendReview } from "../src/features/sync/sendReview";
 import { setLastUsedDeck } from "../src/lib/lastUsedDeck";
@@ -102,6 +103,7 @@ export default function QuizScreen() {
   // Frage (Optionen, richtige Antwort) ändert sich erst in der nächsten Runde.
   const [editingCard, setEditingCard] = useState(false);
   const [savingCard, setSavingCard] = useState(false);
+  const [cardEditorError, setCardEditorError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
@@ -1104,7 +1106,12 @@ export default function QuizScreen() {
           >
             {question && (
               <TouchableOpacity
-                onPress={() => setEditingCard(true)}
+                onPress={() => {
+                  setCardEditorError(null);
+                  setEditingCard(true);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Karte bearbeiten"
                 activeOpacity={0.6}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 style={{ position: "absolute", top: spacing.lg, left: spacing.lg }}
@@ -1115,6 +1122,11 @@ export default function QuizScreen() {
             {question && (
               <TouchableOpacity
                 onPress={() => toggleCardStar(question.cardId, starredMap, setStarredMap)}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  starredMap[question.cardId] ? "Markierung entfernen" : "Karte markieren"
+                }
+                accessibilityState={{ selected: starredMap[question.cardId] ?? false }}
                 activeOpacity={0.6}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 style={{ position: "absolute", top: spacing.lg, right: spacing.lg }}
@@ -1394,24 +1406,36 @@ export default function QuizScreen() {
           question
             ? (() => {
                 const raw = cards.find((c) => c.id === question.cardId);
-                return raw ? { front: raw.front, back: raw.back, difficulty: "medium" } : null;
+                return raw
+                  ? { front: raw.front, back: raw.back, difficulty: raw.difficulty }
+                  : null;
               })()
             : null
         }
         saving={savingCard}
-        onCancel={() => setEditingCard(false)}
-        onSave={async ({ front, back }) => {
+        error={cardEditorError}
+        onCancel={() => {
+          setEditingCard(false);
+          setCardEditorError(null);
+        }}
+        onSave={async ({ front, back, difficulty }) => {
           if (!question) return;
+          setCardEditorError(null);
           setSavingCard(true);
           try {
-            const { card: updated } = await updateCard(question.cardId, { front, back });
+            const { card: updated } = await updateCard(question.cardId, {
+              front,
+              back,
+              difficulty,
+            });
             // Nur die Karte selbst patchen (#610) — die schon gebaute Frage
             // dieser Runde bleibt unverändert. Die nächste Runde baut aus dem
             // aktualisierten Text neu.
             setCards((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
             setEditingCard(false);
-          } catch {
+          } catch (error) {
             // Speichern fehlgeschlagen — Editor bleibt offen.
+            setCardEditorError(cardEditorErrorMessage(error));
           } finally {
             setSavingCard(false);
           }
