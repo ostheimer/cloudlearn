@@ -5,6 +5,7 @@ import type { DeckRecord } from "@/lib/db";
 const dbMocks = vi.hoisted(() => ({
   getDeletedCard: vi.fn(),
   getDeletedDeck: vi.fn(),
+  countCardsInDeck: vi.fn(),
   listCardsForDeck: vi.fn(),
   listDecks: vi.fn(),
   countUserDecks: vi.fn(),
@@ -86,9 +87,11 @@ describe("restoreCardForUser", () => {
       deckId: DECK_ID,
       deckDeleted: false,
     });
-    dbMocks.listCardsForDeck.mockResolvedValue([{ id: "x" }]);
+    dbMocks.countCardsInDeck.mockResolvedValue(1);
 
     expect(await restoreCardForUser(USER_ID, CARD_ID)).toBe(true);
+    expect(dbMocks.countCardsInDeck).toHaveBeenCalledWith(DECK_ID);
+    expect(dbMocks.listCardsForDeck).not.toHaveBeenCalled();
     expect(dbMocks.restoreCard).toHaveBeenCalledWith(CARD_ID, USER_ID);
   });
 
@@ -115,9 +118,7 @@ describe("restoreCardForUser", () => {
       deckId: DECK_ID,
       deckDeleted: false,
     });
-    dbMocks.listCardsForDeck.mockResolvedValue(
-      Array.from({ length: getLimitsForTier("free").maxCardsPerDeck }, (_, i) => ({ id: `c${i}` }))
-    );
+    dbMocks.countCardsInDeck.mockResolvedValue(getLimitsForTier("free").maxCardsPerDeck);
 
     await expect(restoreCardForUser(USER_ID, CARD_ID)).rejects.toMatchObject({
       code: "DECK_FULL",

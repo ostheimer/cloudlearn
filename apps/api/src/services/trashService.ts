@@ -23,8 +23,8 @@ import { z } from "zod";
 import {
   getDeletedCard,
   getDeletedDeck,
+  countCardsInDeck,
   countUserDecks,
-  listCardsForDeck,
   listTrash,
   purgeAllTrash,
   purgeTrashCard,
@@ -90,8 +90,9 @@ export async function restoreCardForUser(userId: string, cardId: string): Promis
   }
 
   const { tier } = await getSubscriptionStatus(userId);
-  const liveCards = await listCardsForDeck(userId, card.deckId);
-  assertCardLimit(tier, liveCards.length);
+  // Für die Grenze zählt nur die Menge. Die vollständigen Karten (inklusive
+  // Texten und Bild-URLs) zu laden machte einen Restore unnötig groß (#702).
+  assertCardLimit(tier, await countCardsInDeck(card.deckId));
 
   return restoreCard(cardId, userId);
 }
