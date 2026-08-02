@@ -964,6 +964,17 @@ export async function markFriendStreakDay(userId: string): Promise<void> {
  *  about the rest — no error, no marker. See selectAllRows. */
 const POSTGREST_PAGE = 1000;
 
+/** Eine gebündelte Abfrage hat ihre ausdrücklich gesetzte Obergrenze überschritten. */
+export class RowLimitExceededError extends Error {
+  constructor(
+    context: string,
+    public readonly limit: number
+  ) {
+    super(`${context} exceeds ${limit} rows`);
+    this.name = "RowLimitExceededError";
+  }
+}
+
 /**
  * Every row a query matches, not just PostgREST's first page.
  *
@@ -985,15 +996,23 @@ async function selectAllRows<T>(
     data: T[] | null;
     error: { message: string } | null;
   }>,
-  context: string
+  context: string,
+  maxRows?: number
 ): Promise<T[]> {
   const rows: T[] = [];
   for (let offset = 0; ; offset += POSTGREST_PAGE) {
-    const { data, error } = await page(offset, offset + POSTGREST_PAGE - 1);
+    // Bei einer Grenze genau eine zusätzliche Zeile anfordern: Sie beweist,
+    // dass das Ergebnis zu groß ist, ohne den Rest noch zu übertragen (#702).
+    const requested =
+      maxRows === undefined ? POSTGREST_PAGE : Math.min(POSTGREST_PAGE, maxRows + 1 - offset);
+    const { data, error } = await page(offset, offset + requested - 1);
     if (error) throw new Error(`${context}: ${error.message}`);
     const batch = data ?? [];
     rows.push(...batch);
-    if (batch.length < POSTGREST_PAGE) return rows;
+    if (maxRows !== undefined && rows.length > maxRows) {
+      throw new RowLimitExceededError(context, maxRows);
+    }
+    if (batch.length < requested) return rows;
   }
 }
 
@@ -1711,7 +1730,8 @@ export async function countDecksByFolder(userId: string): Promise<Record<string,
  */
 export async function listCardsInFolder(
   folderId: string,
-  userId: string
+  userId: string,
+  maxRows?: number
 ): Promise<CardRecord[] | null> {
   const folder = await getFolder(folderId, userId);
   if (!folder) return null;
@@ -1747,7 +1767,8 @@ export async function listCardsInFolder(
         .order("created_at", { ascending: true })
         .order("id", { ascending: true })
         .range(from, to),
-    "listCardsInFolder"
+    "listCardsInFolder",
+    maxRows
   );
 
   const cards = rows.map(mapCardRow);

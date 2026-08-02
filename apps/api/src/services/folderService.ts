@@ -10,14 +10,17 @@ import {
   listDecksInFolder,
   countDecksByFolder,
   listCardsInFolder,
+  RowLimitExceededError,
   listFoldersForDeck,
   setFolderDeckOrder,
 } from "@/lib/db";
+import { HttpError } from "@/lib/http";
 import { clampTitle } from "@/lib/titleLimit";
 
 // Freitext von der Nutzerin — gedeckelt, damit niemand über die Beschreibung
 // beliebig viel in die Datenbank schreibt. Zwei Sätze passen bequem hinein.
 const DESCRIPTION_MAX = 500;
+const FOLDER_LEARN_CARD_LIMIT = 2000;
 
 // Titel (#612): trimmen + auf 120 kappen statt abweisen, gleiches Schema wie
 // bei Decks (deckService, Begründung in titleLimit.ts).
@@ -102,7 +105,18 @@ export async function countDecksByFolderForUser(userId: string) {
 
 /** Alle Karten der Decks eines Ordners (#612). null = nicht der Besitzer → 404. */
 export async function listCardsInFolderForUser(folderId: string, userId: string) {
-  return listCardsInFolder(folderId, userId);
+  try {
+    return await listCardsInFolder(folderId, userId, FOLDER_LEARN_CARD_LIMIT);
+  } catch (error) {
+    if (error instanceof RowLimitExceededError) {
+      throw new HttpError(
+        `Dieser Ordner enthält mehr als ${FOLDER_LEARN_CARD_LIMIT} Karten. Teile ihn zum Lernen in kleinere Ordner auf.`,
+        413,
+        "FOLDER_TOO_LARGE"
+      );
+    }
+    throw error;
+  }
 }
 
 export async function listFoldersForDeckForUser(deckId: string) {
