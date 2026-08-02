@@ -2,7 +2,7 @@ import { type NextRequest } from "next/server";
 import { jsonError, jsonOk, normalizeError } from "@/lib/http";
 import { createRequestContext } from "@/lib/observability";
 import { getAuthUser } from "@/lib/auth";
-import { awardSessionMilestones, earnLp } from "@/services/lpService";
+import { awardSessionMilestones, earnLp, getLpProfile } from "@/services/lpService";
 import { getSubscriptionStatus } from "@/services/subscriptionService";
 import { lpEarnRequestSchema } from "@/lib/contracts";
 
@@ -36,15 +36,16 @@ export async function POST(request: NextRequest) {
     // Auch wenn `granted` 0 ist (Tageslimit erreicht) wurde gelernt — der
     // Meilenstein hängt an der Sitzung, nicht an der Gutschrift.
     const milestones = await awardSessionMilestones(auth.userId);
+    // Eine Meilenstein-Gutschrift ist eine zweite atomare Buchung nach earnLp.
+    // Den neuen Stand deshalb aus der Datenbank lesen: Addieren würde
+    // gleichzeitige Käufe, Werbe-Boni oder andere Gutschriften überschreiben
+    // und dem Client einen erfundenen Kontostand melden (#702).
+    const newBalance =
+      milestones.length > 0 ? (await getLpProfile(auth.userId)).balance : result.newBalance;
 
     return jsonOk(requestId, {
       granted: result.granted,
-      // Die Meilenstein-Punkte fließen NACH der Sitzungs-Gutschrift, stehen in
-      // `result.newBalance` also noch nicht drin. Ohne diese Korrektur zeigte
-      // der Client einen Kontostand, der die gerade verkündeten Boni nicht
-      // enthält.
-      newBalance:
-        result.newBalance + milestones.reduce((sum, m) => sum + m.lpGranted, 0),
+      newBalance,
       capReached: result.capReached,
       milestones,
     });
