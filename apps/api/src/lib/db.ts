@@ -2527,7 +2527,8 @@ export async function getSessionProgress(
     .eq("deck_id", deckId)
     .eq("mode", mode)
     .maybeSingle();
-  if (error || !data) return null;
+  if (error) throw new Error(`getSessionProgress: ${error.message}`);
+  if (!data) return null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const row = data as any;
   return {
