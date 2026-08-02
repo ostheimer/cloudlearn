@@ -1,19 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getLimitsForTier } from "@/lib/featureGates";
-import type { DeckRecord } from "@/lib/db";
 
 const dbMocks = vi.hoisted(() => ({
   getDeletedCard: vi.fn(),
   getDeletedDeck: vi.fn(),
   listCardsForDeck: vi.fn(),
-  listDecks: vi.fn(),
-  countUserDecks: vi.fn(),
   listTrash: vi.fn(),
   purgeAllTrash: vi.fn(),
   purgeTrashCard: vi.fn(),
   purgeTrashDeck: vi.fn(),
   restoreCard: vi.fn(),
-  restoreDeck: vi.fn(),
+  restoreDeckWithinLimit: vi.fn(),
 }));
 
 const subscriptionMocks = vi.hoisted(() => ({ getSubscriptionStatus: vi.fn() }));
@@ -29,17 +26,6 @@ const USER_ID = "6e5db9e4-7e48-4e11-8d8c-6ca90c18d42a";
 const DECK_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const CARD_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 
-function decks(count: number): DeckRecord[] {
-  return Array.from({ length: count }, (_, i) => ({
-    id: `d${i}`,
-    userId: USER_ID,
-    title: `Deck ${i}`,
-    tags: [],
-    createdAt: "2026-07-08T10:00:00.000Z",
-    updatedAt: "2026-07-08T10:00:00.000Z",
-  }));
-}
-
 beforeEach(() => {
   vi.clearAllMocks();
   subscriptionMocks.getSubscriptionStatus.mockResolvedValue({ tier: "free" });
@@ -48,28 +34,29 @@ beforeEach(() => {
     title: "Waidmannssprache",
     deletedAt: "2026-07-09T12:00:00.000Z",
   });
-  dbMocks.restoreDeck.mockResolvedValue(true);
+  dbMocks.restoreDeckWithinLimit.mockResolvedValue("restored");
   dbMocks.restoreCard.mockResolvedValue(true);
 });
 
 describe("restoreDeckForUser", () => {
   it("holt das Deck zurück, wenn im Tarif Platz ist", async () => {
-    dbMocks.countUserDecks.mockResolvedValue(3);
-  dbMocks.listDecks.mockResolvedValue(decks(3));
     expect(await restoreDeckForUser(USER_ID, DECK_ID)).toBe(true);
-    expect(dbMocks.restoreDeck).toHaveBeenCalledWith(DECK_ID, USER_ID);
+    expect(dbMocks.restoreDeckWithinLimit).toHaveBeenCalledWith(
+      DECK_ID,
+      USER_ID,
+      getLimitsForTier("free").maxDecks
+    );
   });
 
-  it("lehnt ehrlich ab, wenn die Deck-Grenze erreicht ist", async () => {
+  it("lehnt ehrlich ab, wenn die atomare Wiederherstellung die Deck-Grenze erreicht", async () => {
     // Ohne diese Prüfung wäre der Papierkorb ein Weg um die Tarifgrenze:
     // löschen, neu anlegen, alles zurückholen (#611 — ablehnen statt kappen).
-    dbMocks.countUserDecks.mockResolvedValue(getLimitsForTier("free").maxDecks);
-    dbMocks.listDecks.mockResolvedValue(decks(getLimitsForTier("free").maxDecks));
+    dbMocks.restoreDeckWithinLimit.mockResolvedValue("limit_reached");
 
     await expect(restoreDeckForUser(USER_ID, DECK_ID)).rejects.toMatchObject({
       code: "DECK_LIMIT_REACHED",
     });
-    expect(dbMocks.restoreDeck).not.toHaveBeenCalled();
+    expect(dbMocks.restoreDeckWithinLimit).toHaveBeenCalledOnce();
   });
 
   it("meldet ein Deck, das nicht im Papierkorb liegt, ohne Limit-Abfrage", async () => {

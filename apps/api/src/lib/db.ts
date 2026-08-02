@@ -2733,39 +2733,25 @@ export async function getDeletedDeck(
   return { id: data.id, title: data.title, deletedAt: data.deleted_at };
 }
 
-/**
- * Deck zurückholen, samt der Karten, die MIT ihm gelöscht wurden.
- *
- * Reihenfolge Karten -> Deck, genau umgekehrt zu softDeleteDeck: bricht der
- * zweite Schritt ab, hängen lebende Karten unter einem noch gelöschten Deck.
- * Alle gehärteten Leser joinen auf lebende Decks (#495), diese Karten bleiben
- * also unsichtbar statt in einem sichtbar leeren Deck zu fehlen — und ein
- * zweiter Versuch heilt es vollständig.
- */
-export async function restoreDeck(deckId: string, userId: string): Promise<boolean> {
+export type RestoreDeckResult = "restored" | "not_found" | "limit_reached";
+
+/** Deck und seine gleichzeitig gelöschten Karten atomar innerhalb des Limits zurückholen. */
+export async function restoreDeckWithinLimit(
+  deckId: string,
+  userId: string,
+  maxDecks: number
+): Promise<RestoreDeckResult> {
   const db = getDb();
-  const deck = await getDeletedDeck(deckId, userId);
-  if (!deck) return false;
-
-  const { error: cardsError } = await db
-    .from("cards")
-    .update({ deleted_at: null })
-    .eq("deck_id", deckId)
-    .eq("user_id", userId)
-    .eq("deleted_at", deck.deletedAt);
-  if (cardsError) throw new Error(`restoreDeck cards: ${cardsError.message}`);
-
-  const now = new Date().toISOString();
-  const { data, error } = await db
-    .from("decks")
-    .update({ deleted_at: null, updated_at: now })
-    .eq("id", deckId)
-    .eq("user_id", userId)
-    .not("deleted_at", "is", null)
-    .select("id")
-    .maybeSingle();
-  if (error) throw new Error(`restoreDeck: ${error.message}`);
-  return !!data;
+  const { data, error } = await db.rpc("restore_deck_with_limit", {
+    p_deck: deckId,
+    p_user: userId,
+    p_max_decks: maxDecks,
+  });
+  if (error) throw new Error(`restoreDeckWithinLimit: ${error.message}`);
+  if (data !== "restored" && data !== "not_found" && data !== "limit_reached") {
+    throw new Error("restoreDeckWithinLimit: invalid response");
+  }
+  return data;
 }
 
 /** Eine einzeln gelöschte Karte samt Zustand ihres Decks. */
