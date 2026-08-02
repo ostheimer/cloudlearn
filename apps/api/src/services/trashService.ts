@@ -15,23 +15,23 @@
  *  2. **Selbst Gelöschtes kommt nicht zurück.** Wer eine Karte einzeln
  *     weggeworfen und später das ganze Deck gelöscht hat, bekommt beim
  *     Deck-Restore genau die Karten zurück, die MIT dem Deck gefallen sind —
- *     die einzeln entsorgte bleibt weg (Zeitstempel-Regel in db.restoreDeck).
- *     Sie steht danach im Papierkorb unter „einzelne Karten" und lässt sich
- *     von dort separat zurückholen.
+ *     die einzeln entsorgte bleibt weg (Zeitstempel-Regel in
+ *     db.restoreDeckWithinLimit). Sie steht danach im Papierkorb unter
+ *     „einzelne Karten" und lässt sich von dort separat zurückholen.
  */
 import { z } from "zod";
 import {
   getDeletedCard,
   getDeletedDeck,
-  countUserDecks,
   listCardsForDeck,
   listTrash,
   purgeAllTrash,
   purgeTrashCard,
   purgeTrashDeck,
   restoreCard,
-  restoreDeck,
+  restoreDeckWithinLimit,
 } from "@/lib/db";
+import { getLimitsForTier } from "@/lib/featureGates";
 import { HttpError } from "@/lib/http";
 import { assertCardLimit, assertDeckLimit } from "@/lib/limits";
 import { getSubscriptionStatus } from "./subscriptionService";
@@ -62,11 +62,13 @@ export async function restoreDeckForUser(userId: string, deckId: string): Promis
   if (!deck) return false;
 
   const { tier } = await getSubscriptionStatus(userId);
-  // countUserDecks statt listDecks: archivierte Decks zählen mit, seit es
-  // das Archiv gibt (#614) — sie sind nicht weg, nur ausgeblendet.
-  assertDeckLimit(tier, await countUserDecks(userId));
-
-  return restoreDeck(deckId, userId);
+  const maxDecks = getLimitsForTier(tier).maxDecks;
+  const result = await restoreDeckWithinLimit(deckId, userId, maxDecks);
+  if (result === "limit_reached") {
+    // Die vorhandene Fehlersprache und der stabile Fehlercode bleiben gleich.
+    assertDeckLimit(tier, maxDecks);
+  }
+  return result === "restored";
 }
 
 /**
