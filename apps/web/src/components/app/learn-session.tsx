@@ -45,7 +45,7 @@ import {
   type SessionAwardState,
 } from "@/lib/learn-session-lp";
 import { useCoarsePointer } from "@/lib/use-coarse-pointer";
-import { saveSessionProgress, type SessionProgress } from "@/lib/session-progress";
+import { saveSessionProgress, type SessionProgress, type StoredCardResult } from "@/lib/session-progress";
 import { clearProgressEverywhere, pushProgressToAccount } from "@/lib/session-progress-sync";
 import { createReviewSendBuffer } from "@/lib/review-send-buffer";
 import { ratingKeyIndex } from "@/lib/learn-keys";
@@ -54,6 +54,8 @@ import {
   persistedReviewCount,
   unsavedReviewsNotice,
 } from "@/lib/unsaved-reviews";
+
+import { resultsBefore, flashcardResults } from "@/lib/flashcard-results";
 
 const RATINGS: { key: ReviewRating; label: string; cls: string }[] = [
   { key: "again", label: "Nochmal", cls: "rating--again" },
@@ -93,6 +95,7 @@ export function LearnSession({
   backLabel,
   startAt,
   startReverse,
+  startResults,
   progressDeckId,
   progressSource,
 }: {
@@ -101,6 +104,7 @@ export function LearnSession({
   backLabel: string;
   startAt?: number | undefined;
   startReverse?: boolean | undefined;
+  startResults?: Record<string, StoredCardResult> | undefined;
   progressDeckId?: string | undefined;
   progressSource?: string | undefined;
 }) {
@@ -119,13 +123,14 @@ export function LearnSession({
   );
   // Wo DIESE Runde begonnen hat: 0 normalerweise, beim Weitermachen die
   // Einstiegskarte. Die übersprungenen Karten wurden letztes Mal bewertet und
-  // abgerechnet — Auswertung und LP zählen nur, was ab hier gelernt wurde.
+  // abgerechnet — LP zählen nur neu gelernte Karten, die Auswertung auch gespeicherte Ergebnisse.
   const [startIndex, setStartIndex] = useState(() =>
     Math.min(Math.max(startAt ?? 0, 0), Math.max(pool.length - 1, 0))
   );
   const [flipped, setFlipped] = useState(false);
-  const [correct, setCorrect] = useState(0);
-  const [notKnown, setNotKnown] = useState<Card[]>([]);
+  const [priorResults, setPriorResults] = useState(() => resultsBefore(pool, startIndex, startResults));
+  const [correct, setCorrect] = useState(() => Object.values(priorResults).filter((result) => result.correct).length);
+  const [notKnown, setNotKnown] = useState<Card[]>(() => pool.filter((card) => priorResults[card.id]?.correct === false));
   // Abfrage-Richtung: false = Vorderseite zuerst. Mitten in der Runde
   // tauschbar wie in der App; beim Weitermachen wird die Richtung der
   // unterbrochenen Runde wiederhergestellt.
@@ -138,6 +143,10 @@ export function LearnSession({
   // Bewertete Karten dieser Sitzung, für den Zurück-Pfeil: welche Position
   // und welche Bewertung — so lassen sich Zähler und Stapel zurückdrehen.
   const [history, setHistory] = useState<{ index: number; rating: ReviewRating }[]>([]);
+  const roundResults = useMemo(
+    () => flashcardResults(cards, index, priorResults, history),
+    [cards, index, priorResults, history]
+  );
   const [earned, setEarned] = useState<number | null>(null);
   const [earnCapReached, setEarnCapReached] = useState(false);
   // Anzeigename fürs persönliche Lob am Ende — ohne ihn bleibt es beim
@@ -431,8 +440,9 @@ export function LearnSession({
       source: progressSource,
       reverse,
       total,
+      results: roundResults,
     });
-  }, [progressDeckId, progressSource, cards, index, done, total, reverse]);
+  }, [progressDeckId, progressSource, cards, index, done, total, reverse, roundResults]);
 
   // Beim Verlassen der Runde den Stand ins Konto schreiben (#610). Bewusst
   // NICHT bei jedem Kartenwechsel: Das wäre eine Anfrage je Karte. Der Ref
@@ -447,6 +457,7 @@ export function LearnSession({
           source: progressSource,
           reverse,
           total,
+          results: roundResults,
         }
       : null;
   useEffect(() => {
@@ -641,6 +652,7 @@ export function LearnSession({
     setEarnCapReached(false);
     setCards(next);
     setNotKnown([]);
+    setPriorResults({});
     setIndex(0);
     // Folge-Runden („Nur die nicht gewussten" / „Alle nochmal") beginnen
     // wieder ganz vorn — der Weitermachen-Einstieg galt nur der ersten.
@@ -668,9 +680,9 @@ export function LearnSession({
   }
 
   if (done) {
-    // Beim Weitermachen zählt die Auswertung nur die in DIESER Runde
-    // gelernten Karten — die übersprungenen wurden letztes Mal bewertet.
-    const studied = total - startIndex;
+    // Die Auswertung enthält auch bekannte Antworten vor der Unterbrechung.
+    // Alte Lesezeichen ohne Ergebnisse zählen nur die aktuelle Sitzung.
+    const studied = Object.keys(roundResults).length;
     return (
       <div className="study-wrap">
         <div className="study-done">

@@ -151,12 +151,12 @@ Der ausfüllbare Entwurf liegt in
 
 Wichtig für die Antworten:
 
-- Nicht `kein Tracking` angeben, solange personalisierte Werbung nach ATT-Opt-in
-  technisch möglich ist.
-- Google Mobile Ads und Google User Messaging Platform müssen mitgedacht werden.
-- Ohne ATT-Opt-in zeigt die App nur nicht-personalisierte Rewarded Ads.
-- ATT wird erst kontextuell vor einem relevanten Werbe-/Tracking-Moment gefragt,
-  nicht beim ersten App-Start.
+- Rewarded Ads sind deaktiviert (`REAL_ADS_ENABLED=false`); die App bietet
+  keine Werbeaktion zum Verdienen von LP und simuliert keine Werbung.
+- Der ATT-Opt-in bleibt in den Tracking-Einstellungen vorhanden. Eine gespeicherte
+  Zustimmung aktiviert keine Werbeauslieferung.
+- Google Mobile Ads und weitere enthaltene SDKs anhand des tatsächlichen
+  Release-Builds prüfen. Nicht allein aus deaktivierten Ads auf `kein Tracking` schließen.
 
 ## Review Notes
 
@@ -190,7 +190,7 @@ clearn nutzt RevenueCat für Store-Produkte und Entitlements.
 - ai.clearn.lifetime
 
 Werbung und Tracking:
-Ohne ATT-Opt-in zeigt die App nur nicht-personalisierte Rewarded Ads. Personalisierte Werbung und darüber hinausgehendes Tracking werden erst nach expliziter Zustimmung aktiviert.
+Rewarded Ads sind in diesem Release deaktiviert (REAL_ADS_ENABLED=false). Es gibt keine Werbeaktion zum Verdienen von LP und keine simulierte Werbung. Die Tracking-Einstellungen und der ATT-Opt-in bleiben vorhanden; eine gespeicherte Zustimmung aktiviert keine Werbeauslieferung.
 
 Konto-Löschung:
 Nutzer können ihr Konto im Profil löschen. Die Löschung ist sofortig und endgültig und entfernt Konto, Decks, Karten, Reviews, Scans und Lernfortschritt. Ein aktives Apple- oder Google-Abo wird dabei nicht automatisch beendet; die App weist vor der Löschung darauf hin.

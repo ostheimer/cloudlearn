@@ -1,6 +1,6 @@
 # App Store Review Notes
 
-Stand: 2026-05-02
+Stand: 2026-09-05 (Werbe-Scope aktualisiert; übrige Funktionen vor Einreichung am Release-Build prüfen)
 
 ## Ziel
 
@@ -54,10 +54,13 @@ Die App bietet Restore und Store-Abo-Verwaltung im Profil bzw. in der Paywall an
 
 ### Werbung und Tracking
 
-Rewarded Ads sind Teil des Launch-Scopes.
-Ohne ATT-Opt-in zeigt die App nur nicht-personalisierte Rewarded Ads.
-Personalisierte Werbung und darüber hinausgehendes Tracking werden erst nach expliziter Zustimmung aktiviert.
-Der native ATT-Dialog erscheint nicht direkt beim ersten App-Start, sondern kontextuell vor einem relevanten Werbe-/Tracking-Moment.
+Rewarded Ads sind in diesem Release deaktiviert (`REAL_ADS_ENABLED=false`).
+Die App bietet keine Werbeaktion zum Verdienen von LP und simuliert keine Werbung.
+Die Tracking-Einstellungen im Profil und der ATT-Opt-in bleiben vorhanden;
+eine gespeicherte Zustimmung aktiviert keine Werbeauslieferung.
+Der Werbe-Hook löst bei deaktivierten Ads keinen ATT-Dialog aus.
+Die Datenschutzangaben sind vor Einreichung anhand des tatsächlichen Release-Builds
+und seiner SDKs zu prüfen; der deaktivierte Werbe-Scope allein belegt nicht „kein Tracking“.
 
 ### Konto-Löschung
 

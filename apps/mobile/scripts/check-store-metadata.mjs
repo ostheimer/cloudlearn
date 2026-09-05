@@ -218,6 +218,18 @@ includesAll("Fill-in pack", docs.fillIn, expected.productIds);
 includesAll("Review notes", docs.reviewNotes, expected.productIds);
 includesAll("Review notes", docs.reviewNotes, expected.entitlements);
 includesAll("Review notes", docs.reviewNotes, expected.requiredReviewPhrases);
+const adsMode = fs.readFileSync(
+  path.join(repoRoot, "apps/mobile/src/features/ads/adsMode.ts"), "utf8",
+);
+if (/export const REAL_ADS_ENABLED(?::\s*boolean)?\s*=\s*false/.test(adsMode)) {
+  for (const [label, text] of [["Review notes", docs.reviewNotes], ["Fill-in pack", docs.fillIn]]) {
+    record(text.includes("REAL_ADS_ENABLED=false"), `${label} documents disabled ads release`);
+    record(
+      !/Rewarded Ads sind Teil des Launch-Scopes|zeigt die App nur nicht-personalisierte Rewarded Ads/.test(text),
+      `${label} does not promise ads while disabled`,
+    );
+  }
+}
 record(docs.reviewNotes.includes("<REVIEW_EMAIL>"), "Review notes keep review email placeholder");
 record(docs.reviewNotes.includes("<REVIEW_PASSWORD>"), "Review notes keep review password placeholder");
 record(docs.fillIn.includes("<REVIEW_EMAIL>"), "Fill-in pack keeps review email placeholder");

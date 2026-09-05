@@ -454,6 +454,7 @@ function AuthenticatedLearnScreen({
           source,
           reverse: showBackFirst,
           total: cards.length,
+          results: storedResultsFrom(cards, history, ratingHistory),
         }
       : null;
   useEffect(() => {

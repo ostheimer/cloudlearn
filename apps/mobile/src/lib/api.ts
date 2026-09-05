@@ -1157,23 +1157,6 @@ export async function getStreakCalendar(month: string): Promise<StreakCalendarRe
   );
 }
 
-// ─── LP Pack Purchase ──────────────────────────────────────────────────────────
-
-export interface LpPurchaseResponse {
-  lpGranted: number;
-  newBalance: number;
-}
-
-export async function grantLpPackPurchase(
-  packId: string,
-  transactionId: string
-): Promise<LpPurchaseResponse> {
-  return requestAuthenticated<LpPurchaseResponse>("/api/v1/lp/purchase", {
-    method: "POST",
-    body: JSON.stringify({ packId, transactionId }),
-  });
-}
-
 // ─── Referral ──────────────────────────────────────────────────────────────────
 
 export interface ReferralClaimResponse {

@@ -212,6 +212,7 @@ export default function LearnPage() {
         backHref={`/dashboard/deck/${deckId}`}
         backLabel="Zurück zum Deck"
         startAt={resumeAt}
+        startResults={resumeAt !== undefined ? saved?.results : undefined}
         // Beim Weitermachen gewinnt die Richtung der unterbrochenen Runde — die
         // fortgesetzten Karten werden genauso herum abgefragt wie die davor.
         // Sonst zählt, was im Setup gewählt wurde (#571 Teil B).

@@ -13,36 +13,32 @@ const GOOGLE_ADMOB_TEST_APP_IDS = {
   android: "ca-app-pub-3940256099942544~3347511713",
 };
 
-function getRequiredProductionEnv(name) {
-  const value = process.env[name]?.trim();
-  if (value) return value;
-
-  if (IS_PRODUCTION) {
-    throw new Error(
-      `${name} is required for production builds. Set it as an EAS secret before submitting clearn.`
-    );
-  }
-
-  return null;
-}
-
-// AdMob: use real IDs in production, Google test IDs in dev/preview
-const ADMOB_IOS_APP_ID =
-  IS_PRODUCTION
-    ? getRequiredProductionEnv("EXPO_PUBLIC_ADMOB_APP_IOS_ID")
-    : GOOGLE_ADMOB_TEST_APP_IDS.ios; // Google test app ID (iOS)
-
-const ADMOB_ANDROID_APP_ID =
-  IS_PRODUCTION
-    ? getRequiredProductionEnv("EXPO_PUBLIC_ADMOB_APP_ANDROID_ID")
-    : GOOGLE_ADMOB_TEST_APP_IDS.android; // Google test app ID (Android)
+// Expo loads this configuration as CommonJS.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { releasePlatforms, productionVariables, validProductionValue } = require("./scripts/release-platform.cjs");
+const platforms = releasePlatforms();
 
 if (IS_PRODUCTION) {
-  getRequiredProductionEnv("EXPO_PUBLIC_ADMOB_REWARDED_IOS_ID");
-  getRequiredProductionEnv("EXPO_PUBLIC_ADMOB_REWARDED_ANDROID_ID");
-  getRequiredProductionEnv("EXPO_PUBLIC_REVENUECAT_IOS_API_KEY");
-  getRequiredProductionEnv("EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY");
+  for (const platform of platforms) {
+    for (const { name, pattern } of productionVariables(platform)) {
+      const value = process.env[name]?.trim();
+      if (!value) {
+        throw new Error(`${name} is required for production builds. Set it in EAS before submitting clearn.`);
+      }
+      if (!validProductionValue(value, pattern)) {
+        throw new Error(`${name} is invalid for production builds. Set a valid production value in EAS before submitting clearn.`);
+      }
+    }
+  }
 }
+
+// Omit the other platform's ID in a targeted production build; never substitute a test ID.
+const ADMOB_IOS_APP_ID = IS_PRODUCTION
+  ? (platforms.includes("ios") ? process.env.EXPO_PUBLIC_ADMOB_APP_IOS_ID?.trim() : undefined)
+  : GOOGLE_ADMOB_TEST_APP_IDS.ios;
+const ADMOB_ANDROID_APP_ID = IS_PRODUCTION
+  ? (platforms.includes("android") ? process.env.EXPO_PUBLIC_ADMOB_APP_ANDROID_ID?.trim() : undefined)
+  : GOOGLE_ADMOB_TEST_APP_IDS.android;
 
 const FACE_ID_PERMISSION =
   "clearn verwendet Face ID, um deine eingeloggte App lokal zu entsperren.";

@@ -973,7 +973,7 @@ Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testf�
 - **Streaks + TTS + Push-Notifications**: Tagesserien-Tracking, Vorlesen (expo-speech), konfigurierbare tägliche Erinnerungen
 - **Erweiterte Lernmodi**: Flip-Animation, Swipe (4 FSRS-Stufen, Tinder-Stil), Test-Modus (MC/Wahr-Falsch), Match-Spiel (Timer, Sterne), Auto-Play, Image Occlusion
 - **Bibliothek**: Kurse, Ordner, Deck duplizieren, Deck teilen (Deep-Link), Offline-Download (AsyncStorage-Cache für Deck-Detail mit Karten-Fallback bei API-Fehlern), Deck-Details, Kartenanzahl
-- **LP-System**: Lernpunkte als universelle Währung — Balance, Verdienen (Reviews, Streaks, Referrals), Ausgeben (KI-Features), LP-Packs (RevenueCat), Leaderboard, Freundesliste, Rewarded Ads (AdMob)
+- **LP-System**: Lernpunkte als universelle Währung — Balance, Verdienen (Reviews, Streaks, Referrals), Ausgeben (KI-Features), LP-Packs (RevenueCat), Leaderboard, Freundesliste. Rewarded Ads sind deaktiviert (`REAL_ADS_ENABLED=false`): keine Werbeaktion und keine Mock-Wiedergabe. AdMob/SSV-Code bleibt für eine separat zu prüfende spätere Freigabe vorhanden; die Tracking-Einstellungen samt ATT bleiben erhalten.
 - **Onboarding-Flow**: 3-Schritte-Onboarding, Starter-Deck, Routing-Fix für Authenticated-/New-User-Pfade
 
 ### Scaffold vorhanden, noch nicht vollständig funktionsfähig

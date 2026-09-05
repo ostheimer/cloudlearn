@@ -17,6 +17,7 @@ import {
   purchaseRevenueCatPackage,
   restoreRevenueCatPurchases,
   type RevenueCatOffer,
+  type RevenueCatAvailability,
 } from "../src/features/paywall/revenuecat";
 import { filterSubscriptionOffers } from "../src/features/paywall/subscriptionOffers";
 import { type SubscriptionTier } from "../src/features/paywall/subscriptionMapping";
@@ -83,7 +84,7 @@ export default function PaywallScreen() {
   const [activePurchaseId, setActivePurchaseId] = useState<string | null>(null);
   const [isRestoring, setIsRestoring] = useState(false);
   const [availabilityReason, setAvailabilityReason] = useState<
-    "native_module_unavailable" | "missing_api_key" | null
+    RevenueCatAvailability["reason"]
   >(null);
 
   const usageStore = useUsageStore();
