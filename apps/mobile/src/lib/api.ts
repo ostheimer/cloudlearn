@@ -506,6 +506,7 @@ export interface ServerSessionProgress {
   source: string;
   reverse: boolean;
   total: number;
+  cardIds?: string[];
   results?: Record<string, { correct: boolean; overridden: boolean }>;
   /** Server-Zeitstempel — entscheidet gegen den lokalen Stand (progressMerge). */
   savedAt?: string;

@@ -1,6 +1,6 @@
 # Shipaton 2026 – PM-Plan
 
-Stand: 5. September 2026. Vorbereitung und autorisierte lokale Umsetzung laufen; keine erfolgte Anmeldung oder Veröffentlichung.
+Stand: 8. September 2026. Vorbereitung und autorisierte lokale Umsetzung laufen; keine erfolgte Anmeldung oder Veröffentlichung.
 
 ## Bestätigter Umfang
 
@@ -12,7 +12,7 @@ Arbeitsannahme: iOS zuerst, da bereits ein interner iOS-Build dokumentiert ist. 
 
 | Zieltermin | Ergebnis | Abnahme |
 | --- | --- | --- |
-| 8. September | Release-Bestand geklärt | Aktuelle Store-/RevenueCat-/EAS-Konfiguration geprüft; alte Dokumentationslücken von echten Blockern getrennt |
+| 8. September | Release-Bestand klären – noch nicht abgenommen | Aktuelle Store-/RevenueCat-/EAS-Konfiguration prüfen; alte Dokumentationslücken von echten Blockern trennen. Die lokale Umsetzung ersetzt diese Bestandsaufnahme nicht. |
 | 15. September | Enger Release-Kandidat | Kern-Lernablauf und Kauf-/Restore-Code geprüft; notwendige Fehler behoben; angemessene lokale Checks grün; native Abnahme bis 19. September vorbereitet |
 | 20. September | Einreichungspaket bereit | Auf Gerät verifizierte Demo, englische Texte, finale Screenshots, Jury-Zugang und korrekte Store-Metadaten |
 | 23. September | Store-Einreichungsziel | Release-Build und Store-Einreichung nach konkreter Freigabe; Review-Puffer beginnt |
@@ -32,7 +32,9 @@ Termine sind Planungsziele, keine Zusage einer Store-Freigabe. Bei Verzögerunge
 
 PM priorisiert und prüft Ergebnisse; abgegrenzte Recherche-/Implementierungsaufgaben werden delegiert. Keine zusätzliche Automatisierung oder dauerhafte Überwachung ist eingerichtet.
 
-Andreas hat lokale Entwicklung und Tests ausdrücklich autorisiert: notwendige Fehler beheben, projektbezogene Abhängigkeiten installieren, lokale Tests/Builds und Browser-Verifikation ausführen. Plattform-Gates, RevenueCat-Kontowechsel bei Fehlern und sichtbare Mock-Werbeaktionen sind lokal bearbeitet. Gezielte Prüfungen, Web-Build, drei Browser-Smokes und iOS-Bundle-Export sind erfolgreich; die vollständige lokale CI ist grün. Ergebnisseverlust beim Kontosync und iOS-Scan-Kostenhilfe sind ebenfalls lokal behoben. Verbleibende Teilpunkte und genaue Nachweise stehen in [local-validation.md](local-validation.md). Ein Bundle-Export ersetzt keinen signierten App-Build oder Gerätetest.
+Andreas hat lokale Entwicklung und Tests ausdrücklich autorisiert: notwendige Fehler beheben, projektbezogene Abhängigkeiten installieren, lokale Tests/Builds und Browser-Verifikation ausführen. Plattform-Gates, RevenueCat-Kontowechsel bei Fehlern und sichtbare Mock-Werbeaktionen sind lokal bearbeitet. Die Prüfung vom 5. September umfasste erfolgreiche gezielte Tests, Web-Build, drei Browser-Smokes, iOS-Bundle-Export und vollständige lokale CI. Ergebnisseverlust beim Kontosync und iOS-Scan-Kostenhilfe sind ebenfalls lokal behoben. Diese Nachweise gehören zum Stand vom 5. September in [local-validation.md](local-validation.md).
+
+Am 8. September ist zusätzlich die Wiederaufnahme veränderter Fälligkeitsstapel lokal umgesetzt und zusammen mit dem mobilen Hintergrundsync geprüft. Die letzte Bewertung wird vor dem Konto-Merker in der Offline-Warteschlange gesichert. Finale lokale CI (2.225 Tests), vier Resume-Browserflows, Web-Produktionsbuild und Web-/iOS-Bundle-Exporte sind grün. Der [aktuelle Resume-Bericht](resume-validation.md) trennt Teilnachweise, synthetische Browserprüfung und ausstehende Geräteabnahme. Vor einem späteren API-Deployment ist die additive `card_ids`-Migration erforderlich. Ein Bundle-Export ersetzt keinen signierten App-Build oder Gerätetest.
 
 Noch keine kostenpflichtigen Cloud-Builds, Anmeldung, externe Nachrichten, Sicherheits-/Zugangsdatenänderungen oder Veröffentlichung autorisiert. Vor einem autorisierten Build vorhandene Builds prüfen und Kosten/Quota transparent nennen. Fertige Änderungen für einen gemeinsamen Build bündeln.
 

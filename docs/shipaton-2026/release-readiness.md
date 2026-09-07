@@ -1,6 +1,6 @@
 # Shipaton 2026: Release-Lücken und Abnahme
 
-Stand: 5. September 2026. Ziel: Store-Einreichung bis 23. September 2026; öffentliche Erstveröffentlichung muss anschließend rechtzeitig für die Wettbewerbsfrist erfolgen. Eine Einreichung oder TestFlight-Verfügbarkeit ist noch keine öffentliche Veröffentlichung.
+Stand: 8. September 2026. Ziel: Store-Einreichung bis 23. September 2026; öffentliche Erstveröffentlichung muss anschließend rechtzeitig für die Wettbewerbsfrist erfolgen. Eine Einreichung oder TestFlight-Verfügbarkeit ist noch keine öffentliche Veröffentlichung.
 
 Andreas hat bestätigt: Die App war noch nie öffentlich im Store; er ist alleiniger Entwickler. Die Bewertung bezieht sich auf die reguläre Teilnahme. Wettbewerbsbedingungen und Einreichungsmaterialien werden separat dokumentiert.
 
@@ -9,7 +9,7 @@ Andreas hat bestätigt: Die App war noch nie öffentlich im Store; er ist allein
 - Historischer Ausgangspunkt: Checkout `0d0db0f` vom 31. Juli 2026, am 5. September geprüft. Anschließend wurden lokale Änderungen auf `codex/shipaton-2026-preparation` umgesetzt und gezielt getestet; siehe aktuellen Stand unten.
 - GitHub Issues wurden am 5. September gelesen. Ihre Juli-Berichte sind historische Hinweise, keine neue Reproduktion.
 - Externe EAS-, RevenueCat-, App-Store-Connect-, AdMob- und Supabase-Konfiguration wurde hier nicht verifiziert.
-- Die Erstprüfung war read-only. Danach hat Andreas lokale Entwicklung und Tests ausdrücklich autorisiert. Lokaler Web-Build und iOS-Bundle-Export sind erfolgreich; es wurde kein signierter App-/EAS-Build erzeugt. Keine Käufe, externen Änderungen oder Security-Scans. Die vollständige lokale CI ist grün; Details und Grenzen stehen in [local-validation.md](local-validation.md).
+- Die Erstprüfung war read-only. Danach hat Andreas lokale Entwicklung und Tests ausdrücklich autorisiert. Lokaler Web-Build und iOS-Bundle-Export sind erfolgreich; es wurde kein signierter App-/EAS-Build erzeugt. Keine Käufe, externen Änderungen oder Security-Scans. Die vollständige lokale CI vom 5. September war grün; Details und Grenzen stehen in [local-validation.md](local-validation.md). Die zusätzlichen Änderungen vom 8. September sind gesondert in [resume-validation.md](resume-validation.md) geprüft; finale gemeinsame CI und Mobile-Exporte nach dem Hintergrundsync sind grün.
 
 ## Priorisierte Lücken
 
@@ -21,7 +21,7 @@ Andreas hat bestätigt: Die App war noch nie öffentlich im Store; er ist allein
 | Lokal behoben; Geräteabnahme offen | **Implementiert:** Echte Ads bleiben deaktiviert. Sichtbare Mock-Werbeaktionen wurden entfernt beziehungsweise gesperrt; die simulierte Belohnung wird nicht mehr angeboten. Store-/Review-Texte wurden dem tatsächlichen Umfang angepasst. [Issue #165](https://github.com/ostheimer/cloudlearn/issues/165) beschreibt nur historische Aktivierungsschritte. | Am Kandidaten prüfen, dass keine Schein-Werbung oder falschen LP-Versprechen sichtbar sind. Keine Ads-Aktivierung für dieses Paket. Eine spätere Aktivierung benötigt separat verifizierte DB-/AdMob-/SSV-Kette. |
 | P0 | **Aktueller Dateibestand:** `docs/screens/app-store/` enthält nur README, keine finalen Screenshots. **Lokale Metadatenprüfung grün:** Sie prüft Textkonsistenz und den beschriebenen Screenshot-Workflow, nicht vorhandene Bilddateien oder Uploads. | Fünf aktuelle echte Screens aufnehmen, exportieren und visuell prüfen; im Store akzeptierte Maße vor Export aktuell verifizieren. Review-Zugang außerhalb von Git bereitstellen, Review Notes finalisieren, Metadata/Privacy/IAP-Status in App Store Connect abgleichen. |
 | P0 | **Fehlende aktuelle Evidenz:** E-Mail-Links, Apple/Google OAuth, Account-Löschung, Datenschutz-/Supportseiten und produktive Deployments sind nicht für diesen Release-Kandidaten neu abgenommen. | Vorhandene Runbooks gezielt abarbeiten; für extern schreibende Tests geeignete autorisierte Testkonten nutzen. Keine echten privaten Lerninhalte verwenden. |
-| P1 | **Historische offene Fehlerberichte:** [#697](https://github.com/ostheimer/cloudlearn/issues/697) Lernfortschritt, [#701](https://github.com/ostheimer/cloudlearn/issues/701) Scan-Kostensperren, [#702](https://github.com/ostheimer/cloudlearn/issues/702) Mengen-/Zähler-/LP-Probleme. Ergebnisseverlust bei Kontosync (#697) und iOS-Quellen-Kostenhilfe (#701) inzwischen reproduziert und lokal behoben. Beide Issues bleiben teilweise offen; Details im Prüfbericht. | Offene Teilpunkte nach Release-Auswirkung triagieren. Verlust von Lernfortschritt, falsche Echtgeld-/LP-Zustände und blockierter Kernflow priorisieren. Vor jedem Fix reproduzierenden Test rot, anschließend denselben Test grün. Keine pauschale Abarbeitung aller offenen Features. |
+| P1 | **Historische offene Fehlerberichte:** [#697](https://github.com/ostheimer/cloudlearn/issues/697) Lernfortschritt, [#701](https://github.com/ostheimer/cloudlearn/issues/701) Scan-Kostensperren, [#702](https://github.com/ostheimer/cloudlearn/issues/702) Mengen-/Zähler-/LP-Probleme. Ergebnisseverlust bei Kontosync (#697) und iOS-Quellen-Kostenhilfe (#701) reproduziert und lokal behoben. Seit 8. September ist auch Resume bei verändertem Fälligkeitsstapel lokal umgesetzt und geprüft; Hintergrundsync einschließlich dauerhafter Bewertungssicherung ist ebenfalls lokal umgesetzt und geprüft. Beide Issues bleiben bis zur jeweiligen vollständigen Abnahme teilweise offen; [aktueller Bericht](resume-validation.md). | Offene Teilpunkte nach Release-Auswirkung triagieren. Verlust von Lernfortschritt, falsche Echtgeld-/LP-Zustände und blockierter Kernflow priorisieren. Vor jedem Fix reproduzierenden Test rot, anschließend denselben Test grün. Keine pauschale Abarbeitung aller offenen Features. |
 | P1 | **Historische Geräteprüfliste:** [#735](https://github.com/ostheimer/cloudlearn/issues/735) enthält noch unbestätigte gerätespezifische Lern-/Scan-Verhaltensweisen. | Relevante Punkte in den einmaligen TestFlight-Durchlauf übernehmen: Scan-Sortierung, Lückentext-Vorlesen, Hintergrund/Resume, Navigation. Altes Preview-Build nicht als Abnahme des neuen Kandidaten verwenden. |
 
 ## Konkrete Arbeitspakete bis zum 23. September
@@ -42,7 +42,13 @@ Andreas hat bestätigt: Die App war noch nie öffentlich im Store; er ist allein
 - **App-Review:** Konto-Löschung mit geeignetem Testkonto, ATT-Zustimmung/Ablehnung entsprechend tatsächlichem Ads-Scope, Support/Datenschutz, Store-Verwaltung und Reviewer-Zugang.
 - **Abnahme-Evidenz:** Datum, Commit, Build-ID, Gerät/iOS, erwartetes/beobachtetes Ergebnis; keine Passwörter oder privaten Lerninhalte. Nach erfolgreicher Prüfung nicht unverändert mehrfach Volltests ausführen.
 
-## Aktueller lokaler Umsetzungsstand am 5. September
+## Lokale Fortschreibung am 8. September
+
+Die ursprüngliche Kartenreihenfolge und die Ergebnisse bleiben bei Wiederaufnahme einer veränderten Fällig-Runde für Mobile/Web erhalten. Vier lokale Browserflows sind grün; Auth/API werden darin synthetisch abgefangen. Die lokale PostgreSQL-17-Probe hat 60 Migrationen einschließlich `session_progress.card_ids` und den Snapshot-/Legacy-Roundtrip geprüft. Hintergrundsync samt Sicherung der letzten Bewertung, abschließende gemeinsame CI (2.225 bestandene Tests) und Mobile-Exporte sind grün. Produktionsmigration und native Abnahme stehen aus. Details, Grenzen und offene Nachweise: [resume-validation.md](resume-validation.md).
+
+Vor Deployment der neuen API muss die additive `card_ids`-Migration angewendet werden. Kein externes Deployment und kein kostenpflichtiger App-Build wurden durchgeführt. Physische Geräteabnahme und echte Store-/Backend-Flows bleiben offen.
+
+## Historischer lokaler Umsetzungsstand am 5. September
 
 - Release-Plattformregression zuerst gegen den Ausgangscode rot (7 Fehler), danach 34 neue Tests und 7 bestehende App-Konfigurationstests grün: **41/41**. Zielgerichtetes ESLint und Mobile-Typecheck grün.
 - RevenueCat-Kontowechsel bleibt bei Fehlern gesperrt; Mock-Werbeaktionen sind bereinigt. Diese Änderungen wurden von den zuständigen Agents umgesetzt und gezielt geprüft.

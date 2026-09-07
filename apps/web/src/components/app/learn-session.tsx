@@ -119,13 +119,13 @@ export function LearnSession({
   // after „Nur die nicht gewussten".
   const [cards, setCards] = useState<Card[]>(pool);
   const [index, setIndex] = useState(() =>
-    Math.min(Math.max(startAt ?? 0, 0), Math.max(pool.length - 1, 0))
+    Math.min(Math.max(startAt ?? 0, 0), pool.length)
   );
   // Wo DIESE Runde begonnen hat: 0 normalerweise, beim Weitermachen die
   // Einstiegskarte. Die übersprungenen Karten wurden letztes Mal bewertet und
   // abgerechnet — LP zählen nur neu gelernte Karten, die Auswertung auch gespeicherte Ergebnisse.
   const [startIndex, setStartIndex] = useState(() =>
-    Math.min(Math.max(startAt ?? 0, 0), Math.max(pool.length - 1, 0))
+    Math.min(Math.max(startAt ?? 0, 0), pool.length)
   );
   const [flipped, setFlipped] = useState(false);
   const [priorResults, setPriorResults] = useState(() => resultsBefore(pool, startIndex, startResults));
@@ -441,6 +441,7 @@ export function LearnSession({
       reverse,
       total,
       results: roundResults,
+      cardIds: cards.map((card) => card.id),
     });
   }, [progressDeckId, progressSource, cards, index, done, total, reverse, roundResults]);
 
@@ -458,6 +459,7 @@ export function LearnSession({
           reverse,
           total,
           results: roundResults,
+          cardIds: cards.map((card) => card.id),
         }
       : null;
   useEffect(() => {

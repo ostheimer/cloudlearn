@@ -30,6 +30,27 @@ import {
   type SessionProgress,
 } from "./sessionProgress";
 
+// Hintergrund-Speichern und Rundenende müssen in Aufruf-Reihenfolge beim
+// Konto ankommen: Ein später beendetes PUT darf kein DELETE rückgängig machen.
+// Andere Decks und Lernarten warten nicht aufeinander.
+const pendingAccountWrites = new Map<string, Promise<void>>();
+
+function queueAccountWrite(
+  deckId: string,
+  mode: ProgressMode,
+  write: () => Promise<void>
+): Promise<void> {
+  const key = `${deckId}:${mode}`;
+  const pending = (pendingAccountWrites.get(key) ?? Promise.resolve())
+    .then(write)
+    .catch(() => { /* Konto-Sync bleibt best effort. */ });
+  pendingAccountWrites.set(key, pending);
+  void pending.then(() => {
+    if (pendingAccountWrites.get(key) === pending) pendingAccountWrites.delete(key);
+  });
+  return pending;
+}
+
 /**
  * Den maßgeblichen Stand holen: lokal und aus dem Konto lesen, den neueren
  * nehmen. Der Aufrufer prüft danach wie bisher mit isProgressUsable, ob er zum
@@ -50,6 +71,7 @@ export async function loadBestProgress(
         source: remote.source,
         reverse: remote.reverse,
         total: remote.total,
+        ...(remote.cardIds ? { cardIds: remote.cardIds } : {}),
         ...(remote.results ? { results: remote.results } : {}),
         ...(remote.savedAt ? { savedAt: remote.savedAt } : {}),
       };
@@ -66,18 +88,17 @@ export async function pushProgressToAccount(
   mode: ProgressMode,
   progress: SessionProgress
 ): Promise<void> {
-  try {
+  await queueAccountWrite(deckId, mode, async () => {
     await putServerProgress(deckId, mode as ServerProgressMode, {
       index: progress.index,
       cardId: progress.cardId,
       source: progress.source,
       reverse: progress.reverse,
       total: progress.total,
+      ...(progress.cardIds ? { cardIds: progress.cardIds } : {}),
       ...(progress.results ? { results: progress.results } : {}),
     });
-  } catch {
-    // Best effort — der lokale Merker steht bereits.
-  }
+  });
 }
 
 /** Merker auf beiden Wegen löschen (Rundenende). */
@@ -85,11 +106,11 @@ export async function clearProgressEverywhere(
   deckId: string,
   mode: ProgressMode
 ): Promise<void> {
-  await clearSessionProgress(deckId, mode);
-  try {
+  // Sofort einreihen, damit auch ein während des lokalen Löschens gestartetes
+  // Speichern einer neuen Runde erst nach diesem DELETE läuft.
+  const remoteClear = queueAccountWrite(deckId, mode, async () => {
     await deleteServerProgress(deckId, mode as ServerProgressMode);
-  } catch {
-    // Ein liegengebliebener Konto-Eintrag wird nur angeboten, nie angewendet —
-    // und die Prüfung auf dieselbe Karte fängt ihn ohnehin ab.
-  }
+  });
+  await clearSessionProgress(deckId, mode);
+  await remoteClear;
 }

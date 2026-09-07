@@ -3,6 +3,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
+  AppState,
   Dimensions,
   Image,
   Text,
@@ -51,6 +52,7 @@ import {
 } from "../../src/features/review/reviewSession";
 import { decideOnLearnFocus } from "../../src/features/review/learnFocusDecision";
 import { createReviewSendBuffer } from "../../src/features/review/reviewSendBuffer";
+import { commitReviewBeforeBackground } from "../../src/features/review/reviewBackgroundCommit";
 import { useSessionStore } from "../../src/store/sessionStore";
 import {
   earnLp,
@@ -74,6 +76,7 @@ import { useDisplayName } from "../../src/lib/useDisplayName";
 import { useUsageStore } from "../../src/store/usageStore";
 import { excludeOcclusionCards } from "../../src/lib/occlusion";
 import {
+  resolveSessionResume,
   saveSessionProgress,
   type SessionProgress,
   type StoredCardResult,
@@ -82,6 +85,7 @@ import {
   clearProgressEverywhere,
   pushProgressToAccount,
 } from "../../src/features/review/sessionProgressSync";
+import { bindSessionProgressLifecycle } from "../../src/features/review/sessionProgressLifecycle";
 import { summarizeCardMedia } from "../../src/lib/cardMedia";
 import { cleanTerm } from "../../src/lib/cardTerms";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
@@ -120,6 +124,7 @@ export default function LearnScreen({
   source,
   wobblyIds,
   initialIndex,
+  initialProgress,
   initialResults,
 }: {
   deckId?: string | undefined;
@@ -133,6 +138,7 @@ export default function LearnScreen({
   // Deck mode: card to resume on, chosen on the setup screen from stored
   // progress (sessionProgress.ts). Omitted means start at the first card.
   initialIndex?: number | undefined;
+  initialProgress?: SessionProgress | undefined;
   // Deck mode: Ergebnisse der unterbrochenen Vor-Sitzung (#595) — beim
   // Weitermachen zählt die Auswertung sie mit, wie beim Lückentext.
   initialResults?: Record<string, StoredCardResult> | undefined;
@@ -164,6 +170,7 @@ export default function LearnScreen({
       source={source}
       wobblyIds={wobblyIds}
       initialIndex={initialIndex}
+      initialProgress={initialProgress}
       initialResults={initialResults}
     />
   );
@@ -177,6 +184,7 @@ function AuthenticatedLearnScreen({
   source,
   wobblyIds,
   initialIndex,
+  initialProgress,
   initialResults,
 }: {
   userId: string;
@@ -186,6 +194,7 @@ function AuthenticatedLearnScreen({
   source?: CardSource | undefined;
   wobblyIds?: string[] | undefined;
   initialIndex?: number | undefined;
+  initialProgress?: SessionProgress | undefined;
   initialResults?: Record<string, StoredCardResult> | undefined;
 }) {
   const { t } = useTranslation();
@@ -245,6 +254,8 @@ function AuthenticatedLearnScreen({
     createReviewSendBuffer<ReturnType<typeof createReviewSyncOperation>>()
   );
   const reviewBuffer = reviewBufferRef.current;
+  const backgroundCommitRef = useRef<() => Promise<void>>(async () => {});
+  const [, refreshReviewCommit] = useState(0);
 
   // ─── Flip animation (independent toggle) ─────────────────────────────────
   const flipProgress = useSharedValue(0);
@@ -379,7 +390,13 @@ function AuthenticatedLearnScreen({
         deckId && source
           ? filterBySource(fetched, source, new Set(wobblyIds ?? []))
           : fetched;
-      const loaded = deckId ? filtered : groupCardsByDeck(filtered);
+      // Resolve again against the fresh deck: due dates can change between
+      // the setup offer and this request (including queued offline reviews).
+      const resumed = initialProgress && source
+        ? resolveSessionResume(initialProgress, filtered, source, fetched)
+        : null;
+      if (initialProgress && !resumed) throw new Error("Die gespeicherte Runde ist nicht mehr verfügbar.");
+      const loaded = resumed?.cards ?? (deckId ? filtered : groupCardsByDeck(filtered));
       if (loaded.length > 0) {
         const starMap: Record<string, boolean> = {};
         loaded.forEach((card) => { starMap[card.id] = card.starred ?? false; });
@@ -393,7 +410,7 @@ function AuthenticatedLearnScreen({
             // Fürs Vorlesen: sagt, welche Deck-Sprachen für diese Karte gelten.
             deckId: card.deckId,
           })),
-          initialIndex ?? 0,
+          resumed?.index ?? initialIndex ?? 0,
           // Herkunft an die Karten heften, damit dieser Bildschirm sie beim
           // nächsten Fokus als seine erkennt — und fremde nicht (#282).
           deckId ?? GLOBAL_OWNER,
@@ -409,7 +426,7 @@ function AuthenticatedLearnScreen({
     } finally {
       setLoading(false);
     }
-  }, [userId, deckId, source, wobblyIds, start, initialIndex, initialResults]);
+  }, [userId, deckId, source, wobblyIds, start, initialIndex, initialResults, initialProgress]);
 
   // ─── Remember where a deck session was interrupted ───────────────────────
   // Only in deck mode: the global tab studies whatever is due today, so a
@@ -436,6 +453,7 @@ function AuthenticatedLearnScreen({
       source,
       reverse: showBackFirst,
       total: cards.length,
+      cardIds: cards.map((card) => card.id),
       ...(Object.keys(results).length > 0 ? { results } : {}),
     });
   }, [deckId, source, cards, index, completed, showBackFirst, history, ratingHistory]);
@@ -454,15 +472,18 @@ function AuthenticatedLearnScreen({
           source,
           reverse: showBackFirst,
           total: cards.length,
+          cardIds: cards.map((card) => card.id),
           results: storedResultsFrom(cards, history, ratingHistory),
         }
       : null;
   useEffect(() => {
     if (!deckId) return;
-    return () => {
-      const pending = accountPushRef.current;
-      if (pending) void pushProgressToAccount(deckId, "flashcards", pending);
-    };
+    return bindSessionProgressLifecycle({
+      appState: AppState,
+      getProgress: () => accountPushRef.current,
+      beforePush: () => backgroundCommitRef.current(),
+      pushProgress: (pending) => pushProgressToAccount(deckId, "flashcards", pending),
+    });
   }, [deckId]);
 
   // The review session store is module-global, so a fresh screen can inherit
@@ -542,6 +563,18 @@ function AuthenticatedLearnScreen({
     [userId, enqueueOfflineReview]
   );
 
+  backgroundCommitRef.current = () => commitReviewBeforeBackground({
+    buffer: reviewBuffer,
+    enqueue: enqueueOfflineReview,
+    persist: () => useOfflineQueueStore.getState().persistPending(),
+    onCommitted: () => {
+      sessionReviewsRef.current += 1;
+      refreshReviewCommit((version) => version + 1);
+    },
+    send: () => syncPendingReviewOperations(userId),
+    track: (pending) => pendingReviewsRef.current.push(pending),
+  });
+
   const handleRate = async (rating: ReviewRating) => {
     if (!revealed) reveal();
     const result = rateCurrent(rating);
@@ -580,6 +613,9 @@ function AuthenticatedLearnScreen({
   };
 
   const handleGoBack = () => {
+    // A background commit has already queued this answer. Only a still-held
+    // rating can be withdrawn; otherwise going back would create a second key.
+    if (!reviewBuffer.hasPending()) return;
     // Drop the unsent rating for the card we're returning to, so re-rating it
     // cannot create a second review (#283).
     reviewBuffer.back();
@@ -897,7 +933,7 @@ function AuthenticatedLearnScreen({
   // ─── Card content ─────────────────────────────────────────────────────────
   const current = cards[index];
   const progress = cards.length > 0 ? (index + (revealed ? 1 : 0)) / cards.length : 0;
-  const canGoBackOne = canGoBack();
+  const canGoBackOne = canGoBack() && reviewBuffer.hasPending();
 
   const rawFront = current?.front ?? "";
   const rawBack = current?.back ?? "";

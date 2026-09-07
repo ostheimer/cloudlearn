@@ -38,9 +38,13 @@ Alle Fehlerkorrekturen wurden zuerst durch fehlschlagende Regressionen belegt. D
 
 Umgebung: macOS, Node 26.7.0, pnpm 10.29.2, PostgreSQL 17.11. GitHub CI verwendet Node 22/PostgreSQL 16 und wurde für diesen lokalen Branch nicht ausgelöst. 33 nicht blockierende Lint-Warnungen bleiben bestehen. Kein externer Datenbankserver wurde für die SQL-Tests verwendet.
 
+## Fortschreibung am 8. September 2026
+
+Die Wiederaufnahme veränderter Fälligkeitsstapel ist inzwischen für Mobile/Web und Karteikarten/Lückentext lokal umgesetzt und gezielt geprüft. Auch Hintergrundsync einschließlich dauerhafter Sicherung der letzten Bewertung ist lokal umgesetzt. Die finale gemeinsame CI (2.225 bestandene Tests), vier Resume-Browserflows und Web-/iOS-Bundle-Exporte sind grün. Aktueller Nachweis und Auslieferungsreihenfolge: [resume-validation.md](resume-validation.md). Die Nachweise und Testzahlen oben bleiben unverändert der Stand vom 5. September.
+
 ## Offene Arbeit bleibt sichtbar
 
-1. **#697 teilweise offen:** stabiler Resume bei verändertem „Nur fällige“-Stapel und Synchronisierung beim mobilen Hintergrundwechsel. Der behobene Ergebnisseverlust schließt das gesamte Issue nicht.
+1. **#697, fortgeschrieben am 8. September:** stabiler Resume bei verändertem „Nur fällige“-Stapel und mobiler Hintergrundsync einschließlich dauerhafter Sicherung der letzten Bewertung lokal umgesetzt und gemeinsam geprüft. Produktionsmigration und native Geräteabnahme bleiben offen; siehe [aktuellen Bericht](resume-validation.md).
 2. **#701 teilweise offen:** Web-Vorabprüfung vor Quellenwahl und direkter Neues-Deck-Ausweg im Ziel-Deck-Fenster. iOS-Quellenhilfe ist behoben. Der alte Accessibility-Vorwurf ist allein aus dem fehlenden expliziten Attribut nicht belegbar: React Native propagiert `disabled` bereits.
 3. **#702 nur teilweise gegengeprüft:** Größenlimits für Lernfortschritt und Streak-Nachholung existierten bereits; weitere Teilpunkte sind nicht vollständig abgearbeitet.
 4. Aktuelle Store-/RevenueCat-/EAS-Konfiguration, echte Sandbox-Käufe, Restore, Webhook-Latenz und Nutzerzuordnung auf Gerät prüfen.

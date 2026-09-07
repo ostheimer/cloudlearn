@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocalSearchParams, useFocusEffect, Stack } from "expo-router";
 import {
   ActivityIndicator,
+  AppState,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -36,7 +37,7 @@ import {
   type StoredSetup,
 } from "../src/lib/setupMemory";
 import {
-  isProgressUsable,
+  resolveSessionResume,
   saveSessionProgress,
   type SessionProgress,
   type StoredCardResult,
@@ -46,12 +47,14 @@ import {
   loadBestProgress,
   pushProgressToAccount,
 } from "../src/features/review/sessionProgressSync";
+import { bindSessionProgressLifecycle } from "../src/features/review/sessionProgressLifecycle";
 import {
   createReviewSendBuffer,
   type BufferedReview,
 } from "../src/features/review/reviewSendBuffer";
 import {
   createReviewSyncOperation,
+  syncPendingReviewOperations,
   useOfflineQueueStore,
 } from "../src/features/sync/offlineQueueStore";
 import { useSessionStore } from "../src/store/sessionStore";
@@ -73,6 +76,7 @@ import { useColors, spacing, radius, typography, shadows } from "../src/theme";
 import { StudyResult } from "../src/components/StudyResult";
 import { LpRoundSummary } from "../src/components/LpRoundSummary";
 import { shouldRetryLater } from "../src/features/sync/sendReview";
+import { commitReviewBeforeBackground } from "../src/features/review/reviewBackgroundCommit";
 import {
   beginSessionAward,
   getSessionReviewedCount,
@@ -167,7 +171,7 @@ export default function ClozeScreen() {
   // continued round cannot step back into cards the earlier session rated.
   const [floor, setFloor] = useState(0);
   // Position of an earlier interrupted round for this deck, if one is stored.
-  const [saved, setSaved] = useState<SessionProgress | null>(null);
+  const [saved, setSaved] = useState<SessionProgress | null | undefined>(undefined);
   const [input, setInput] = useState("");
   // One result slot per card in the round (null = not answered yet), so the
   // back button can show an earlier card in its answered state.
@@ -244,13 +248,15 @@ export default function ClozeScreen() {
   const studyPool = filterBySource(allCards, source, wobblyIds);
 
   const setupRestoredRef = useRef(false);
+  const setupTouchedRef = useRef(false);
   useEffect(() => {
-    if (setupRestoredRef.current || loading || storedSetup === undefined) return;
+    if (setupRestoredRef.current || setupTouchedRef.current || loading || storedSetup === undefined || saved === undefined) return;
     if (phase !== "setup") return;
     setupRestoredRef.current = true;
     if (storedSetup?.strict !== undefined) setStrict(storedSetup.strict);
     if (storedSetup?.reverse !== undefined) setReverse(storedSetup.reverse);
-    const wanted = resolveSource(storedSetup?.source, {
+    const pausedDue = saved?.source === "due" && resolveSessionResume(saved, [], "due", allCards);
+    const wanted = pausedDue && (!storedSetup?.source || storedSetup.source === "due") ? "due" : resolveSource(storedSetup?.source, {
       starred: starredCount,
       wobbly: wobblyCount,
       due: dueCount,
@@ -259,10 +265,10 @@ export default function ClozeScreen() {
     // Ohne gemerkte Wahl ist das Tagespensum die Voreinstellung (#610):
     // „Nur fällige", sobald es gerade welche gibt.
     else if (!storedSetup?.source && dueCount > 0) setSource("due");
-  }, [loading, storedSetup, phase, starredCount, wobblyCount, dueCount]);
+  }, [loading, storedSetup, phase, starredCount, wobblyCount, dueCount, saved, allCards]);
 
-  const canResume =
-    saved !== null && isProgressUsable(saved, studyPool.map((card) => card.id), source);
+  const resume = resolveSessionResume(saved, studyPool, source, allCards);
+  const canResume = resume !== null;
 
   const current = round[idx];
   const parsed = current ? buildPrompt(current, reverse) : null;
@@ -302,6 +308,8 @@ export default function ClozeScreen() {
     createReviewSendBuffer<ReturnType<typeof createReviewSyncOperation>>(),
   );
   const reviewBuffer = reviewBufferRef.current;
+  const [, refreshReviewCommit] = useState(0);
+  const backgroundCommitRef = useRef<() => Promise<void>>(async () => {});
 
   const sendReview = useCallback(
     (buffered: BufferedReview<ReturnType<typeof createReviewSyncOperation>>) => {
@@ -341,6 +349,18 @@ export default function ClozeScreen() {
     const last = reviewBuffer.flush();
     if (last) sendReview(last);
   }, [reviewBuffer, sendReview]);
+
+  backgroundCommitRef.current = () => commitReviewBeforeBackground({
+    buffer: reviewBuffer,
+    enqueue: enqueueOfflineReview,
+    persist: () => useOfflineQueueStore.getState().persistPending(),
+    onCommitted: () => {
+      sessionReviewsRef.current += 1;
+      refreshReviewCommit((version) => version + 1);
+    },
+    send: () => userId ? syncPendingReviewOperations(userId) : Promise.resolve(null),
+    track: (pending) => pendingReviewsRef.current.push(pending),
+  });
 
   const awardSession = useCallback(
     (reviewedCount: number) => {
@@ -431,7 +451,7 @@ export default function ClozeScreen() {
     // `startAt` resumes an interrupted round (sessionProgress.ts). The floor
     // travels with it: the skipped cards were answered and sent last time, so
     // the back button must not walk into them and collect a second review.
-    const from = Math.min(Math.max(startAt, 0), Math.max(cardsForRound.length - 1, 0));
+    const from = Math.min(Math.max(startAt, 0), cardsForRound.length);
     // Die Ergebnisse der letzten Sitzung wieder einfüllen, damit die Auswertung
     // die ganze Runde zählt und alte falsche Karten wieder im Wiederholungs-
     // Stapel landen. Nur unterhalb der Untergrenze: alles ab der Einstiegskarte
@@ -454,7 +474,7 @@ export default function ClozeScreen() {
     setIdx(from);
     setFloor(from);
     setInput("");
-    setPhase("play");
+    setPhase(from >= cardsForRound.length ? "summary" : "play");
   };
 
   const handleCheck = () => {
@@ -471,23 +491,19 @@ export default function ClozeScreen() {
     void review(current.id, "again");
   };
 
-  // Self-graded override: the learner decides a wrong-marked answer counts —
-  // also retroactively when navigating back to an earlier card.
+  // Self-graded override while this answer is still held locally.
   const handleOverride = () => {
-    if (!currentResult || wasCorrect || !current || !userId) return;
-    setResultAt(idx, { ...currentResult, overridden: true });
+    if (!currentResult || wasCorrect || !current || !userId || !reviewBuffer.canAmend(current.id)) return;
     const queuedReview = createReviewSyncOperation({
       userId,
       cardId: current.id,
       rating: "good",
       mode: "cloze",
     });
-    // Solange die Bewertung dieser Karte noch bei uns liegt, wird sie ersetzt —
-    // die Karte bekommt dann genau ein „gut“ und keinen Rückfall. Nur beim
-    // rückwirkenden Übersteuern (zurückgeblättert, Bewertung längst beim
-    // Server) bleibt eine korrigierende zweite Bewertung als einziger Weg.
-    if (!reviewBuffer.amend(current.id, "good", queuedReview)) {
-      sendReview({ cardId: current.id, rating: "good", queuedReview });
+    // A committed answer is final. Updating only the visible result after a
+    // background commit would disagree with the saved review and its LP.
+    if (reviewBuffer.amend(current.id, "good", queuedReview)) {
+      setResultAt(idx, { ...currentResult, overridden: true });
     }
   };
 
@@ -563,6 +579,7 @@ export default function ClozeScreen() {
       source,
       reverse,
       total: round.length,
+      cardIds: round.map((roundCard) => roundCard.id),
       ...(Object.keys(answered).length > 0 ? { results: answered } : {}),
     });
   }, [deckId, phase, round, idx, source, reverse, results]);
@@ -587,6 +604,7 @@ export default function ClozeScreen() {
         source,
         reverse,
         total: round.length,
+        cardIds: round.map((roundCard) => roundCard.id),
         ...(Object.keys(answered).length > 0 ? { results: answered } : {}),
       };
     } else {
@@ -595,10 +613,12 @@ export default function ClozeScreen() {
   }
   useEffect(() => {
     if (!deckId) return;
-    return () => {
-      const pending = accountPushRef.current;
-      if (pending) void pushProgressToAccount(deckId, "cloze", pending);
-    };
+    return bindSessionProgressLifecycle({
+      appState: AppState,
+      getProgress: () => accountPushRef.current,
+      beforePush: () => backgroundCommitRef.current(),
+      pushProgress: (pending) => pushProgressToAccount(deckId, "cloze", pending),
+    });
   }, [deckId]);
 
   // Round outcome, derived from the per-card results.
@@ -872,7 +892,7 @@ export default function ClozeScreen() {
               {/* Kartenquelle — Alle / Nur markierte / Nur Wackelkandidaten */}
               <CardSourcePicker
                 value={source}
-                onChange={setSource}
+                onChange={(next) => { setupTouchedRef.current = true; setSource(next); }}
                 allCount={allCards.length}
                 starredCount={starredCount}
                 wobblyCount={wobblyCount}
@@ -883,7 +903,7 @@ export default function ClozeScreen() {
             <View style={{ flex: 1 }} />
 
             {/* Weitermachen — only while an interrupted round still fits */}
-            {canResume && saved && (
+            {resume && saved && (
               <TouchableOpacity
                 onPress={() => {
                   setReverse(saved.reverse);
@@ -895,7 +915,7 @@ export default function ClozeScreen() {
                       reverse: saved.reverse,
                       source,
                     });
-                  void startRound(studyPool, saved.index, saved.results);
+                  void startRound(resume.cards, resume.index, saved.results);
                 }}
                 activeOpacity={0.85}
                 style={{
@@ -919,7 +939,7 @@ export default function ClozeScreen() {
                 <Text
                   style={{ color: colors.textInverse, fontSize: typography.sm, marginTop: 2 }}
                 >
-                  {`Karte ${saved.index + 1} von ${studyPool.length}`}
+                  {resume.index >= resume.cards.length ? "Runde abgeschlossen" : `Karte ${resume.index + 1} von ${resume.cards.length}`}
                 </Text>
               </TouchableOpacity>
             )}
@@ -1243,7 +1263,7 @@ export default function ClozeScreen() {
                 </View>
 
                 {/* Let the learner overrule a strict "wrong" themselves */}
-                {!wasCorrect && (
+                {!wasCorrect && current && reviewBuffer.canAmend(current.id) && (
                   <TouchableOpacity
                     onPress={handleOverride}
                     activeOpacity={0.8}
@@ -1275,7 +1295,7 @@ export default function ClozeScreen() {
             )}
 
             {/* Action row: back to the previous card + check/next. Earlier
-                cards show their stored answer; the override stays available. */}
+                cards show their stored answer; committed answers are final. */}
             <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
               <TouchableOpacity
                 onPress={handleBack}
