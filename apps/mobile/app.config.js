@@ -12,8 +12,10 @@ const GOOGLE_ADMOB_TEST_APP_IDS = {
   ios: "ca-app-pub-3940256099942544~1458002511",
   android: "ca-app-pub-3940256099942544~3347511713",
 };
-
 // Expo loads this configuration as CommonJS.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { realAdsEnabled: REAL_ADS_ENABLED } = require("./ads-mode.json");
+
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { releasePlatforms, productionVariables, validProductionValue } = require("./scripts/release-platform.cjs");
 const platforms = releasePlatforms();
@@ -32,11 +34,12 @@ if (IS_PRODUCTION) {
   }
 }
 
-// Omit the other platform's ID in a targeted production build; never substitute a test ID.
-const ADMOB_IOS_APP_ID = IS_PRODUCTION
+// Disabled ads retain Google's official test app IDs so the linked native SDK
+// remains safely configured without requiring production AdMob credentials.
+const ADMOB_IOS_APP_ID = IS_PRODUCTION && REAL_ADS_ENABLED
   ? (platforms.includes("ios") ? process.env.EXPO_PUBLIC_ADMOB_APP_IOS_ID?.trim() : undefined)
   : GOOGLE_ADMOB_TEST_APP_IDS.ios;
-const ADMOB_ANDROID_APP_ID = IS_PRODUCTION
+const ADMOB_ANDROID_APP_ID = IS_PRODUCTION && REAL_ADS_ENABLED
   ? (platforms.includes("android") ? process.env.EXPO_PUBLIC_ADMOB_APP_ANDROID_ID?.trim() : undefined)
   : GOOGLE_ADMOB_TEST_APP_IDS.android;
 

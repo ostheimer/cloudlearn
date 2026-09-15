@@ -49,7 +49,9 @@ const REQUIRED_CHECKS = [
   ["vercel.supabaseEnvChecked", "Vercel Supabase env"],
   ["vercel.publicPagesLive", "Vercel public pages"],
   ["vercel.productionDeploysGreen", "Vercel production deploys"],
-  ["eas.admobSecretsSet", "EAS AdMob secrets"],
+  ...(release.realAdsEnabled
+    ? [["eas.admobSecretsSet", "EAS AdMob secrets"]]
+    : []),
   ["eas.revenueCatSecretsSet", "EAS RevenueCat secrets"],
   ["eas.entitlementEnvSet", "EAS RevenueCat entitlement env"],
   ["supabase.siteUrlSet", "Supabase site URL"],

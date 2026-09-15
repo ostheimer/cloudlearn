@@ -99,7 +99,7 @@ Optionale LP-Pack-Packages im selben oder einem separaten Offering:
 
 ### Webhook konfigurieren
 - URL: `https://clearn-api.vercel.app/api/v1/subscription/webhook`
-- Header: `X-RevenueCat-Signature: <REVENUECAT_WEBHOOK_SECRET>`
+- Authorization Header: `Bearer <REVENUECAT_WEBHOOK_SECRET>`
 - Events: `INITIAL_PURCHASE`, `RENEWAL`, `CANCELLATION`, `EXPIRATION`, `BILLING_ISSUE_DETECTED`
 
 ---
@@ -114,8 +114,10 @@ EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_PRO=pro
 EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_LIFETIME=lifetime
 ```
 
-Production-Builds brechen ohne iOS- und Android-API-Key ab. Vor EAS Submit muss
-`pnpm submit:check` ohne RevenueCat-Key- oder Entitlement-Fehler laufen.
+Ein gezielter Production-Build verlangt nur den RevenueCat-Key seiner Plattform;
+ohne Plattformauswahl werden beide verlangt. Vor EAS Submit muss
+`pnpm submit:check --platform ios` beziehungsweise `--platform android` ohne
+RevenueCat-Key- oder Entitlement-Fehler laufen.
 
 ### Backend (Vercel Environment Variables)
 ```

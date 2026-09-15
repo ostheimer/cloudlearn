@@ -69,11 +69,18 @@ describe("app.config", () => {
     ]);
   });
 
-  it("requires production AdMob app IDs before production builds", () => {
-    resetEnv({ APP_VARIANT: "production" });
+  it("does not require production AdMob IDs while real ads are disabled", () => {
+    resetEnv({
+      APP_VARIANT: "production",
+      EXPO_PUBLIC_REVENUECAT_IOS_API_KEY: "appl_12345678901234567890",
+      EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY: "goog_12345678901234567890",
+    });
 
-    expect(() => loadAppConfig()).toThrow(
-      "EXPO_PUBLIC_ADMOB_APP_IOS_ID is required for production builds"
+    const createConfig = loadAppConfig();
+    const config = createConfig({ config: { ios: {}, plugins: [] } });
+
+    expect(config.ios?.infoPlist?.GADApplicationIdentifier).toBe(
+      "ca-app-pub-3940256099942544~1458002511"
     );
   });
 
@@ -94,7 +101,7 @@ describe("app.config", () => {
     );
   });
 
-  it("uses configured production AdMob app IDs for production builds", () => {
+  it("ignores configured production AdMob IDs while real ads are disabled", () => {
     resetEnv({
       APP_VARIANT: "production",
       EXPO_PUBLIC_ADMOB_APP_IOS_ID: "ca-app-pub-1234567890123456~1111111111",
@@ -112,13 +119,13 @@ describe("app.config", () => {
     const config = createConfig({ config: { ios: {}, plugins: [] } });
 
     expect(config.ios?.infoPlist?.GADApplicationIdentifier).toBe(
-      "ca-app-pub-1234567890123456~1111111111"
+      "ca-app-pub-3940256099942544~1458002511"
     );
     expect(config.plugins).toContainEqual([
       "react-native-google-mobile-ads",
       expect.objectContaining({
-        androidAppId: "ca-app-pub-1234567890123456~2222222222",
-        iosAppId: "ca-app-pub-1234567890123456~1111111111",
+        androidAppId: "ca-app-pub-3940256099942544~3347511713",
+        iosAppId: "ca-app-pub-3940256099942544~1458002511",
       }),
     ]);
   });

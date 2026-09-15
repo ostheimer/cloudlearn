@@ -1,6 +1,8 @@
 # Shipaton 2026 – PM-Plan
 
-Stand: 8. September 2026. Vorbereitung und autorisierte lokale Umsetzung laufen; keine erfolgte Anmeldung oder Veröffentlichung.
+Stand: 15. September 2026. Vorbereitung und autorisierte lokale Umsetzung laufen; keine erfolgte Wettbewerbsanmeldung oder Veröffentlichung.
+
+Die [Dashboard-Bestandsaufnahme vom 9. September](dashboard-inventory-2026-09-09.md) ist bis zum 15. September fortgeschrieben: Das RevenueCat-Konto hat keine Projekte. Apple hat die App angelegt, aber keine IAPs, Abogruppe oder TestFlight-Builds; deutsche Versionsmetadaten, Datenschutz sowie Preis-/Länderkonfiguration fehlen. Andreas hat die persönlichen Steuer- und Bankangaben eingereicht; der kostenpflichtige Vertrag und die Bankdaten stehen auf „In Bearbeitung“. EAS enthält den alten Preview-Build und keinen nachgewiesenen RC-Key. Webhook-Authentifizierung und das Ads-Release-Gate sind lokal behoben. Nächste Reihenfolge: Apple-Verarbeitung nachprüfen, externe Monetarisierung und Store-Paket einrichten, dann einen gebündelten Kandidaten abnehmen.
 
 ## Bestätigter Umfang
 
@@ -35,6 +37,8 @@ PM priorisiert und prüft Ergebnisse; abgegrenzte Recherche-/Implementierungsauf
 Andreas hat lokale Entwicklung und Tests ausdrücklich autorisiert: notwendige Fehler beheben, projektbezogene Abhängigkeiten installieren, lokale Tests/Builds und Browser-Verifikation ausführen. Plattform-Gates, RevenueCat-Kontowechsel bei Fehlern und sichtbare Mock-Werbeaktionen sind lokal bearbeitet. Die Prüfung vom 5. September umfasste erfolgreiche gezielte Tests, Web-Build, drei Browser-Smokes, iOS-Bundle-Export und vollständige lokale CI. Ergebnisseverlust beim Kontosync und iOS-Scan-Kostenhilfe sind ebenfalls lokal behoben. Diese Nachweise gehören zum Stand vom 5. September in [local-validation.md](local-validation.md).
 
 Am 8. September ist zusätzlich die Wiederaufnahme veränderter Fälligkeitsstapel lokal umgesetzt und zusammen mit dem mobilen Hintergrundsync geprüft. Die letzte Bewertung wird vor dem Konto-Merker in der Offline-Warteschlange gesichert. Finale lokale CI (2.225 Tests), vier Resume-Browserflows, Web-Produktionsbuild und Web-/iOS-Bundle-Exporte sind grün. Der [aktuelle Resume-Bericht](resume-validation.md) trennt Teilnachweise, synthetische Browserprüfung und ausstehende Geräteabnahme. Vor einem späteren API-Deployment ist die additive `card_ids`-Migration erforderlich. Ein Bundle-Export ersetzt keinen signierten App-Build oder Gerätetest.
+
+Am 15. September sind zusätzlich die RevenueCat-Webhook-Authentifizierung und das Ads-Release-Gate lokal korrigiert. Die gemeinsame CI ist mit 2.183 bestandenen Tests grün. Der iOS-Release-Check wird nicht mehr durch deaktivierte Ads blockiert; offen bleiben der RevenueCat-iOS-Key sowie echte Dashboard-/TestFlight-Evidenz. Der persönliche Apple-Verkäufername ist in den Store-Unterlagen korrigiert. Die Copyright-Angabe bleibt als bewusster Blocker offen, bis der tatsächliche Rechteinhaber und das Jahr der Rechteentstehung feststehen.
 
 Noch keine kostenpflichtigen Cloud-Builds, Anmeldung, externe Nachrichten, Sicherheits-/Zugangsdatenänderungen oder Veröffentlichung autorisiert. Vor einem autorisierten Build vorhandene Builds prüfen und Kosten/Quota transparent nennen. Fertige Änderungen für einen gemeinsamen Build bündeln.
 

@@ -59,10 +59,10 @@ const mockedMap = vi.mocked(mapRevenueCatEventToSubscription);
 const mockedUpdate = vi.mocked(updateSubscriptionStatus);
 const mockedTransfer = vi.mocked(transferSubscriptionBetweenUsers);
 
-function webhookRequest(event: Record<string, unknown>, signature = "secret") {
+function webhookRequest(event: Record<string, unknown>, authorization = "Bearer secret") {
   return new Request("http://localhost/api/v1/subscription/webhook", {
     method: "POST",
-    headers: { "x-revenuecat-signature": signature, "content-type": "application/json" },
+    headers: { authorization, "content-type": "application/json" },
     body: JSON.stringify({ event }),
   }) as never;
 }
@@ -94,11 +94,38 @@ describe("POST /api/v1/subscription/webhook – LP pack idempotent grant", () =>
     expect(mockedMonthly).not.toHaveBeenCalled();
   });
 
-  it("rejects an invalid signature before crediting anything", async () => {
+  it("accepts RevenueCat's configured Authorization header", async () => {
+    const request = new Request("http://localhost/api/v1/subscription/webhook", {
+      method: "POST",
+      headers: {
+        authorization: "Bearer secret",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        event: {
+          app_user_id: "user-9",
+          type: "NON_RENEWING_PURCHASE",
+          product_id: "lp_pack_300",
+          transaction_id: "tx-authorization",
+        },
+      }),
+    }) as never;
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(201);
+    expect(mockedGrant).toHaveBeenCalledWith(
+      "user-9",
+      300,
+      "purchase_tx-authorization"
+    );
+  });
+
+  it("rejects invalid authorization before crediting anything", async () => {
     const response = await POST(
       webhookRequest(
         { app_user_id: "user-9", type: "NON_RENEWING_PURCHASE", product_id: "lp_pack_300", transaction_id: "tx-123" },
-        "wrong-secret"
+        "Bearer wrong-secret"
       )
     );
 
@@ -124,7 +151,7 @@ describe("POST /api/v1/subscription/webhook – LP pack idempotent grant", () =>
     expect(mockedGrant).not.toHaveBeenCalled();
   });
 
-  it("rejects a missing signature header with 401", async () => {
+  it("rejects a missing Authorization header with 401", async () => {
     const request = new Request("http://localhost/api/v1/subscription/webhook", {
       method: "POST",
       headers: { "content-type": "application/json" },

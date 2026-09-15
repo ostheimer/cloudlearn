@@ -19,12 +19,24 @@ Abschnitt [Vor Review-Submission](#vor-review-submission) erledigt sind.
 - App Store Connect App ID: `6766691399`
 - Primäre Sprache: Deutsch
 - Kategorie: Bildung
-- Anbieter: Ostheimer OG
-- Copyright: `2026 Ostheimer OG`
+- Anbieter/Verkäufername: Andreas Ostheimer
+- Copyright: `<Jahr der Rechteentstehung> <Rechteinhaber festlegen>`
 - Support-URL: `https://clearn-web.vercel.app/support`
 - Marketing-URL: `https://clearn-web.vercel.app`
 - Datenschutz-URL: `https://clearn-web.vercel.app/privacy`
 - Impressum/Kontakt: `https://clearn-web.vercel.app/impressum`
+
+Der Anbieter-/Verkäufername wird bei der aktuellen persönlichen
+Apple-Developer-Mitgliedschaft durch den gesetzlichen Namen des Mitglieds
+bestimmt und ist daher für diesen Release `Andreas Ostheimer`.
+
+Der Copyright-Inhaber bleibt vor der Einreichung zu klären. Apple verlangt hier
+die Person oder Rechtsperson, die die ausschließlichen Rechte an der App hält;
+dies folgt nicht automatisch aus dem Apple-Verkäufernamen. Den Platzhalter erst
+nach dieser Klärung durch den tatsächlichen Rechteinhaber ersetzen.
+
+Quellen: [Apple zum Entwicklernamen](https://developer.apple.com/help/app-store-connect/create-an-app-record/set-your-developer-name),
+[Apple zum Copyright-Feld](https://developer.apple.com/help/app-store-connect/reference/app-information/platform-version-information).
 
 ## Version 1.0 — Deutsch
 

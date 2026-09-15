@@ -55,10 +55,10 @@ Sobald ein externer Wert eingetragen wurde, muss der zugehörige Repo-Check erne
 
 ## EAS / Build Secrets
 
-- [ ] Produktive AdMob App IDs setzen:
+- [ ] Nur bei `realAdsEnabled=true`: produktive AdMob App IDs setzen:
   - `EXPO_PUBLIC_ADMOB_APP_IOS_ID`
   - `EXPO_PUBLIC_ADMOB_APP_ANDROID_ID`
-- [ ] Produktive Rewarded-Ad Unit IDs setzen:
+- [ ] Nur bei `realAdsEnabled=true`: produktive Rewarded-Ad Unit IDs setzen:
   - `EXPO_PUBLIC_ADMOB_REWARDED_IOS_ID`
   - `EXPO_PUBLIC_ADMOB_REWARDED_ANDROID_ID`
 - [ ] RevenueCat Mobile API Keys setzen:

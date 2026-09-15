@@ -32,11 +32,12 @@ const MONTHLY_GRANT_EVENT_TYPES = new Set([
   "NON_RENEWING_PURCHASE",
 ]);
 
-// Webhook route — authenticates via x-revenuecat-signature, not JWT
+// RevenueCat sends the dashboard-configured value in the Authorization header.
+// This is separate from the optional X-RevenueCat-Webhook-Signature HMAC flow.
 export async function POST(request: NextRequest) {
   const { requestId } = createRequestContext(request.headers);
   try {
-    const secret = request.headers.get("x-revenuecat-signature");
+    const authorization = request.headers.get("authorization");
     const env = getEnv();
     // No configured secret → the webhook is unusable in EVERY environment.
     // (Previously only production 503'd, so preview/dev accepted unauthenticated
@@ -49,11 +50,11 @@ export async function POST(request: NextRequest) {
         503
       );
     }
-    if (!secureCompare(secret, env.REVENUECAT_WEBHOOK_SECRET)) {
+    if (!secureCompare(authorization, `Bearer ${env.REVENUECAT_WEBHOOK_SECRET}`)) {
       return jsonError(
         requestId,
         "UNAUTHORIZED",
-        "Invalid webhook signature",
+        "Invalid webhook authorization",
         401
       );
     }

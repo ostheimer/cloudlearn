@@ -1,16 +1,30 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 
 const appDir = resolve(import.meta.dirname, "..");
+const require = createRequire(import.meta.url);
+const release = require("./release-platform.cjs") as {
+  realAdsEnabled: boolean;
+  productionVariables: (
+    platform: "ios" | "android",
+    options?: { realAdsEnabled?: boolean },
+  ) => Array<{ name: string; pattern: RegExp }>;
+  validProductionValue: (value: string, pattern: RegExp) => boolean;
+};
 const tempDir = mkdtempSync(resolve(tmpdir(), "clearn-release-test-"));
 afterAll(() => rmSync(tempDir, { recursive: true, force: true }));
 const values = (platform: "ios" | "android") => ({
   [`EXPO_PUBLIC_ADMOB_APP_${platform.toUpperCase()}_ID`]: "ca-app-pub-1234567890123456~1234567890",
   [`EXPO_PUBLIC_ADMOB_REWARDED_${platform.toUpperCase()}_ID`]: "ca-app-pub-1234567890123456/1234567890",
   [`EXPO_PUBLIC_REVENUECAT_${platform.toUpperCase()}_API_KEY`]: platform === "ios" ? "appl_fixture123" : "goog_fixture123",
+});
+const revenueCatOnly = (platform: "ios" | "android") => ({
+  [`EXPO_PUBLIC_REVENUECAT_${platform.toUpperCase()}_API_KEY`]:
+    platform === "ios" ? "appl_fixture123" : "goog_fixture123",
 });
 function run(args: string[], vars: Record<string, string> = {}, cwd = appDir) {
   // Never inherit real release keys or local evidence from the host.
@@ -35,18 +49,33 @@ function dashboard(platform?: string, missingField?: string) {
   const data = JSON.parse(readFileSync(resolve(appDir, "dashboard-readiness.example.json"), "utf8"));
   if (platform === "ios") { delete data.googlePlay; delete data.revenueCat.androidAppConfigured; }
   if (platform === "android") { delete data.appStoreConnect; delete data.revenueCat.iosAppConfigured; }
-  if (missingField) delete data.revenueCat[missingField];
+  if (missingField?.includes(".")) {
+    const [section, field] = missingField.split(".");
+    delete data[section][field];
+  } else if (missingField) {
+    delete data.revenueCat[missingField];
+  }
   const file = resolve(tempDir, "evidence.json");
   writeFileSync(file, JSON.stringify(data));
   return run([resolve(appDir, "scripts/check-dashboard-readiness.mjs"), "--file", file, ...(platform ? ["--platform", platform] : [])]);
 }
 
 describe("platform-specific release guards", () => {
+  it("allows an iOS production release without AdMob IDs while real ads are disabled", () => {
+    const env = revenueCatOnly("ios");
+
+    expect(config({ EAS_BUILD_PLATFORM: "ios", ...env }).status).toBe(0);
+    expect(submit("ios", env).status).toBe(0);
+  });
+
+  it("allows iOS dashboard evidence without AdMob secrets while real ads are disabled", () => {
+    expect(dashboard("ios", "eas.admobSecretsSet").status).toBe(0);
+  });
+
   for (const platform of ["ios", "android"] as const) {
     it(`${platform} production builds without the other platform's keys`, () => {
       const result = config({ EAS_BUILD_PLATFORM: platform, ...values(platform) });
       expect(result.status, result.stderr).toBe(0);
-      expect(result.stdout).not.toContain("3940256099942544");
     });
     it(`${platform} submit checks only its platform`, () => {
       const result = submit(platform);
@@ -66,20 +95,26 @@ describe("platform-specific release guards", () => {
         expect(submit(platform, env).status).not.toBe(0);
       });
     }
-    for (const bad of ["", "invalid", "ca-app-pub-3940256099942544/1712485313"]) {
-      it(`${platform} rejects invalid rewarded ad ID ${JSON.stringify(bad)}`, () => {
-        const env = { ...values(platform), [`EXPO_PUBLIC_ADMOB_REWARDED_${platform.toUpperCase()}_ID`]: bad };
-        expect(config({ EAS_BUILD_PLATFORM: platform, ...env }).status).not.toBe(0);
-        expect(submit(platform, env).status).not.toBe(0);
-      });
-    }
-    for (const bad of ["", "invalid", "ca-app-pub-3940256099942544~1458002511"]) {
-      it(`${platform} rejects invalid AdMob app ID ${JSON.stringify(bad)}`, () => {
-        const env = { ...values(platform), [`EXPO_PUBLIC_ADMOB_APP_${platform.toUpperCase()}_ID`]: bad };
-        expect(config({ EAS_BUILD_PLATFORM: platform, ...env }).status).not.toBe(0);
-        expect(submit(platform, env).status).not.toBe(0);
-      });
-    }
+    it(`${platform} requires valid production AdMob IDs when real ads are enabled`, () => {
+      const adVariables = release
+        .productionVariables(platform, { realAdsEnabled: true })
+        .filter(({ name }) => name.includes("ADMOB"));
+
+      expect(adVariables.map(({ name }) => name)).toEqual([
+        `EXPO_PUBLIC_ADMOB_APP_${platform.toUpperCase()}_ID`,
+        `EXPO_PUBLIC_ADMOB_REWARDED_${platform.toUpperCase()}_ID`,
+      ]);
+      for (const { pattern } of adVariables) {
+        expect(release.validProductionValue("", pattern)).toBe(false);
+        expect(release.validProductionValue("invalid", pattern)).toBe(false);
+        expect(
+          release.validProductionValue("ca-app-pub-3940256099942544~1458002511", pattern),
+        ).toBe(false);
+        expect(
+          release.validProductionValue("ca-app-pub-3940256099942544/1712485313", pattern),
+        ).toBe(false);
+      }
+    });
   }
   it("defaults to requiring both platforms", () => {
     expect(config(values("ios")).status).not.toBe(0);
