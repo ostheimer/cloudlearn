@@ -15,7 +15,7 @@ Sobald ein externer Wert eingetragen wurde, muss der zugehörige Repo-Check erne
 - [ ] Datenschutz-URL hinterlegen: `https://clearn-web.vercel.app/privacy`
 - [ ] Support-URL hinterlegen: `https://clearn-web.vercel.app/support`
 - [ ] Review Notes aus [docs/runbooks/app-store-review-notes.md](/docs/runbooks/app-store-review-notes.md) übertragen.
-- [ ] In-App-Käufe anlegen:
+- [x] In-App-Käufe angelegt (22. September 2026; Store-Prüfung/Freigabe noch offen):
   - `ai.clearn.pro.monthly`
   - `ai.clearn.pro.annual`
   - `ai.clearn.lifetime`
@@ -35,14 +35,14 @@ Sobald ein externer Wert eingetragen wurde, muss der zugehörige Repo-Check erne
 
 ## RevenueCat
 
-- [ ] iOS-App mit Bundle ID `app.clearn` prüfen.
+- [x] iOS-App mit Bundle ID `app.clearn` und gültigen Apple-In-App-Kauf-Credentials geprüft (22. September 2026).
 - [ ] Android-App mit Package Name `app.clearn` prüfen.
-- [ ] Store-Produkte importieren oder manuell anlegen.
-- [ ] Entitlement `pro` mit Monthly/Annual verbinden.
-- [ ] Entitlement `lifetime` mit Lifetime-Produkt verbinden.
-- [ ] Offering `default` veröffentlichen.
-- [ ] API Keys als EAS Secrets setzen:
-  - `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY`
+- [x] Drei iOS-Store-Produkte manuell angelegt.
+- [x] Entitlement `pro` mit Monthly/Annual verbunden.
+- [x] Entitlement `lifetime` mit Lifetime-Produkt verbunden.
+- [x] Aktives Offering `default` mit `$rc_monthly`, `$rc_annual` und `$rc_lifetime` angelegt.
+- [x] Öffentlichen `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY` im EAS-Projekt für Development, Preview und Production gesetzt.
+- [ ] Android-Key setzen, sobald die Android-App und Play-Produkte eingerichtet sind:
   - `EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY`
 - [ ] Webhook-Secret erzeugen.
 
@@ -61,8 +61,8 @@ Sobald ein externer Wert eingetragen wurde, muss der zugehörige Repo-Check erne
 - [ ] Nur bei `realAdsEnabled=true`: produktive Rewarded-Ad Unit IDs setzen:
   - `EXPO_PUBLIC_ADMOB_REWARDED_IOS_ID`
   - `EXPO_PUBLIC_ADMOB_REWARDED_ANDROID_ID`
-- [ ] RevenueCat Mobile API Keys setzen:
-  - `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY`
+- [x] RevenueCat-iOS-SDK-Key für Development, Preview und Production gesetzt.
+- [ ] RevenueCat-Android-SDK-Key setzen:
   - `EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY`
 - [ ] RevenueCat Entitlement IDs in EAS prüfen:
   - `EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_PRO=pro`

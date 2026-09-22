@@ -191,8 +191,9 @@ Diese Punkte gelten als verpflichtend, bevor ein Store-Rollout als „produktion
 
 Diese Schritte passieren nicht im Repo und müssen im Dashboard erledigt werden:
 
-- Produkte in App Store Connect wirklich anlegen
+- iOS-Stand vom 22. September 2026: App-Store-Produkte angelegt, Apple-In-App-Kauf-Schlüssel in RevenueCat als gültig angezeigt, Produkte mit `pro`/`lifetime` verbunden und das aktive Offering `default` mit drei Paketen gespeichert. Der öffentliche iOS-SDK-Key ist im EAS-Projekt für Development, Preview und Production gesetzt. Das ist noch kein Kauf- oder Store-Freigabenachweis.
 - Produkte in Google Play Console wirklich anlegen
-- RevenueCat Entitlements und Offerings wirklich veröffentlichen
+- RevenueCat-Android-App und -Produkte einrichten; Android-SDK-Key setzen
 - Webhook-Secret in Vercel setzen
 - Sandbox- und Testkonten bereitstellen
+- iOS-Sandbox-Kauf, Restore und Backend-Synchronisierung auf einem nativen Kandidaten nachweisen; die Store-Produkte zur Prüfung einreichen

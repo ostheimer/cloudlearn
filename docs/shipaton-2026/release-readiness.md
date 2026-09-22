@@ -1,6 +1,6 @@
 # Shipaton 2026: Release-Lücken und Abnahme
 
-Stand: 15. September 2026. Ziel: Store-Einreichung bis 23. September 2026; öffentliche Erstveröffentlichung muss anschließend rechtzeitig für die Wettbewerbsfrist erfolgen. Eine Einreichung oder TestFlight-Verfügbarkeit ist noch keine öffentliche Veröffentlichung.
+Stand der ursprünglichen Bestandsaufnahme: 15. September 2026; iOS-Konfiguration am 22. September ergänzt. Ziel: Store-Einreichung bis 23. September 2026; öffentliche Erstveröffentlichung muss anschließend rechtzeitig für die Wettbewerbsfrist erfolgen. Eine Einreichung oder TestFlight-Verfügbarkeit ist noch keine öffentliche Veröffentlichung.
 
 Aktuell: [Dashboard-Bestandsaufnahme](dashboard-inventory-2026-09-09.md). EAS ist geprüft: alter Preview-Build, kein Production-Build/keine EAS-Submission, keine RC-Variablen gefunden, AdMob-Test-IDs in Production. Nach Anmeldung bestätigt: RevenueCat-Konto ohne Projekte; Apple ohne IAPs, Abogruppe und TestFlight-Builds, Store-Paket und Datenschutz unvollständig, Preis-/Länderkonfiguration noch einzurichten. Persönliche Steuer- und Bankangaben sind eingereicht; der kostenpflichtige Vertrag und die Bankdaten stehen auf „In Bearbeitung“. Webhook-Authentifizierung und Ads-Gate sind lokal korrigiert und gezielt geprüft.
 
@@ -57,6 +57,12 @@ Vor Deployment der neuen API muss die additive `card_ids`-Migration angewendet w
 Der RevenueCat-Webhook verwendet jetzt den dokumentierten `Authorization`-Header. App, Dashboard- und Submit-Prüfungen lesen denselben Ads-Modus; bei deaktivierten echten Ads werden keine produktiven AdMob-IDs verlangt. Die fokussierten Webhook-, Ads-, App-Konfigurations- und Web-Synchronisationstests sind grün. Nach der Anpassung verläuft `pnpm run ci` vollständig erfolgreich: Lint ohne Fehler, alle Typechecks und 2.183 Tests bestanden; 48 API-Integrationstests bleiben umgebungsbedingt übersprungen.
 
 `pnpm --filter @clearn/mobile release:check --platform ios` ist weiterhin erwartungsgemäß rot: RevenueCat-iOS-Key sowie echte Dashboard- und TestFlight-Evidenz fehlen. `store:check` meldet zusätzlich ausschließlich die offene Copyright-Angabe. Es wurde kein EAS-Build, Deployment oder externer Kauf ausgelöst.
+
+## iOS-Dashboard-Fortschreibung am 22. September
+
+In App Store Connect sind die Monats- und Jahresabos sowie der Lifetime-Einmalkauf angelegt. Der Copyright-Text lautet `2026 Andreas Ostheimer`; die lokale Store-Metadatenprüfung ist grün. Der Apple-In-App-Kauf-Schlüssel wurde einmalig erstellt und in RevenueCat mit **Valid credentials** bestätigt. Im RevenueCat-Projekt `clearn` gehören `ai.clearn.pro.monthly` und `ai.clearn.pro.annual` zum Entitlement `pro`, `ai.clearn.lifetime` zu `lifetime`. Das aktive Offering `default` enthält die zugehörigen Pakete `$rc_monthly`, `$rc_annual` und `$rc_lifetime`. Der öffentliche iOS-SDK-Key ist im EAS-Projekt `@aostheimer/clearn` für Development, Preview und Production hinterlegt.
+
+Diese Dashboard-Konfiguration ersetzt keinen signierten Build oder Sandbox-Kauf. RevenueCat meldet weiterhin eine unbestätigte Konto-E-Mail; der Webhook mit Backend-Secret, iOS-Kauf/Restore und App-Store-Produktprüfung sind noch offen. Der Android-Pfad ist separat offen. Der Eintrag vom 15. September oben bleibt als historische Momentaufnahme bestehen.
 
 ## Historischer lokaler Umsetzungsstand am 5. September
 
