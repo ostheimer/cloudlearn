@@ -1,6 +1,6 @@
 # App Store Connect Fill-In Pack
 
-Stand: 2026-05-06
+Stand: 2026-09-22
 
 ## Ziel
 
@@ -20,7 +20,7 @@ Abschnitt [Vor Review-Submission](#vor-review-submission) erledigt sind.
 - Primäre Sprache: Deutsch
 - Kategorie: Bildung
 - Anbieter/Verkäufername: Andreas Ostheimer
-- Copyright: `<Jahr der Rechteentstehung> <Rechteinhaber festlegen>`
+- Copyright: `2026 Andreas Ostheimer`
 - Support-URL: `https://clearn-web.vercel.app/support`
 - Marketing-URL: `https://clearn-web.vercel.app`
 - Datenschutz-URL: `https://clearn-web.vercel.app/privacy`
@@ -30,13 +30,37 @@ Der Anbieter-/Verkäufername wird bei der aktuellen persönlichen
 Apple-Developer-Mitgliedschaft durch den gesetzlichen Namen des Mitglieds
 bestimmt und ist daher für diesen Release `Andreas Ostheimer`.
 
-Der Copyright-Inhaber bleibt vor der Einreichung zu klären. Apple verlangt hier
-die Person oder Rechtsperson, die die ausschließlichen Rechte an der App hält;
-dies folgt nicht automatisch aus dem Apple-Verkäufernamen. Den Platzhalter erst
-nach dieser Klärung durch den tatsächlichen Rechteinhaber ersetzen.
+Andreas Ostheimer hat für diesen Release den Copyright-Eintrag
+`2026 Andreas Ostheimer` festgelegt. Apple verlangt hier die Person oder
+Rechtsperson, die die ausschließlichen Rechte an der App hält; dies folgt nicht
+automatisch aus dem Apple-Verkäufernamen.
 
 Quellen: [Apple zum Entwicklernamen](https://developer.apple.com/help/app-store-connect/create-an-app-record/set-your-developer-name),
 [Apple zum Copyright-Feld](https://developer.apple.com/help/app-store-connect/reference/app-information/platform-version-information).
+
+## Dashboard-Stand vom 22. September 2026
+
+- Das Copyright-Feld der iOS-Version 1.0 ist in App Store Connect als
+  `2026 Andreas Ostheimer` gespeichert.
+- Der Vertrag für gebührenpflichtige Apps, das Bankkonto und W-8BEN werden in
+  App Store Connect als aktiv angezeigt. DAC7 zeigt noch fehlende Informationen.
+- Die Abo-Gruppe `clearn Pro` enthält `ai.clearn.pro.monthly` und
+  `ai.clearn.pro.annual`. Beide Abos sind in allen 175 Regionen verfügbar,
+  haben deutsche und US-englische Anzeigetexte und sind noch nicht zur Prüfung
+  eingereicht. Der österreichische Basispreis beträgt 4,99 € pro Monat bzw.
+  39,99 € pro Jahr. Das Monatsabo hat ein Einführungsangebot: die erste Woche
+  kostenlos, ab 22. September 2026 ohne Enddatum in 175 Regionen.
+  Beide Abos stehen in derselben Apple-Abo-Stufe 1, weil sie denselben
+  Pro-Zugang mit unterschiedlicher Laufzeit gewähren.
+- Der nicht verbrauchbare Kauf `ai.clearn.lifetime` ist in 175 Regionen
+  verfügbar, hat deutsche und US-englische Anzeigetexte und einen
+  österreichischen Basispreis von 89,99 €. Er ist noch nicht zur Prüfung
+  eingereicht.
+- Die Apple-In-App-Kauf-Integration zeigt derzeit **0 aktive Schlüssel**.
+  Deshalb ist die echte Apple-App in RevenueCat noch nicht verbunden; dort
+  existieren bislang nur die Entitlements `pro` und `lifetime` ohne Produkte.
+  Erst nach der Apple-Verbindung können Store-Produkte und das Offering
+  verknüpft und auf einem Gerät geprüft werden.
 
 ## Version 1.0 — Deutsch
 

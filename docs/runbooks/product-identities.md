@@ -41,8 +41,7 @@ EAS-Konfiguration oder externe Dashboards voneinander abweichen.
 ## Apple-App-Store-Rechtsträger für diesen Release
 
 - Anbieter-/Verkäufername: Andreas Ostheimer
-- Copyright: offen; vor der Einreichung anhand des tatsächlichen Inhabers der
-  ausschließlichen App-Rechte und des Jahres der Rechteentstehung festlegen
+- Copyright: `2026 Andreas Ostheimer` (für diesen Release von Andreas festgelegt)
 
 Die persönliche Apple-Developer-Mitgliedschaft bestimmt den Verkäufernamen,
 nicht automatisch den Copyright-Inhaber.
