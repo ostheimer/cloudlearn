@@ -1,3 +1,5 @@
+import { parseSessionCardIds, resolveSessionResume } from "./sessionResume";
+export { resolveSessionResume } from "./sessionResume";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Where a Karteikarten session for one deck was interrupted, stored on this
@@ -15,8 +17,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const STORAGE_PREFIX = "review-progress:";
 
 /**
- * Study modes that keep a resumable position. Both run over the whole deck in a
- * stable order, so an index means the same thing next time.
+ * Study modes that keep a resumable position and the original card order.
+ * The due filter can change after every submitted review.
  *
  * Quiz (10 questions) and Zuordnen (6 pairs) are short enough that restarting
  * costs less than the extra tap. Test is left out on purpose: its questions are
@@ -42,6 +44,8 @@ export interface SessionProgress {
   reverse: boolean;
   /** Card count at save time, for the "Karte 9 von 40" label. */
   total: number;
+  /** Original queue order; older bookmarks can omit it. */
+  cardIds?: string[];
   /**
    * Outcomes of the cards answered before the interruption, keyed by card id.
    * Lets the summary after a resume count the whole round ("11 von 12") and
@@ -92,6 +96,7 @@ export function parseSessionProgress(raw: string | null): SessionProgress | null
     // An index at or past the end is a finished session, not a resumable one.
     if (index >= total) return null;
     const results = parseStoredResults(value.results);
+    const cardIds = parseSessionCardIds(value.cardIds, { index, cardId, total });
     const savedAt = typeof value.savedAt === "string" && value.savedAt ? value.savedAt : undefined;
     return {
       index,
@@ -100,6 +105,7 @@ export function parseSessionProgress(raw: string | null): SessionProgress | null
       reverse: reverse === true,
       total,
       ...(results ? { results } : {}),
+      ...(cardIds ? { cardIds } : {}),
       ...(savedAt ? { savedAt } : {}),
     };
   } catch {
@@ -108,26 +114,16 @@ export function parseSessionProgress(raw: string | null): SessionProgress | null
 }
 
 /**
- * True when stored progress still points at the same card in the current pile.
- *
- * Cards get added, deleted or unstarred between sessions, which shifts every
- * later position. Resuming on the index alone would then drop the learner at an
- * arbitrary card with no way to notice. Comparing the stored card id against
- * the card now at that index is a cheap, exact check: it either matches or the
- * pile changed, in which case starting over is the honest outcome.
- *
- * The source must match too — "Nur markierte" and "Alle" are different piles,
- * so an index from one says nothing about the other.
+ * Compatibility predicate for callers with just the current IDs. Session
+ * screens use resolveSessionResume with the full deck to restore the original
+ * due queue and its results, even after answered cards are no longer due.
  */
 export function isProgressUsable(
   progress: SessionProgress | null,
   cardIds: string[],
   source: string
 ): boolean {
-  if (!progress) return false;
-  if (progress.source !== source) return false;
-  if (progress.index >= cardIds.length) return false;
-  return cardIds[progress.index] === progress.cardId;
+  return resolveSessionResume(progress, cardIds.map((id) => ({ id })), source) !== null;
 }
 
 export async function saveSessionProgress(

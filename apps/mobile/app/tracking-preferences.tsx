@@ -18,6 +18,7 @@ import {
   type TrackingPermissionStatus,
 } from "../src/features/ads/trackingConsent";
 import { radius, shadows, spacing, typography, useColors } from "../src/theme";
+import { REAL_ADS_ENABLED } from "../src/features/ads/adsMode";
 
 function getSystemStatusTranslationKey(status: TrackingPermissionStatus) {
   switch (status) {
@@ -66,6 +67,7 @@ export default function TrackingPreferencesScreen() {
   }, [hydrated, initialize, refreshPermissionStatus]);
 
   const currentModeKey = useMemo(() => {
+    if (!REAL_ADS_ENABLED) return "tracking.modeDisabled";
     if (personalizedAdsEnabled) {
       return "tracking.modePersonalized";
     }
@@ -219,7 +221,7 @@ export default function TrackingPreferencesScreen() {
                   lineHeight: 20,
                 }}
               >
-                {t("tracking.explainerBody")}
+                {t(REAL_ADS_ENABLED ? "tracking.explainerBody" : "tracking.adsDisabledBody")}
               </Text>
             </View>
 

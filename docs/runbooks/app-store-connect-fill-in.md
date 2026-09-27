@@ -1,6 +1,6 @@
 # App Store Connect Fill-In Pack
 
-Stand: 2026-05-06
+Stand: 2026-09-22
 
 ## Ziel
 
@@ -19,12 +19,48 @@ Abschnitt [Vor Review-Submission](#vor-review-submission) erledigt sind.
 - App Store Connect App ID: `6766691399`
 - Primäre Sprache: Deutsch
 - Kategorie: Bildung
-- Anbieter: Ostheimer OG
-- Copyright: `2026 Ostheimer OG`
+- Anbieter/Verkäufername: Andreas Ostheimer
+- Copyright: `2026 Andreas Ostheimer`
 - Support-URL: `https://clearn-web.vercel.app/support`
 - Marketing-URL: `https://clearn-web.vercel.app`
 - Datenschutz-URL: `https://clearn-web.vercel.app/privacy`
 - Impressum/Kontakt: `https://clearn-web.vercel.app/impressum`
+
+Der Anbieter-/Verkäufername wird bei der aktuellen persönlichen
+Apple-Developer-Mitgliedschaft durch den gesetzlichen Namen des Mitglieds
+bestimmt und ist daher für diesen Release `Andreas Ostheimer`.
+
+Andreas Ostheimer hat für diesen Release den Copyright-Eintrag
+`2026 Andreas Ostheimer` festgelegt. Apple verlangt hier die Person oder
+Rechtsperson, die die ausschließlichen Rechte an der App hält; dies folgt nicht
+automatisch aus dem Apple-Verkäufernamen.
+
+Quellen: [Apple zum Entwicklernamen](https://developer.apple.com/help/app-store-connect/create-an-app-record/set-your-developer-name),
+[Apple zum Copyright-Feld](https://developer.apple.com/help/app-store-connect/reference/app-information/platform-version-information).
+
+## Dashboard-Stand vom 22. September 2026
+
+- Das Copyright-Feld der iOS-Version 1.0 ist in App Store Connect als
+  `2026 Andreas Ostheimer` gespeichert.
+- Der Vertrag für gebührenpflichtige Apps, das Bankkonto und W-8BEN werden in
+  App Store Connect als aktiv angezeigt. DAC7 zeigt noch fehlende Informationen.
+- Die Abo-Gruppe `clearn Pro` enthält `ai.clearn.pro.monthly` und
+  `ai.clearn.pro.annual`. Beide Abos sind in allen 175 Regionen verfügbar,
+  haben deutsche und US-englische Anzeigetexte und sind noch nicht zur Prüfung
+  eingereicht. Der österreichische Basispreis beträgt 4,99 € pro Monat bzw.
+  39,99 € pro Jahr. Das Monatsabo hat ein Einführungsangebot: die erste Woche
+  kostenlos, ab 22. September 2026 ohne Enddatum in 175 Regionen.
+  Beide Abos stehen in derselben Apple-Abo-Stufe 1, weil sie denselben
+  Pro-Zugang mit unterschiedlicher Laufzeit gewähren.
+- Der nicht verbrauchbare Kauf `ai.clearn.lifetime` ist in 175 Regionen
+  verfügbar, hat deutsche und US-englische Anzeigetexte und einen
+  österreichischen Basispreis von 89,99 €. Er ist noch nicht zur Prüfung
+  eingereicht.
+- Die Apple-In-App-Kauf-Integration zeigt derzeit **0 aktive Schlüssel**.
+  Deshalb ist die echte Apple-App in RevenueCat noch nicht verbunden; dort
+  existieren bislang nur die Entitlements `pro` und `lifetime` ohne Produkte.
+  Erst nach der Apple-Verbindung können Store-Produkte und das Offering
+  verknüpft und auf einem Gerät geprüft werden.
 
 ## Version 1.0 — Deutsch
 
@@ -151,12 +187,12 @@ Der ausfüllbare Entwurf liegt in
 
 Wichtig für die Antworten:
 
-- Nicht `kein Tracking` angeben, solange personalisierte Werbung nach ATT-Opt-in
-  technisch möglich ist.
-- Google Mobile Ads und Google User Messaging Platform müssen mitgedacht werden.
-- Ohne ATT-Opt-in zeigt die App nur nicht-personalisierte Rewarded Ads.
-- ATT wird erst kontextuell vor einem relevanten Werbe-/Tracking-Moment gefragt,
-  nicht beim ersten App-Start.
+- Rewarded Ads sind deaktiviert (`REAL_ADS_ENABLED=false`); die App bietet
+  keine Werbeaktion zum Verdienen von LP und simuliert keine Werbung.
+- Der ATT-Opt-in bleibt in den Tracking-Einstellungen vorhanden. Eine gespeicherte
+  Zustimmung aktiviert keine Werbeauslieferung.
+- Google Mobile Ads und weitere enthaltene SDKs anhand des tatsächlichen
+  Release-Builds prüfen. Nicht allein aus deaktivierten Ads auf `kein Tracking` schließen.
 
 ## Review Notes
 
@@ -190,7 +226,7 @@ clearn nutzt RevenueCat für Store-Produkte und Entitlements.
 - ai.clearn.lifetime
 
 Werbung und Tracking:
-Ohne ATT-Opt-in zeigt die App nur nicht-personalisierte Rewarded Ads. Personalisierte Werbung und darüber hinausgehendes Tracking werden erst nach expliziter Zustimmung aktiviert.
+Rewarded Ads sind in diesem Release deaktiviert (REAL_ADS_ENABLED=false). Es gibt keine Werbeaktion zum Verdienen von LP und keine simulierte Werbung. Die Tracking-Einstellungen und der ATT-Opt-in bleiben vorhanden; eine gespeicherte Zustimmung aktiviert keine Werbeauslieferung.
 
 Konto-Löschung:
 Nutzer können ihr Konto im Profil löschen. Die Löschung ist sofortig und endgültig und entfernt Konto, Decks, Karten, Reviews, Scans und Lernfortschritt. Ein aktives Apple- oder Google-Abo wird dabei nicht automatisch beendet; die App weist vor der Löschung darauf hin.

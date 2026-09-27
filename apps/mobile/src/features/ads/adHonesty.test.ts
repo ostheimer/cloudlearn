@@ -70,7 +70,7 @@ describe("Werbung verspricht nur, was sie hält (#611)", () => {
     // Der ganze Abschnitt lag in `tier === "free"` — Pro und Lifetime sahen
     // im Shop gar keinen Verdien-Weg, obwohl sie durch Lernen genauso punkten.
     const learnTile = store.indexOf('t("lp.earnByLearningTitle")');
-    const freeGate = store.indexOf('{tier === "free" && (', store.indexOf('t("lp.freeEarnSection")'));
+    const freeGate = store.indexOf('{REAL_ADS_ENABLED && tier === "free" && (', store.indexOf('t("lp.freeEarnSection")'));
     expect(learnTile).toBeLessThan(freeGate);
   });
 });

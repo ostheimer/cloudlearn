@@ -99,7 +99,7 @@ Optionale LP-Pack-Packages im selben oder einem separaten Offering:
 
 ### Webhook konfigurieren
 - URL: `https://clearn-api.vercel.app/api/v1/subscription/webhook`
-- Header: `X-RevenueCat-Signature: <REVENUECAT_WEBHOOK_SECRET>`
+- Authorization Header: `Bearer <REVENUECAT_WEBHOOK_SECRET>`
 - Events: `INITIAL_PURCHASE`, `RENEWAL`, `CANCELLATION`, `EXPIRATION`, `BILLING_ISSUE_DETECTED`
 
 ---
@@ -114,8 +114,10 @@ EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_PRO=pro
 EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_LIFETIME=lifetime
 ```
 
-Production-Builds brechen ohne iOS- und Android-API-Key ab. Vor EAS Submit muss
-`pnpm submit:check` ohne RevenueCat-Key- oder Entitlement-Fehler laufen.
+Ein gezielter Production-Build verlangt nur den RevenueCat-Key seiner Plattform;
+ohne Plattformauswahl werden beide verlangt. Vor EAS Submit muss
+`pnpm submit:check --platform ios` beziehungsweise `--platform android` ohne
+RevenueCat-Key- oder Entitlement-Fehler laufen.
 
 ### Backend (Vercel Environment Variables)
 ```
@@ -189,8 +191,9 @@ Diese Punkte gelten als verpflichtend, bevor ein Store-Rollout als „produktion
 
 Diese Schritte passieren nicht im Repo und müssen im Dashboard erledigt werden:
 
-- Produkte in App Store Connect wirklich anlegen
+- iOS-Stand vom 22. September 2026: App-Store-Produkte angelegt, Apple-In-App-Kauf-Schlüssel in RevenueCat als gültig angezeigt, Produkte mit `pro`/`lifetime` verbunden und das aktive Offering `default` mit drei Paketen gespeichert. Der öffentliche iOS-SDK-Key ist im EAS-Projekt für Development, Preview und Production gesetzt. Das ist noch kein Kauf- oder Store-Freigabenachweis.
 - Produkte in Google Play Console wirklich anlegen
-- RevenueCat Entitlements und Offerings wirklich veröffentlichen
+- RevenueCat-Android-App und -Produkte einrichten; Android-SDK-Key setzen
 - Webhook-Secret in Vercel setzen
 - Sandbox- und Testkonten bereitstellen
+- iOS-Sandbox-Kauf, Restore und Backend-Synchronisierung auf einem nativen Kandidaten nachweisen; die Store-Produkte zur Prüfung einreichen

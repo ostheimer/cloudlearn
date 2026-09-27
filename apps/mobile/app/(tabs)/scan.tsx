@@ -97,6 +97,7 @@ import { LpInsufficientModal } from "../../src/components/LpInsufficientModal";
 import TargetDeckPickerModal from "../../src/components/TargetDeckPickerModal";
 import { AuthPromptCard } from "../../src/components/AuthPromptCard";
 import { LpBadge } from "../../src/components/LpBadge";
+import { runScanSourceAction } from "../../src/lib/scanSourceAction";
 
 type InputMode = "choose" | "camera" | "text" | "url";
 
@@ -176,10 +177,7 @@ export default function ScanScreen() {
   const maxDecks = useUsageStore((state) => state.maxDecks);
   const maxCardsPerDeck = useUsageStore((state) => state.maxCardsPerDeck);
 
-  // Welche Quelle ist bezahlbar? (#611) Der Warnstreifen prüfte nur gegen den
-  // GÜNSTIGSTEN Preis: Bei 12 LP kam keine Warnung, obwohl URL (15) und PDF (20)
-  // unbezahlbar waren — man wählte eine Datei, wartete auf den Upload und bekam
-  // dann 402. Jede Quelle prüft jetzt gegen ihren eigenen Preis.
+  // Each source uses its own live price; unaffordable taps open LP help (#701).
   const afford = affordableScanSources(lpBalance, {
     aiScan: lpCostAiScan,
     urlImport: lpCostUrlImport,
@@ -230,6 +228,22 @@ export default function ScanScreen() {
   const [mode, setMode] = useState<InputMode>("choose");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const selectSource = (
+    feature: "aiScan" | "urlImport" | "pdfImport",
+    cost: number,
+    onContinue: () => void,
+  ) => runScanSourceAction({
+    balance: lpBalance,
+    cost,
+    busy: loading || saving,
+    onContinue,
+    onInsufficient: (requiredLp) => {
+      setLpModalFeature(feature);
+      setLpModalCost(requiredLp);
+      setLpModalVisible(true);
+    },
+  });
   const [cards, setCards] = useState<Flashcard[]>([]);
   // Notlösung statt KI? Der Server meldet das je Scan; nur dieser Zustand
   // wird noch gebraucht — der Modellname selbst wird nicht mehr gezeigt (#609).
@@ -1502,11 +1516,10 @@ export default function ScanScreen() {
 
             {/* Camera button */}
             <TouchableOpacity
-              onPress={openCamera}
-              // Nichts anbieten, was der Server sicher ablehnt (#611): Vorher
-              // startete die Kamera, man knipste, das Bild lud hoch — und DANN
-              // kam 402. Die Sperre kostet nichts, der Fehlweg kostete Zeit.
-              disabled={!afford.aiScan}
+              onPress={() => selectSource("aiScan", lpCostAiScan, openCamera)}
+              disabled={loading || saving}
+              accessibilityRole="button"
+              accessibilityHint={!afford.aiScan ? t("lp.earnMore") : undefined}
               activeOpacity={0.8}
               style={{
                 backgroundColor: colors.primary,
@@ -1515,7 +1528,6 @@ export default function ScanScreen() {
                 flexDirection: "row",
                 alignItems: "center",
                 gap: spacing.lg,
-                opacity: afford.aiScan ? 1 : 0.5,
                 ...shadows.md,
               }}
             >
@@ -1558,8 +1570,10 @@ export default function ScanScreen() {
 
             {/* Gallery button */}
             <TouchableOpacity
-              onPress={handlePickFromGallery}
-              disabled={!afford.aiScan}
+              onPress={() => selectSource("aiScan", lpCostAiScan, handlePickFromGallery)}
+              disabled={loading || saving}
+              accessibilityRole="button"
+              accessibilityHint={!afford.aiScan ? t("lp.earnMore") : undefined}
               activeOpacity={0.8}
               style={{
                 backgroundColor: colors.success,
@@ -1568,7 +1582,6 @@ export default function ScanScreen() {
                 flexDirection: "row",
                 alignItems: "center",
                 gap: spacing.lg,
-                opacity: afford.aiScan ? 1 : 0.5,
                 ...shadows.md,
               }}
             >
@@ -1611,8 +1624,10 @@ export default function ScanScreen() {
 
             {/* Text input button */}
             <TouchableOpacity
-              onPress={() => setMode("text")}
-              disabled={!afford.aiScan}
+              onPress={() => selectSource("aiScan", lpCostAiScan, () => setMode("text"))}
+              disabled={loading || saving}
+              accessibilityRole="button"
+              accessibilityHint={!afford.aiScan ? t("lp.earnMore") : undefined}
               activeOpacity={0.8}
               style={{
                 backgroundColor: colors.warning,
@@ -1621,7 +1636,6 @@ export default function ScanScreen() {
                 flexDirection: "row",
                 alignItems: "center",
                 gap: spacing.lg,
-                opacity: afford.aiScan ? 1 : 0.5,
                 ...shadows.md,
               }}
             >
@@ -1664,11 +1678,12 @@ export default function ScanScreen() {
 
             {/* URL import button */}
             <TouchableOpacity
-              onPress={() => setMode("url")}
-              disabled={!afford.urlImport}
+              onPress={() => selectSource("urlImport", lpCostUrlImport, () => setMode("url"))}
+              disabled={loading || saving}
+              accessibilityRole="button"
+              accessibilityHint={!afford.urlImport ? t("lp.earnMore") : undefined}
               activeOpacity={0.8}
               style={{
-                opacity: afford.urlImport ? 1 : 0.5,
                 backgroundColor: colors.info,
                 borderRadius: radius.lg,
                 padding: spacing.xl,
@@ -1717,10 +1732,10 @@ export default function ScanScreen() {
 
             {/* PDF import button */}
             <TouchableOpacity
-              onPress={handlePickPdf}
-              // Der teuerste Weg (20 LP) und der mit dem längsten Fehlweg: Datei
-              // wählen, hochladen, warten — dann 402 (#611).
-              disabled={!afford.pdfImport}
+              onPress={() => selectSource("pdfImport", lpCostPdfImport, handlePickPdf)}
+              disabled={loading || saving}
+              accessibilityRole="button"
+              accessibilityHint={!afford.pdfImport ? t("lp.earnMore") : undefined}
               activeOpacity={0.8}
               style={{
                 backgroundColor: colors.text,
@@ -1729,7 +1744,6 @@ export default function ScanScreen() {
                 flexDirection: "row",
                 alignItems: "center",
                 gap: spacing.lg,
-                opacity: afford.pdfImport ? 1 : 0.5,
                 ...shadows.md,
               }}
             >

@@ -113,7 +113,9 @@ export const useReviewSession = create<ReviewSessionState>((set, get) => ({
   start: (cards, startIndex = 0, owner, priorResults) => {
     // Resuming an interrupted deck session (sessionProgress.ts).
     const from =
-      cards.length === 0 ? 0 : Math.min(Math.max(startIndex, 0), cards.length - 1);
+      cards.length === 0 || startIndex === cards.length
+        ? cards.length
+        : Math.min(Math.max(startIndex, 0), cards.length - 1);
     // Die Ergebnisse der Vor-Sitzung wieder einfüllen (#595, wie der
     // Lückentext): Als history-Einträge zählen sie in der Auswertung und im
     // „Nur die nicht gewussten"-Stapel mit. Nur unterhalb der Einstiegskarte —
@@ -144,7 +146,7 @@ export const useReviewSession = create<ReviewSessionState>((set, get) => ({
       swipedLeft,
       swipedRight,
       revealed: false,
-      completed: cards.length === 0,
+      completed: from >= cards.length,
       startIndex: from,
       seededCount: history.length,
       // Ohne ausdrücklichen Eigentümer bleibt die Herkunft unbekannt (null).

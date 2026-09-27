@@ -9,7 +9,7 @@ import { useWobblyIds } from "@/lib/use-wobbly-ids";
 import { filterBySource, isCardDue, type CardSource } from "@/lib/card-source";
 import { loadSetup, resolveSource, saveSetup } from "@/lib/setup-memory";
 import { CardSourcePicker } from "@/components/app/card-source-picker";
-import { isProgressUsable, type SessionProgress } from "@/lib/session-progress";
+import { resolveSessionResume, type SessionProgress } from "@/lib/session-progress";
 import { loadBestProgress } from "@/lib/session-progress-sync";
 import { Layers, ArrowLeft, AlertTriangle, RotateCw } from "@/components/icons";
 
@@ -35,7 +35,7 @@ export default function LearnPage() {
   // Wo eine frühere Runde dieses Decks stand, falls gemerkt. Wird nur
   // ANGEBOTEN, nie angewendet — ein Stand von vor Tagen muss nicht mehr das
   // sein, was man jetzt will.
-  const [saved, setSaved] = useState<SessionProgress | null>(null);
+  const [saved, setSaved] = useState<SessionProgress | null | undefined>(undefined);
   // Einstiegskarte, sobald „Weitermachen" gewählt wurde; undefined = ganz vorn.
   const [resumeAt, setResumeAt] = useState<number | undefined>(undefined);
   // Gezielte Sonderrunde über ?cards= (z. B. „Wackelkandidaten üben" aus der
@@ -119,7 +119,7 @@ export default function LearnPage() {
   const setupTouchedRef = useRef(false);
   useEffect(() => {
     if (setupRestoredRef.current || setupTouchedRef.current) return;
-    if (phase !== "setup" || !studyable || !wobblySettled) return;
+    if (phase !== "setup" || !studyable || !wobblySettled || saved === undefined) return;
     setupRestoredRef.current = true;
     const stored = loadSetup(deckId, "flashcards");
     const counts = {
@@ -127,26 +127,19 @@ export default function LearnPage() {
       wobbly: studyable.filter((c) => wobblyIds.has(c.id)).length,
       due: studyable.filter((c) => isCardDue(c)).length,
     };
-    const wanted = resolveSource(stored?.source, counts);
+    const pausedDue = saved?.source === "due" && resolveSessionResume(saved, [], "due", studyable);
+    const wanted = pausedDue && (!stored?.source || stored.source === "due") ? "due" : resolveSource(stored?.source, counts);
     if (wanted) setSource(wanted);
     // Ohne gemerkte Wahl ist das Tagespensum die Voreinstellung (#610):
     // „Nur fällige", sobald es gerade welche gibt.
     else if (!stored?.source && counts.due > 0) setSource("due");
-  }, [deckId, phase, studyable, wobblyIds, wobblySettled]);
+  }, [deckId, phase, studyable, wobblyIds, wobblySettled, saved]);
 
-  // Nur anbieten, solange der Stand wirklich brauchbar ist: gleiche
-  // Kartenquelle, und an der gemerkten Position liegt noch dieselbe Karte
-  // (seitdem können Karten dazugekommen, gelöscht oder entmarkiert sein).
-  // Ein Wechsel der Quelle blendet das Angebot aus — ein Index in den einen
-  // Stapel sagt nichts über den anderen.
+  // Die gespeicherte Fällig-Runde behält ihre ursprünglichen Karten, auch
+  // wenn bereits beantwortete Karten inzwischen aus dem Filter verschwinden.
   const chosenPool = studyable ? filterBySource(studyable, source, wobblyIds) : [];
-  const canResume =
-    saved !== null &&
-    isProgressUsable(
-      saved,
-      chosenPool.map((c) => c.id),
-      source
-    );
+  const resume = resolveSessionResume(saved, chosenPool, source, studyable ?? []);
+  const canResume = resume !== null;
 
   function start(startAtCard?: number) {
     if (!studyable) return;
@@ -155,7 +148,7 @@ export default function LearnPage() {
     saveSetup(deckId, "flashcards", { source });
     // Leere Auswahl kann nur „all" sein (die anderen sind bei 0 gesperrt) —
     // dann bleibt es beim ganzen Deck.
-    setPool(chosenPool.length > 0 ? chosenPool : studyable);
+    setPool(startAtCard !== undefined && resume ? resume.cards : chosenPool);
     setResumeAt(startAtCard);
     setPhase("play");
   }
@@ -212,6 +205,7 @@ export default function LearnPage() {
         backHref={`/dashboard/deck/${deckId}`}
         backLabel="Zurück zum Deck"
         startAt={resumeAt}
+        startResults={resumeAt !== undefined ? saved?.results : undefined}
         // Beim Weitermachen gewinnt die Richtung der unterbrochenen Runde — die
         // fortgesetzten Karten werden genauso herum abgefragt wie die davor.
         // Sonst zählt, was im Setup gewählt wurde (#571 Teil B).
@@ -272,15 +266,15 @@ export default function LearnPage() {
       </button>
 
       {/* Weitermachen — nur solange eine unterbrochene Runde noch passt */}
-      {canResume && saved && (
+      {resume && saved && (
         <button
           type="button"
           className="btn btn-primary btn-lg btn-block btn-resume"
-          onClick={() => start(saved.index)}
+          onClick={() => start(resume.index)}
         >
           Weitermachen
           <small>
-            Karte {saved.index + 1} von {chosenPool.length}
+            {resume.index >= resume.cards.length ? "Runde abgeschlossen" : `Karte ${resume.index + 1} von ${resume.cards.length}`}
           </small>
         </button>
       )}
@@ -289,6 +283,7 @@ export default function LearnPage() {
       <button
         type="button"
         className={`btn ${canResume ? "btn-ghost" : "btn-primary"} btn-lg btn-block`}
+        disabled={chosenPool.length === 0}
         onClick={() => start()}
       >
         {canResume ? "Von vorne beginnen" : "Starten"}

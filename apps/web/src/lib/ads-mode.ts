@@ -1,4 +1,4 @@
-// Spiegel von apps/mobile/src/features/ads/adsMode.ts (#611).
+// Spiegel von apps/mobile/ads-mode.json (#611).
 //
 // Belohn-Werbung ist nicht scharf: Sie braucht die AdMob-SSV-Rückrufadresse und
 // die Produktions-Anzeigen-IDs (#149). Bis dahin zeigt die App eine ATTRAPPE,
@@ -11,8 +11,8 @@
 //
 // Bewusst eine Kopie und kein geteiltes Paket: App und Website werden getrennt
 // ausgeliefert (vgl. #78). Damit die Kopie nicht heimlich veraltet, prüft
-// ads-mode.test.ts die App-Datei und schlägt an, sobald die beiden Werte
+// ads-mode.test.ts die gemeinsame App-Konfiguration und schlägt an, sobald die beiden Werte
 // auseinanderlaufen.
 //
-// Umstellen auf true also NUR gemeinsam mit der App-Konstante.
+// Umstellen auf true also NUR gemeinsam mit apps/mobile/ads-mode.json.
 export const REAL_ADS_ENABLED: boolean = false;

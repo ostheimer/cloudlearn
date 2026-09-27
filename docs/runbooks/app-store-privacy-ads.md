@@ -86,6 +86,6 @@ Ergebnis:
 
 Offen:
 
-- Produktions-AdMob-IDs müssen in EAS/Build-Umgebung gesetzt werden; Production-Builds brechen ohne produktive App-IDs und Rewarded-Ad-Unit-IDs ab und `pnpm submit:check` meldet fehlende oder versehentliche Google-Test-IDs.
+- Solange `apps/mobile/ads-mode.json` `realAdsEnabled=false` setzt, verlangt der Production-Build keine produktiven AdMob-IDs und die Werbeeinstiege bleiben deaktiviert. Vor einer späteren Aktivierung müssen produktive App- und Rewarded-Ad-Unit-IDs in EAS gesetzt werden; die Release-Prüfung lehnt dann fehlende Werte und Google-Test-IDs ab.
 - Ein echtes iOS-Archive muss gebaut und der Privacy Report gegen diese Angaben geprüft werden.
 - ATT-Ablehnung, ATT-Opt-in und nicht-personalisierter Rewarded-Ad-Fallback müssen auf einem physischen Gerät getestet werden.

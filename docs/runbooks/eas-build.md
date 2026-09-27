@@ -14,7 +14,9 @@ Dieses Runbook beschreibt alle Schritte für den ersten EAS-Build und die Einrei
 
 ---
 
-## Schritt 1 – AdMob einrichten
+## Schritt 1 – AdMob nur für einen Ads-Release einrichten
+
+Für den aktuellen Release bleibt `apps/mobile/ads-mode.json` auf `realAdsEnabled=false`; dieser Schritt wird übersprungen. Vor einer späteren Aktivierung müssen SSV, Datenschutzangaben und die folgenden produktiven IDs gemeinsam abgenommen werden.
 
 1. **AdMob-App registrieren:**
    - iOS: AdMob → Apps → App hinzufügen → iOS → App-Name: "clearn" → App-ID notieren (`ca-app-pub-XXXX~XXXX`)
