@@ -69,7 +69,7 @@ describe("app.config", () => {
     ]);
   });
 
-  it("does not require production AdMob IDs while real ads are disabled", () => {
+  it("omits the Google Mobile Ads native config in production while real ads are disabled", () => {
     resetEnv({
       APP_VARIANT: "production",
       EXPO_PUBLIC_REVENUECAT_IOS_API_KEY: "appl_12345678901234567890",
@@ -79,9 +79,11 @@ describe("app.config", () => {
     const createConfig = loadAppConfig();
     const config = createConfig({ config: { ios: {}, plugins: [] } });
 
-    expect(config.ios?.infoPlist?.GADApplicationIdentifier).toBe(
-      "ca-app-pub-3940256099942544~1458002511"
-    );
+    expect(config.ios?.infoPlist?.GADApplicationIdentifier).toBeUndefined();
+    expect(config.plugins).not.toContainEqual([
+      "react-native-google-mobile-ads",
+      expect.anything(),
+    ]);
   });
 
   it("requires production RevenueCat API keys before production builds", () => {
@@ -101,7 +103,7 @@ describe("app.config", () => {
     );
   });
 
-  it("ignores configured production AdMob IDs while real ads are disabled", () => {
+  it("does not restore the Google Mobile Ads native config from stale production IDs", () => {
     resetEnv({
       APP_VARIANT: "production",
       EXPO_PUBLIC_ADMOB_APP_IOS_ID: "ca-app-pub-1234567890123456~1111111111",
@@ -118,15 +120,10 @@ describe("app.config", () => {
     const createConfig = loadAppConfig();
     const config = createConfig({ config: { ios: {}, plugins: [] } });
 
-    expect(config.ios?.infoPlist?.GADApplicationIdentifier).toBe(
-      "ca-app-pub-3940256099942544~1458002511"
-    );
-    expect(config.plugins).toContainEqual([
+    expect(config.ios?.infoPlist?.GADApplicationIdentifier).toBeUndefined();
+    expect(config.plugins).not.toContainEqual([
       "react-native-google-mobile-ads",
-      expect.objectContaining({
-        androidAppId: "ca-app-pub-3940256099942544~3347511713",
-        iosAppId: "ca-app-pub-3940256099942544~1458002511",
-      }),
+      expect.anything(),
     ]);
   });
 
