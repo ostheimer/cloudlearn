@@ -24,6 +24,10 @@ Sie ist absichtlich knapp und kann direkt in App Store Connect / Play Console ü
   - Passwort: `<REVIEW_PASSWORD>`
   - Vorbereitung: [docs/runbooks/reviewer-demo-account.md](/docs/runbooks/reviewer-demo-account.md)
 
+Die Platzhalter bleiben in dieser Repository-Datei stehen. Echte Zugangsdaten
+werden erst in den geschützten Review-Zugangsfeldern von App Store Connect
+eingetragen, nicht in Git oder in frei lesbaren Review Notes.
+
 ### Kernflow für Reviewer
 
 1. App öffnen.
@@ -68,10 +72,9 @@ Nutzer können ihr Konto im Profil löschen.
 Die Löschung ist sofortig und endgültig und entfernt Konto, Decks, Karten, Reviews, Scans und Lernfortschritt.
 Ein aktives Apple- oder Google-Abo wird dabei nicht automatisch beendet; die App weist vor der Löschung darauf hin.
 
-## Vor Submission ausfüllen
+## Vor Submission in App Store Connect ergänzen
 
-- `<REVIEW_EMAIL>`
-- `<REVIEW_PASSWORD>`
+- bestätigte Demo-E-Mail und Passwort in den geschützten Zugangsfeldern
 - Hinweis, ob Reviewer ein aktives Sandbox-Abo testen sollen
 - aktueller TestFlight-Build / Build-Nummer
 - bekannte Einschränkungen für den Review-Build
