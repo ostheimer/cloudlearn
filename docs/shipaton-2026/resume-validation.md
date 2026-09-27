@@ -48,7 +48,7 @@ Umgebung: macOS, Node 26.7.0, pnpm 10.29.2, PostgreSQL 17.11. Die SQL-Testdaten 
 
 ## Auslieferung und verbleibende Abnahme
 
-1. **Migration vor API-Deployment:** `apps/api/supabase/migrations/20260907222108_session_progress_card_ids.sql` ergänzt die nullable Spalte `session_progress.card_ids` als `uuid[]`. Alte Zeilen und Clients bleiben kompatibel. Die Migration wurde ausschließlich lokal angewendet.
+1. **Migration vor API-Deployment:** `apps/api/supabase/migrations/20260927222222_session_progress_card_ids.sql` ergänzt die nullable Spalte `session_progress.card_ids` als `uuid[]`. Alte Zeilen und Clients bleiben kompatibel. Die Migration ist seit dem 27. September 2026 in der Produktionsdatenbank angewendet und per Schemaabfrage bestätigt.
 2. **Native Abnahme:** Mit eindeutig identifiziertem Kandidaten auf einem physischen iPhone Unterbrechen, Hintergrundwechsel, Wiederöffnen, schlechte Verbindung und Geräte-/Kontosync prüfen. Auch Web mit echter API sowie serverseitige Reviews/LP sind gesondert abzunehmen. Synthetische Browserantworten, Lifecycle-Tests und lokale SQL-Tests ersetzen diesen Nachweis nicht; ein abruptes Beenden durch das Betriebssystem garantiert kein Ausführen von asynchronem Code.
 3. **Gebündelte Auslieferung:** Für native Änderungen ist ein neuer signierter App-Build erforderlich; kein OTA. Fertige Änderungen werden für einen gemeinsamen Build gesammelt. Keine kostenpflichtigen Cloud-Builds, echten Käufe, Produktionsänderungen oder Veröffentlichungen wurden ausgelöst.
 
