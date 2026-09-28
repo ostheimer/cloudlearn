@@ -1,4 +1,5 @@
 import { type NextRequest } from "next/server";
+import { z } from "zod";
 import { revenueCatWebhookSchema } from "@/lib/contracts";
 import { getEnv } from "@/lib/env";
 import { jsonError, jsonOk, normalizeError } from "@/lib/http";
@@ -32,6 +33,12 @@ const MONTHLY_GRANT_EVENT_TYPES = new Set([
   "NON_RENEWING_PURCHASE",
 ]);
 
+// TEST is a delivery probe. Its sample purchase fields need no validation
+// because they never reach the subscription/LP services.
+const webhookEnvelopeSchema = z.object({
+  event: z.object({ type: z.string() }),
+});
+
 // RevenueCat sends the dashboard-configured value in the Authorization header.
 // This is separate from the optional X-RevenueCat-Webhook-Signature HMAC flow.
 export async function POST(request: NextRequest) {
@@ -59,14 +66,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const parsed = revenueCatWebhookSchema.parse(await request.json());
-    const { event } = parsed;
-
-    // Dashboard TEST events contain sample customer/purchase data. Acknowledge
-    // after authentication and validation, before any subscription or LP writes.
-    if (event.type === "TEST") {
+    const payload: unknown = await request.json();
+    const envelope = webhookEnvelopeSchema.parse(payload);
+    // RevenueCat's purchase-like TEST payload may contain null entitlements.
+    // Authenticate and validate the event type, then acknowledge before
+    // product-specific validation or any subscription/LP writes.
+    if (envelope.event.type === "TEST") {
       return jsonOk(requestId, { requestId, type: "test_received" });
     }
+
+    const { event } = revenueCatWebhookSchema.parse(payload);
 
     // ── TRANSFER (Gerätewechsel / Family Sharing, #607) ────────────────────────
     // Trägt kein app_user_id — die Konten stehen in transferred_from/to. Ohne

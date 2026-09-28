@@ -95,6 +95,37 @@ describe("POST /api/v1/subscription/webhook – dashboard TEST delivery", () => 
     expect(mockedMonthly).not.toHaveBeenCalled();
   });
 
+  it("acknowledges purchase-like TEST data with documented nullable fields", async () => {
+    // TEST uses the subscription lifecycle fields in RevenueCat's reference.
+    // This adapts its purchase sample; entitlement_ids may be null when the
+    // product has no entitlements, expiration_at_ms for a lifetime purchase.
+    // https://www.revenuecat.com/docs/integrations/webhooks/event-types-and-fields
+    const response = await POST(webhookRequest({
+      type: "TEST",
+      id: "UniqueIdentifierOfEvent",
+      app_id: "yourAppID",
+      app_user_id: "yourCustomerAppUserID",
+      product_id: "onemonth_no_trial",
+      entitlement_ids: null,
+      expiration_at_ms: null,
+      presented_offering_id: null,
+      offer_code: null,
+      currency: null,
+      price: null,
+      transaction_id: "170000869511114",
+      environment: "SANDBOX",
+      store: "APP_STORE",
+    }));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ requestId: "req-wh-1", type: "test_received" });
+    expect(mockedMap).not.toHaveBeenCalled();
+    expect(mockedUpdate).not.toHaveBeenCalled();
+    expect(mockedTransfer).not.toHaveBeenCalled();
+    expect(mockedGrant).not.toHaveBeenCalled();
+    expect(mockedMonthly).not.toHaveBeenCalled();
+  });
+
   it("requires valid authorization for TEST before acknowledging", async () => {
     const response = await POST(webhookRequest({ type: "TEST" }, "Bearer wrong-secret"));
 
