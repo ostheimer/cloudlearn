@@ -70,6 +70,22 @@ Offen bleiben die tatsächlichen Inhaltsrechte- und kontoweiten DAC7-Angaben, dr
 
 Die Kennungen und Ergebnisse stammen aus dem finalen Readback des koordinierenden Release-Tasks. Die Dokumentationsprüfung hat zusätzlich dessen vier bereinigte Nachweisdateien zu IPA, Apple-Build-Auswahl, Review Notes und IAP-Review Notes gelesen. IPA, temporäre Dateien, Passwörter und private Review-Kontaktdaten werden nicht ins Repository übernommen.
 
+## Fortschreibung: native Mac-QA, Scan-Fix und Apple-Sperren
+
+Offizielles TestFlight auf dem Mac installiert, eigene Einladung eingelöst, clearn 1.0 (6) installiert und gestartet; Bundle-Plist bestätigt Build 6 aus `e4678f2`. Dies ist eine native Mac-Ausführung, kein Simulator und keine physische iPhone-Abnahme.
+
+- Review-Passwortlogin erfolgreich; eigenes Fotosynthese-Deck mit acht Karten sichtbar, zunächst 20 LP / Free.
+- Alle drei realen RevenueCat-Produkte geladen: Jahresabo USD 34.99, Monatsabo USD 3.99, Lifetime USD 79.99. Das native Apple-Monatsabo-Kaufblatt zeigte EUR 4.99 und eine Woche Probezeit sowie Testzwecke ohne Gebühren. Nur abgebrochen, keine Kaufbestätigung und keine Freischaltung. Preisangaben beschreiben diese Sitzung, keine allgemeine Storefront-Zusage.
+- Restore meldete „Nichts gefunden“ / kein aktives Abo. Kein Nachweis eines Restore nach abgeschlossenem Kauf.
+- Texteingabe zu Mitochondrien: frische Google-Gemini-Zustimmung abgebrochen, Editor blieb; erneut frisch bestätigt, sieben echte Karten generiert. Wegen des Ergebnisansicht-Fehlers war manuelle Rücknavigation nötig. Neues Deck mit sieben Karten gespeichert, alle sieben umgedreht und mit „Gut“ gelernt, Abschluss 7/7.
+- Unabhängiger autorisierter API-Readback um 16:53 UTC: HTTP 200, zwei eigene Decks (acht Fotosynthese- und sieben Mitochondrien-Karten), LP-Balance 21 / Free; neues Deck zuletzt um 16:51:10.369 UTC gelernt und keine seiner Karten mehr fällig.
+
+**Präzise Fehler-Evidenz:** Text wurde nativ in Build 6 reproduziert; URL wurde durch Codeprüfung und Regressionstest bestätigt, nicht durch einen tatsächlichen URL-Import in dieser Sitzung. [PR #750](https://github.com/ostheimer/cloudlearn/pull/750), 37 fokussierte Tests, Mobile-Typecheck/Lint und PR-CI grün, ist als `2fb6e7dcac4eee1846a86bd34c9020f4fa9482fb` gemergt. [Main-CI 36454274532](https://github.com/ostheimer/cloudlearn/actions/runs/36454274532) ist SUCCESS. EAS Build 7 `09a8f26a-2037-4d8d-85c5-f3f1704c9d75` ist IN_PROGRESS aus exakt diesem Merge-Commit; kein fertiges IPA, Apple-Ergebnis oder nativer Build-7-Pass behauptet.
+
+Der zwischenzeitliche reine Dokumentations-Merge `77341955ba3f660b599a322db748de7e9b44e259` hat erfolgreiche Main-CI `36451454255` und drei READY-Produktionsdeployments desselben Commits. Er änderte kein App-Binary. Für `2fb6e7d` ist der Vercel-Commitstatus insgesamt SUCCESS: `cloudlearn` Production READY (`dpl_H9XWQw1LUF6NutUhZfkKXQgRy2Wr`), API/Web jeweils „Skipped - Not affected“. Unabhängiger Alias-Readback bestätigt die weiterhin erreichbaren READY-Deployments aus `77341955`: API `dpl_9nP49t3AUsHw9twBVbbAueFbh6nN`, Web `dpl_oxaVYCFjyQTvGVP2fJoYME4Sr3iR`. Dies sind keine drei neuen READY-Deployments für `2fb6e7d`.
+
+**Tatsächliche Apple-Validierung:** „Zur Prüfung hinzufügen“ meldete genau drei Sperren: Inhaltsrechte, DAC7 und noch nicht veröffentlichter App-Datenschutz. Zusätzlich bleiben alle drei IAPs trotz gespeicherter Build-6-Review-Notes auf MISSING_METADATA. Der echte Mac-Paywall-Screenshot (576 × 1090, drei Produkte und Terms/Privacy/Restore sichtbar) wurde wegen falscher Maße abgelehnt; kein Review-Screenshot hinterlegt. Keine öffentliche Veröffentlichung und kein abgeschlossener nativer Kauf belegt.
+
 ## Screenshot-Provenienz
 
 Die zwei [lokalen Production-Home-Aufnahmen](../screens/app-store/raw/de-DE/local-production-53bb91f/README.md) stammen aus Quellstand `53bb91f` mit lokaler Buildnummer 1. Sie sind keine Aufnahmen aus dem Store-IPA von Build 5 oder 6. Der dort dokumentierte lokale Swift-/Deployment-Target-Kompatibilitätsweg und die Simulator-Signatur bleiben Teil der Provenienz. Eine Aufnahme mit blockierendem Systemdialog wurde bewusst nicht in dieses Paket übernommen.
