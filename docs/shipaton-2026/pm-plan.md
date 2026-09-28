@@ -1,8 +1,10 @@
 # Shipaton 2026 – PM-Plan
 
-Stand: 15. September 2026. Vorbereitung und autorisierte lokale Umsetzung laufen; keine erfolgte Wettbewerbsanmeldung oder Veröffentlichung.
+Stand: 28. September 2026. Release-Vorbereitung läuft; eine öffentliche App-Store-Veröffentlichung und die finale Devpost-Einreichung sind noch nicht nachgewiesen.
 
-Die [Dashboard-Bestandsaufnahme vom 9. September](dashboard-inventory-2026-09-09.md) ist bis zum 15. September fortgeschrieben: Das RevenueCat-Konto hat keine Projekte. Apple hat die App angelegt, aber keine IAPs, Abogruppe oder TestFlight-Builds; deutsche Versionsmetadaten, Datenschutz sowie Preis-/Länderkonfiguration fehlen. Andreas hat die persönlichen Steuer- und Bankangaben eingereicht; der kostenpflichtige Vertrag und die Bankdaten stehen auf „In Bearbeitung“. EAS enthält den alten Preview-Build und keinen nachgewiesenen RC-Key. Webhook-Authentifizierung und das Ads-Release-Gate sind lokal behoben. Nächste Reihenfolge: Apple-Verarbeitung nachprüfen, externe Monetarisierung und Store-Paket einrichten, dann einen gebündelten Kandidaten abnehmen.
+Maßgeblich sind der [Release-Nachweis vom 28. September](release-evidence-2026-09-28.md) und die [offenen Release-Gates](release-readiness.md). RevenueCat-Webhook-TEST 200, Store-Build 5 samt Apple-Verarbeitung und interner Testgruppe sowie der hinterlegte Review-Zugang sind dokumentiert. Build 5 enthält noch die ATT-Datenschutzblockade. [PR #748](https://github.com/ostheimer/cloudlearn/pull/748) ist mit grüner CI als `e4678f2bebc78d66b8814210a34c3533eb4aef3c` gemergt: Production ohne Ads entfernt die ATT-Usage-Description, KI-Übertragungen verlangen ausdrückliche Zustimmung und deaktivierte OAuth-Anbieter werden ausgeblendet. Der koordinierende Release-Task bereitet den korrigierten Build 6 vor; dessen Abschluss, Upload und Apple-Verarbeitung bleiben ohne konkrete Ergebnisnachweise offen.
+
+Nächste Reihenfolge: korrigierten Store-Build samt Apple-Verarbeitung und Privacy-/Build-Auswahl prüfen, native Geräteabnahme einschließlich aller drei IAP-Käufe und Restore durchführen, Store-/IAP-Review-Screenshots und Inhaltsrechte vervollständigen, öffentlich einschließlich USA veröffentlichen und anschließend finale Demo und Devpost-Einreichung abschließen. Ein erfolgreicher Webhook-TEST oder ein fertiges IPA ersetzt keinen dieser Nachweise. Die Bestandsaufnahme vom 9.–15. September ist historisch und beschreibt nicht mehr den aktuellen Dashboard-Zustand.
 
 ## Bestätigter Umfang
 
@@ -21,7 +23,7 @@ Arbeitsannahme: iOS zuerst, da bereits ein interner iOS-Build dokumentiert ist. 
 | 29. September | Interne Wettbewerbsabnahme | App öffentlich und in den USA verfügbar; Devpost-Material vollständig; finaler Freigabestand dokumentiert |
 | 1. Oktober, 08:45 Wien | Harte Abgabefrist | Wettbewerbsbeitrag tatsächlich eingereicht; Store-Review allein genügt nicht |
 
-Termine sind Planungsziele, keine Zusage einer Store-Freigabe. Bei Verzögerungen hat ein kleiner stabiler Umfang Vorrang vor Zusatzfunktionen oder Sponsor-SDKs.
+Termine sind ursprüngliche Planungsziele, keine Erledigungsnachweise oder Zusage einer Store-Freigabe. Der aktuelle Stand steht oben und im Release-Nachweis vom 28. September. Bei Verzögerungen hat ein kleiner stabiler Umfang Vorrang vor Zusatzfunktionen oder Sponsor-SDKs.
 
 ## Arbeitspakete
 
@@ -34,13 +36,15 @@ Termine sind Planungsziele, keine Zusage einer Store-Freigabe. Bei Verzögerunge
 
 PM priorisiert und prüft Ergebnisse; abgegrenzte Recherche-/Implementierungsaufgaben werden delegiert. Keine zusätzliche Automatisierung oder dauerhafte Überwachung ist eingerichtet.
 
+Die folgenden Einträge halten historische Zwischenstände fest; ihre damals offenen Punkte sind mit dem aktuellen Release-Nachweis abzugleichen.
+
 Andreas hat lokale Entwicklung und Tests ausdrücklich autorisiert: notwendige Fehler beheben, projektbezogene Abhängigkeiten installieren, lokale Tests/Builds und Browser-Verifikation ausführen. Plattform-Gates, RevenueCat-Kontowechsel bei Fehlern und sichtbare Mock-Werbeaktionen sind lokal bearbeitet. Die Prüfung vom 5. September umfasste erfolgreiche gezielte Tests, Web-Build, drei Browser-Smokes, iOS-Bundle-Export und vollständige lokale CI. Ergebnisseverlust beim Kontosync und iOS-Scan-Kostenhilfe sind ebenfalls lokal behoben. Diese Nachweise gehören zum Stand vom 5. September in [local-validation.md](local-validation.md).
 
 Am 8. September ist zusätzlich die Wiederaufnahme veränderter Fälligkeitsstapel lokal umgesetzt und zusammen mit dem mobilen Hintergrundsync geprüft. Die letzte Bewertung wird vor dem Konto-Merker in der Offline-Warteschlange gesichert. Finale lokale CI (2.225 Tests), vier Resume-Browserflows, Web-Produktionsbuild und Web-/iOS-Bundle-Exporte sind grün. Der [aktuelle Resume-Bericht](resume-validation.md) trennt Teilnachweise, synthetische Browserprüfung und ausstehende Geräteabnahme. Vor einem späteren API-Deployment ist die additive `card_ids`-Migration erforderlich. Ein Bundle-Export ersetzt keinen signierten App-Build oder Gerätetest.
 
 Am 15. September sind zusätzlich die RevenueCat-Webhook-Authentifizierung und das Ads-Release-Gate lokal korrigiert. Die gemeinsame CI ist mit 2.183 bestandenen Tests grün. Der iOS-Release-Check wird nicht mehr durch deaktivierte Ads blockiert; offen bleiben der RevenueCat-iOS-Key sowie echte Dashboard-/TestFlight-Evidenz. Der persönliche Apple-Verkäufername ist in den Store-Unterlagen korrigiert. Die Copyright-Angabe bleibt als bewusster Blocker offen, bis der tatsächliche Rechteinhaber und das Jahr der Rechteentstehung feststehen.
 
-Noch keine kostenpflichtigen Cloud-Builds, Anmeldung, externe Nachrichten, Sicherheits-/Zugangsdatenänderungen oder Veröffentlichung autorisiert. Vor einem autorisierten Build vorhandene Builds prüfen und Kosten/Quota transparent nennen. Fertige Änderungen für einen gemeinsamen Build bündeln.
+Die inzwischen ausgeführten externen Release-Schritte sind im Nachweis vom 28. September dokumentiert. Weitere Dashboard-, Build- und Deployment-Schritte koordiniert der Release-Task im tatsächlich autorisierten Umfang. Vor einem autorisierten Build vorhandene Builds prüfen und Kosten/Quota transparent nennen. Fertige Änderungen für einen gemeinsamen Build bündeln; keine automatischen Cloud-Builds nach jedem Merge.
 
 ## Quellen
 
