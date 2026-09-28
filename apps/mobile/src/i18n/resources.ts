@@ -16,7 +16,7 @@ export const resources = {
       "scan.aiConsent.photo": "Dein ausgewähltes Foto wird über clearn an Google Gemini gesendet, um daraus Karteikarten zu erstellen. Möchtest du dieses Foto senden?",
       "scan.aiConsent.pdf": "Die Inhalte deiner ausgewählten PDF werden über clearn an Google Gemini gesendet, um daraus Karteikarten zu erstellen. Möchtest du diese PDF-Inhalte senden?",
       "scan.aiConsent.text": "Dein eingegebener Text wird über clearn an Google Gemini gesendet, um daraus Karteikarten zu erstellen. Möchtest du diesen Text senden?",
-      "scan.aiConsent.url": "Deine URL wird an clearn gesendet. clearn ruft die Seite ab und sendet ihre ausgewählten Texte und Bilder an Google Gemini, um daraus Karteikarten zu erstellen. Möchtest du diese Seiteninhalte senden?",
+      "scan.aiConsent.url": "clearn ruft deine URL ab. Deine URL, der Seitentitel und der ausgewählte Seitentext werden über clearn an Google Gemini gesendet, um daraus Karteikarten zu erstellen. Möchtest du diese Daten senden?",
       "scan.aiConsentCancel": "Abbrechen",
       "scan.aiConsentSend": "Ja, an Google Gemini senden",
 
@@ -732,7 +732,7 @@ export const resources = {
       "scan.aiConsent.photo": "Your selected photo will be sent through clearn to Google Gemini to create flashcards. Do you want to send this photo?",
       "scan.aiConsent.pdf": "The contents of your selected PDF will be sent through clearn to Google Gemini to create flashcards. Do you want to send these PDF contents?",
       "scan.aiConsent.text": "Your entered text will be sent through clearn to Google Gemini to create flashcards. Do you want to send this text?",
-      "scan.aiConsent.url": "Your URL will be sent to clearn. clearn retrieves the page and sends its selected text and images to Google Gemini to create flashcards. Do you want to send these page contents?",
+      "scan.aiConsent.url": "clearn retrieves your URL. Your URL, the page title and the selected page text will be sent through clearn to Google Gemini to create flashcards. Do you want to send this data?",
       "scan.aiConsentCancel": "Cancel",
       "scan.aiConsentSend": "Yes, send to Google Gemini",
 

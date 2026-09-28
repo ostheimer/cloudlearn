@@ -13,6 +13,21 @@ function dialog() {
 }
 
 describe("native AI transmission permission", () => {
+  it.each([
+    { language: "de", fields: ["URL", "Seitentitel", "Seitentext"], destination: /URL[\s\S]*Seitentitel[\s\S]*Seitentext[\s\S]*an Google Gemini/, image: /Bilder|Fotos/ },
+    { language: "en", fields: ["URL", "page title", "page text"], destination: /URL[\s\S]*page title[\s\S]*page text[\s\S]*to Google Gemini/, image: /images|photos/i },
+  ] as const)("$language URL permission discloses every transmitted field and excludes images", async ({ language, fields, destination, image }) => {
+    const d = dialog();
+    const dictionary = resources[language].translation;
+    const decision = d.gate("url", (key) => dictionary[key as keyof typeof dictionary], d.show);
+    const message = d.show.mock.calls[0]?.[1];
+    d.choose(0);
+    await expect(decision).resolves.toBe(false);
+    for (const field of fields) expect(message).toContain(field);
+    expect(message).toMatch(destination);
+    expect(message).not.toMatch(image);
+  });
+
   it.each<AiImportSource>(["photo", "pdf", "text", "url"])("discloses the recipient and purpose for %s; only explicit yes allows sending", async (source) => {
     const d = dialog();
     const decision = d.gate(source, translate, d.show);
