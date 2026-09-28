@@ -29,12 +29,14 @@ export default function PrivacyPage() {
           <li>Subscription- und Kaufstatus, soweit er für Pro- oder Lifetime-Funktionen nötig ist</li>
           <li>Lernfortschritt, Kartenbewertungen und Lernzeiten für deine Wiederholungen und Statistiken</li>
           <li>Freundeverbindungen und gemeinsame Lern-Streaks, wenn du diese Funktionen nutzt</li>
-          <li>Deine freiwillige Geschlechtsangabe für die passende Anrede bei Freunden</li>
+          <li>
+            Deine bei der Registrierung gewählte Anredeoption für Freunde; mit „Sag ich nicht“ kannst du auf eine Geschlechtsangabe verzichten
+          </li>
           <li>Eine Gerätekennung für Push-Benachrichtigungen, wenn du Benachrichtigungen erlaubst</li>
           <li>Einstellungen wie Sprache, Theme oder Erinnerungszeiten</li>
         </ul>
         <p style={{ marginBottom: 0 }}>
-          Gespeicherte Lerninhalte, Fortschritte, Käufe und Freundeverbindungen werden deinem Konto zugeordnet. Freunde können die für gemeinsame Lernfunktionen vorgesehenen Profil- und Fortschrittsangaben sehen. clearn liest dafür kein Adressbuch deines Geräts aus.
+          Gespeicherte Lerninhalte, Fortschritte, Käufe und Freundeverbindungen werden deinem Konto zugeordnet. Angemeldete Nutzer können in der globalen Rangliste deinen Anzeigenamen, ein vorhandenes Profilbild, deinen LP-Stand, deine Abo-Stufe und deinen aktuellen Lern-Streak sehen. Freunde sehen zusätzlich die für gemeinsame Lernfunktionen vorgesehenen Profil- und Fortschrittsangaben. clearn liest dafür kein Adressbuch deines Geräts aus.
         </p>
       </PageSection>
 
@@ -50,7 +52,7 @@ export default function PrivacyPage() {
 
       <PageSection title="Eingesetzte Dienstleister">
         <p style={{ margin: 0 }}>
-          Je nach Funktionsbereich nutzt clearn technische Dienstleister wie Supabase, Vercel, RevenueCat und Cloudflare R2. Für die KI-Erstellung von Karten werden ausgewählte Lerninhalte über die clearn-API an Google Gemini übermittelt. Zahlungs- und Store-bezogene Vorgänge laufen zusätzlich über Apple bzw. Google.
+          Je nach Funktionsbereich nutzt clearn technische Dienstleister wie Supabase einschließlich Supabase Storage, Vercel und RevenueCat. Für Push-Benachrichtigungen werden der Push-Token und die jeweilige Nachricht über den Expo Push Service sowie die Benachrichtigungsdienste von Apple bzw. Google verarbeitet. Für die KI-Erstellung von Karten werden ausgewählte Lerninhalte über die clearn-API an Google Gemini übermittelt. Zahlungs- und Store-bezogene Vorgänge laufen zusätzlich über Apple bzw. Google.
         </p>
       </PageSection>
 

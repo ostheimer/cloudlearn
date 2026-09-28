@@ -38,13 +38,13 @@ Einladung und Build-Verfügbarkeit sind kein Nachweis einer Installation oder be
 - Store-Version 1.0: Build 5 ausgewählt.
 - Copyright: `2026 Andreas Ostheimer` gespeichert.
 - Ein Home-Screenshot in 1242 × 2688 hochgeladen; Galerie 1/10. Weitere Screens und separate IAP-Review-Screenshots bleiben offen.
-- Synthetisches Review-Konto: normaler Supabase-Signup, E-Mail-Bestätigung, Passwortlogin und API-Lesezugriff erfolgreich geprüft; eigenes Biologie-Deck mit acht Karten vorhanden.
+- Synthetisches Review-Konto: normaler Supabase-Signup, dabei bereits bestätigter Kontostatus und gültige Sitzung; danach unabhängiger Passwortlogin und API-Lesezugriff erfolgreich geprüft. Eigenes Biologie-Deck mit acht Karten vorhanden. Eine separate Bestätigungsmail oder ihre Zustellung wurde nicht nachgewiesen.
 - Zugangsdaten über die offizielle EAS-Metadaten-CLI in die geschützten ASC-Review-Felder eingetragen; Readback-Vergleich erfolgreich. Kein Passwort und keine Review-E-Mail in dieser Nachweisdatei.
 - Noch kein Nachweis des Review-Logins auf dem signierten physischen Testgerät.
 
 ## Datenschutz-Blocker und noch ausstehende Abnahme
 
-Zehn Datenschutz-Datentypen sind im ASC-Entwurf vollständig als linked / no tracking konfiguriert. Die Veröffentlichung ist wegen `NSUserTrackingUsageDescription` in Build 5 blockiert. Der native ATT-Fix und angepasste Web-Datenschutzhinweise entstehen separat. Ein korrigierter zweiter Store-Build ist noch nicht nachgewiesen; nach dessen Upload müssen tatsächliche Privacy-Inhalte und Build-Auswahl erneut geprüft werden.
+Zehn Datenschutz-Datentypen sind im ASC-Entwurf vollständig als linked / no tracking konfiguriert. Die Veröffentlichung ist wegen `NSUserTrackingUsageDescription` in Build 5 blockiert. Der ATT-Codefix und der Production-Prebuild sind im aktuellen Release-Branch lokal geprüft; die Web-Datenschutzhinweise sind an die tatsächlichen Datenflüsse angepasst. Ein korrigierter zweiter Store-Build ist noch nicht nachgewiesen; nach dessen Upload müssen tatsächliche Privacy-Inhalte und Build-Auswahl erneut geprüft werden.
 
 Offen bleiben alle drei echten nativen IAP-Käufe, Restore und serverseitige Freischaltung, Geräteabnahme, vollständiges Store-/IAP-Review-Material, finale Inhaltsrechteerklärung, öffentliche App-Store-Veröffentlichung einschließlich US-Nutzung, Devpost-Einreichung und finales Demo-Video. Weder TEST 200 noch ein fertiges IPA schließen diese Punkte.
 

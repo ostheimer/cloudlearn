@@ -60,9 +60,11 @@ Die App bietet Restore und Store-Abo-Verwaltung im Profil bzw. in der Paywall an
 
 Rewarded Ads sind in diesem Release deaktiviert (`REAL_ADS_ENABLED=false`).
 Die App bietet keine Werbeaktion zum Verdienen von LP und simuliert keine Werbung.
-Die Tracking-Einstellungen im Profil und der ATT-Opt-in bleiben vorhanden;
-eine gespeicherte Zustimmung aktiviert keine Werbeauslieferung.
-Der Werbe-Hook löst bei deaktivierten Ads keinen ATT-Dialog aus.
+Die Tracking-Einstellungen im Profil bleiben vorhanden und zeigen den deaktivierten
+Werbeumfang. ATT-Codefix und Production-Prebuild sind lokal geprüft; eine früher
+gespeicherte Zustimmung aktiviert keine Werbung. Vor der Einreichung muss der
+korrigierte signierte Store-Build bestätigen, dass es keine ATT-Abfrage oder
+Zustimmungs-Controls gibt.
 Die Datenschutzangaben sind vor Einreichung anhand des tatsächlichen Release-Builds
 und seiner SDKs zu prüfen; der deaktivierte Werbe-Scope allein belegt nicht „kein Tracking“.
 
