@@ -646,6 +646,7 @@ export default function ScanScreen() {
       } else {
         deductLp(lpCostAiScan);
       }
+      setMode("choose");
     } catch (error: unknown) {
       if (shouldOpenLpModal(error)) {
         setLpModalFeature("aiScan");
@@ -692,6 +693,7 @@ export default function ScanScreen() {
       } else {
         deductLp(lpCostUrlImport);
       }
+      setMode("choose");
     } catch (error: unknown) {
       if (shouldOpenLpModal(error)) {
         setLpModalFeature("urlImport");
@@ -1219,8 +1221,8 @@ export default function ScanScreen() {
               lineHeight: 22,
             }}
           >
-            Gib eine URL ein. Text und relevante Bilder der Seite werden in Karten
-            und Quizfragen übernommen.
+            Gib eine URL ein. Seitentitel und ausgewählter Text der Seite werden in
+            Karteikarten übernommen.
           </Text>
 
           <TextInput
