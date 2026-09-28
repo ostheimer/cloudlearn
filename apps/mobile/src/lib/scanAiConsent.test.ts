@@ -50,11 +50,53 @@ function setup(allow: boolean) {
     scanImage: vi.fn(async () => result), importPdf: vi.fn(async () => result),
     scanText: vi.fn(async () => result), importFromUrl: vi.fn(async () => result),
   };
-  for (const setter of ["setLoading", "setCards", "setSaved", "setSourceUrl", "setPdfFileName", "setPdfPageCount", "setImageUri", "setImageBase64", "setFallbackUsed", "setDeckTitle", "deductLp", "setUsage", "setLpModalFeature", "setLpModalCost", "setLpModalVisible"]) context[setter] = vi.fn();
+  for (const setter of ["setLoading", "setCards", "setSaved", "setSourceUrl", "setPdfFileName", "setPdfPageCount", "setImageUri", "setImageBase64", "setFallbackUsed", "setDeckTitle", "setMode", "deductLp", "setUsage", "setLpModalFeature", "setLpModalCost", "setLpModalVisible"]) context[setter] = vi.fn();
   return context;
 }
 
 describe("AI imports require permission before transmission", () => {
+  it.each([
+    { name: "handleGenerateFromText", api: "scanText", args: [] },
+    { name: "handleGenerateFromUrl", api: "importFromUrl", args: [] },
+  ] as const)("successful $name opens the generated result instead of leaving the input editor visible", async ({ name, api, args }) => {
+    const c = setup(true);
+    const generatedCards = Array.from({ length: 7 }, (_, index) => ({
+      front: `Frage ${index + 1}`,
+      back: `Antwort ${index + 1}`,
+    }));
+    (c[api] as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      cards: generatedCards,
+      deckTitle: "Zellbiologie",
+      fallbackUsed: false,
+      usage: { lpSpent: 10, lpBalance: 90 },
+    });
+
+    await handler(name, c)(...args);
+
+    expect(c.setCards).toHaveBeenLastCalledWith(generatedCards);
+    expect(c.setDeckTitle).toHaveBeenLastCalledWith("Zellbiologie");
+    expect(c.deductLp).toHaveBeenCalledExactlyOnceWith(10);
+    expect(c.setMode).toHaveBeenCalledExactlyOnceWith("choose");
+  });
+
+  it("cancelled text generation keeps the editor visible without sending or consuming LP", async () => {
+    const cancelled = setup(false);
+    await handler("handleGenerateFromText", cancelled)();
+    expect(cancelled.scanText).not.toHaveBeenCalled();
+    expect(cancelled.deductLp).not.toHaveBeenCalled();
+    expect(cancelled.setMode).not.toHaveBeenCalled();
+  });
+
+  it("a failed text request keeps the editor visible and does not consume LP", async () => {
+    const failed = setup(true);
+    (failed.scanText as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error("offline"));
+    await handler("handleGenerateFromText", failed)();
+    expect(failed.scanText).toHaveBeenCalledOnce();
+    expect(failed.deductLp).not.toHaveBeenCalled();
+    expect(failed.setMode).not.toHaveBeenCalled();
+    expect((failed.Alert as { alert: ReturnType<typeof vi.fn> }).alert).toHaveBeenCalledOnce();
+  });
+
   it.each(imports)("the browser choice gates the real $kind handler on cancel and accept", async ({ name, api, args }) => {
     const c = setup(true);
     const confirm = vi.fn().mockReturnValueOnce(false).mockReturnValueOnce(true);
