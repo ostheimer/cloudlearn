@@ -24,6 +24,19 @@ Stand: 5. September 2026. Lokale Tests ersetzen keine Store- oder Dashboard-Abna
   Ein dabei reproduzierter Fehler im wiederholten Test-Setup wurde behoben:
   auch die abhängigen Freundschaftstabellen werden vor dem Neuaufbau entfernt.
 
+## Webhook-Zustellung: Fortschreibung am 28. September 2026
+
+Die API bestätigt erfolgreiche Zustellungen mit HTTP 200, wie von
+[RevenueCat verlangt](https://www.revenuecat.com/docs/integrations/webhooks).
+Authentifizierte `TEST`-Ereignisse werden vor der Validierung synthetischer
+Kaufdaten als reine Zustellprobe bestätigt und verändern weder Tarif noch LP.
+Fehlende oder falsche Authorization bleibt gesperrt. Die Regressionstests waren
+vor dem Fix rot; danach waren 89 gezielte API-Tests, ESLint und der API-Build grün.
+
+Im Dashboard den Webhook für Sandbox und Produktion speichern und **Send test
+event** ausführen. Die Event-Details müssen HTTP 200 zeigen. Das bestätigt
+Header, Endpoint und Zustellung, ersetzt aber keinen echten Kauf-/Restore-Test.
+
 ## Noch auf Gerät und mit Dashboard-Nachweis abzunehmen
 
 1. RevenueCat-App, Plattform-Key, Offering, Store-Produkte und Entitlements

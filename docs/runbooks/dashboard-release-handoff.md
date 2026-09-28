@@ -49,6 +49,7 @@ Sobald ein externer Wert eingetragen wurde, muss der zugehörige Repo-Check erne
 ## Vercel
 
 - [x] `REVENUECAT_WEBHOOK_SECRET` ist in `clearn-api` für Production als Secret vorhanden; der Wert wurde nicht offengelegt. Der Live-Webhook lehnt Anfragen ohne Authorization mit HTTP 401 ab.
+- Vercel-Secret-Werte sind nach dem Speichern nicht mehr lesbar. Ein leeres Bearbeitungsfeld bedeutet nicht, dass kein Wert gespeichert ist. Einen unbekannten Wert nur durch eine ausdrücklich autorisierte neue gemeinsame Kennung ersetzen; die API-Variable enthält den Wert ohne Präfix, RevenueCats Authorization-Feld `Bearer <Wert>`. Danach API neu deployen und RevenueCats Testzustellung mit HTTP 200 prüfen.
 - [ ] Supabase URL/Anon Key/Service Role Key für `clearn-api` prüfen.
 - [x] Datenschutz-, Support- und Impressumsseiten im Projekt `clearn-web` antworten live mit HTTP 200 (28. September 2026).
 - [x] Production Deploys für `clearn-api`, `clearn-web` und `cloudlearn` zeigen Commit `857b48c` und sind „Ready“ (28. September 2026).
