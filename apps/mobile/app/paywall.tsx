@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -27,6 +28,7 @@ import {
   tierLabelKey,
 } from "../src/features/paywall/proDisplay";
 import { getSubscriptionStatus, getLpBalance } from "../src/lib/api";
+import { PRIVACY_URL, TERMS_URL } from "../src/lib/publicLinks";
 import { useSessionStore } from "../src/store/sessionStore";
 import { usageFromBalanceResponse, useUsageStore } from "../src/store/usageStore";
 import { radius, shadows, spacing, typography, useColors } from "../src/theme";
@@ -482,6 +484,32 @@ export default function PaywallScreen() {
           </TouchableOpacity>
         ) : null}
 
+        <View style={{ gap: spacing.sm }}>
+          <Text style={{ color: colors.textSecondary, fontSize: typography.sm }}>
+            {t("paywall.renewalNotice")}
+          </Text>
+          <Text style={{ color: colors.textSecondary, fontSize: typography.sm }}>
+            {t("paywall.lifetimeNotice")}
+          </Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.md }}>
+            {[
+              { label: t("profile.terms"), url: TERMS_URL },
+              { label: t("profile.privacy"), url: PRIVACY_URL },
+            ].map(({ label, url }) => (
+              <TouchableOpacity
+                key={url}
+                accessibilityRole="link"
+                accessibilityLabel={label}
+                onPress={() => void Linking.openURL(url)}
+                style={{ paddingVertical: 12 }}
+              >
+                <Text style={{ color: colors.primary, fontSize: typography.sm, textDecorationLine: "underline" }}>
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );

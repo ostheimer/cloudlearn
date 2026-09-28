@@ -145,7 +145,7 @@ eas update --channel preview --message "Feature-Test: ..."
 - [ ] Screenshots für App Store (6.7" + 5.5" iPhone, optionale iPad)
 - [ ] App-Beschreibung (DE + EN) für App Store / Play Store vorbereitet
 - [ ] Datenschutzerklärung URL vorhanden (Pflicht für App Store)
-- [ ] ATT-Text in `app.json`, `app.config.js` und `Info.plist` ist deckungsgleich und beschreibt zustimmungsbasierte personalisierte Werbung
+- [ ] Bei deaktivierten Ads fehlt `NSUserTrackingUsageDescription` im tatsächlichen Production-`Info.plist`; bei aktivierten Ads passt der aufgelöste ATT-Text zum zustimmungsbasierten Werbeumfang
 - [ ] App Store Connect Privacy Questionnaire ist anhand der eingebundenen SDK-Privacy-Manifests geprüft
 - [ ] Ein echter iOS-Archive-/Privacy-Report wurde gegen Google Mobile Ads und UMP gegengeprüft
 - [ ] `ascAppId` und `appleTeamId` in `eas.json` `submit` eingetragen

@@ -16,6 +16,7 @@ const GOOGLE_ADMOB_TEST_APP_IDS = {
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { realAdsEnabled: REAL_ADS_ENABLED } = require("./ads-mode.json");
 const INCLUDE_MOBILE_ADS_SDK = !IS_PRODUCTION || REAL_ADS_ENABLED;
+const INCLUDE_TRACKING_PERMISSION = !IS_PRODUCTION || REAL_ADS_ENABLED;
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { releasePlatforms, productionVariables, validProductionValue } = require("./scripts/release-platform.cjs");
@@ -62,6 +63,9 @@ module.exports = ({ config }) => {
 
   const baseInfoPlist = { ...config.ios?.infoPlist };
   delete baseInfoPlist.GADApplicationIdentifier;
+  if (!INCLUDE_TRACKING_PERMISSION) {
+    delete baseInfoPlist.NSUserTrackingUsageDescription;
+  }
 
   const result = {
     ...config,
@@ -99,6 +103,12 @@ module.exports = ({ config }) => {
         (p) =>
           // Remove the static react-native-google-mobile-ads entry — we provide it below
           !(Array.isArray(p) && p[0] === "react-native-google-mobile-ads") &&
+          // A disabled production release must not advertise an ATT prompt.
+          !(
+            !INCLUDE_TRACKING_PERMISSION &&
+            (p === "expo-tracking-transparency" ||
+              (Array.isArray(p) && p[0] === "expo-tracking-transparency"))
+          ) &&
           // Provide the Face ID permission consistently from dynamic config.
           !(Array.isArray(p) && p[0] === "expo-local-authentication") &&
           // Keep SecureStore in the dynamic config only once.

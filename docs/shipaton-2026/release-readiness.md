@@ -1,6 +1,21 @@
 # Shipaton 2026: Release-Lücken und Abnahme
 
-## Aktueller Stand am 28. September 2026
+## Aktueller Stand am 28. September 2026 — Store-Build 5
+
+Die folgenden Nachweise ersetzen die ältere Tagesaufnahme im Abschnitt darunter.
+Einzelne Kennungen und Prüfgrenzen stehen im [Release-Nachweis vom 28. September](release-evidence-2026-09-28.md).
+
+- **Code und Backend:** PR #747 ist als `53bb91fbe616ce1d4cfa4e8cd53b523db42b8386` auf `main` gemergt. CI-Lauf `36423622892` ist grün; alle drei Vercel-Produktionsprojekte sind für exakt diesen Commit Ready. Die additive `card_ids`-Migration ist bereits angewendet.
+- **RevenueCat:** Der Webhook ist für Production und Sandbox mit der eigenen API verbunden. Ein echtes Dashboard-TEST-Ereignis erhielt am 28. September um 14:41 UTC HTTP 200; ohne Authorization antwortet die API mit 401. TEST verändert keine Kauf-/LP-Daten und ersetzt keine echte Kaufabnahme.
+- **Apple/EAS:** Gültiges App-Store-Provisioning-Profil vorhanden. EAS-Produktionsbuild `41320cc2-dc75-45c8-a804-c903fcb6aae9` ist FINISHED, Quellstand `53bb91f`, Version 1.0, Build 5. Der Apple-Upload ist FINISHED und Build 5 testbereit. Die interne Gruppe `clearn Release QA` enthält einen Build und einen eingeladenen Tester. Das belegt noch keine Installation oder Geräteabnahme.
+- **Store-Paket:** Version 1.0 hat Build 5 ausgewählt. Copyright `2026 Andreas Ostheimer` ist gespeichert. Ein Home-Screenshot wurde hochgeladen (1/10). Das Review-Konto wurde über den normalen Signup bestätigt; Passwortlogin und API-Lesezugriff sowie ein eigenes Biologie-Deck mit acht Karten sind geprüft. Zugangsdaten wurden in den geschützten ASC-Feldern gespeichert und abgeglichen; sie stehen nicht im Repository.
+- **Aktueller Blocker:** Zehn Datenschutz-Datentypen sind als mit dem Nutzer verknüpft und ohne Tracking vollständig im Entwurf konfiguriert. Die Veröffentlichung ist durch `NSUserTrackingUsageDescription` in Build 5 blockiert. ATT-Codefix und Production-Prebuild sind lokal geprüft; ein korrigierter zweiter Store-Build und dessen erneute IPA-Prüfung stehen aus. Datenschutz ist noch nicht veröffentlicht, die App nicht eingereicht oder öffentlich freigegeben.
+- **Aufnahmen:** Zwei saubere lokale Production-Home-Aufnahmen sind mit [Build-Provenienz](../screens/app-store/raw/de-DE/local-production-53bb91f/README.md) vorhanden. Quelle ist ein lokaler Release-Build 1 aus `53bb91f`, nicht das Store-IPA von Build 5. Sie belegen weder Login noch Scan, Kauf oder Restore.
+- **Offen:** Native Käufe der drei tatsächlichen IAP-Produkte samt Restore/Backend-Abgleich, physische Geräteabnahme, vollständige IAP-Review-Screenshots, endgültige Privacy-/Inhaltsrechteprüfung, öffentliche Store-Freigabe sowie Devpost-Einreichung und finales Demo-Video.
+
+**Nächste Reihenfolge:** Die noch offene native KI-Einwilligung und die Web-Datenschutzhinweise abschließend prüfen; einen korrigierten Store-Build erzeugen und hochladen; dessen Privacy-Inhalt prüfen und passenden Build auswählen; Installation, Review-Login, Kernflow und native Käufe/Restore abnehmen; Datenschutz und IAP-Review-Material vervollständigen; App und IAPs einreichen; öffentliche US-Verfügbarkeit und Jury-Zugang nachweisen; Devpost mit finalem Video vollständig absenden.
+
+## Frühere Tagesaufnahme am 28. September 2026, vor Build 5
 
 Der [Wettbewerb](https://revenuecat-shipaton-2026.devpost.com/) endet am 30. September um 23:45 PDT (1. Oktober, 08:45 in Wien). Für die reguläre Teilnahme fehlen weiterhin eine **öffentliche** iOS-Erstveröffentlichung im Wettbewerbszeitraum, der nachgewiesene RevenueCat-Kauf und die vollständige Devpost-Einreichung. Ein lokaler Build, TestFlight oder eine App-Store-Einreichung erfüllen die Veröffentlichungsvoraussetzung nicht.
 

@@ -189,8 +189,9 @@ Wichtig für die Antworten:
 
 - Rewarded Ads sind deaktiviert (`REAL_ADS_ENABLED=false`); die App bietet
   keine Werbeaktion zum Verdienen von LP und simuliert keine Werbung.
-- Der ATT-Opt-in bleibt in den Tracking-Einstellungen vorhanden. Eine gespeicherte
-  Zustimmung aktiviert keine Werbeauslieferung.
+- Die Tracking-Einstellungen bleiben vorhanden und zeigen den deaktivierten
+  Werbeumfang. ATT-Codefix und Production-Prebuild sind lokal geprüft; ein
+  korrigierter signierter Store-Build und dessen IPA-Readback stehen noch aus.
 - Google Mobile Ads und weitere enthaltene SDKs anhand des tatsächlichen
   Release-Builds prüfen. Nicht allein aus deaktivierten Ads auf `kein Tracking` schließen.
 
@@ -226,7 +227,7 @@ clearn nutzt RevenueCat für Store-Produkte und Entitlements.
 - ai.clearn.lifetime
 
 Werbung und Tracking:
-Rewarded Ads sind in diesem Release deaktiviert (REAL_ADS_ENABLED=false). Es gibt keine Werbeaktion zum Verdienen von LP und keine simulierte Werbung. Die Tracking-Einstellungen und der ATT-Opt-in bleiben vorhanden; eine gespeicherte Zustimmung aktiviert keine Werbeauslieferung.
+Rewarded Ads sind in diesem Release deaktiviert (REAL_ADS_ENABLED=false). Es gibt keine Werbeaktion zum Verdienen von LP und keine simulierte Werbung. Die Tracking-Einstellungen zeigen den deaktivierten Umfang. ATT-Codefix und Production-Prebuild sind lokal geprüft; eine frühere Zustimmung aktiviert keine Werbung. Vor der Einreichung muss der korrigierte signierte Store-Build bestätigen, dass keine ATT-Freigabe abgefragt wird.
 
 Konto-Löschung:
 Nutzer können ihr Konto im Profil löschen. Die Löschung ist sofortig und endgültig und entfernt Konto, Decks, Karten, Reviews, Scans und Lernfortschritt. Ein aktives Apple- oder Google-Abo wird dabei nicht automatisch beendet; die App weist vor der Löschung darauf hin.

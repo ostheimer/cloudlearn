@@ -127,3 +127,11 @@ pnpm --filter @clearn/mobile testflight:check
 - Für den App-Store-Produktionsbuild fehlt das App-Store-Provisioning-Profil für `app.clearn` in Expo. Das vorhandene Ad-hoc-Profil ersetzt es nicht.
 - Supabase OAuth Provider müssen produktiv aktiviert und auf Gerät getestet werden.
 - Echte Ads sind für dieses iOS-Paket deaktiviert. Produktive AdMob-IDs sind dafür nicht erforderlich; vor einer späteren Aktivierung muss die vollständige AdMob-/SSV-Konfiguration geprüft werden.
+
+## Privacy-Evidenz iOS 1.0 (5), 2026-09-28
+
+- Signiertes IPA von Commit `53bb91f`, EAS-Build `41320cc2-dc75-45c8-a804-c903fcb6aae9`: Google Mobile Ads / UMP ausgeschlossen; 15 Manifeste ohne Tracking-Domains oder Tracking `true`.
+- Sentry ist als Abhängigkeit vorhanden, aber `initCrashReporting` ist im echten Bundle eine leere Funktion; die optionale Absturzmeldung ist deaktiviert.
+- Zehn ASC-Entwurfsdatentypen sind nutzerverknüpft, für App-Funktionalität und ohne Tracking; `Other Data Types` zusätzlich für Product Personalization. `Contacts` bildet den privaten Freundesgraph ab.
+- Der verbliebene `NSUserTrackingUsageDescription`-Eintrag in Build 5 blockiert derzeit die Privacy-Veröffentlichung in ASC. Nach nativer Korrektur das Nachfolge-IPA erneut prüfen; ein gespeicherter Entwurf ist keine veröffentlichte Privacy-Antwort.
+- Keine Provider-Aufbewahrungszusagen aus dieser Source-/Binary-Prüfung ableiten. Details: [Privacy-Fragebogen](app-store-privacy-questionnaire.md).

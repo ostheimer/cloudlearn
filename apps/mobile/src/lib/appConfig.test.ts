@@ -55,7 +55,16 @@ describe("app.config", () => {
     resetEnv({ APP_VARIANT: "preview" });
 
     const createConfig = loadAppConfig();
-    const config = createConfig({ config: { ios: {}, plugins: [] } });
+    const config = createConfig({
+      config: {
+        ios: {
+          infoPlist: {
+            NSUserTrackingUsageDescription: "Preview tracking permission",
+          },
+        },
+        plugins: [["expo-tracking-transparency", {}]],
+      },
+    });
 
     expect(config.ios?.infoPlist?.GADApplicationIdentifier).toBe(
       "ca-app-pub-3940256099942544~1458002511"
@@ -67,6 +76,10 @@ describe("app.config", () => {
         iosAppId: "ca-app-pub-3940256099942544~1458002511",
       }),
     ]);
+    expect(config.ios?.infoPlist?.NSUserTrackingUsageDescription).toBe(
+      "Preview tracking permission"
+    );
+    expect(config.plugins).toContainEqual(["expo-tracking-transparency", {}]);
   });
 
   it("omits the Google Mobile Ads native config in production while real ads are disabled", () => {
@@ -77,13 +90,24 @@ describe("app.config", () => {
     });
 
     const createConfig = loadAppConfig();
-    const config = createConfig({ config: { ios: {}, plugins: [] } });
+    const config = createConfig({
+      config: {
+        ios: {
+          infoPlist: {
+            NSUserTrackingUsageDescription: "Stale tracking permission",
+          },
+        },
+        plugins: [["expo-tracking-transparency", {}]],
+      },
+    });
 
     expect(config.ios?.infoPlist?.GADApplicationIdentifier).toBeUndefined();
     expect(config.plugins).not.toContainEqual([
       "react-native-google-mobile-ads",
       expect.anything(),
     ]);
+    expect(config.ios?.infoPlist?.NSUserTrackingUsageDescription).toBeUndefined();
+    expect(config.plugins).not.toContainEqual(["expo-tracking-transparency", {}]);
   });
 
   it("requires production RevenueCat API keys before production builds", () => {

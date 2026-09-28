@@ -98,6 +98,7 @@ import TargetDeckPickerModal from "../../src/components/TargetDeckPickerModal";
 import { AuthPromptCard } from "../../src/components/AuthPromptCard";
 import { LpBadge } from "../../src/components/LpBadge";
 import { runScanSourceAction } from "../../src/lib/scanSourceAction";
+import { createAiImportConsentGate } from "../../src/lib/aiImportConsent";
 
 type InputMode = "choose" | "camera" | "text" | "url";
 
@@ -162,6 +163,7 @@ async function shrinkImageForScan(asset: {
 export default function ScanScreen() {
   const router = useRouter();
   const { t } = useTranslation();
+  const confirmAiImport = useRef(createAiImportConsentGate(Platform.OS)).current;
   const userId = useSessionStore((state) => state.userId);
   const editedText = useOcrEditorState((state) => state.editedText);
   const setOriginalText = useOcrEditorState((state) => state.setOriginalText);
@@ -537,6 +539,7 @@ export default function ScanScreen() {
     mimeType: "image/jpeg" | "image/png" | "image/webp"
   ) => {
     if (!userId) return;
+    if (!(await confirmAiImport("photo", t, Alert.alert))) return;
     setLoading(true);
     setCards([]);
     setSaved(false);
@@ -575,6 +578,7 @@ export default function ScanScreen() {
 
   const processPdf = async (fileBase64: string, fileName: string) => {
     if (!userId) return;
+    if (!(await confirmAiImport("pdf", t, Alert.alert))) return;
     setLoading(true);
     setCards([]);
     setSaved(false);
@@ -617,6 +621,7 @@ export default function ScanScreen() {
 
   const handleGenerateFromText = async () => {
     if (!editedText.trim() || !userId) return;
+    if (!(await confirmAiImport("text", t, Alert.alert))) return;
     setLoading(true);
     setCards([]);
     setSaved(false);
@@ -662,6 +667,7 @@ export default function ScanScreen() {
       return;
     }
 
+    if (!(await confirmAiImport("url", t, Alert.alert))) return;
     setLoading(true);
     setCards([]);
     setSaved(false);
