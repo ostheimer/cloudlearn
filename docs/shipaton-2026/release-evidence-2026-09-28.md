@@ -2,6 +2,22 @@
 
 Diese Zusammenstellung hält die vom koordinierenden Release-Task beobachteten Dashboard-, CLI- und Readback-Ergebnisse fest. Die Dokumentationsaufgabe hat diese externen Aktionen nicht erneut ausgeführt. Keine Passwörter, Tokens, Kontonummern oder anderen Zugangsdaten werden hier gespeichert.
 
+## Aktueller Stand: Build 7 und nativer Mac-Retest
+
+- EAS Build `09a8f26a-2037-4d8d-85c5-f3f1704c9d75`: FINISHED am 28. September um 17:01:30.246 UTC, Version 1.0 (7), Quelle `2fb6e7dcac4eee1846a86bd34c9020f4fa9482fb`. Submission `799401f9-5dff-4a70-94f2-1e8c03961eb6`: FINISHED / Succeeded.
+- Apple-Build `f4502d83-b780-4e08-889e-3d0634465ae4`: VALID; Store-Version 1.0 hat **Build 7** ausgewählt. Die interne Gruppe `clearn Release QA` enthält 7, Status IN_BETA_TESTING. App- und alle drei IAP-Review-Notes nennen 7; vorhandene Review-Zugangsdaten und Kontakte bleiben unverändert.
+- Tatsächliches signiertes IPA geprüft: Bundle `app.clearn`, Gerätefamilie `[1]`, keine ATT-Usage-Description, 15 Privacy-Manifeste, kein `NSPrivacyTracking=true` und keine gefundenen Ads-SDK-Artefakte.
+- Mac-TestFlight-Update installiert; das tatsächlich laufende Bundle per Info.plist als `app.clearn` 1.0/7 bestätigt. Bestehender Login blieb erhalten. Nach frischer Gemini-Zustimmung erzeugte ein synthetischer 160-Zeichen-Mitochondrien-Text fünf Karten; das Ergebnis erschien **unmittelbar ohne Rücknavigation**. Der Text-Ergebnisansicht-Fix ist damit nativ bestanden. Alle fünf Karten wurden in einem neuen eigenen Deck gespeichert.
+- Unabhängiger eigener API-Readback um 17:17:07 UTC: `/decks` und `/usage` HTTP 200, drei Decks mit 5/7/8 Karten, Free-Tier mit 11 LP (21 minus 10). Keine neue Lernrunde auf Build 7 geprüft; der frühere Lernlauf 7/7 gehört ausschließlich zu Build 6. URL-Import bleibt nur durch Codeprüfung/Regressionstest bestätigt, nicht nativ.
+- Echte RevenueCat-Preise dieser Build-7-Sitzung: EUR 39.99 jährlich, EUR 4.99 monatlich, EUR 89.99 Lifetime. Apple-Sandbox-Monatskaufblatt zeigte keine Gebühren und eine Woche Probezeit; weder clearn noch App Store bot einen Bestätigungsbutton. Abgebrochen: **kein Kauf, keine bezahlte Freischaltung und kein Paid-Restore**. Restore meldete korrekt kein aktives Abo.
+- Apple-Validierung meldet weiterhin die drei Sperren Inhaltsrechte, DAC7 und nicht veröffentlichter App-Datenschutz. Alle drei IAPs bleiben MISSING_METADATA; ihre Review-Screenshots fehlen. Physische iPhone-Abnahme, echte Käufe/Restore, öffentliche US-Store-Verfügbarkeit, finale Demo und Devpost-Einreichung bleiben offen.
+
+Main-CI `36454274532` für `2fb6e7d` ist SUCCESS. Vercel: `cloudlearn` neu READY (`dpl_H9XWQw1LUF6NutUhZfkKXQgRy2Wr`); API/Web „Skipped - Not affected“. Ihre unabhängig geprüften öffentlichen Aliase zeigen weiterhin READY aus `77341955`: API `dpl_9nP49t3AUsHw9twBVbbAueFbh6nN`, Web `dpl_oxaVYCFjyQTvGVP2fJoYME4Sr3iR`. Keine drei neuen Deployments für `2fb6e7d` behauptet.
+
+## Historische Nachweise vor dem abgeschlossenen Build-7-Retest
+
+Die folgenden Abschnitte bewahren die früheren Readbacks. Angaben wie ausgewählter Build 6, Review Notes für 6 oder laufender Build 7 gelten nur für ihren damaligen Prüfzeitpunkt; aktuell ist der Stand oben.
+
 ## Code und Produktion
 
 - [PR #748](https://github.com/ostheimer/cloudlearn/pull/748): gemergt als `e4678f2bebc78d66b8814210a34c3533eb4aef3c` auf `main`; enthält die Korrekturen für ATT, ausdrückliche Gemini-Einwilligung und verfügbare OAuth-Anbieter.
