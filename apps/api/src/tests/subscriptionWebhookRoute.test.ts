@@ -6,8 +6,8 @@
  * (grant_lp_purchase + partial unique index). This test pins the wiring: a
  * purchase event credits directly, with the transaction-derived reason.
  *
- * `@/lib/http` and `@/lib/contracts` are mocked so the test doesn't need
- * next/server or a live zod parse.
+ * HTTP helpers and mutation services are mocked; the real webhook schema
+ * validates each request payload.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -24,7 +24,6 @@ vi.mock("@/lib/http", () => ({
     status: 500,
   }),
 }));
-vi.mock("@/lib/contracts", () => ({ revenueCatWebhookSchema: { parse: (x: unknown) => x } }));
 // Configurable so individual tests can simulate a missing secret (#205: the
 // secret is now required in EVERY environment, not just production).
 const envState = vi.hoisted(() => ({ secret: "secret" as string | undefined }));
@@ -67,6 +66,47 @@ function webhookRequest(event: Record<string, unknown>, authorization = "Bearer 
   }) as never;
 }
 
+describe("POST /api/v1/subscription/webhook – dashboard TEST delivery", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    envState.secret = "secret";
+    mockedMap.mockReturnValue({ tier: "pro", isActive: true, expiresAt: null });
+  });
+
+  it.each([
+    "test-user",
+    "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    undefined,
+  ])("acknowledges TEST for %s without touching subscriptions or LP", async (userId) => {
+    const response = await POST(webhookRequest({
+      type: "TEST",
+      app_user_id: userId,
+      entitlement_ids: ["pro"],
+      product_id: "lp_pack_300",
+      transaction_id: "test-transaction",
+    }));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ requestId: "req-wh-1", type: "test_received" });
+    expect(mockedMap).not.toHaveBeenCalled();
+    expect(mockedUpdate).not.toHaveBeenCalled();
+    expect(mockedTransfer).not.toHaveBeenCalled();
+    expect(mockedGrant).not.toHaveBeenCalled();
+    expect(mockedMonthly).not.toHaveBeenCalled();
+  });
+
+  it("requires valid authorization for TEST before acknowledging", async () => {
+    const response = await POST(webhookRequest({ type: "TEST" }, "Bearer wrong-secret"));
+
+    expect(response.status).toBe(401);
+    expect(mockedMap).not.toHaveBeenCalled();
+    expect(mockedUpdate).not.toHaveBeenCalled();
+    expect(mockedTransfer).not.toHaveBeenCalled();
+    expect(mockedGrant).not.toHaveBeenCalled();
+    expect(mockedMonthly).not.toHaveBeenCalled();
+  });
+});
+
 describe("POST /api/v1/subscription/webhook – LP pack idempotent grant", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -84,7 +124,7 @@ describe("POST /api/v1/subscription/webhook – LP pack idempotent grant", () =>
     );
     const body = (await response.json()) as { type: string };
 
-    expect(response.status).toBe(201);
+    expect(response.status).toBe(200);
     expect(body.type).toBe("lp_pack_granted");
     // grant_lp_purchase (via grantLpPurchase) is the single idempotent path — no
     // prior isLpTransactionProcessed SELECT, and the reason keys off the txid.
@@ -113,7 +153,7 @@ describe("POST /api/v1/subscription/webhook – LP pack idempotent grant", () =>
 
     const response = await POST(request);
 
-    expect(response.status).toBe(201);
+    expect(response.status).toBe(200);
     expect(mockedGrant).toHaveBeenCalledWith(
       "user-9",
       300,
@@ -196,7 +236,7 @@ describe("POST /api/v1/subscription/webhook – monthly Pro LP grant (#209 Part 
       })
     );
 
-    expect(response.status).toBe(201);
+    expect(response.status).toBe(200);
     // Called with the auth-mapped user id (app_user_id), the resolved tier and the
     // CALENDAR month — NOT the expiry date, which paid annual subs once a year and
     // would collide with the /lp/monthly-grant cron (#604).
@@ -215,7 +255,7 @@ describe("POST /api/v1/subscription/webhook – monthly Pro LP grant (#209 Part 
       })
     );
 
-    expect(response.status).toBe(201);
+    expect(response.status).toBe(200);
     // Not an LP pack, so the purchase falls through to the subscription path and
     // receives the instant month allotment; the cron covers every later month.
     expect(mockedGrant).not.toHaveBeenCalled();
@@ -229,7 +269,7 @@ describe("POST /api/v1/subscription/webhook – monthly Pro LP grant (#209 Part 
       webhookRequest({ app_user_id: "user-42", type: "RENEWAL" })
     );
 
-    expect(response.status).toBe(201);
+    expect(response.status).toBe(200);
     expect(mockedMonthly).not.toHaveBeenCalled();
   });
 
@@ -241,7 +281,7 @@ describe("POST /api/v1/subscription/webhook – monthly Pro LP grant (#209 Part 
       webhookRequest({ app_user_id: "user-42", type: "CANCELLATION", entitlement_ids: ["pro"] })
     );
 
-    expect(response.status).toBe(201);
+    expect(response.status).toBe(200);
     expect(mockedMonthly).not.toHaveBeenCalled();
   });
 
@@ -253,7 +293,7 @@ describe("POST /api/v1/subscription/webhook – monthly Pro LP grant (#209 Part 
       webhookRequest({ app_user_id: "user-42", type: "BILLING_ISSUE", entitlement_ids: ["pro"] })
     );
 
-    expect(response.status).toBe(201);
+    expect(response.status).toBe(200);
     expect(mockedUpdate).toHaveBeenCalledWith(
       expect.objectContaining({ billingIssueAt: expect.any(String) })
     );
@@ -283,7 +323,7 @@ describe("POST /api/v1/subscription/webhook – monthly Pro LP grant (#209 Part 
     );
     const body = (await response.json()) as { type: string; movedTier: string };
 
-    expect(response.status).toBe(201);
+    expect(response.status).toBe(200);
     expect(body.type).toBe("transfer_processed");
     expect(body.movedTier).toBe("pro");
     expect(mockedTransfer).toHaveBeenCalledWith(
@@ -304,7 +344,7 @@ describe("POST /api/v1/subscription/webhook – monthly Pro LP grant (#209 Part 
     expect(mockedUpdate).not.toHaveBeenCalled();
   });
 
-  it("still succeeds (2xx) when the monthly grant fails", async () => {
+  it("still acknowledges with 200 when the monthly grant fails", async () => {
     mockedMap.mockReturnValue({ tier: "pro", isActive: true, expiresAt: "2026-08-13T00:00:00.000Z" });
     mockedMonthly.mockRejectedValueOnce(new Error("boom"));
 
@@ -313,7 +353,7 @@ describe("POST /api/v1/subscription/webhook – monthly Pro LP grant (#209 Part 
     );
 
     // The tier update already stuck; a failed additive grant must not fail the webhook.
-    expect(response.status).toBe(201);
+    expect(response.status).toBe(200);
     expect(mockedMonthly).toHaveBeenCalled();
   });
 });

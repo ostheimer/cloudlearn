@@ -62,6 +62,12 @@ export async function POST(request: NextRequest) {
     const parsed = revenueCatWebhookSchema.parse(await request.json());
     const { event } = parsed;
 
+    // Dashboard TEST events contain sample customer/purchase data. Acknowledge
+    // after authentication and validation, before any subscription or LP writes.
+    if (event.type === "TEST") {
+      return jsonOk(requestId, { requestId, type: "test_received" });
+    }
+
     // ── TRANSFER (Gerätewechsel / Family Sharing, #607) ────────────────────────
     // Trägt kein app_user_id — die Konten stehen in transferred_from/to. Ohne
     // diesen Zweig behielte das alte Konto Pro und das neue bliebe Free.
@@ -70,7 +76,7 @@ export async function POST(request: NextRequest) {
         event.transferred_from ?? [],
         event.transferred_to ?? []
       );
-      return jsonOk(requestId, { requestId, type: "transfer_processed", movedTier }, 201);
+      return jsonOk(requestId, { requestId, type: "transfer_processed", movedTier });
     }
 
     const userId = event.app_user_id;
@@ -97,7 +103,7 @@ export async function POST(request: NextRequest) {
         await grantLpPurchase(userId, pack.lp, `purchase_${transactionId}`);
       }
       // Return 200 immediately — no subscription state update needed for packs
-      return jsonOk(requestId, { requestId, type: "lp_pack_granted", productId }, 201);
+      return jsonOk(requestId, { requestId, type: "lp_pack_granted", productId });
     }
 
     // ── Subscription event ─────────────────────────────────────────────────────
@@ -136,7 +142,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return jsonOk(requestId, { requestId, status }, 201);
+    return jsonOk(requestId, { requestId, status });
   } catch (error) {
     const normalized = normalizeError(error);
     return jsonError(
