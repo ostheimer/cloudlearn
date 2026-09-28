@@ -163,7 +163,7 @@ async function shrinkImageForScan(asset: {
 export default function ScanScreen() {
   const router = useRouter();
   const { t } = useTranslation();
-  const confirmAiImport = useRef(createAiImportConsentGate()).current;
+  const confirmAiImport = useRef(createAiImportConsentGate(Platform.OS)).current;
   const userId = useSessionStore((state) => state.userId);
   const editedText = useOcrEditorState((state) => state.editedText);
   const setOriginalText = useOcrEditorState((state) => state.setOriginalText);

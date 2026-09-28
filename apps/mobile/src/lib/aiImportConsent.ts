@@ -3,7 +3,7 @@ import type { Alert } from "react-native";
 export type AiImportSource = "photo" | "pdf" | "text" | "url";
 
 /** Each transmission needs a fresh choice; permission is never persisted. */
-export function createAiImportConsentGate() {
+export function createAiImportConsentGate(platformOS = "native") {
   let pending = false;
 
   return async (
@@ -15,6 +15,15 @@ export function createAiImportConsentGate() {
     if (pending) return false;
     pending = true;
     try {
+      // React Native Web's Alert.alert is a no-op and never invokes buttons.
+      if (platformOS === "web") {
+        if (typeof window === "undefined" || typeof window.confirm !== "function") return false;
+        try {
+          return window.confirm(`${translate("scan.aiConsentTitle")}\n\n${translate(`scan.aiConsent.${source}`)}`) === true;
+        } catch {
+          return false;
+        }
+      }
       return await new Promise<boolean>((resolve) => {
         let settled = false;
         const finish = (allowed: boolean) => {

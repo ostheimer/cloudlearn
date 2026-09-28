@@ -1,9 +1,10 @@
 import type { Alert } from "react-native";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { resources } from "../i18n/resources";
 import { createAiImportConsentGate, type AiImportSource } from "./aiImportConsent";
 
 const translate = (key: string) => resources.de.translation[key as keyof typeof resources.de.translation];
+afterEach(() => vi.unstubAllGlobals());
 function dialog() {
   const show = vi.fn<typeof Alert.alert>();
   const gate = createAiImportConsentGate();
@@ -69,5 +70,33 @@ describe("native AI transmission permission", () => {
     expect(d.show).toHaveBeenCalledTimes(2);
     d.choose(0);
     await expect(next).resolves.toBe(false);
+  });
+});
+
+describe("web AI transmission permission with React Native Web's no-op Alert", () => {
+  it.each([true, false])("resolves the explicit browser choice %s instead of hanging", async (allowed) => {
+    const confirm = vi.fn(() => allowed);
+    vi.stubGlobal("window", { confirm });
+    const noOpAlert = vi.fn<typeof Alert.alert>();
+    const gate = createAiImportConsentGate("web");
+    const result = await Promise.race([
+      gate("url", translate, noOpAlert),
+      new Promise<"pending">((resolve) => setTimeout(() => resolve("pending"), 0)),
+    ]);
+    expect(result).toBe(allowed);
+    expect(confirm).toHaveBeenCalledExactlyOnceWith(`${translate("scan.aiConsentTitle")}\n\n${translate("scan.aiConsent.url")}`);
+    expect(noOpAlert).not.toHaveBeenCalled();
+  });
+
+  it.each([undefined, {}, { confirm: () => { throw new Error("Browser confirmation unavailable"); } }])("denies transmission when browser confirmation is unavailable: %j", async (browser) => {
+    vi.stubGlobal("window", browser);
+    const noOpAlert = vi.fn<typeof Alert.alert>();
+    const gate = createAiImportConsentGate("web");
+    const result = await Promise.race([
+      gate("text", translate, noOpAlert),
+      new Promise<"pending">((resolve) => setTimeout(() => resolve("pending"), 0)),
+    ]);
+    expect(result).toBe(false);
+    expect(noOpAlert).not.toHaveBeenCalled();
   });
 });

@@ -1,8 +1,10 @@
 import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createAiImportConsentGate } from "./aiImportConsent";
+
+afterEach(() => vi.unstubAllGlobals());
 
 // Execute the real screen handlers without a React Native renderer. Only their
 // network, dialog and UI dependencies are substituted; no request is sent.
@@ -53,6 +55,22 @@ function setup(allow: boolean) {
 }
 
 describe("AI imports require permission before transmission", () => {
+  it.each(imports)("the browser choice gates the real $kind handler on cancel and accept", async ({ name, api, args }) => {
+    const c = setup(true);
+    const confirm = vi.fn().mockReturnValueOnce(false).mockReturnValueOnce(true);
+    vi.stubGlobal("window", { confirm });
+    c.confirmAiImport = createAiImportConsentGate("web");
+    const run = handler(name, c);
+    await run(...args);
+    expect(c[api]).not.toHaveBeenCalled();
+    expect(c.deductLp).not.toHaveBeenCalled();
+    await run(...args);
+    expect(c[api]).toHaveBeenCalledOnce();
+    expect(c.deductLp).toHaveBeenCalledExactlyOnceWith(10);
+    expect(confirm).toHaveBeenCalledTimes(2);
+    expect((c.Alert as { alert: unknown }).alert).not.toHaveBeenCalled();
+  });
+
   it.each(imports)("the native dialog gates the real $kind handler on cancel and accept", async ({ name, api, args }) => {
     const c = setup(true);
     const alert = vi.fn();
