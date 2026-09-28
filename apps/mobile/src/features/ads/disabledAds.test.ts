@@ -50,8 +50,9 @@ describe("disabled ads release", () => {
 
   it("keeps tracking preferences without describing disabled ads as active", () => {
     const screen = readFileSync(new URL("../../../app/tracking-preferences.tsx", import.meta.url), "utf8");
+    expect(screen).toContain("export default function TrackingPreferencesScreen");
     expect(screen).toContain('if (!REAL_ADS_ENABLED) return "tracking.modeDisabled";');
     expect(screen).toContain('REAL_ADS_ENABLED ? "tracking.explainerBody" : "tracking.adsDisabledBody"');
-    expect(screen).toContain("allowPersonalizedAds");
+    expect(screen).toContain("{REAL_ADS_ENABLED ? (");
   });
 });
