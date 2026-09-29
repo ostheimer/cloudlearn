@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "expo-router";
+import { useCallback, useMemo, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -92,7 +92,7 @@ export default function PaywallScreen() {
   const usageStore = useUsageStore();
   const setUsage = useUsageStore((state) => state.setUsage);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     let isMounted = true;
 
     const loadPaywall = async () => {
@@ -151,7 +151,7 @@ export default function PaywallScreen() {
     return () => {
       isMounted = false;
     };
-  }, [userId, t]);
+  }, [userId, t, setUsage]));
 
   const availabilityMessage = useMemo(() => {
     if (availabilityReason === "native_module_unavailable") {

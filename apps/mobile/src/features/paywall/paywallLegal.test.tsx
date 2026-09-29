@@ -38,7 +38,7 @@ vi.mock("react-native", () => ({
   },
 }));
 vi.mock("react-native-safe-area-context", () => ({ SafeAreaView: ({ children }: React.PropsWithChildren) => <div>{children}</div> }));
-vi.mock("expo-router", () => ({ useRouter: () => ({ back: vi.fn() }) }));
+vi.mock("expo-router", () => ({ useRouter: () => ({ back: vi.fn() }), useFocusEffect: () => {} }));
 vi.mock("react-i18next", () => ({ useTranslation: () => ({
   t: (key: string) => (resources[state.language].translation as Record<string, string>)[key] ?? key,
 }) }));

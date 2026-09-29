@@ -24,6 +24,7 @@ import {
   GraduationCap,
   BookOpen,
 } from "lucide-react-native";
+import { useFocusedSubscriptionStatus } from "../../src/features/paywall/useFocusedSubscriptionStatus";
 import { useSessionStore } from "../../src/store/sessionStore";
 import { supabase } from "../../src/lib/supabase";
 import { toGermanAuthError } from "../../src/lib/authErrorMessages";
@@ -31,7 +32,6 @@ import { useOnboardingState } from "../../src/features/onboarding/onboardingStat
 import {
   deleteAccount,
   getProfile,
-  getSubscriptionStatus,
   updateDisplayName,
   updateGender,
   displayNameErrorKey,
@@ -91,9 +91,10 @@ export default function ProfileScreen() {
   const email = useSessionStore((state) => state.email);
   const signOut = useSessionStore((state) => state.signOut);
   const resetPassword = useSessionStore((state) => state.resetPassword);
-  const [tier, setTier] = useState("...");
-  const [subExpiresAt, setSubExpiresAt] = useState<string | null>(null);
-  const [billingIssueAt, setBillingIssueAt] = useState<string | null>(null);
+  const subscription = useFocusedSubscriptionStatus(userId);
+  const tier = subscription?.failed ? "unbekannt" : subscription?.status?.tier ?? "...";
+  const subExpiresAt = subscription?.status?.expiresAt ?? null;
+  const billingIssueAt = subscription?.status?.billingIssueAt ?? null;
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderHour, setReminderHour] = useState(19);
   const [deletingAccount, setDeletingAccount] = useState(false);
@@ -127,13 +128,6 @@ export default function ProfileScreen() {
 
   useEffect(() => {
     if (!userId) return;
-    getSubscriptionStatus()
-      .then((res) => {
-        setTier(res.status.tier);
-        setSubExpiresAt(res.status.expiresAt ?? null);
-        setBillingIssueAt(res.status.billingIssueAt ?? null);
-      })
-      .catch(() => setTier("unbekannt"));
     getProfile()
       .then((p) => {
         setDisplayName(p.displayName);
