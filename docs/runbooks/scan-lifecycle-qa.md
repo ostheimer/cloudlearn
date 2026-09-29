@@ -31,8 +31,21 @@ Im lokalen iOS-Simulator mit lokalem Testbackend und festen Foto-Karten:
 4. Zum Scan-Tab zurückkehren.
 
 Vor der Korrektur blieb „8 Karten gespeichert“ mit altem Foto und Deck-Aktionen
-stehen (Baseline `7d17e8b`). Die Prüfung verwendet ausschließlich lokale Daten;
+stehen (Baseline `7d17e8b`). Nach der Korrektur (`9123637`) wurde derselbe Ablauf vollständig wiederholt:
+acht Karten gespeichert und gelernt, Deck gelöscht, Bibliothek bei null Decks,
+Rückkehr zur frischen Quellen-Auswahl ohne alte Karten oder Deck-Aktionen.
+Die HTTP-Protokolle belegen in beiden Durchläufen genau eine Foto-Anfrage, ein
+Deck, acht Karten und acht Bewertungen; die Rückkehr erstellt nichts erneut.
+Vorher-/Nachher-Aufnahmen und Protokolle wurden lokal archiviert.
+
+Die Prüfung verwendet ausschließlich lokale Daten;
 sie ist kein zusätzlicher Gemini-Aufruf und keine Änderung von Produktionsdaten.
+Die native iPhone-15-Simulator-App läuft unter iOS 26.5 mit wiederverwendeter
+kompatibler Expo/React-Native-Hülle und jeweils neu gebündeltem JavaScript.
+Damit ist der native Ablauf geprüft, nicht die Qualität eines echten Gemini-Scans.
+
+Alle 886 mobilen Tests (108 Dateien), TypeScript und die gezielte Lint-Prüfung
+sind grün; Lint meldet drei bereits vorhandene Warnungen.
 
 ## Auslieferung
 

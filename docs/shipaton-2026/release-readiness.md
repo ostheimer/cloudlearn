@@ -1,5 +1,12 @@
 # Shipaton 2026: Release-Lücken und Abnahme
 
+## Simulator-Abnahme am 29. September 2026 — Scan nach Deck-Löschung
+
+Der hängen gebliebene gespeicherte Scan wurde vor der Korrektur im echten iOS-Simulator reproduziert. Nach der Korrektur in [PR #754](https://github.com/ostheimer/cloudlearn/pull/754) wurde derselbe vollständige Ablauf wiederholt: Foto importieren, acht Karten speichern, alle acht lernen, Deck löschen und Scan öffnen. Jetzt erscheint die frische Quellen-Auswahl; ungespeicherte Vorschauen und teilweise fehlgeschlagene Speicherversuche bleiben erhalten. Die 886 mobilen Tests sind grün; [Ablauf und Prüfgrenzen](../runbooks/scan-lifecycle-qa.md).
+
+Auth und KI-Antworten stammen dabei aus einem lokalen Testbackend. Das bestätigt den nativen Navigations-/Speicherablauf, keine neue Gemini-Qualitätsabnahme. Dieser Mobile-Fix benötigt wie die Profil-Aktualisierung nach Käufen aus PR #752 den nächsten gebündelten iOS-Build. TestFlight Build 7 enthält beide Änderungen noch nicht; sein Apple-Review wird durch diese lokale Prüfung nicht verändert.
+
+
 ## Geräteprobe am 29. September 2026 — Foto, Speichern und Lernen auf Build 7
 
 Die sichtbare iPhone-Probe führte vom Foto über die Ergebnisansicht zu **16 gespeicherten Karten** und einem abgeschlossenen Lernlauf mit **16 Karten**. Dabei meldete Andreas einen Mengenfehler: Der Ausgangsstoff enthielt acht Fragen; dieselben Inhalte wurden jeweils als Frage-Antwort- und Lückentextkarte erzeugt. Der Ablauf funktionierte, die Kartenmenge ist deshalb keine bestandene Qualitätsabnahme.
