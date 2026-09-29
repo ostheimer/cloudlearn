@@ -1,5 +1,11 @@
 # Shipaton 2026: Release-Lücken und Abnahme
 
+## Geräteprobe am 29. September 2026 — Foto, Speichern und Lernen auf Build 7
+
+Die sichtbare iPhone-Probe führte vom Foto über die Ergebnisansicht zu **16 gespeicherten Karten** und einem abgeschlossenen Lernlauf mit **16 Karten**. Dabei meldete Andreas einen Mengenfehler: Der Ausgangsstoff enthielt acht Fragen; dieselben Inhalte wurden jeweils als Frage-Antwort- und Lückentextkarte erzeugt. Der Ablauf funktionierte, die Kartenmenge ist deshalb keine bestandene Qualitätsabnahme.
+
+Die Korrektur liegt im API-Generator: pro Lerninhalt nur ein Format anfordern und erkennbare redundante Namensfragen vor der Vorschau entfernen. Verschiedene Fragen mit derselben Antwort bleiben erhalten. Die lokale Regression liefert bei acht synthetischen Formatpaaren acht Karten; ein frischer Foto-Scan muss nach API-Deployment erneut am Gerät geprüft werden. Bereits gespeicherte Karten werden nicht verändert. Für diese reine API-Änderung ist kein neuer EAS-App-Build nötig; ein Mobile-Fix benötigt weiterhin einen neuen Build.
+
 ## Aktueller Stand am 28. September 2026 — Build 7 nativ auf Mac geprüft
 
 Kennungen, Prüfgrenzen und historische Stände stehen im [Release-Nachweis vom 28. September](release-evidence-2026-09-28.md).
