@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -370,6 +370,39 @@ export default function ScanScreen() {
     })
   ).current;
 
+  const resetAll = () => {
+    setCards([]);
+    setFallbackUsed(false);
+    setDeckTitle("");
+    setSaved(false);
+    setSavedDeckId(null);
+    setSaveResult(null);
+    setImageUri(null);
+    setImageBase64(null);
+    setMode("choose");
+    setEditedText("");
+    setSourceUrl("");
+    setPdfFileName("");
+    setPdfPageCount(null);
+    importAttemptRef.current = null;
+  };
+
+  // Keep the success screen while it is open. Only a real return to this tab
+  // retires a completed scan; unfinished/partially saved previews stay intact.
+  // Refs keep the focus callback stable: changing `saved` during a save must
+  // not register a new focus effect and immediately erase the success screen.
+  const focusedOnceRef = useRef(false);
+  const scanFocusRef = useRef({ saved, resetAll, reloadDecks });
+  scanFocusRef.current = { saved, resetAll, reloadDecks };
+  useFocusEffect(useCallback(() => {
+    if (focusedOnceRef.current) {
+      const current = scanFocusRef.current;
+      if (current.saved) current.resetAll();
+      // The Library may have changed or deleted decks while Scan was away.
+      void current.reloadDecks();
+    }
+    focusedOnceRef.current = true;
+  }, []));
 
   if (!userId) {
     return (
@@ -898,23 +931,6 @@ export default function ScanScreen() {
       { text: "Bestehendes Deck", onPress: handleSaveToExistingDeck },
       { text: "Abbrechen", style: "cancel" },
     ]);
-  };
-
-  const resetAll = () => {
-    setCards([]);
-    setFallbackUsed(false);
-    setDeckTitle("");
-    setSaved(false);
-    setSavedDeckId(null);
-    setSaveResult(null);
-    setImageUri(null);
-    setImageBase64(null);
-    setMode("choose");
-    setEditedText("");
-    setSourceUrl("");
-    setPdfFileName("");
-    setPdfPageCount(null);
-    importAttemptRef.current = null;
   };
 
   // ─── #608: Gemerkten Entwurf einer früheren Sitzung fortsetzen/verwerfen ──
