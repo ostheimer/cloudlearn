@@ -1470,7 +1470,12 @@ export default function ScanScreen() {
           cardCount={nonEmptyCards(cards).length}
           decks={decks}
           maxCardsPerDeck={maxCardsPerDeck}
+          canCreateDeck={!deckLimitReached}
           onClose={() => setDeckPickerVisible(false)}
+          onCreateDeck={() => {
+            setDeckPickerVisible(false);
+            void handleSaveNewDeck();
+          }}
           onSelect={(deck) => {
             setDeckPickerVisible(false);
             confirmSaveToDeck(deck);

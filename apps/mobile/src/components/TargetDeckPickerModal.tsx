@@ -22,7 +22,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { X, Layers, Search } from "lucide-react-native";
+import { X, Layers, Plus, Search } from "lucide-react-native";
 import { useColors, spacing, radius, typography } from "../theme";
 import { useTranslation } from "react-i18next";
 import type { Deck } from "../lib/api";
@@ -36,7 +36,9 @@ interface TargetDeckPickerModalProps {
   decks: Deck[];
   /** Karten-Grenze des Tarifs; `null` = unbekannt, dann wird nie gesperrt (#603). */
   maxCardsPerDeck: number | null;
+  canCreateDeck: boolean;
   onClose: () => void;
+  onCreateDeck: () => void;
   onSelect: (deck: Deck) => void;
 }
 
@@ -45,7 +47,9 @@ export default function TargetDeckPickerModal({
   cardCount,
   decks,
   maxCardsPerDeck,
+  canCreateDeck,
   onClose,
+  onCreateDeck,
   onSelect,
 }: TargetDeckPickerModalProps) {
   const colors = useColors();
@@ -67,8 +71,8 @@ export default function TargetDeckPickerModal({
       onRequestClose={onClose}
     >
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-        {/* Kopfzeile — wie DeckPickerModal, ohne „Neu": ein neues Deck legt
-            der Scan über seinen eigenen Knopf an. */}
+        {/* Kopfzeile — wie DeckPickerModal. „Neu" bleibt hier erreichbar,
+            falls alle vorhandenen Decks voll sind (#701). */}
         <View
           style={{
             flexDirection: "row",
@@ -94,7 +98,21 @@ export default function TargetDeckPickerModal({
                 : t("scanSave.addCountMany", { count: cardCount })}
             </Text>
           </View>
-          <View style={{ width: 64 }} />
+          {canCreateDeck ? (
+            <TouchableOpacity
+              onPress={onCreateDeck}
+              accessibilityRole="button"
+              accessibilityLabel="Neues Deck"
+              style={{ width: 64, flexDirection: "row", justifyContent: "flex-end", alignItems: "center", gap: 3 }}
+            >
+              <Plus size={17} color={colors.primary} />
+              <Text style={{ color: colors.primary, fontSize: typography.base, fontWeight: typography.medium }}>
+                Neu
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={{ width: 64 }} />
+          )}
         </View>
 
         {/* Suchfeld erst ab mehreren Decks (#612) — darunter nur Rauschen. */}
@@ -148,6 +166,8 @@ export default function TargetDeckPickerModal({
                   key={deck.id}
                   onPress={() => onSelect(deck)}
                   disabled={isFull}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: isFull }}
                   activeOpacity={0.7}
                   style={{
                     flexDirection: "row",
