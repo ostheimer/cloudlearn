@@ -113,7 +113,7 @@ const modes: { Icon: IconType; tint: string; title: string; desc: string }[] = [
 const faqs = [
   {
     q: "Kann ich clearn im Browser nutzen?",
-    a: "Ja! Du kannst clearn direkt im Browser nutzen — registrieren und sofort loslegen, ganz ohne Installation. Für das iPhone gibt es zusätzlich eine App, die noch in der Testphase ist.",
+    a: "Ja! Du kannst clearn direkt im Browser nutzen — registrieren und sofort loslegen, ganz ohne Installation. Die iPhone-App kannst du im App Store herunterladen.",
   },
   {
     q: "Was kostet clearn? Was ist gratis, was Pro?",
@@ -183,7 +183,7 @@ export default function LandingPage() {
                   href={landingCtas.primary.href}
                   className="btn btn-on-dark btn-lg"
                 >
-                  Als iPhone-App
+                  {landingCtas.primary.label}
                 </a>
               </div>
               <div className="hero__meta">
@@ -479,7 +479,7 @@ export default function LandingPage() {
                   <span className="tick">
                     <Smartphone size={13} strokeWidth={2.5} />
                   </span>{" "}
-                  Als iPhone-App (noch in der Testphase)
+                  Als iPhone-App im App Store
                 </li>
                 <li>
                   <span className="tick">
@@ -625,7 +625,7 @@ export default function LandingPage() {
                   Kostenlos starten
                 </Link>
                 <a href={landingCtas.primary.href} className="btn btn-on-dark btn-lg">
-                  Als iPhone-App
+                  {landingCtas.primary.label}
                 </a>
               </div>
             </div>
