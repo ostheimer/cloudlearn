@@ -1,5 +1,16 @@
 # Shipaton 2026: Release-Lücken und Abnahme
 
+## Aktueller Release-Stand am 2. Oktober 2026
+
+- **Öffentliche Veröffentlichung:** clearn 1.0 / Build 8 ist seit dem 2. Oktober im [österreichischen](https://apps.apple.com/at/app/clearn/id6766691399) und [US-App-Store](https://apps.apple.com/us/app/clearn/id6766691399) öffentlich verfügbar. Die früheren Aussagen zu einer ausstehenden Store-Freigabe beschreiben historische Prüfzeitpunkte.
+- **Heutige lokale Abnahme:** Im iOS-Simulator sind Foto → acht Karten → Speichern → Lernen → frischer Scan bestanden. Das lokale Testbackend prüft den Ablauf; es ersetzt keine erneute reale Gemini- oder Store-Abnahme. Der zusätzliche Lösch-Retest blieb wegen der gesperrten Mac-Sitzung offen. Wiederherstellung eines echten Store-Kaufs ist ebenfalls noch offen.
+- **KI-Kosten:** Scan, URL und PDF prüfen Lernpunkte serverseitig vor dem Modellaufruf. Eine gemeinsame harte Tages-/Monatsgrenze für die gesamte Gemini-Nutzung fehlt weiterhin; [Issue #756](https://github.com/ostheimer/cloudlearn/issues/756) verfolgt diese Lücke. Ein vorhandener LP-Guard ist kein globales Geldbudget.
+- **Kostenhinweise vor dem Import:** [PR #738](https://github.com/ostheimer/cloudlearn/pull/738) ist als `1a2865b` auf `main` gemergt. Die Web-Vorabprüfung kann mit dem Web-Deployment ausgeliefert werden. Die Mobile-Änderungen einschließlich Ziel-Deck-Auswahl benötigen einen neuen gebündelten App-Build; es gibt kein produktives OTA. Build 8 erhält sie nicht allein durch den Merge.
+
+## Historische Vorbereitung ab 27. September 2026
+
+Die folgenden datierten Abschnitte bleiben als damalige Nachweise erhalten. Für den heutigen Status gilt die Fortschreibung vom 2. Oktober oben.
+
 ## Simulator-Abnahme am 29. September 2026 — Scan nach Deck-Löschung
 
 Der hängen gebliebene gespeicherte Scan wurde vor der Korrektur im echten iOS-Simulator reproduziert. Nach der Korrektur in [PR #754](https://github.com/ostheimer/cloudlearn/pull/754) wurde derselbe vollständige Ablauf wiederholt: Foto importieren, acht Karten speichern, alle acht lernen, Deck löschen und Scan öffnen. Jetzt erscheint die frische Quellen-Auswahl; ungespeicherte Vorschauen und teilweise fehlgeschlagene Speicherversuche bleiben erhalten. Die 886 mobilen Tests sind grün; [Ablauf und Prüfgrenzen](../runbooks/scan-lifecycle-qa.md).
@@ -13,7 +24,7 @@ Die sichtbare iPhone-Probe führte vom Foto über die Ergebnisansicht zu **16 ge
 
 Die Korrektur liegt im API-Generator: pro Lerninhalt nur ein Format anfordern und erkennbare redundante Namensfragen vor der Vorschau entfernen. Verschiedene Fragen mit derselben Antwort bleiben erhalten. Die lokale Regression liefert bei acht synthetischen Formatpaaren acht Karten; ein frischer Foto-Scan muss nach API-Deployment erneut am Gerät geprüft werden. Bereits gespeicherte Karten werden nicht verändert. Für diese reine API-Änderung ist kein neuer EAS-App-Build nötig; ein Mobile-Fix benötigt weiterhin einen neuen Build.
 
-## Aktueller Stand am 28. September 2026 — Build 7 nativ auf Mac geprüft
+## Historischer Stand am 28. September 2026 — Build 7 nativ auf Mac geprüft
 
 Kennungen, Prüfgrenzen und historische Stände stehen im [Release-Nachweis vom 28. September](release-evidence-2026-09-28.md).
 
