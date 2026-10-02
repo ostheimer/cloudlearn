@@ -2,9 +2,8 @@ import { describe, expect, it } from "vitest";
 import { landingCtas } from "./landing";
 
 describe("landing CTA configuration", () => {
-  it("uses a direct mail CTA for TestFlight requests", () => {
-    expect(landingCtas.primary.href).toMatch(/^mailto:office@ostheimer\.at/);
-    expect(landingCtas.primary.href).toContain("subject=clearn%20TestFlight");
+  it("links directly to the publicly available iPhone app", () => {
+    expect(landingCtas.primary.href).toBe("https://apps.apple.com/app/id6766691399");
   });
 
   it("keeps a support fallback for users who need context first", () => {

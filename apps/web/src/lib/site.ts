@@ -13,7 +13,7 @@ export const siteConfig = {
   supportPhone: "+43 699 172 635 44",
   supportMailto: "mailto:office@ostheimer.at?subject=clearn%20Support",
   supportPhoneHref: "tel:+4369917263544",
-  betaMailto: "mailto:office@ostheimer.at?subject=clearn%20TestFlight",
+  appStoreUrl: "https://apps.apple.com/app/id6766691399",
   privacyPath: "/privacy",
   supportPath: "/support",
   impressumPath: "/impressum",
