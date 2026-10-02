@@ -1,5 +1,9 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
+import release from "./release-platform.cjs";
+
+const platforms = release.releasePlatforms({ args: process.argv.slice(2) });
+const platformArgs = ["--platform", platforms.length === 2 ? "all" : platforms[0]];
 
 const appDir = process.cwd();
 
@@ -19,11 +23,11 @@ function runCheck(label, args) {
 const checks = [
   {
     label: "Submit configuration",
-    args: [path.join("scripts", "check-submit-config.mjs")],
+    args: [path.join("scripts", "check-submit-config.mjs"), ...platformArgs],
   },
   {
     label: "Dashboard readiness",
-    args: [path.join("scripts", "check-dashboard-readiness.mjs")],
+    args: [path.join("scripts", "check-dashboard-readiness.mjs"), ...platformArgs],
   },
   {
     label: "Store metadata",
@@ -38,6 +42,11 @@ const checks = [
 const failures = [];
 
 for (const check of checks) {
+  if (check.label === "TestFlight readiness" && !platforms.includes("ios")) {
+    console.log("Android device release evidence is not implemented; release readiness remains blocked.");
+    failures.push("Android device release evidence");
+    continue;
+  }
   const status = runCheck(check.label, check.args);
   if (status !== 0) {
     failures.push(check.label);

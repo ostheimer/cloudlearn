@@ -40,6 +40,9 @@ const saveSchema = z
     // begrenztes Deck, ohne Deckel ließe sich sonst eine jsonb-Zeile beliebig
     // groß machen (bis zum Body-Limit) — pro Deck+Modus existiert nur eine Zeile.
     total: z.number().int().min(1).max(2000),
+    // Die ursprüngliche Reihenfolge bleibt auch erhalten, wenn beantwortete
+    // Karten aus dem Fällig-Stapel verschwinden. Alte Clients lassen sie weg.
+    cardIds: z.array(z.string().uuid()).min(1).max(2000).optional(),
     // Nur die Ausgänge, keine getippten Antworten — die Auswertung braucht mehr
     // nicht, und was nicht übertragen wird, kann auch nicht verloren gehen.
     results: z.record(z.string().uuid(), storedResultSchema).optional(),
@@ -47,6 +50,14 @@ const saveSchema = z
   // Ohne diese Regel begrenzt `total` nur sich selbst — `results` ist ein
   // eigenes, davon unabhängiges Feld und könnte trotzdem beliebig viele
   // Einträge tragen (fremde oder erfundene Karten-IDs eingeschlossen).
+  .refine((data) => !data.cardIds || (
+    data.cardIds.length === data.total &&
+    new Set(data.cardIds).size === data.cardIds.length &&
+    data.cardIds[data.index] === data.cardId
+  ), {
+    message: "cardIds must contain the complete unique queue with cardId at index",
+    path: ["cardIds"],
+  })
   .refine((data) => !data.results || Object.keys(data.results).length <= data.total, {
     message: "results must not contain more entries than total",
     path: ["results"],
@@ -94,12 +105,13 @@ export async function PUT(request: NextRequest) {
 
     // Identität ist serverseitig: gespeichert wird für den Nutzer des Tokens,
     // nie für eine im Rumpf mitgeschickte userId.
-    const { results, ...position } = progress;
+    const { results, cardIds, ...position } = progress;
     const saved = await saveSessionProgress(auth.userId, deckId, mode as SessionProgressMode, {
       ...position,
       // Nur setzen, wenn wirklich Ergebnisse dabei sind — ein ausdrückliches
       // `undefined` verträgt sich nicht mit exactOptionalPropertyTypes.
       ...(results ? { results } : {}),
+      ...(cardIds ? { cardIds } : {}),
     });
     if (!saved) return jsonError(requestId, "NOT_FOUND", "Deck not found", 404);
 

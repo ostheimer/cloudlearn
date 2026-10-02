@@ -1,6 +1,6 @@
 # App Store Review Notes
 
-Stand: 2026-05-02
+Stand: 2026-09-05 (Werbe-Scope aktualisiert; übrige Funktionen vor Einreichung am Release-Build prüfen)
 
 ## Ziel
 
@@ -23,6 +23,10 @@ Sie ist absichtlich knapp und kann direkt in App Store Connect / Play Console ü
   - E-Mail: `<REVIEW_EMAIL>`
   - Passwort: `<REVIEW_PASSWORD>`
   - Vorbereitung: [docs/runbooks/reviewer-demo-account.md](/docs/runbooks/reviewer-demo-account.md)
+
+Die Platzhalter bleiben in dieser Repository-Datei stehen. Echte Zugangsdaten
+werden erst in den geschützten Review-Zugangsfeldern von App Store Connect
+eingetragen, nicht in Git oder in frei lesbaren Review Notes.
 
 ### Kernflow für Reviewer
 
@@ -54,10 +58,15 @@ Die App bietet Restore und Store-Abo-Verwaltung im Profil bzw. in der Paywall an
 
 ### Werbung und Tracking
 
-Rewarded Ads sind Teil des Launch-Scopes.
-Ohne ATT-Opt-in zeigt die App nur nicht-personalisierte Rewarded Ads.
-Personalisierte Werbung und darüber hinausgehendes Tracking werden erst nach expliziter Zustimmung aktiviert.
-Der native ATT-Dialog erscheint nicht direkt beim ersten App-Start, sondern kontextuell vor einem relevanten Werbe-/Tracking-Moment.
+Rewarded Ads sind in diesem Release deaktiviert (`REAL_ADS_ENABLED=false`).
+Die App bietet keine Werbeaktion zum Verdienen von LP und simuliert keine Werbung.
+Die Tracking-Einstellungen im Profil bleiben vorhanden und zeigen den deaktivierten
+Werbeumfang. ATT-Codefix und Production-Prebuild sind lokal geprüft; eine früher
+gespeicherte Zustimmung aktiviert keine Werbung. Vor der Einreichung muss der
+korrigierte signierte Store-Build bestätigen, dass es keine ATT-Abfrage oder
+Zustimmungs-Controls gibt.
+Die Datenschutzangaben sind vor Einreichung anhand des tatsächlichen Release-Builds
+und seiner SDKs zu prüfen; der deaktivierte Werbe-Scope allein belegt nicht „kein Tracking“.
 
 ### Konto-Löschung
 
@@ -65,10 +74,9 @@ Nutzer können ihr Konto im Profil löschen.
 Die Löschung ist sofortig und endgültig und entfernt Konto, Decks, Karten, Reviews, Scans und Lernfortschritt.
 Ein aktives Apple- oder Google-Abo wird dabei nicht automatisch beendet; die App weist vor der Löschung darauf hin.
 
-## Vor Submission ausfüllen
+## Vor Submission in App Store Connect ergänzen
 
-- `<REVIEW_EMAIL>`
-- `<REVIEW_PASSWORD>`
+- bestätigte Demo-E-Mail und Passwort in den geschützten Zugangsfeldern
 - Hinweis, ob Reviewer ein aktives Sandbox-Abo testen sollen
 - aktueller TestFlight-Build / Build-Nummer
 - bekannte Einschränkungen für den Review-Build

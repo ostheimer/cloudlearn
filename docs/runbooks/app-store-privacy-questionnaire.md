@@ -1,181 +1,98 @@
 # App Store Privacy Questionnaire
 
-Stand: 2026-05-06
+Stand: 2026-09-28. Gilt für den geprüften iOS-Production-Build **1.0 (5)**,
+Commit `53bb91f`, EAS-Build `41320cc2-dc75-45c8-a804-c903fcb6aae9`.
 
-## Ziel
+## Grundantworten
 
-Diese Datei ist ein ausfüllbarer Entwurf für den App-Store-Connect-Bereich
-`App-Datenschutz`.
+- Datenschutzrichtlinie: `https://clearn-web.vercel.app/privacy`
+- Erfasst diese App Daten? **Ja**.
+- Nutzt diese App Tracking? **Nein** für diesen Release.
 
-Wichtig: Diese Antworten sind absichtlich konservativ. Sie müssen vor der
-Einreichung gegen den Privacy Report eines echten iOS-Archives geprüft werden.
-Apple verlangt, dass auch Datenpraktiken integrierter Drittanbieter-SDKs
-angegeben werden.
+Konten, gespeicherte Lerninhalte, Käufe, Lernfortschritt, Push-Registrierungen
+und der private Freundesgraph werden für die App-Funktionen verarbeitet.
+`realAdsEnabled=false` schließt Google Mobile Ads und Google User Messaging
+Platform aus dem nativen Production-Build aus. Auch eine ATT-Zustimmung
+aktiviert keine Werbung. Die optionale Sentry-Absturzmeldung ist deaktiviert.
 
-## Vor dem Ausfüllen
+## Datentypen für diesen Release
 
-- [ ] Echtes iOS-Archive mit den finalen EAS-/Produktions-Env-Werten bauen.
-- [ ] Privacy Report aus dem Archive exportieren.
-- [ ] Google Mobile Ads, Google User Messaging Platform und RevenueCat gegen den
-      Privacy Report abgleichen.
-- [ ] Prüfen, ob im finalen Build produktive AdMob-IDs statt Test-IDs verwendet
-      werden.
-- [ ] Prüfen, ob der Rewarded-Ad-Flow ohne ATT-Opt-in weiterhin nur
-      nicht-personalisierte Ads lädt.
+Alle zehn Datentypen sind mit dem Nutzer verknüpft und werden nicht für Tracking
+verwendet. Dies ist der gespeicherte ASC-Entwurfsumfang; ein gespeicherter
+Entwurf ist noch kein Nachweis der Veröffentlichung des Labels.
 
-## App Store Connect — Grundantworten
+| Apple Data Type | Linked to User | Tracking | Zwecke | Datenfluss |
+|---|---:|---:|---|---|
+| Name | Ja | Nein | App Functionality | Anzeigename im Kontoprofil, für Freunde und Rangliste |
+| Email Address | Ja | Nein | App Functionality | Authentifizierung und Kontoverwaltung über Supabase |
+| Photos or Videos | Ja | Nein | App Functionality | Ausgewählte Lernbilder und gespeicherte Bildkarten |
+| Other User Content | Ja | Nein | App Functionality | Texte, PDFs, importierte Inhalte, Decks und Karten |
+| User ID | Ja | Nein | App Functionality | Konto-ID für API, Synchronisierung und RevenueCat |
+| Device ID | Ja | Nein | App Functionality | Kontoassoziierter Expo-Push-Token nach Benachrichtigungsfreigabe |
+| Purchase History | Ja | Nein | App Functionality | Käufe, Restore und Entitlements über Apple, RevenueCat und API |
+| Product Interaction | Ja | Nein | App Functionality | Gespeicherte Reviews, Bewertungen, Lernzeiten und Fortschritte |
+| Other Data Types | Ja | Nein | App Functionality, Product Personalization | Freiwillige Geschlechtsangabe für persönliche Anrede |
+| Contacts | Ja | Nein | App Functionality | Dauerhaft gespeicherte Freundeverbindungen; kein Geräteadressbuch-Zugriff |
 
-### Datenschutzrichtlinie
+Apple zählt einen sozialen Graphen zu `Contacts`. Die mobile Funktion
+`friend-add` sendet einen Freunde-Code an `POST /api/v1/friends/by-code`; der
+Server speichert beide Kontobeziehungen in `friend_connections`.
 
-```text
-https://clearn-web.vercel.app/privacy
-```
+RevenueCats Standardmanifest nennt Kaufhistorie als nicht verknüpft. clearn
+übergibt jedoch die Supabase-Konto-ID als `appUserID`; deshalb sind Kaufhistorie
+und Nutzer-ID hier **verknüpft**. Der Push-Token bleibt eine Gerätekennung für
+App-Funktionalität, auch ohne Werbe-SDK.
 
-### Erfasst diese App Daten?
+## Binary-Evidenz
 
-Antwort: `Ja`
+Das signierte IPA wurde nach Fertigstellung des Builds gelesen:
 
-Begründung:
+- Bundle `app.clearn`, Version `1.0`, Build `5`.
+- Keine GoogleMobileAds-, UMP- oder RNGoogleMobileAds-Komponenten.
+- 15 eingebettete Privacy Manifeste, keine Tracking-Domains und kein globaler
+  oder datentypbezogener Tracking-Wert `true`.
+- RevenueCat deklariert `Purchase History` für `App Functionality`.
+- Sentry ist als native Abhängigkeit samt generischem Manifest vorhanden;
+  dieses nennt Crash-, Performance- und sonstige Diagnostikdaten. Im tatsächlichen
+  Hermes-Bundle ist `initCrashReporting` jedoch eine leere Funktion und
+  `wrapRootLayout` gibt die Komponente unverändert zurück. Die fehlende DSN wurde
+  im Production-Bundle wegoptimiert. Das Manifest allein belegt keine aktive
+  Diagnostik-Erfassung durch clearn.
 
-- Konto und Synchronisierung erfassen E-Mail, User-ID und Session-Kontext.
-- Lernfunktionen verarbeiten importierte Inhalte, Decks, Karten und Reviews.
-- Käufe/Restore laufen über Apple, RevenueCat und die clearn-API.
-- Google Mobile Ads und Google User Messaging Platform deklarieren zusätzliche
-  SDK-Daten.
+Für diesen Release werden deshalb **Advertising Data, Coarse Location und die
+drei Diagnostics-Datentypen nicht als aktive Erfassung angegeben**. Der
+verbleibende ATT-Berechtigungstext belegt allein kein Tracking. Er blockiert
+jedoch in App Store Connect die Veröffentlichung der Antwort „kein Tracking“.
+Nach Korrektur der nativen Konfiguration muss das Nachfolge-IPA erneut geprüft
+werden. Build 5 ist damit Binary-Evidenz für inaktive Ads/Sentry, kein Nachweis
+der gelösten Apple-Metadatenhürde.
 
-### Nutzt diese App Tracking?
+## Umfang der Prüfung und spätere Releases
 
-Antwort: `Ja`
+Die Prüfung verbindet Quellcode und signiertes IPA. Sie ersetzt keinen
+Netzwerkmitschnitt auf einem physischen Gerät und keine aktuelle Prüfung der
+Aufbewahrung von Provider- oder Server-Logs. Daraus werden keine Zusagen zu
+deren Löschfristen oder Aufbewahrung abgeleitet. Das app-eigene Manifest allein
+bildet die über die API gespeicherten Daten nicht vollständig ab.
 
-Begründung:
+Bei jeder Aktivierung von Werbung, Sentry oder weiteren Datenflüssen die
+Datenschutzseite, ASC-Angaben und das neue signierte IPA erneut abgleichen.
+Lokale Development-/Preview-Pods sind kein Beleg für ein Production-Binary.
 
-- Google Mobile Ads deklariert `Device ID` als `Tracking`.
-- Personalisierte Werbung ist nur nach ATT-Opt-in aktiv.
-- Ohne ATT-Opt-in lädt clearn Rewarded Ads nicht-personalisiert.
-
-Nicht `Nein` wählen, solange Google Mobile Ads eingebunden ist und
-personalisierte Werbung nach Zustimmung technisch möglich bleibt.
-
-## Data Types — Entwurf
-
-### Contact Info
-
-| Data Type | Linked to User | Tracking | Zwecke |
-|---|---:|---:|---|
-| Email Address | Ja | Nein | App Functionality, Account Management, Developer Communications |
-
-Notiz: E-Mail wird für Auth, Konto, Passwort-Zurücksetzung, Support und
-Reviewer-/Testkonto-Flows verwendet.
-
-### User Content
-
-| Data Type | Linked to User | Tracking | Zwecke |
-|---|---:|---:|---|
-| Photos or Videos | Ja | Nein | App Functionality |
-| Other User Content | Ja | Nein | App Functionality |
-
-Notiz: Fotos/PDFs/Texte werden verarbeitet, um Karteikarten zu erzeugen.
-Decks, Karten, Reviews und importierte Lerninhalte sind nutzergenerierte
-Inhalte. Falls der finale Build keine PDFs oder URLs stabil unterstützt, müssen
-Store-Text und diese Hinweise enger formuliert werden.
-
-### Purchases
-
-| Data Type | Linked to User | Tracking | Zwecke |
-|---|---:|---:|---|
-| Purchase History | Ja | Nein | App Functionality |
-
-Notiz: RevenueCat deklariert `Purchase History` nicht als Tracking. Da clearn
-Entitlements serverseitig einem Konto zuordnet, ist `Linked to User` hier
-konservativ auf `Ja` gesetzt.
-
-### Identifiers
-
-| Data Type | Linked to User | Tracking | Zwecke |
-|---|---:|---:|---|
-| User ID | Ja | Nein | App Functionality |
-| Device ID | Ja | Ja | Third-Party Advertising, Developer Advertising, Analytics |
-
-Notiz: `Device ID` stammt aus Google Mobile Ads. Das eingebettete
-Privacy Manifest deklariert diesen Datentyp als Tracking.
-
-### Usage Data
-
-| Data Type | Linked to User | Tracking | Zwecke |
-|---|---:|---:|---|
-| Product Interaction | Ja | Nein | App Functionality, Analytics, Third-Party Advertising, Developer Advertising |
-| Advertising Data | Ja | Nein | Third-Party Advertising, Developer Advertising, Analytics |
-
-Notiz: Google Mobile Ads deklariert `Product Interaction` und `Advertising Data`
-als linked, aber nicht als Tracking. Wenn der Privacy Report oder eine
-Produktions-AdMob-Konfiguration davon abweicht, diese Zeile aktualisieren.
-
-### Location
-
-| Data Type | Linked to User | Tracking | Zwecke |
-|---|---:|---:|---|
-| Coarse Location | Ja | Nein | Third-Party Advertising, Developer Advertising, Analytics, App Functionality |
-
-Notiz: Die App fragt keine Standortberechtigung an. `Coarse Location` stammt aus
-den Ad-/Consent-SDKs. Google Mobile Ads deklariert linked, Google User
-Messaging Platform deklariert nicht linked. Deshalb ist `Linked to User`
-konservativ auf `Ja` gesetzt.
-
-### Diagnostics
-
-| Data Type | Linked to User | Tracking | Zwecke |
-|---|---:|---:|---|
-| Crash Data | Nein | Nein | Analytics |
-| Performance Data | Nein | Nein | Analytics, App Functionality, Third-Party Advertising, Developer Advertising |
-| Other Diagnostic Data | Nein | Nein | Analytics, Third-Party Advertising, Developer Advertising |
-
-Notiz: Diese Angaben stammen primär aus den eingebetteten SDK-Privacy-Manifests.
-
-## Nicht angeben, solange sich der Scope nicht ändert
-
-- Precise Location
-- Contacts
-- Health
-- Fitness
-- Financial Info
-- Sensitive Info
-- Browsing History
-- Search History
-- Audio Data
-- Gameplay Content
-- Environment Scanning
-
-Wenn später Community-Decks, Social Features, Audio-Upload, eigene Analytics
-oder zusätzliche SDKs eingebaut werden, muss dieser Fragebogen neu geprüft
-werden.
-
-## Review-/ATT-Erklärung
-
-Für Review Notes und Datenschutzkontext:
+## Review Notes
 
 ```text
-clearn zeigt ohne ATT-Opt-in nur nicht-personalisierte Rewarded Ads. Personalisierte Werbung und darüber hinausgehendes Tracking werden erst nach expliziter Zustimmung aktiviert. Der native ATT-Dialog erscheint nicht beim ersten App-Start, sondern kontextuell vor einem relevanten Werbe- oder Tracking-Moment.
+clearn 1.0 (5) zeigt keine Werbung und verwendet kein Tracking. Google Mobile Ads und Google User Messaging Platform sind aus diesem Production-Build ausgeschlossen. Die optionale Sentry-Absturzmeldung ist deaktiviert. Konten, Lerninhalte, Käufe, Lernfortschritt, Push-Benachrichtigungen und Freundeverbindungen werden für die App-Funktionen verarbeitet.
 ```
 
-## Lokale Prüfbefehle
+## Quellen und Code
 
-Relevante eingebettete Privacy Manifests prüfen:
-
-```bash
-plutil -p apps/mobile/ios/clearnPreview/PrivacyInfo.xcprivacy
-plutil -p apps/mobile/ios/Pods/Google-Mobile-Ads-SDK/Frameworks/GoogleMobileAdsFramework/GoogleMobileAds.xcframework/ios-arm64/GoogleMobileAds.framework/PrivacyInfo.xcprivacy
-plutil -p apps/mobile/ios/Pods/GoogleUserMessagingPlatform/Frameworks/Release/UserMessagingPlatform.xcframework/ios-arm64/UserMessagingPlatform.framework/PrivacyInfo.xcprivacy
-plutil -p apps/mobile/ios/Pods/RevenueCat/Sources/PrivacyInfo.xcprivacy
-plutil -p apps/mobile/ios/Pods/PurchasesHybridCommon/ios/PurchasesHybridCommon/PurchasesHybridCommon/PrivacyInfo.xcprivacy
-```
-
-## Quellen
-
-- Apple App Privacy Details:
-  `https://developer.apple.com/app-store/app-privacy-details/`
-- Apple Manage App Privacy:
-  `https://developer.apple.com/help/app-store-connect/manage-app-information/manage-app-privacy`
-- Apple User Privacy and Data Use:
-  `https://developer.apple.com/app-store/user-privacy-and-data-use/`
-- Lokaler Audit:
-  [docs/runbooks/app-store-privacy-ads.md](/docs/runbooks/app-store-privacy-ads.md)
+- [Apple App Privacy Details](https://developer.apple.com/app-store/app-privacy-details/)
+- [Apple Manage App Privacy](https://developer.apple.com/help/app-store-connect/manage-app-information/manage-app-privacy)
+- [RevenueCat Apple App Privacy](https://www.revenuecat.com/docs/platform-resources/apple-platform-resources/apple-app-privacy)
+- `apps/mobile/app.config.js` und `apps/mobile/react-native.config.js`: Ads-Ausschluss
+- `apps/mobile/src/lib/crashReporting.ts`: Sentry-Gate
+- `apps/mobile/src/features/paywall/revenuecat.ts`: kontobezogene RevenueCat-ID
+- `apps/mobile/app/_layout.tsx`: Push-Registrierung
+- `apps/api/app/api/v1/friends/by-code/route.ts`: Freundesgraph
+- [Release-Privacy-Prüfung](app-store-privacy-ads.md)

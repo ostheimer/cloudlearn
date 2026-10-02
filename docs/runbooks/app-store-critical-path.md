@@ -39,18 +39,26 @@ Sie ersetzt nicht die Fachdokumente, sondern verdichtet sie zu einer abarbeitbar
   - Google Sign-In
   - Apple Sign-In
 - Werbung / Tracking zum Launch:
-  - aktiv
-  - personalisiertes Tracking und personalisierte Werbung erst nach ATT-Opt-in
-  - Rewarded Ads auch ohne ATT-Zustimmung erlaubt, dann aber nur nicht-personalisiert
+  - im iOS-Production-Scope deaktiviert (`realAdsEnabled=false`)
+  - Google Mobile Ads und UMP werden aus dem nativen Production-Build ausgeschlossen
+  - optionale Sentry-Absturzmeldung ohne DSN deaktiviert
 
-## Geplanter ATT-Flow
+## Aktueller Privacy-Umfang
 
-- ATT wird nicht beim ersten App-Start gezeigt, sondern erst kontextuell vor dem ersten relevanten Werbe- oder Tracking-Moment.
-- Vor dem nativen ATT-Dialog gibt es einen kurzen In-App-Pre-Prompt mit dem Zweck: personalisierte Werbung nur mit Zustimmung, sonst bleibt die App bei nicht-personalisierten Rewarded Ads.
-- Die ATT-Abfrage wird in v1 nur einmal ausgelöst.
-- Bei Ablehnung laufen Rewarded Ads weiter, aber ausschließlich nicht-personalisiert.
-- Personalisierte Werbung oder jedes darüber hinausgehende Tracking wird erst nach explizitem Opt-in aktiviert.
-- Wenn der Nutzer die Anfrage ablehnt, wird in v1 nicht erneut nachgefragt; spätere Änderungen laufen über einen freiwilligen Einstellungsweg.
+Der signierte iOS-Build 1.0 (5), Commit `53bb91f`, wurde geprüft: kein Ads-SDK,
+keine Tracking-Domains und keine Tracking-Deklaration in 15 Privacy Manifesten.
+`initCrashReporting` ist im tatsächlichen Bundle eine leere Funktion. Die
+kontobezogenen Funktionsdaten einschließlich Push-Token und privatem Freundesgraph
+stehen im [Privacy-Fragebogen](app-store-privacy-questionnaire.md).
+
+Build 5 enthält jedoch noch `NSUserTrackingUsageDescription`. App Store Connect
+blockiert deshalb die Veröffentlichung der Privacy-Antwort „kein Tracking“.
+Die native Konfiguration muss für den deaktivierten Production-Ads-Scope
+korrigiert und das daraus gebaute Nachfolge-IPA erneut geprüft werden. Die
+Prüfung von Build 5 ist kein Nachweis, dass dieser Apple-Metadatenblocker gelöst ist.
+
+Bei einer späteren Ads-Aktivierung müssen ATT, SSV, produktive AdMob-IDs,
+Datenschutztexte und die neuen Binary-Manifeste erneut zusammen geprüft werden.
 
 ## P0 — Harte Release-Blocker
 
@@ -112,40 +120,18 @@ Sie ersetzt nicht die Fachdokumente, sondern verdichtet sie zu einer abarbeitbar
 - [ ] EAS Submit-Konfiguration vervollständigen.
   - iOS ist repo-seitig mit `appleId`, `ascAppId`, `appleTeamId` und `sku` vorbereitet.
   - Android benötigt den produktiven Service-Account-Key für den Play-Track.
-  - `pnpm submit:check` prüft zusätzlich, dass produktive AdMob App-IDs und Rewarded-Ad-Unit-IDs als EAS-Secrets gesetzt sind und nicht auf Google-Test-IDs zeigen.
+  - Nur bei `realAdsEnabled=true` prüft `pnpm submit:check` zusätzlich produktive AdMob App-IDs und Rewarded-Ad-Unit-IDs; Google-Test-IDs werden dann abgelehnt.
   - `pnpm submit:check` prüft RevenueCat Mobile API Keys und kanonische Entitlement IDs; `app.config.js` bricht Production-Builds ohne RevenueCat iOS-/Android-Key ab.
 
 - [ ] App-Privacy-/Ads-/Tracking-Angaben konsistent machen.
-  - ATT-Text, Privacy Manifest, AdMob-Konfiguration und App-Store-Privacy-Angaben müssen zueinander passen.
-  - Produktentscheidung:
-    - Tracking und personalisierte Werbung standardmäßig aus
-    - Aktivierung erst nach explizitem ATT-Opt-in
-    - Rewarded Ads ohne ATT-Opt-in nur nicht-personalisiert
-  - Repo-seitig jetzt vorhanden:
-    - persistierter Consent-State in [apps/mobile/src/features/ads/trackingConsent.ts](/apps/mobile/src/features/ads/trackingConsent.ts)
-    - kontextueller Pre-Prompt und Rewarded-Ad-Gating in [apps/mobile/src/features/ads/useRewardedAd.native.ts](/apps/mobile/src/features/ads/useRewardedAd.native.ts)
-    - sichtbarer Einstellungsweg in [apps/mobile/app/tracking-preferences.tsx](/apps/mobile/app/tracking-preferences.tsx) und [apps/mobile/app/(tabs)/profile.tsx](/apps/mobile/app/(tabs)/profile.tsx)
-    - Expo-Plugin für ATT in [apps/mobile/app.json](/apps/mobile/app.json)
-    - app-eigenes iOS Privacy Manifest in [apps/mobile/ios/clearnPreview/PrivacyInfo.xcprivacy](/apps/mobile/ios/clearnPreview/PrivacyInfo.xcprivacy)
-    - SDK-seitige Privacy Manifests im iOS-Build:
-      - Google Mobile Ads in [PrivacyInfo.xcprivacy](/apps/mobile/ios/Pods/Google-Mobile-Ads-SDK/Frameworks/GoogleMobileAdsFramework/GoogleMobileAds.xcframework/ios-arm64/GoogleMobileAds.framework/PrivacyInfo.xcprivacy)
-      - Google User Messaging Platform in [PrivacyInfo.xcprivacy](/apps/mobile/ios/Pods/GoogleUserMessagingPlatform/Frameworks/Release/UserMessagingPlatform.xcframework/ios-arm64/UserMessagingPlatform.framework/PrivacyInfo.xcprivacy)
-  - Besonders prüfen:
-    - [apps/mobile/app.json](/apps/mobile/app.json)
-    - [apps/mobile/app.config.js](/apps/mobile/app.config.js)
-    - [apps/mobile/ios/clearnPreview/PrivacyInfo.xcprivacy](/apps/mobile/ios/clearnPreview/PrivacyInfo.xcprivacy)
-    - [apps/mobile/src/features/ads/useRewardedAd.native.ts](/apps/mobile/src/features/ads/useRewardedAd.native.ts)
-  - Offen bleibt:
-    - im App Store Connect Privacy Questionnaire die SDK-Daten korrekt abbilden; insbesondere nicht fälschlich "kein Tracking" angeben, solange personalisierte Ads optional aktiviert werden können
-    - das Privacy Report/Privacy Nutrition Label eines echten iOS-Archives gegen die oben eingebundenen SDK-Manifests prüfen
-    - Privacy Manifest und App Store Connect Privacy Questionnaire gegen den finalen Tracking-Umfang prüfen
-    - reale Geräte-Tests für ATT-Opt-in, ATT-Ablehnung und non-personalized Fallback durchführen
-    - produktive AdMob IDs in der EAS-/Build-Umgebung setzen
-    - `app.config.js` bricht Production-Builds ohne produktive AdMob App-IDs und Rewarded-Ad-Unit-IDs ab; Preview und Development nutzen weiterhin Google-Test-IDs
-  - Repo-Audit:
-    - [docs/runbooks/app-store-privacy-ads.md](/docs/runbooks/app-store-privacy-ads.md)
-  - Ausfüllbarer Privacy-Questionnaire-Entwurf:
-    - [docs/runbooks/app-store-privacy-questionnaire.md](/docs/runbooks/app-store-privacy-questionnaire.md)
+  - Aktueller Release-Scope: keine Werbung, kein Tracking, Sentry-Absturzmeldung deaktiviert.
+  - Google Mobile Ads / UMP fehlen im geprüften Production-IPA 1.0 (5); lokale Dev-/Preview-Pods sind kein Gegenbeleg.
+  - Zehn nutzerverknüpfte ASC-Datentypen dienen App-Funktionalität; die Geschlechtsangabe zusätzlich persönlicher Anrede.
+  - Build 5 ist wegen des verbliebenen ATT-Berechtigungstexts noch nicht für die Veröffentlichung der Privacy-Antwort freigegeben. Native Korrektur und erneuter Nachfolge-IPA-Abgleich stehen aus.
+  - ASC-Entwurf, öffentliches Label und deployed Datenschutzseite getrennt verifizieren.
+  - Keine aktiven Diagnostikdaten allein aus dem generischen, aber nicht initialisierten Sentry-Manifest ableiten.
+  - Quellcode-/Binary-Evidenz und Grenzen: [Privacy-/Ads-Runbook](app-store-privacy-ads.md).
+  - Aktuelle Datentypen und Review Notes: [Privacy-Fragebogen](app-store-privacy-questionnaire.md).
 
 - [ ] TestFlight-/Reviewer-Readiness herstellen.
   - Benötigt:

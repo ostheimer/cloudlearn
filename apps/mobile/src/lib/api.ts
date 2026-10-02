@@ -506,6 +506,7 @@ export interface ServerSessionProgress {
   source: string;
   reverse: boolean;
   total: number;
+  cardIds?: string[];
   results?: Record<string, { correct: boolean; overridden: boolean }>;
   /** Server-Zeitstempel — entscheidet gegen den lokalen Stand (progressMerge). */
   savedAt?: string;
@@ -1155,23 +1156,6 @@ export async function getStreakCalendar(month: string): Promise<StreakCalendarRe
   return requestAuthenticated<StreakCalendarResponse>(
     `/api/v1/stats/streak-calendar?month=${encodeURIComponent(month)}`
   );
-}
-
-// ─── LP Pack Purchase ──────────────────────────────────────────────────────────
-
-export interface LpPurchaseResponse {
-  lpGranted: number;
-  newBalance: number;
-}
-
-export async function grantLpPackPurchase(
-  packId: string,
-  transactionId: string
-): Promise<LpPurchaseResponse> {
-  return requestAuthenticated<LpPurchaseResponse>("/api/v1/lp/purchase", {
-    method: "POST",
-    body: JSON.stringify({ packId, transactionId }),
-  });
 }
 
 // ─── Referral ──────────────────────────────────────────────────────────────────

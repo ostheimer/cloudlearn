@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -97,6 +97,8 @@ import { LpInsufficientModal } from "../../src/components/LpInsufficientModal";
 import TargetDeckPickerModal from "../../src/components/TargetDeckPickerModal";
 import { AuthPromptCard } from "../../src/components/AuthPromptCard";
 import { LpBadge } from "../../src/components/LpBadge";
+import { runScanSourceAction } from "../../src/lib/scanSourceAction";
+import { createAiImportConsentGate } from "../../src/lib/aiImportConsent";
 
 type InputMode = "choose" | "camera" | "text" | "url";
 
@@ -161,6 +163,7 @@ async function shrinkImageForScan(asset: {
 export default function ScanScreen() {
   const router = useRouter();
   const { t } = useTranslation();
+  const confirmAiImport = useRef(createAiImportConsentGate(Platform.OS)).current;
   const userId = useSessionStore((state) => state.userId);
   const editedText = useOcrEditorState((state) => state.editedText);
   const setOriginalText = useOcrEditorState((state) => state.setOriginalText);
@@ -176,10 +179,7 @@ export default function ScanScreen() {
   const maxDecks = useUsageStore((state) => state.maxDecks);
   const maxCardsPerDeck = useUsageStore((state) => state.maxCardsPerDeck);
 
-  // Welche Quelle ist bezahlbar? (#611) Der Warnstreifen prüfte nur gegen den
-  // GÜNSTIGSTEN Preis: Bei 12 LP kam keine Warnung, obwohl URL (15) und PDF (20)
-  // unbezahlbar waren — man wählte eine Datei, wartete auf den Upload und bekam
-  // dann 402. Jede Quelle prüft jetzt gegen ihren eigenen Preis.
+  // Each source uses its own live price; unaffordable taps open LP help (#701).
   const afford = affordableScanSources(lpBalance, {
     aiScan: lpCostAiScan,
     urlImport: lpCostUrlImport,
@@ -190,21 +190,6 @@ export default function ScanScreen() {
   const [lpModalVisible, setLpModalVisible] = useState(false);
   const [lpModalFeature, setLpModalFeature] = useState<"aiScan" | "urlImport" | "pdfImport">("aiScan");
   const [lpModalCost, setLpModalCost] = useState(0);
-
-  const openScanSource = (
-    feature: "aiScan" | "urlImport" | "pdfImport",
-    cost: number,
-    affordable: boolean,
-    open: () => void | Promise<void>
-  ) => {
-    if (affordable) {
-      void open();
-      return;
-    }
-    setLpModalFeature(feature);
-    setLpModalCost(cost);
-    setLpModalVisible(true);
-  };
 
   // #603: Nachgeladen wird, solange die GRENZEN unbekannt sind — nicht bis
   // `isLoaded` gesetzt ist. Das alte Tor stand schon zu, sobald irgendwer
@@ -245,6 +230,22 @@ export default function ScanScreen() {
   const [mode, setMode] = useState<InputMode>("choose");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const selectSource = (
+    feature: "aiScan" | "urlImport" | "pdfImport",
+    cost: number,
+    onContinue: () => void,
+  ) => runScanSourceAction({
+    balance: lpBalance,
+    cost,
+    busy: loading || saving,
+    onContinue,
+    onInsufficient: (requiredLp) => {
+      setLpModalFeature(feature);
+      setLpModalCost(requiredLp);
+      setLpModalVisible(true);
+    },
+  });
   const [cards, setCards] = useState<Flashcard[]>([]);
   // Notlösung statt KI? Der Server meldet das je Scan; nur dieser Zustand
   // wird noch gebraucht — der Modellname selbst wird nicht mehr gezeigt (#609).
@@ -369,6 +370,39 @@ export default function ScanScreen() {
     })
   ).current;
 
+  const resetAll = () => {
+    setCards([]);
+    setFallbackUsed(false);
+    setDeckTitle("");
+    setSaved(false);
+    setSavedDeckId(null);
+    setSaveResult(null);
+    setImageUri(null);
+    setImageBase64(null);
+    setMode("choose");
+    setEditedText("");
+    setSourceUrl("");
+    setPdfFileName("");
+    setPdfPageCount(null);
+    importAttemptRef.current = null;
+  };
+
+  // Keep the success screen while it is open. Only a real return to this tab
+  // retires a completed scan; unfinished/partially saved previews stay intact.
+  // Refs keep the focus callback stable: changing `saved` during a save must
+  // not register a new focus effect and immediately erase the success screen.
+  const focusedOnceRef = useRef(false);
+  const scanFocusRef = useRef({ saved, resetAll, reloadDecks });
+  scanFocusRef.current = { saved, resetAll, reloadDecks };
+  useFocusEffect(useCallback(() => {
+    if (focusedOnceRef.current) {
+      const current = scanFocusRef.current;
+      if (current.saved) current.resetAll();
+      // The Library may have changed or deleted decks while Scan was away.
+      void current.reloadDecks();
+    }
+    focusedOnceRef.current = true;
+  }, []));
 
   if (!userId) {
     return (
@@ -538,6 +572,7 @@ export default function ScanScreen() {
     mimeType: "image/jpeg" | "image/png" | "image/webp"
   ) => {
     if (!userId) return;
+    if (!(await confirmAiImport("photo", t, Alert.alert))) return;
     setLoading(true);
     setCards([]);
     setSaved(false);
@@ -576,6 +611,7 @@ export default function ScanScreen() {
 
   const processPdf = async (fileBase64: string, fileName: string) => {
     if (!userId) return;
+    if (!(await confirmAiImport("pdf", t, Alert.alert))) return;
     setLoading(true);
     setCards([]);
     setSaved(false);
@@ -618,6 +654,7 @@ export default function ScanScreen() {
 
   const handleGenerateFromText = async () => {
     if (!editedText.trim() || !userId) return;
+    if (!(await confirmAiImport("text", t, Alert.alert))) return;
     setLoading(true);
     setCards([]);
     setSaved(false);
@@ -642,6 +679,7 @@ export default function ScanScreen() {
       } else {
         deductLp(lpCostAiScan);
       }
+      setMode("choose");
     } catch (error: unknown) {
       if (shouldOpenLpModal(error)) {
         setLpModalFeature("aiScan");
@@ -663,6 +701,7 @@ export default function ScanScreen() {
       return;
     }
 
+    if (!(await confirmAiImport("url", t, Alert.alert))) return;
     setLoading(true);
     setCards([]);
     setSaved(false);
@@ -687,6 +726,7 @@ export default function ScanScreen() {
       } else {
         deductLp(lpCostUrlImport);
       }
+      setMode("choose");
     } catch (error: unknown) {
       if (shouldOpenLpModal(error)) {
         setLpModalFeature("urlImport");
@@ -891,23 +931,6 @@ export default function ScanScreen() {
       { text: "Bestehendes Deck", onPress: handleSaveToExistingDeck },
       { text: "Abbrechen", style: "cancel" },
     ]);
-  };
-
-  const resetAll = () => {
-    setCards([]);
-    setFallbackUsed(false);
-    setDeckTitle("");
-    setSaved(false);
-    setSavedDeckId(null);
-    setSaveResult(null);
-    setImageUri(null);
-    setImageBase64(null);
-    setMode("choose");
-    setEditedText("");
-    setSourceUrl("");
-    setPdfFileName("");
-    setPdfPageCount(null);
-    importAttemptRef.current = null;
   };
 
   // ─── #608: Gemerkten Entwurf einer früheren Sitzung fortsetzen/verwerfen ──
@@ -1214,8 +1237,8 @@ export default function ScanScreen() {
               lineHeight: 22,
             }}
           >
-            Gib eine URL ein. Text und relevante Bilder der Seite werden in Karten
-            und Quizfragen übernommen.
+            Gib eine URL ein. Seitentitel und ausgewählter Text der Seite werden in
+            Karteikarten übernommen.
           </Text>
 
           <TextInput
@@ -1522,9 +1545,10 @@ export default function ScanScreen() {
 
             {/* Camera button */}
             <TouchableOpacity
-              onPress={() =>
-                openScanSource("aiScan", lpCostAiScan, afford.aiScan, openCamera)
-              }
+              onPress={() => selectSource("aiScan", lpCostAiScan, openCamera)}
+              disabled={loading || saving}
+              accessibilityRole="button"
+              accessibilityHint={!afford.aiScan ? t("lp.earnMore") : undefined}
               activeOpacity={0.8}
               style={{
                 backgroundColor: colors.primary,
@@ -1533,7 +1557,6 @@ export default function ScanScreen() {
                 flexDirection: "row",
                 alignItems: "center",
                 gap: spacing.lg,
-                opacity: afford.aiScan ? 1 : 0.5,
                 ...shadows.md,
               }}
             >
@@ -1576,9 +1599,10 @@ export default function ScanScreen() {
 
             {/* Gallery button */}
             <TouchableOpacity
-              onPress={() =>
-                openScanSource("aiScan", lpCostAiScan, afford.aiScan, handlePickFromGallery)
-              }
+              onPress={() => selectSource("aiScan", lpCostAiScan, handlePickFromGallery)}
+              disabled={loading || saving}
+              accessibilityRole="button"
+              accessibilityHint={!afford.aiScan ? t("lp.earnMore") : undefined}
               activeOpacity={0.8}
               style={{
                 backgroundColor: colors.success,
@@ -1587,7 +1611,6 @@ export default function ScanScreen() {
                 flexDirection: "row",
                 alignItems: "center",
                 gap: spacing.lg,
-                opacity: afford.aiScan ? 1 : 0.5,
                 ...shadows.md,
               }}
             >
@@ -1630,9 +1653,10 @@ export default function ScanScreen() {
 
             {/* Text input button */}
             <TouchableOpacity
-              onPress={() =>
-                openScanSource("aiScan", lpCostAiScan, afford.aiScan, () => setMode("text"))
-              }
+              onPress={() => selectSource("aiScan", lpCostAiScan, () => setMode("text"))}
+              disabled={loading || saving}
+              accessibilityRole="button"
+              accessibilityHint={!afford.aiScan ? t("lp.earnMore") : undefined}
               activeOpacity={0.8}
               style={{
                 backgroundColor: colors.warning,
@@ -1641,7 +1665,6 @@ export default function ScanScreen() {
                 flexDirection: "row",
                 alignItems: "center",
                 gap: spacing.lg,
-                opacity: afford.aiScan ? 1 : 0.5,
                 ...shadows.md,
               }}
             >
@@ -1684,12 +1707,12 @@ export default function ScanScreen() {
 
             {/* URL import button */}
             <TouchableOpacity
-              onPress={() =>
-                openScanSource("urlImport", lpCostUrlImport, afford.urlImport, () => setMode("url"))
-              }
+              onPress={() => selectSource("urlImport", lpCostUrlImport, () => setMode("url"))}
+              disabled={loading || saving}
+              accessibilityRole="button"
+              accessibilityHint={!afford.urlImport ? t("lp.earnMore") : undefined}
               activeOpacity={0.8}
               style={{
-                opacity: afford.urlImport ? 1 : 0.5,
                 backgroundColor: colors.info,
                 borderRadius: radius.lg,
                 padding: spacing.xl,
@@ -1738,9 +1761,10 @@ export default function ScanScreen() {
 
             {/* PDF import button */}
             <TouchableOpacity
-              onPress={() =>
-                openScanSource("pdfImport", lpCostPdfImport, afford.pdfImport, handlePickPdf)
-              }
+              onPress={() => selectSource("pdfImport", lpCostPdfImport, handlePickPdf)}
+              disabled={loading || saving}
+              accessibilityRole="button"
+              accessibilityHint={!afford.pdfImport ? t("lp.earnMore") : undefined}
               activeOpacity={0.8}
               style={{
                 backgroundColor: colors.text,
@@ -1749,7 +1773,6 @@ export default function ScanScreen() {
                 flexDirection: "row",
                 alignItems: "center",
                 gap: spacing.lg,
-                opacity: afford.pdfImport ? 1 : 0.5,
                 ...shadows.md,
               }}
             >

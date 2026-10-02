@@ -377,9 +377,10 @@ export default function AuthScreen() {
                 {titles[mode]}
               </Text>
 
-              {mode !== "reset" ? (
+              {mode !== "reset" && (availableProviders.google || availableProviders.apple) ? (
                 <>
                   <View style={{ gap: spacing.sm, marginBottom: sectionSpacing }}>
+                    {availableProviders.google ? (
                     <TouchableOpacity
                       onPress={() => {
                         void handleOAuth("google");
@@ -436,7 +437,9 @@ export default function AuthScreen() {
                           : "Mit Google fortfahren"}
                       </Text>
                     </TouchableOpacity>
+                    ) : null}
 
+                    {availableProviders.apple ? (
                     <TouchableOpacity
                       onPress={() => {
                         void handleOAuth("apple");
@@ -474,6 +477,7 @@ export default function AuthScreen() {
                           : "Mit Apple fortfahren"}
                       </Text>
                     </TouchableOpacity>
+                    ) : null}
                   </View>
 
                   <View

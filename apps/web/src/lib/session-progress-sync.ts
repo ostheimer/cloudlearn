@@ -51,6 +51,7 @@ export async function loadBestProgress(
         source: remote.source,
         reverse: remote.reverse,
         total: remote.total,
+        ...(remote.cardIds ? { cardIds: remote.cardIds } : {}),
         ...(remote.results ? { results: remote.results } : {}),
         ...(remote.savedAt ? { savedAt: remote.savedAt } : {}),
       };
@@ -77,6 +78,7 @@ export async function pushProgressToAccount(
       source: progress.source,
       reverse: progress.reverse,
       total: progress.total,
+      ...(progress.cardIds ? { cardIds: progress.cardIds } : {}),
       ...(progress.results ? { results: progress.results } : {}),
     });
   } catch {

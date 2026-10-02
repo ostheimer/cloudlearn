@@ -1,3 +1,5 @@
+import { parseSessionCardIds, resolveSessionResume } from "./session-resume";
+export { resolveSessionResume } from "./session-resume";
 /**
  * Wo eine Lern-Runde für ein Deck unterbrochen wurde, gemerkt in diesem
  * Browser — das Web-Gegenstück zu
@@ -16,9 +18,9 @@
 const STORAGE_PREFIX = "clearn:lernstand:";
 
 /**
- * Lernarten mit merkbarer Position. Beide laufen in stabiler Reihenfolge über
- * den gewählten Kartenstapel, ein Index bedeutet beim nächsten Mal also noch
- * dasselbe. Quiz und Zuordnen sind kurz genug, dass Neustarten weniger kostet
+ * Lernarten mit merkbarer Position und ursprünglicher Kartenreihenfolge.
+ * Der Fälligkeitsfilter kann sich nach jeder Bewertung ändern.
+ * Quiz und Zuordnen sind kurz genug, dass Neustarten weniger kostet
  * als der zusätzliche Klick; die Prüfung würfelt ihre Fragen bei jedem Start
  * neu — eine Position allein würde eine Runde fortsetzen, die es nicht mehr
  * gibt.
@@ -46,6 +48,8 @@ export interface SessionProgress {
   reverse: boolean;
   /** Kartenzahl beim Speichern, für „Karte 9 von 40“. */
   total: number;
+  /** Original queue order; older bookmarks can omit it. */
+  cardIds?: string[];
   /**
    * Ausgänge der vor der Unterbrechung beantworteten Karten, nach Karten-Id.
    * Damit zählt die Auswertung nach einem Weitermachen die ganze Runde
@@ -97,6 +101,7 @@ export function parseSessionProgress(raw: string | null): SessionProgress | null
     // Ein Index am oder hinter dem Ende ist eine fertige Runde, keine fortsetzbare.
     if (index >= total) return null;
     const results = parseStoredResults(value.results);
+    const cardIds = parseSessionCardIds(value.cardIds, { index, cardId, total });
     const savedAt = typeof value.savedAt === "string" && value.savedAt ? value.savedAt : undefined;
     return {
       index,
@@ -105,6 +110,7 @@ export function parseSessionProgress(raw: string | null): SessionProgress | null
       reverse: reverse === true,
       total,
       ...(results ? { results } : {}),
+      ...(cardIds ? { cardIds } : {}),
       ...(savedAt ? { savedAt } : {}),
     };
   } catch {
@@ -113,28 +119,16 @@ export function parseSessionProgress(raw: string | null): SessionProgress | null
 }
 
 /**
- * Wahr, wenn der gespeicherte Stand noch auf dieselbe Karte im aktuellen
- * Stapel zeigt.
- *
- * Zwischen zwei Runden werden Karten angelegt, gelöscht oder entmarkiert —
- * das verschiebt jede spätere Position. Nur nach dem Index fortzusetzen würde
- * bei einer beliebigen Karte landen, ohne dass man es merkt. Der Vergleich
- * der gemerkten Karten-Id mit der Karte, die jetzt an der Position liegt, ist
- * eine billige, exakte Prüfung: Entweder sie passt, oder der Stapel hat sich
- * geändert — dann ist Von-vorne-Beginnen das ehrliche Ergebnis.
- *
- * Die Kartenquelle muss ebenfalls passen — „Nur markierte“ und „Alle“ sind
- * verschiedene Stapel, ein Index in den einen sagt nichts über den anderen.
+ * Compatibility predicate for callers with just the current IDs. Session
+ * screens use resolveSessionResume with the full deck to restore the original
+ * due queue and its results, even after answered cards are no longer due.
  */
 export function isProgressUsable(
   progress: SessionProgress | null,
   cardIds: string[],
   source: string
 ): boolean {
-  if (!progress) return false;
-  if (progress.source !== source) return false;
-  if (progress.index >= cardIds.length) return false;
-  return cardIds[progress.index] === progress.cardId;
+  return resolveSessionResume(progress, cardIds.map((id) => ({ id })), source) !== null;
 }
 
 export function saveSessionProgress(

@@ -28,15 +28,23 @@ EAS-Konfiguration oder externe Dashboards voneinander abweichen.
 - Marketing / Support Web: `https://clearn-web.vercel.app`
 - Mobile-Web-Preview: Vercel-Projekt `cloudlearn`
 
-## Öffentliche Kontaktangaben
+## Öffentliche Kontaktangaben außerhalb des App Stores
 
-- Anbieter: Ostheimer OG
+- Website- und Diensteanbieter: Ostheimer OG
 - Verantwortliche Personen: Andreas Ostheimer und Sabine Ostheimer
 - UID: ATU79912016
 - Firmenbuchnummer: 613327b
 - Adresse: Fabriksgasse 20, 2230 Gänserndorf, Österreich
 - Telefon: +43 699 172 635 44
 - E-Mail: office@ostheimer.at
+
+## Apple-App-Store-Rechtsträger für diesen Release
+
+- Anbieter-/Verkäufername: Andreas Ostheimer
+- Copyright: `2026 Andreas Ostheimer` (für diesen Release von Andreas festgelegt)
+
+Die persönliche Apple-Developer-Mitgliedschaft bestimmt den Verkäufernamen,
+nicht automatisch den Copyright-Inhaber.
 
 ## Wichtige Regel zu `cloudlearn`
 

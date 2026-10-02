@@ -23,6 +23,23 @@ describe("Kosten-Sperren je Web-Importquelle", () => {
       affordableScanSources(12, { aiScan: 10, urlImport: 15, pdfImport: 20 })
     ).toEqual({ aiScan: true, urlImport: false, pdfImport: false, allAffordable: false });
   });
+
+  it("unlocks each source exactly at its current live price", () => {
+    for (const [balance, expected] of [
+      [0, [false, false, false]], [9, [false, false, false]],
+      [10, [true, false, false]], [15, [true, true, false]], [20, [true, true, true]],
+    ] as const) {
+      const result = affordableScanSources(balance, { aiScan: 10, urlImport: 15, pdfImport: 20 });
+      expect([result.aiScan, result.urlImport, result.pdfImport]).toEqual(expected);
+      expect(result.allAffordable).toBe(expected.every(Boolean));
+    }
+  });
+
+  it("uses updated server prices rather than hard-coded assumptions", () => {
+    expect(affordableScanSources(12, { aiScan: 20, urlImport: 5, pdfImport: 12 })).toEqual({
+      aiScan: false, urlImport: true, pdfImport: true, allAffordable: false,
+    });
+  });
 });
 
 describe("Deck-Grenze im Browser (#411)", () => {

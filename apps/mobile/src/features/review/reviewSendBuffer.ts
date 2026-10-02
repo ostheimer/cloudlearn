@@ -67,5 +67,10 @@ export function createReviewSendBuffer<Op>() {
     hasPending(): boolean {
       return pending !== null;
     },
+
+    /** Only this unsent card can still be corrected without a second review. */
+    canAmend(cardId: string): boolean {
+      return pending?.cardId === cardId;
+    },
   };
 }
