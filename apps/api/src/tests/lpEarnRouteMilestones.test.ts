@@ -37,13 +37,13 @@ vi.mock("@/services/subscriptionService", () => ({ getSubscriptionStatus: vi.fn(
 vi.mock("@/services/lpService", () => ({
   earnLp: vi.fn(),
   awardSessionMilestones: vi.fn(),
-  getLpProfile: vi.fn(),
+  getPersistedLpBalance: vi.fn(),
 }));
 
 import { POST } from "../../app/api/v1/lp/earn/route";
 import { getAuthUser } from "@/lib/auth";
 import { getSubscriptionStatus } from "@/services/subscriptionService";
-import { awardSessionMilestones, earnLp, getLpProfile } from "@/services/lpService";
+import { awardSessionMilestones, earnLp, getPersistedLpBalance } from "@/services/lpService";
 
 const USER = "22222222-2222-4222-8222-222222222222";
 
@@ -60,12 +60,7 @@ beforeEach(() => {
   vi.mocked(getSubscriptionStatus).mockResolvedValue({ tier: "free" } as never);
   vi.mocked(earnLp).mockResolvedValue({ granted: 8, newBalance: 18, capReached: false });
   vi.mocked(awardSessionMilestones).mockResolvedValue([]);
-  vi.mocked(getLpProfile).mockResolvedValue({
-    balance: 18,
-    earnedToday: 8,
-    adsToday: 0,
-    lpPeriodStart: "2026-08-02",
-  });
+  vi.mocked(getPersistedLpBalance).mockResolvedValue(18);
 });
 
 describe("POST /api/v1/lp/earn — Meilensteine (#637)", () => {
@@ -78,18 +73,14 @@ describe("POST /api/v1/lp/earn — Meilensteine (#637)", () => {
       capReached: false,
       milestones: [],
     });
+    expect(getPersistedLpBalance).not.toHaveBeenCalled();
   });
 
   it("nennt den Bonus und rechnet ihn in den Kontostand ein", async () => {
     vi.mocked(awardSessionMilestones).mockResolvedValue([
       { key: "first_review", lpGranted: 5 },
     ]);
-    vi.mocked(getLpProfile).mockResolvedValue({
-      balance: 23,
-      earnedToday: 8,
-      adsToday: 0,
-      lpPeriodStart: "2026-08-02",
-    });
+    vi.mocked(getPersistedLpBalance).mockResolvedValue(23);
 
     const body = (await (await post()).json()) as {
       newBalance: number;
@@ -105,12 +96,7 @@ describe("POST /api/v1/lp/earn — Meilensteine (#637)", () => {
       { key: "first_review", lpGranted: 5 },
       { key: "streak_7", lpGranted: 25 },
     ]);
-    vi.mocked(getLpProfile).mockResolvedValue({
-      balance: 48,
-      earnedToday: 8,
-      adsToday: 0,
-      lpPeriodStart: "2026-08-02",
-    });
+    vi.mocked(getPersistedLpBalance).mockResolvedValue(48);
 
     const body = (await (await post()).json()) as { newBalance: number };
 
@@ -124,12 +110,7 @@ describe("POST /api/v1/lp/earn — Meilensteine (#637)", () => {
     vi.mocked(awardSessionMilestones).mockResolvedValue([
       { key: "first_review", lpGranted: 5 },
     ]);
-    vi.mocked(getLpProfile).mockResolvedValue({
-      balance: 105,
-      earnedToday: 100,
-      adsToday: 0,
-      lpPeriodStart: "2026-08-02",
-    });
+    vi.mocked(getPersistedLpBalance).mockResolvedValue(105);
 
     const body = (await (await post()).json()) as {
       granted: number;
@@ -153,16 +134,11 @@ describe("POST /api/v1/lp/earn — Meilensteine (#637)", () => {
     ]);
     // Zwischen den beiden atomaren Gutschriften kann eine weitere Buchung
     // passieren. 18 + 5 wäre dann veraltet; in der Datenbank stehen 41 LP.
-    vi.mocked(getLpProfile).mockResolvedValue({
-      balance: 41,
-      earnedToday: 8,
-      adsToday: 0,
-      lpPeriodStart: "2026-08-02",
-    });
+    vi.mocked(getPersistedLpBalance).mockResolvedValue(41);
 
     const body = (await (await post()).json()) as { newBalance: number };
 
-    expect(getLpProfile).toHaveBeenCalledWith(USER);
+    expect(getPersistedLpBalance).toHaveBeenCalledWith(USER);
     expect(body.newBalance).toBe(41);
   });
 });

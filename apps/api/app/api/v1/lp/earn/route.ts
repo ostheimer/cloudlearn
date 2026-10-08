@@ -2,7 +2,7 @@ import { type NextRequest } from "next/server";
 import { jsonError, jsonOk, normalizeError } from "@/lib/http";
 import { createRequestContext } from "@/lib/observability";
 import { getAuthUser } from "@/lib/auth";
-import { awardSessionMilestones, earnLp, getLpProfile } from "@/services/lpService";
+import { awardSessionMilestones, earnLp, getPersistedLpBalance } from "@/services/lpService";
 import { getSubscriptionStatus } from "@/services/subscriptionService";
 import { lpEarnRequestSchema } from "@/lib/contracts";
 
@@ -38,10 +38,10 @@ export async function POST(request: NextRequest) {
     const milestones = await awardSessionMilestones(auth.userId);
     // Eine Meilenstein-Gutschrift ist eine zweite atomare Buchung nach earnLp.
     // Den neuen Stand deshalb aus der Datenbank lesen: Addieren würde
-    // gleichzeitige Käufe, Werbe-Boni oder andere Gutschriften überschreiben
+    // gleichzeitige Käufe, Werbe-Boni oder andere Gutschriften ignorieren
     // und dem Client einen erfundenen Kontostand melden (#702).
     const newBalance =
-      milestones.length > 0 ? (await getLpProfile(auth.userId)).balance : result.newBalance;
+      milestones.length > 0 ? await getPersistedLpBalance(auth.userId) : result.newBalance;
 
     return jsonOk(requestId, {
       granted: result.granted,
