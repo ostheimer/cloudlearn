@@ -94,7 +94,7 @@ const OTHER_USER_ID = "99999999-9999-4999-8999-999999999999";
 function makeRequest() {
   return new Request("http://localhost/api/v1/import/pdf", {
     method: "POST",
-    body: JSON.stringify({ fileBase64: "AAA", fileName: "notes.pdf", idempotencyKey: "k1" }),
+    body: JSON.stringify({ fileBase64: "A".repeat(100), fileName: "notes.pdf", idempotencyKey: "route-key-12345" }),
     headers: { "content-type": "application/json" },
   }) as never;
 }
