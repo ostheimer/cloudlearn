@@ -9,7 +9,7 @@ export default function SupportPage() {
     <ContentPage
       eyebrow="Support"
       title="Hilfe für clearn"
-      lead="Hier landet alles, was für App Store, Beta und tägliche Nutzung wichtig ist: Support-Kontakt, typische Themen und der schnellste Weg zur Lösung."
+      lead="Hier landet alles, was für App Store und tägliche Nutzung wichtig ist: Support-Kontakt, typische Themen und der schnellste Weg zur Lösung."
     >
       <PageSection id="beta" title="Direkter Kontakt">
         <p style={{ margin: 0 }}>
@@ -34,7 +34,7 @@ export default function SupportPage() {
           <li>PDF-, Bild-, Text- oder URL-Import</li>
           <li>Lernpunkte, Pro, Lifetime, Käufe und Wiederherstellung</li>
           <li>Datenschutzanfragen und Konto-Löschung</li>
-          <li>Beta-Feedback und reproduzierbare Bugs</li>
+          <li>Feedback und reproduzierbare Bugs</li>
         </ul>
       </PageSection>
 

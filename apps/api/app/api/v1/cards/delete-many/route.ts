@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     if (!auth) return jsonError(requestId, "UNAUTHORIZED", "Authentication required", 401);
 
     const body = (await request.json()) as Record<string, unknown>;
-    const cost = Array.isArray(body.cardIds) ? Math.max(1, body.cardIds.length) : 1;
+    const cost = Array.isArray(body?.cardIds) ? Math.max(1, body.cardIds.length) : 1;
     await enforceUserRateLimit(
       auth.userId,
       "cards-delete-many",
