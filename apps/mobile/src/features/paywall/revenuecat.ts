@@ -11,6 +11,7 @@ type PurchasesClient = PurchasesModule["default"];
 type RevenueCatAvailabilityReason =
   | "native_module_unavailable"
   | "missing_api_key"
+  | "user_login_failed"
   | null;
 
 export interface RevenueCatAvailability {
@@ -101,7 +102,9 @@ async function ensureRevenueCatConfigured(
       await client.logIn(userId);
       activeRevenueCatUserId = userId;
     } catch {
-      // Keep app usable even if RC user switch fails temporarily.
+      // Never read entitlements or perform purchases under the previous user.
+      // Keep the old ID so the next attempt retries the account switch.
+      return { available: false, reason: "user_login_failed" };
     }
   }
 

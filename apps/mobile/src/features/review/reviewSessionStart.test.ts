@@ -40,6 +40,18 @@ describe("start with a resume index", () => {
     expect(useReviewSession.getState().index).toBe(2);
   });
 
+  it("opens the summary when the saved round has no surviving unanswered cards", () => {
+    useReviewSession.getState().start(cards, cards.length, "deck-1", {
+      a: { correct: true, overridden: false },
+      b: { correct: false, overridden: false },
+      c: { correct: true, overridden: false },
+    });
+    expect(useReviewSession.getState().index).toBe(3);
+    expect(useReviewSession.getState().completed).toBe(true);
+    expect(useReviewSession.getState().rateCurrent("good")).toBeNull();
+    expect(useReviewSession.getState().goBack()).toBe(false);
+  });
+
   it("clamps a negative index to the first card", () => {
     useReviewSession.getState().start(cards, -5);
     expect(useReviewSession.getState().index).toBe(0);

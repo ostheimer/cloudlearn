@@ -267,6 +267,19 @@ describe("listCardsInFolder – alle Karten des Ordners in einem Rutsch", () => 
     ]);
   });
 
+  it.each([1999, 2000])("liefert %i Karten vollständig innerhalb der Grenze (#702)", async (count) => {
+    const rows = Array.from({ length: count }, (_, i) =>
+      cardRow(`c${i}`, DECK_A, "2026-07-01T00:00:00.000Z")
+    );
+    const { db } = makeDbMock({
+      folders: { data: folderRow, error: null },
+      folder_decks: [{ deck_id: DECK_A }],
+      cards: rows,
+    });
+    mockedCreateDb.mockReturnValue(db);
+    expect(await listCardsInFolder(FOLDER_A, USER_ID, 2000)).toHaveLength(count);
+  });
+
   it("bricht einen übergroßen Ordner nach höchstens 2001 Karten ehrlich ab (#702)", async () => {
     const rows = Array.from({ length: 2001 }, (_, i) =>
       cardRow(`c${i}`, DECK_A, "2026-07-01T00:00:00.000Z")

@@ -43,6 +43,21 @@ async function openAuthFromGuestHome(page: Page) {
 }
 
 test.describe("cloudlearn auth preview", () => {
+  test.beforeEach(async ({ page }) => {
+    // Keep the local smoke test off real authentication services. The test
+    // verifies that Enter submits the form, not a production login attempt.
+    await page.route("**/auth/v1/token**", (route) =>
+      route.fulfill({
+        status: 400,
+        contentType: "application/json",
+        body: JSON.stringify({
+          error: "invalid_grant",
+          error_description: "Invalid login credentials",
+        }),
+      })
+    );
+  });
+
   test("desktop auth screen renders without bootstrap errors", async ({ page }) => {
     const issues = collectConsoleIssues(page);
     const response = await page.goto("/");
@@ -58,6 +73,30 @@ test.describe("cloudlearn auth preview", () => {
         issues.some((message) => message.toLowerCase().includes(fragment))
       ).toBeFalsy();
     }
+    expect(issues).toEqual([]);
+  });
+
+  test("guest can finish and restart the sample lesson without signing in", async ({ page }) => {
+    const issues = collectConsoleIssues(page);
+    const writes: string[] = [];
+    page.on("request", (request) => {
+      if (["POST", "PUT", "PATCH", "DELETE"].includes(request.method())) {
+        writes.push(request.url());
+      }
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/");
+    await page.getByText("Beispielkarten lernen", { exact: true }).click();
+    await expect(page.getByText("Beispielkarten ohne Konto. Nichts davon wird gespeichert.")).toBeVisible();
+    for (let index = 1; index <= 3; index += 1) {
+      await expect(page.getByText(`${index} von 3`, { exact: true })).toBeVisible();
+      await page.getByText("Tippen zum Umdrehen", { exact: true }).click();
+      await page.getByText("Gut", { exact: true }).click();
+    }
+    await expect(page.getByText("Alles gewusst", { exact: true })).toBeVisible();
+    await page.getByText("Nochmal ausprobieren", { exact: true }).click();
+    await expect(page.getByText("1 von 3", { exact: true })).toBeVisible();
+    expect(writes).toEqual([]);
     expect(issues).toEqual([]);
   });
 

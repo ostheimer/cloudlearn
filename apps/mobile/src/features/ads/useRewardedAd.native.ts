@@ -59,7 +59,7 @@ export interface UseRewardedAdReturn {
 }
 
 // Loads and shows a real rewarded ad via react-native-google-mobile-ads.
-// Falls back to a short simulation if the native SDK is unavailable.
+// Returns no reward if the native SDK is unavailable.
 async function loadAndShowRewardedAd(options: {
   personalizedAds?: boolean;
   userId: string;
@@ -246,20 +246,11 @@ export function useRewardedAd(): UseRewardedAdReturn {
   const activeRef = useRef(false);
 
   const watchAd = useCallback(async (): Promise<RewardedAdResult | null> => {
+    // A disabled release must not simulate an ad or prompt for ad consent.
+    if (!REAL_ADS_ENABLED || !userId) return null;
     if (activeRef.current) return null;
     activeRef.current = true;
     try {
-      // Real ads (Google-served + SSV) are not live yet → show a mock ad that grants
-      // no LP. This keeps the closed "self-grant LP for a fake ad" hole closed. Once
-      // REAL_ADS_ENABLED flips on, the real path below credits LP via AdMob SSV.
-      if (!REAL_ADS_ENABLED || !userId) {
-        setState("showing");
-        await new Promise<void>((resolve) => setTimeout(resolve, 1200));
-        setState("idle");
-        activeRef.current = false;
-        return { granted: 0, newBalance: 0, capReached: false, mock: true };
-      }
-
       const personalizedAds = await resolveAdPersonalizationPreference();
       if (personalizedAds === null) {
         setState("idle");

@@ -151,7 +151,7 @@ export function LpInsufficientModal({
           </TouchableOpacity>
 
           {/* Option 2: Watch ad — nur Free (#607) */}
-          {showWatchAd ? (
+          {REAL_ADS_ENABLED && showWatchAd ? (
             <TouchableOpacity
               onPress={handleWatchAd}
               disabled={isAdBusy}
@@ -185,11 +185,7 @@ export function LpInsufficientModal({
                     : t("lp.watchAdMockSubtitle")}
                 </Text>
               </View>
-              {/* „+5"-Plakette nur, wenn die 5 LP wirklich kommen (#611). Solange
-                  REAL_ADS_ENABLED false ist, liefert watchAd() garantiert 0 LP
-                  (mock) — das Versprechen hier war schlicht falsch, und ehrlich
-                  wurde erst die Antwort danach. Der Shop macht es längst so
-                  (lp-store.tsx), das Fenster zieht nach. */}
+              {/* Reward badges remain gated by the real-ad release switch. */}
               {REAL_ADS_ENABLED ? (
                 <View
                   style={{
@@ -210,7 +206,7 @@ export function LpInsufficientModal({
             </TouchableOpacity>
           ) : null}
 
-          {showWatchAd && adMessage ? (
+          {REAL_ADS_ENABLED && showWatchAd && adMessage ? (
             <Text style={{ textAlign: "center", color: colors.textSecondary, fontSize: typography.sm }}>
               {adMessage}
             </Text>

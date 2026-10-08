@@ -21,8 +21,7 @@ const expected = {
   sku: "app.clearn",
   appStoreConnectAppId: "6766691399",
   category: "Bildung",
-  provider: "Ostheimer OG",
-  copyright: "2026 Ostheimer OG",
+  provider: "Andreas Ostheimer",
   supportUrl: "https://clearn-web.vercel.app/support",
   marketingUrl: "https://clearn-web.vercel.app",
   privacyUrl: "https://clearn-web.vercel.app/privacy",
@@ -146,8 +145,7 @@ for (const [label, value] of [
   ["SKU", `SKU: \`${expected.sku}\``],
   ["ASC app ID", `App Store Connect App ID: \`${expected.appStoreConnectAppId}\``],
   ["Category", `Kategorie: ${expected.category}`],
-  ["Provider", `Anbieter: ${expected.provider}`],
-  ["Copyright", `Copyright: \`${expected.copyright}\``],
+  ["Provider", `Anbieter/Verkäufername: ${expected.provider}`],
   ["Support URL", `Support-URL: \`${expected.supportUrl}\``],
   ["Marketing URL", `Marketing-URL: \`${expected.marketingUrl}\``],
   ["Privacy URL", `Datenschutz-URL: \`${expected.privacyUrl}\``],
@@ -156,7 +154,17 @@ for (const [label, value] of [
   record(docs.fillIn.includes(value), label, value);
 }
 
+const copyrightValue = docs.fillIn.match(/^- Copyright: `([^`]+)`$/m)?.[1] ?? "";
+record(Boolean(copyrightValue), "Copyright is present");
+record(
+  /^\d{4}\s+\S/.test(copyrightValue) &&
+    !/[<>]|offen|festlegen|rechteentstehung|todo|tbd/i.test(copyrightValue),
+  "Copyright owner is resolved before submission",
+  copyrightValue || "missing",
+);
+
 includesAll("Product identities", docs.productIdentities, [
+  expected.provider,
   expected.bundleId,
   expected.marketingUrl,
   "clearn://auth",
@@ -218,6 +226,18 @@ includesAll("Fill-in pack", docs.fillIn, expected.productIds);
 includesAll("Review notes", docs.reviewNotes, expected.productIds);
 includesAll("Review notes", docs.reviewNotes, expected.entitlements);
 includesAll("Review notes", docs.reviewNotes, expected.requiredReviewPhrases);
+const adsMode = JSON.parse(
+  fs.readFileSync(path.join(repoRoot, "apps/mobile/ads-mode.json"), "utf8"),
+);
+if (adsMode.realAdsEnabled === false) {
+  for (const [label, text] of [["Review notes", docs.reviewNotes], ["Fill-in pack", docs.fillIn]]) {
+    record(text.includes("REAL_ADS_ENABLED=false"), `${label} documents disabled ads release`);
+    record(
+      !/Rewarded Ads sind Teil des Launch-Scopes|zeigt die App nur nicht-personalisierte Rewarded Ads/.test(text),
+      `${label} does not promise ads while disabled`,
+    );
+  }
+}
 record(docs.reviewNotes.includes("<REVIEW_EMAIL>"), "Review notes keep review email placeholder");
 record(docs.reviewNotes.includes("<REVIEW_PASSWORD>"), "Review notes keep review password placeholder");
 record(docs.fillIn.includes("<REVIEW_EMAIL>"), "Fill-in pack keeps review email placeholder");

@@ -1,5 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
+import release from "./release-platform.cjs";
+const platforms = release.releasePlatforms({ args: process.argv.slice(2) });
 
 const appDir = process.cwd();
 const defaultEvidencePath = path.join(appDir, "dashboard-readiness.local.json");
@@ -47,7 +49,9 @@ const REQUIRED_CHECKS = [
   ["vercel.supabaseEnvChecked", "Vercel Supabase env"],
   ["vercel.publicPagesLive", "Vercel public pages"],
   ["vercel.productionDeploysGreen", "Vercel production deploys"],
-  ["eas.admobSecretsSet", "EAS AdMob secrets"],
+  ...(release.realAdsEnabled
+    ? [["eas.admobSecretsSet", "EAS AdMob secrets"]]
+    : []),
   ["eas.revenueCatSecretsSet", "EAS RevenueCat secrets"],
   ["eas.entitlementEnvSet", "EAS RevenueCat entitlement env"],
   ["supabase.siteUrlSet", "Supabase site URL"],
@@ -215,31 +219,35 @@ console.log("");
 console.log("Canonical identifiers");
 console.log("");
 
-requireExact(evidence, "appStoreConnect.appleAppId", "Apple app ID", EXPECTED.appleAppId, missing);
-requireExact(evidence, "appStoreConnect.bundleId", "iOS bundle ID", EXPECTED.bundleId, missing);
-requireExact(
-  evidence,
-  "googlePlay.packageName",
-  "Android package name",
-  EXPECTED.androidPackageName,
-  missing
-);
-requireExact(evidence, "appStoreConnect.privacyUrl", "Privacy URL", EXPECTED.privacyUrl, missing);
-requireExact(evidence, "appStoreConnect.supportUrl", "Support URL", EXPECTED.supportUrl, missing);
-requireArrayIncludes(
-  evidence,
-  "appStoreConnect.productIds",
-  "App Store product IDs",
-  EXPECTED.productIds,
-  missing
-);
-requireArrayIncludes(
-  evidence,
-  "googlePlay.productIds",
-  "Google Play product IDs",
-  EXPECTED.productIds,
-  missing
-);
+if (platforms.includes("ios")) {
+  requireExact(evidence, "appStoreConnect.appleAppId", "Apple app ID", EXPECTED.appleAppId, missing);
+  requireExact(evidence, "appStoreConnect.bundleId", "iOS bundle ID", EXPECTED.bundleId, missing);
+  requireExact(evidence, "appStoreConnect.privacyUrl", "Privacy URL", EXPECTED.privacyUrl, missing);
+  requireExact(evidence, "appStoreConnect.supportUrl", "Support URL", EXPECTED.supportUrl, missing);
+  requireArrayIncludes(
+    evidence,
+    "appStoreConnect.productIds",
+    "App Store product IDs",
+    EXPECTED.productIds,
+    missing
+  );
+}
+if (platforms.includes("android")) {
+  requireExact(
+    evidence,
+    "googlePlay.packageName",
+    "Android package name",
+    EXPECTED.androidPackageName,
+    missing
+  );
+  requireArrayIncludes(
+    evidence,
+    "googlePlay.productIds",
+    "Google Play product IDs",
+    EXPECTED.productIds,
+    missing
+  );
+}
 requireArrayIncludes(
   evidence,
   "revenueCat.entitlementIds",
@@ -268,6 +276,8 @@ console.log("External dashboard checklist");
 console.log("");
 
 for (const [field, label] of REQUIRED_CHECKS) {
+  if (!platforms.includes("ios") && (field.startsWith("appStoreConnect.") || field === "revenueCat.iosAppConfigured")) continue;
+  if (!platforms.includes("android") && (field.startsWith("googlePlay.") || field === "revenueCat.androidAppConfigured")) continue;
   requireBoolean(evidence, field, label, missing);
 }
 

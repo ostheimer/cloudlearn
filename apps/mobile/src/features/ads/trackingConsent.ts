@@ -6,6 +6,7 @@ import {
   type AdPersonalizationPreference,
   type TrackingPermissionStatus,
 } from "./trackingConsentUtils";
+import { REAL_ADS_ENABLED } from "./adsMode";
 export type {
   AdPersonalizationPreference,
   TrackingPermissionStatus,
@@ -81,6 +82,14 @@ async function writePersistedState(
 }
 
 async function getTrackingPermissionStatus(): Promise<TrackingPermissionResult> {
+  if (!REAL_ADS_ENABLED) {
+    return {
+      granted: false,
+      canAskAgain: false,
+      permissionStatus: "unavailable",
+    };
+  }
+
   if (Platform.OS !== "ios") {
     return {
       granted: true,
@@ -116,6 +125,14 @@ async function getTrackingPermissionStatus(): Promise<TrackingPermissionResult> 
 }
 
 async function requestTrackingPermission(): Promise<TrackingPermissionResult> {
+  if (!REAL_ADS_ENABLED) {
+    return {
+      granted: false,
+      canAskAgain: false,
+      permissionStatus: "unavailable",
+    };
+  }
+
   if (Platform.OS !== "ios") {
     return {
       granted: true,

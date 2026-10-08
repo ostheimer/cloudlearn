@@ -1,4 +1,5 @@
 import { type NextRequest } from "next/server";
+import { z } from "zod";
 import { revenueCatWebhookSchema } from "@/lib/contracts";
 import { getEnv } from "@/lib/env";
 import { jsonError, jsonOk, normalizeError } from "@/lib/http";
@@ -32,11 +33,18 @@ const MONTHLY_GRANT_EVENT_TYPES = new Set([
   "NON_RENEWING_PURCHASE",
 ]);
 
-// Webhook route — authenticates via x-revenuecat-signature, not JWT
+// TEST is a delivery probe. Its sample purchase fields need no validation
+// because they never reach the subscription/LP services.
+const webhookEnvelopeSchema = z.object({
+  event: z.object({ type: z.string() }),
+});
+
+// RevenueCat sends the dashboard-configured value in the Authorization header.
+// This is separate from the optional X-RevenueCat-Webhook-Signature HMAC flow.
 export async function POST(request: NextRequest) {
   const { requestId } = createRequestContext(request.headers);
   try {
-    const secret = request.headers.get("x-revenuecat-signature");
+    const authorization = request.headers.get("authorization");
     const env = getEnv();
     // No configured secret → the webhook is unusable in EVERY environment.
     // (Previously only production 503'd, so preview/dev accepted unauthenticated
@@ -49,17 +57,25 @@ export async function POST(request: NextRequest) {
         503
       );
     }
-    if (!secureCompare(secret, env.REVENUECAT_WEBHOOK_SECRET)) {
+    if (!secureCompare(authorization, `Bearer ${env.REVENUECAT_WEBHOOK_SECRET}`)) {
       return jsonError(
         requestId,
         "UNAUTHORIZED",
-        "Invalid webhook signature",
+        "Invalid webhook authorization",
         401
       );
     }
 
-    const parsed = revenueCatWebhookSchema.parse(await request.json());
-    const { event } = parsed;
+    const payload: unknown = await request.json();
+    const envelope = webhookEnvelopeSchema.parse(payload);
+    // RevenueCat's purchase-like TEST payload may contain null entitlements.
+    // Authenticate and validate the event type, then acknowledge before
+    // product-specific validation or any subscription/LP writes.
+    if (envelope.event.type === "TEST") {
+      return jsonOk(requestId, { requestId, type: "test_received" });
+    }
+
+    const { event } = revenueCatWebhookSchema.parse(payload);
 
     // ── TRANSFER (Gerätewechsel / Family Sharing, #607) ────────────────────────
     // Trägt kein app_user_id — die Konten stehen in transferred_from/to. Ohne
@@ -69,7 +85,7 @@ export async function POST(request: NextRequest) {
         event.transferred_from ?? [],
         event.transferred_to ?? []
       );
-      return jsonOk(requestId, { requestId, type: "transfer_processed", movedTier }, 201);
+      return jsonOk(requestId, { requestId, type: "transfer_processed", movedTier });
     }
 
     const userId = event.app_user_id;
@@ -96,7 +112,7 @@ export async function POST(request: NextRequest) {
         await grantLpPurchase(userId, pack.lp, `purchase_${transactionId}`);
       }
       // Return 200 immediately — no subscription state update needed for packs
-      return jsonOk(requestId, { requestId, type: "lp_pack_granted", productId }, 201);
+      return jsonOk(requestId, { requestId, type: "lp_pack_granted", productId });
     }
 
     // ── Subscription event ─────────────────────────────────────────────────────
@@ -135,7 +151,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return jsonOk(requestId, { requestId, status }, 201);
+    return jsonOk(requestId, { requestId, status });
   } catch (error) {
     const normalized = normalizeError(error);
     return jsonError(
