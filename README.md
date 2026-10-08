@@ -231,7 +231,7 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 - **Spaced Repetition:** FSRS-Algorithmus für optimale Wiederholungsintervalle
 - **Deck-Verwaltung:** Decks, Tags, Suche (Basis)
 - **Offline-Basis:** Lernen ohne Internet, Upload/Sync via Retry-Queue
-- **Auth:** E-Mail/Passwort + Apple/Google Sign-In
+- **Auth:** E-Mail/Passwort; Apple/Google Sign-In nur bei aktiviertem Anbieter
 - **Paywall-Basis:** Free/Pro via RevenueCat
 
 ### v1.1
@@ -310,7 +310,7 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 ### Mobile App
 | Komponente | Technologie | Begründung |
 |-----------|------------|------------|
-| Framework | **React Native + Expo** | Ein Codebase für iOS + Android; Expo für OTA-Updates |
+| Framework | **React Native + Expo** | Ein Codebase für iOS + Android; neue native Builds statt OTA |
 | OCR (iOS) | **Apple Vision Framework** | Kostenlos, offline, schnell, gute Deutsch-Unterstützung |
 | OCR (Android) | **Google ML Kit** | Kostenlos, offline, on-device |
 | Navigation | **Expo Router** | File-based routing wie Next.js |
@@ -361,7 +361,7 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 | **Sentry** (Errors) | 5K Events/Monat | **€0** | Free reicht für Start |
 | **PostHog** (Analytics) | 1M Events/Monat | **€0** | Free Tier sehr großzügig |
 | **RevenueCat** (Payments) | $2.500 MTR | **€0** | Erst ab Umsatz kostenpflichtig |
-| **Expo EAS** (Builds) | 30 Builds/Monat | **€0** (Prod: €99) | Free reicht für Entwicklung |
+| **Expo EAS** (Builds) | Tarifabhängig | Vor Build im Konto prüfen | Cloud-Builds verbrauchen Kontingent; Änderungen bündeln |
 | **Gesamt MVP** | | **~€0–50/Monat** | Fast alles im Free Tier! |
 
 ### Skalierte Kosten (1.000–10.000 aktive Nutzer)
@@ -372,7 +372,7 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 | **Supabase Pro** | **€25** | 8 GB DB, 100K MAU, Daily Backups |
 | **Cloudflare R2** | **€5–15** | ~50 GB Bilder, Class A/B Ops |
 | **Gemini Flash API** | **€30–100** | ~500K Anfragen × $0,0001–0,0003 |
-| **Expo EAS Production** | **€99** | Unlimitierte Builds + Updates |
+| **Expo EAS Production** | Tarif und Nutzung im Konto prüfen | Keine unbegrenzten Builds voraussetzen; kein OTA in dieser App |
 | **Sentry Team** | **€26** | 50K Events |
 | **PostHog** | **€0** | Noch im Free Tier |
 | **RevenueCat** | **€0–120** | 1,2% ab $2.500 MTR |
@@ -387,11 +387,13 @@ Darum bleibt die App schnell und die Plattform trotzdem sicher und skalierbar.
 | **Cloudflare R2** | **€30–80** | 200–500 GB Storage |
 | **Gemini Flash API** | **€200–800** | 2–5 Mio. Anfragen/Monat |
 | **Mathpix** (v2.0) | **€100–300** | STEM-Nutzer, $0,002/Bild |
-| **Expo EAS** | **€99** | |
+| **Expo EAS** | Tarif und Nutzung im Konto prüfen | Cloud-Builds bündeln |
 | **Sentry Business** | **€80** | |
 | **PostHog** | **€0–450** | Je nach Event-Volumen |
 | **RevenueCat** | **€200–800** | 1,2% vom Umsatz |
 | **Gesamt** | **~€1.300–3.300/Monat** | |
+
+Die Kostentabellen sind Planungsschätzungen, keine aktuelle Tarifbestätigung. Insbesondere sind EAS-Kosten und Kontingente vor einem Cloud-Build im tatsächlichen Konto zu prüfen; die historischen Gesamtschätzungen sind kein verifiziertes Release-Budget.
 
 ### Kosten pro Nutzer (Unit Economics)
 
@@ -950,15 +952,15 @@ Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testf�
 
 ### Voll funktionsfähig (End-to-End mit echten Daten)
 
-- **Scan → KI → Flashcards**: Kamera, Galerie oder Text → Gemini 3 Flash → strukturierte Lernkarten
+- **Scan → KI → Flashcards**: Kamera, Galerie oder Text → Gemini 3 Flash → strukturierte Lernkarten. Vor jeder KI-Übertragung aus Scan oder URL-Import ist eine neue ausdrückliche Zustimmung zur Übermittlung an Google Gemini erforderlich; Abbrechen oder Schließen verhindert die Übertragung. Die Zustimmung wird nicht dauerhaft gespeichert.
 - **Deck-Management**: Erstellen, Umbenennen, Löschen, Suchen, KI-generierte Titel
 - **Card-Management**: Anzeigen, Bearbeiten, Löschen, Manuell hinzufügen (Editor-Modal)
 - **Karten zu bestehendem Deck**: Scan-Ergebnis in neues ODER vorhandenes Deck speichern
 - **FSRS-Review**: Again/Hard/Good/Easy mit persistenter Zustandsverwaltung in Supabase
 - **Home-Dashboard**: Fällige Karten, Deck-Anzahl, CTA zum Lernen/Scannen
-- **Auth**: Login, Registrierung, Passwort-Reset (Supabase Auth + JWT)
+- **Auth**: Login, Registrierung, Passwort-Reset (Supabase Auth + JWT). Google-/Apple-Buttons erscheinen jeweils nur für laut `/auth/v1/settings` aktivierte Anbieter. Sind beide deaktiviert, entfallen auch OAuth-Container und ODER-Trenner; E-Mail-Login, Registrierung und Reset bleiben verfügbar.
 - **Profil**: E-Mail-Anzeige, Abo-Status, Sprache, Abmelden
-- **Tracking-Einstellungen**: `apps/mobile/app/tracking-preferences.tsx` — App Tracking Transparency (ATT) Consent-Flow, erreichbar vom Profil-Tab; für App-Store-Compliance zwingend erforderlich
+- **Tracking-Einstellungen**: `apps/mobile/app/tracking-preferences.tsx` bleibt vom Profil-Tab erreichbar. Bei deaktivierten Ads erfolgt keine ATT-Abfrage; die Production-Konfiguration entfernt `NSUserTrackingUsageDescription` und den ATT-Plugin-Eintrag. Der Consent-Flow bleibt für eine gesondert geprüfte spätere Ads-Aktivierung im Code erhalten.
 - **Paywall + RevenueCat**: Angebotsliste, Kauf, Restore, 402-Weiterleitung aus Scan-Flow, Webhook-Sync auf Backend-Tier
 - **Lernmodus UX**: Fullscreen-Kartenmodus ohne Tab-Bar, zentriertes Layout (Header + Kartenfortschritt), Swipe-Counter (rot/grün), Icons außerhalb der Karte (verhindert versehentliches Flippen), größere Schrift, weicher Snap-Back, sichtbarer Fly-out, Zurück-Pfeil als Icon
 - **Bibliothek-Navigation**: Kurs-/Ordner-Details öffnen innerhalb des Tab-Kontexts (Tab-Bar bleibt sichtbar), während Lernscreens weiterhin ohne Tab-Bar laufen
@@ -967,13 +969,13 @@ Die detaillierte Ticket-Planung fuer Phase 1 inkl. Akzeptanzkriterien und Testf�
 - **Auto-Deploy**: Git-Push → Vercel baut `clearn-api` + `clearn-web` automatisch
 - **URL-Import**: Webseiten per URL importieren (`POST /api/v1/import/url`) mit Text-Extraktion und KI-Flashcard-Generierung
 - **RevenueCat Production Guard**: Produktions-API-Keys werden nur in Store-Builds aktiviert; in Expo Go (fehlendes Native Module) oder Dev-Builds ohne gesetzte Keys verhindert die Guard SDK-Initialisierungsfehler
-- **AdMob Production Guard**: Außerhalb von Store-Builds werden Test-Ad-Unit-IDs anstelle der Produktions-IDs verwendet; der SDK initialisiert sich weiterhin (mit Test-Modus)
+- **AdMob Production Guard**: App und Release-Prüfungen lesen `apps/mobile/ads-mode.json`. Solange echte Ads deaktiviert sind, wird das AdMob-SDK nicht in den Production-Build eingebunden und produktive AdMob-IDs werden nicht verlangt; eine spätere Aktivierung schaltet die strikte Production-Prüfung wieder ein.
 - **Bereitschaftsprüfungen (Readiness Gates)**: Automatisierte Skripte prüfen TestFlight-Build-, Dashboard- und App-Store-Bereitschaft vor Releases
 - **Statistiken**: Reviews heute/Woche/gesamt, Genauigkeit, Lernverlauf 30 Tage — API und Mobile-Screen vollständig
 - **Streaks + TTS + Push-Notifications**: Tagesserien-Tracking, Vorlesen (expo-speech), konfigurierbare tägliche Erinnerungen
 - **Erweiterte Lernmodi**: Flip-Animation, Swipe (4 FSRS-Stufen, Tinder-Stil), Test-Modus (MC/Wahr-Falsch), Match-Spiel (Timer, Sterne), Auto-Play, Image Occlusion
 - **Bibliothek**: Kurse, Ordner, Deck duplizieren, Deck teilen (Deep-Link), Offline-Download (AsyncStorage-Cache für Deck-Detail mit Karten-Fallback bei API-Fehlern), Deck-Details, Kartenanzahl
-- **LP-System**: Lernpunkte als universelle Währung — Balance, Verdienen (Reviews, Streaks, Referrals), Ausgeben (KI-Features), LP-Packs (RevenueCat), Leaderboard, Freundesliste, Rewarded Ads (AdMob)
+- **LP-System**: Lernpunkte als universelle Währung — Balance, Verdienen (Reviews, Streaks, Referrals), Ausgeben (KI-Features), LP-Packs (RevenueCat), Leaderboard, Freundesliste. Rewarded Ads sind deaktiviert (`REAL_ADS_ENABLED=false`): keine Werbeaktion und keine Mock-Wiedergabe. AdMob/SSV-Code bleibt für eine separat zu prüfende spätere Freigabe vorhanden; die Tracking-Einstellungen bleiben erhalten, ohne ATT-Abfrage bei deaktivierten Ads.
 - **Onboarding-Flow**: 3-Schritte-Onboarding, Starter-Deck, Routing-Fix für Authenticated-/New-User-Pfade
 
 ### Scaffold vorhanden, noch nicht vollständig funktionsfähig
@@ -1098,6 +1100,8 @@ pnpm --filter @clearn/api dev
 ```
 
 ### Build & Deploy
+
+`expo-updates` ist nicht installiert: Ein Merge, Bundle-Export oder die konfigurierte `updates.url` aktualisiert keine installierte App. Mobile Änderungen benötigen einen neuen nativen Build. Vor einem autorisierten EAS-Build vorhandene laufende Builds prüfen, fertige Änderungen bündeln und Kontingent-/Kostenwirkung klären; nicht automatisch nach jedem Merge bauen.
 
 ```bash
 # Build aller Pakete

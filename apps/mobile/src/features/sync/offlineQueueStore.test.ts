@@ -31,6 +31,54 @@ const {
 
 const STORAGE_KEY = "clearn-offline-review-queue-v1";
 const USER_ID = "user-1";
+const nativeStorage = (await import("@react-native-async-storage/async-storage")).default;
+
+describe("durable background review commit", () => {
+  beforeEach(async () => {
+    await useOfflineQueueStore.getState().persistPending();
+    resetQueue(true);
+  });
+  it("offers an awaitable checkpoint containing the exact pending operation", async () => {
+    const queued = operation("background-original-key");
+    useOfflineQueueStore.getState().clear();
+    useOfflineQueueStore.getState().enqueue(queued);
+    await useOfflineQueueStore.getState().persistPending();
+    const durable = JSON.parse(storage.get(STORAGE_KEY)!);
+    expect(durable.pending).toEqual([queued]);
+    useOfflineQueueStore.setState({ queue: { ...queue(), pending: [], inFlight: [], hydrated: false } });
+    await useOfflineQueueStore.getState().initialize();
+    expect(queue().pending).toEqual([queued]);
+  });
+
+  it("waits for an older write so it cannot overwrite the final checkpoint", async () => {
+    let finishOlder!: () => void;
+    const oldWrite = new Promise<void>((resolve) => { finishOlder = resolve; });
+    vi.mocked(nativeStorage.setItem).mockImplementationOnce(async (key, value) => {
+      await oldWrite;
+      storage.set(key, value);
+    });
+    useOfflineQueueStore.getState().enqueue(operation("older"));
+    useOfflineQueueStore.getState().enqueue(operation("background"));
+    let checkpointDone = false;
+    const checkpoint = useOfflineQueueStore.getState().persistPending().then(() => { checkpointDone = true; });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(checkpointDone).toBe(false);
+    finishOlder();
+    await checkpoint;
+    expect(JSON.parse(storage.get(STORAGE_KEY)!).pending.map((item: { operationId: string }) => item.operationId)).toEqual(["older", "background"]);
+  });
+
+  it("reports a failed durable checkpoint while retaining pending reviews for retry", async () => {
+    const queued = operation("retryable");
+    useOfflineQueueStore.getState().enqueue(queued);
+    await useOfflineQueueStore.getState().persistPending();
+    vi.mocked(nativeStorage.setItem).mockRejectedValueOnce(new Error("disk unavailable"));
+    await expect(useOfflineQueueStore.getState().persistPending()).rejects.toThrow("disk unavailable");
+    expect(queue().pending).toEqual([queued]);
+    await useOfflineQueueStore.getState().persistPending();
+  });
+});
 
 function operation(key: string) {
   return createReviewSyncOperation({
@@ -81,7 +129,8 @@ function resetQueue(hydrated: boolean) {
 }
 
 describe("Offline-Warteschlange — was beim Hochladen mit einer Antwort passiert (#418)", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await useOfflineQueueStore.getState().persistPending();
     syncReviewOperations.mockReset();
     resetQueue(true);
   });

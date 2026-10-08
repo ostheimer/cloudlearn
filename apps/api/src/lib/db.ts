@@ -2504,6 +2504,7 @@ export interface SessionProgressRecord {
   source: string;
   reverse: boolean;
   total: number;
+  cardIds?: string[];
   results?: Record<string, { correct: boolean; overridden: boolean }>;
   updatedAt: string;
 }
@@ -2522,7 +2523,7 @@ export async function getSessionProgress(
   const db = getDb();
   const { data, error } = await db
     .from("session_progress")
-    .select("card_index, card_id, source, reverse, total, results, updated_at")
+    .select("card_index, card_id, card_ids, source, reverse, total, results, updated_at")
     .eq("user_id", userId)
     .eq("deck_id", deckId)
     .eq("mode", mode)
@@ -2537,6 +2538,7 @@ export async function getSessionProgress(
     source: row.source as string,
     reverse: row.reverse === true,
     total: row.total as number,
+    ...(row.card_ids ? { cardIds: row.card_ids as string[] } : {}),
     ...(row.results ? { results: row.results } : {}),
     updatedAt: row.updated_at as string,
   };
@@ -2564,6 +2566,7 @@ export async function saveSessionProgress(
       mode,
       card_index: progress.index,
       card_id: progress.cardId,
+      card_ids: progress.cardIds ?? null,
       source: progress.source,
       reverse: progress.reverse,
       total: progress.total,

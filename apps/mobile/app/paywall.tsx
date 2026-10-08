@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "expo-router";
+import { useCallback, useMemo, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -17,6 +18,7 @@ import {
   purchaseRevenueCatPackage,
   restoreRevenueCatPurchases,
   type RevenueCatOffer,
+  type RevenueCatAvailability,
 } from "../src/features/paywall/revenuecat";
 import { filterSubscriptionOffers } from "../src/features/paywall/subscriptionOffers";
 import { type SubscriptionTier } from "../src/features/paywall/subscriptionMapping";
@@ -26,6 +28,7 @@ import {
   tierLabelKey,
 } from "../src/features/paywall/proDisplay";
 import { getSubscriptionStatus, getLpBalance } from "../src/lib/api";
+import { PRIVACY_URL, TERMS_URL } from "../src/lib/publicLinks";
 import { useSessionStore } from "../src/store/sessionStore";
 import { usageFromBalanceResponse, useUsageStore } from "../src/store/usageStore";
 import { radius, shadows, spacing, typography, useColors } from "../src/theme";
@@ -83,13 +86,13 @@ export default function PaywallScreen() {
   const [activePurchaseId, setActivePurchaseId] = useState<string | null>(null);
   const [isRestoring, setIsRestoring] = useState(false);
   const [availabilityReason, setAvailabilityReason] = useState<
-    "native_module_unavailable" | "missing_api_key" | null
+    RevenueCatAvailability["reason"]
   >(null);
 
   const usageStore = useUsageStore();
   const setUsage = useUsageStore((state) => state.setUsage);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     let isMounted = true;
 
     const loadPaywall = async () => {
@@ -148,7 +151,7 @@ export default function PaywallScreen() {
     return () => {
       isMounted = false;
     };
-  }, [userId, t]);
+  }, [userId, t, setUsage]));
 
   const availabilityMessage = useMemo(() => {
     if (availabilityReason === "native_module_unavailable") {
@@ -481,6 +484,32 @@ export default function PaywallScreen() {
           </TouchableOpacity>
         ) : null}
 
+        <View style={{ gap: spacing.sm }}>
+          <Text style={{ color: colors.textSecondary, fontSize: typography.sm }}>
+            {t("paywall.renewalNotice")}
+          </Text>
+          <Text style={{ color: colors.textSecondary, fontSize: typography.sm }}>
+            {t("paywall.lifetimeNotice")}
+          </Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.md }}>
+            {[
+              { label: t("profile.terms"), url: TERMS_URL },
+              { label: t("profile.privacy"), url: PRIVACY_URL },
+            ].map(({ label, url }) => (
+              <TouchableOpacity
+                key={url}
+                accessibilityRole="link"
+                accessibilityLabel={label}
+                onPress={() => void Linking.openURL(url)}
+                style={{ paddingVertical: 12 }}
+              >
+                <Text style={{ color: colors.primary, fontSize: typography.sm, textDecorationLine: "underline" }}>
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );

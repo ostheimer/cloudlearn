@@ -34,7 +34,9 @@ do $$ begin
     create role service_role;
   end if;
 end $$;
-drop table if exists lp_transactions, rewards_claimed, streak_freeze_uses, monthly_lp_grants, profiles cascade;
+-- Drop dependent tables too: CASCADE on profiles removes their foreign keys,
+-- not the tables, so reruns could otherwise retain rows without cleanup links.
+drop table if exists lp_transactions, rewards_claimed, streak_freeze_uses, monthly_lp_grants, friend_connections, friend_streaks, profiles cascade;
 create table profiles (
   id uuid primary key,
   lp_balance int not null default 10,
