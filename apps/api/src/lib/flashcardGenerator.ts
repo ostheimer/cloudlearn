@@ -1,3 +1,4 @@
+import { GEMINI_MODEL, GEMINI_MAX_OUTPUT_TOKENS, reserveGeminiBudget, settleGeminiBudget, isAiControlError, type GeminiUsage } from "./geminiBudget";
 import type { Flashcard } from "./contracts";
 import { MAX_GENERATED_CARDS } from "./contracts";
 import { dropSelfRevealingCards } from "./cardQuality";
@@ -72,6 +73,7 @@ interface GeminiContent {
 }
 
 interface GeminiResponse {
+  usageMetadata?: GeminiUsage;
   candidates?: Array<{
     content?: {
       parts?: Array<{ text?: string }>;
@@ -115,7 +117,10 @@ export async function generateFlashcardsFromText(
   // So every chunk is retried, and if one is still unanswered afterwards the
   // whole generation fails. A visibly failed import can be repeated; a deck
   // quietly missing a third of its subject cannot even be noticed.
-  const results = await Promise.all(chunks.map((chunk) => askWithRetry(() => ask(chunk))));
+  const settled = await Promise.allSettled(chunks.map((chunk) => askWithRetry(() => ask(chunk))));
+  const failed = settled.find(r => r.status === "rejected");
+  if (failed?.status === "rejected") throw failed.reason;
+  const results = settled.map(r => (r as PromiseFulfilledResult<FlashcardGenerationResult>).value);
 
   return {
     // Every chunk titles its own slice; the first chunk saw the document's
@@ -148,6 +153,7 @@ async function askWithRetry(
     try {
       return await attempt();
     } catch (error) {
+      if (isAiControlError(error)) throw error;
       lastError = error;
       if (tries < CHUNK_ATTEMPTS) {
         await new Promise((resolve) => setTimeout(resolve, RETRY_BASE_DELAY_MS * 2 ** (tries - 1)));
@@ -250,7 +256,7 @@ async function callGemini(
   userContent: GeminiContent,
   systemPrompt = SYSTEM_PROMPT
 ): Promise<FlashcardGenerationResult> {
-  const model = "gemini-3-flash-preview";
+  const model = GEMINI_MODEL;
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   const body = {
@@ -270,9 +276,10 @@ async function callGemini(
       // thinking on one vocab sheet swung between 1357 and 7005 tokens run to
       // run, so a 4096 ceiling truncated the JSON mid-string at random — the
       // scan then died in JSON.parse. This is a ceiling, not a reservation:
-      // unused tokens cost nothing, so keep ample room for the worst-case
-      // thinking plus ~2000 tokens of cards.
-      maxOutputTokens: 16384,
+      // valid usage releases the unused shared reservation; keep ample room for
+      // thinking plus ~2000 tokens of cards. The shared guard additionally
+      // reserves the documented full model ceiling to avoid under-reservation.
+      maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
       responseMimeType: "application/json",
       // Card generation is extraction, not reasoning, so the thinking budget
       // buys nothing here. Measured across 3 PIT PDFs (Programmieren,
@@ -285,6 +292,7 @@ async function callGemini(
     },
   };
 
+  const reservationId = await reserveGeminiBudget(body.contents[0]!.parts);
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -292,14 +300,15 @@ async function callGemini(
   });
 
   if (!res.ok) {
-    const errorBody = await res.text();
-    throw new Error(`Gemini API error ${res.status}: ${errorBody.slice(0, 200)}`);
+    throw new Error(`Gemini API error ${res.status}`);
   }
 
   const data: GeminiResponse = await res.json();
 
+  await settleGeminiBudget(reservationId, data.usageMetadata);
+
   if (data.error) {
-    throw new Error(`Gemini error: ${data.error.message}`);
+    throw new Error("Gemini API returned an error");
   }
 
   const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
