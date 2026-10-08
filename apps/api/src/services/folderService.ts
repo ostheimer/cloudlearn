@@ -21,6 +21,9 @@ import { clampTitle } from "@/lib/titleLimit";
 // beliebig viel in die Datenbank schreibt. Zwei Sätze passen bequem hinein.
 const DESCRIPTION_MAX = 500;
 const FOLDER_LEARN_CARD_LIMIT = 2000;
+// Text edits can produce large rows even in a small folder. Bound UTF-8 JSON
+// as well as the row count, with headroom for the route envelope.
+const FOLDER_LEARN_BYTE_LIMIT = 2_000_000;
 
 // Titel (#612): trimmen + auf 120 kappen statt abweisen, gleiches Schema wie
 // bei Decks (deckService, Begründung in titleLimit.ts).
@@ -106,7 +109,15 @@ export async function countDecksByFolderForUser(userId: string) {
 /** Alle Karten der Decks eines Ordners (#612). null = nicht der Besitzer → 404. */
 export async function listCardsInFolderForUser(folderId: string, userId: string) {
   try {
-    return await listCardsInFolder(folderId, userId, FOLDER_LEARN_CARD_LIMIT);
+    const cards = await listCardsInFolder(folderId, userId, FOLDER_LEARN_CARD_LIMIT);
+    if (cards && Buffer.byteLength(JSON.stringify({ cards }), "utf8") > FOLDER_LEARN_BYTE_LIMIT) {
+      throw new HttpError(
+        "Die Karten in diesem Ordner sind zu umfangreich. Teile ihn zum Lernen in kleinere Ordner auf.",
+        413,
+        "FOLDER_TOO_LARGE"
+      );
+    }
+    return cards;
   } catch (error) {
     if (error instanceof RowLimitExceededError) {
       throw new HttpError(

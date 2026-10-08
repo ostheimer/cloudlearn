@@ -462,4 +462,35 @@ describe("GET /api/v1/folders/[id]/cards – Vertrag", () => {
     expect(body.code).toBe("FOLDER_TOO_LARGE");
     expect(body.message).toContain("2000");
   });
+
+  it.each([
+    ["ASCII", "x", 1_100_000],
+    ["UTF-8", "🧠", 280_000],
+  ] as const)("begrenzt auch die JSON-Bytes bei nur zwei großen %s-Karten (#702)", async (_name, text, repeats) => {
+    mockedGetAuthUser.mockResolvedValue({ userId: USER_ID, email: "lara@example.com" });
+    const rows = [cardRow("c1", DECK_A, "2026-07-01T00:00:00.000Z"), cardRow("c2", DECK_A, "2026-07-01T00:00:00.000Z")]
+      .map((row) => ({ ...row, back: text.repeat(repeats) }));
+    const { db } = makeDbMock({
+      folders: { data: folderRow, error: null }, folder_decks: [{ deck_id: DECK_A }], cards: rows,
+    });
+    mockedCreateDb.mockReturnValue(db);
+    const response = await GET_CARDS(request(), params);
+    expect(response.status).toBe(413);
+    expect(await response.json()).toMatchObject({
+      code: "FOLDER_TOO_LARGE", message: expect.stringContaining("zu umfangreich"),
+    });
+  });
+
+  it("liefert große Texte unter dem Byte-Budget vollständig", async () => {
+    mockedGetAuthUser.mockResolvedValue({ userId: USER_ID, email: "lara@example.com" });
+    const row = { ...cardRow("c1", DECK_A, "2026-07-01T00:00:00.000Z"), back: "ä".repeat(950_000) };
+    const { db } = makeDbMock({
+      folders: { data: folderRow, error: null }, folder_decks: [{ deck_id: DECK_A }], cards: [row],
+    });
+    mockedCreateDb.mockReturnValue(db);
+    const response = await GET_CARDS(request(), params);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ cards: [{ back: row.back }] });
+  });
+
 });
