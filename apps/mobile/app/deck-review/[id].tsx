@@ -21,7 +21,7 @@ import {
 } from "../../src/components/cardSourcePicker";
 import { useColors, spacing, radius, typography, shadows } from "../../src/theme";
 import {
-  isProgressUsable,
+  resolveSessionResume,
   type SessionProgress,
   type StoredCardResult,
 } from "../../src/features/review/sessionProgress";
@@ -45,8 +45,9 @@ export default function DeckReviewScreen() {
   const [source, setSource] = useState<CardSource>("all");
   // Where an earlier session for this deck stopped, if any. Offered rather than
   // applied — a position from days ago may not be what the learner wants now.
-  const [saved, setSaved] = useState<SessionProgress | null>(null);
+  const [saved, setSaved] = useState<SessionProgress | null | undefined>(undefined);
   // Card to start on once "Weitermachen" was chosen; undefined starts at the top.
+  const [resumeProgress, setResumeProgress] = useState<SessionProgress | undefined>(undefined);
   const [resumeIndex, setResumeIndex] = useState<number | undefined>(undefined);
   // Ergebnisse der unterbrochenen Sitzung (#595) — nur beim Weitermachen
   // gesetzt, damit „Von vorne beginnen" ohne alte Ergebnisse startet.
@@ -124,12 +125,14 @@ export default function DeckReviewScreen() {
   const studyPool = filterBySource(allCards, source, wobblyIds);
 
   const setupRestoredRef = useRef(false);
+  const setupTouchedRef = useRef(false);
   useEffect(() => {
-    if (setupRestoredRef.current || loading || storedSetup === undefined) return;
+    if (setupRestoredRef.current || setupTouchedRef.current || loading || storedSetup === undefined || saved === undefined) return;
     if (phase !== "setup") return;
     setupRestoredRef.current = true;
     if (storedSetup?.reverse !== undefined) setReverse(storedSetup.reverse);
-    const wanted = resolveSource(storedSetup?.source, {
+    const pausedDue = saved?.source === "due" && resolveSessionResume(saved, [], "due", allCards);
+    const wanted = pausedDue && (!storedSetup?.source || storedSetup.source === "due") ? "due" : resolveSource(storedSetup?.source, {
       starred: starredCount,
       wobbly: wobblyCount,
       due: dueCount,
@@ -138,17 +141,16 @@ export default function DeckReviewScreen() {
     // Ohne gemerkte Wahl ist das Tagespensum die Voreinstellung (#610):
     // „Nur fällige", sobald es gerade welche gibt.
     else if (!storedSetup?.source && dueCount > 0) setSource("due");
-  }, [loading, storedSetup, phase, starredCount, wobblyCount, dueCount]);
+  }, [loading, storedSetup, phase, starredCount, wobblyCount, dueCount, saved, allCards]);
 
-  // Offer the resume only while it is genuinely usable: same source, and the
-  // stored card still sits at the stored position (cards may have been added,
-  // deleted or unstarred since). Switching the source hides the offer, because
-  // an index into one pile says nothing about another.
-  const canResume =
-    saved !== null && isProgressUsable(saved, studyPool.map((card) => card.id), source);
+  // The original due queue survives scheduling changes; other sources still
+  // require the saved card at the same position. Switching source hides it.
+  const resume = resolveSessionResume(saved, studyPool, source, allCards);
+  const canResume = resume !== null;
 
   const beginSession = (startAt?: number) => {
     setResumeIndex(startAt);
+    setResumeProgress(startAt !== undefined ? saved ?? undefined : undefined);
     // Beim Weitermachen wandern die gespeicherten Ergebnisse der Vor-Sitzung
     // mit in die Auswertung (#595); „Von vorne beginnen" startet ohne sie.
     setResumeResults(startAt !== undefined ? saved?.results : undefined);
@@ -176,6 +178,7 @@ export default function DeckReviewScreen() {
           source={source}
           wobblyIds={[...wobblyIds]}
           initialIndex={resumeIndex}
+          initialProgress={resumeProgress}
           initialResults={resumeResults}
         />
       </>
@@ -369,7 +372,7 @@ export default function DeckReviewScreen() {
           {/* Kartenquelle — Alle / Nur markierte / Nur Wackelkandidaten */}
           <CardSourcePicker
             value={source}
-            onChange={setSource}
+            onChange={(next) => { setupTouchedRef.current = true; setSource(next); }}
             allCount={allCards.length}
             starredCount={starredCount}
             wobblyCount={wobblyCount}
@@ -379,9 +382,9 @@ export default function DeckReviewScreen() {
           <View style={{ flex: 1 }} />
 
           {/* Weitermachen — only when an interrupted session still fits */}
-          {canResume && saved && (
+          {resume && saved && (
             <TouchableOpacity
-              onPress={() => beginSession(saved.index)}
+              onPress={() => beginSession(resume.index)}
               activeOpacity={0.85}
               style={{
                 backgroundColor: colors.primary,
@@ -408,7 +411,7 @@ export default function DeckReviewScreen() {
                   marginTop: 2,
                 }}
               >
-                {`Karte ${saved.index + 1} von ${studyPool.length}`}
+                {resume.index >= resume.cards.length ? "Runde abgeschlossen" : `Karte ${resume.index + 1} von ${resume.cards.length}`}
               </Text>
             </TouchableOpacity>
           )}

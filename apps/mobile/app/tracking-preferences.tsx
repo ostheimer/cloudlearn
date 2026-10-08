@@ -18,6 +18,7 @@ import {
   type TrackingPermissionStatus,
 } from "../src/features/ads/trackingConsent";
 import { radius, shadows, spacing, typography, useColors } from "../src/theme";
+import { REAL_ADS_ENABLED } from "../src/features/ads/adsMode";
 
 function getSystemStatusTranslationKey(status: TrackingPermissionStatus) {
   switch (status) {
@@ -66,6 +67,7 @@ export default function TrackingPreferencesScreen() {
   }, [hydrated, initialize, refreshPermissionStatus]);
 
   const currentModeKey = useMemo(() => {
+    if (!REAL_ADS_ENABLED) return "tracking.modeDisabled";
     if (personalizedAdsEnabled) {
       return "tracking.modePersonalized";
     }
@@ -219,165 +221,169 @@ export default function TrackingPreferencesScreen() {
                   lineHeight: 20,
                 }}
               >
-                {t("tracking.explainerBody")}
+                {t(REAL_ADS_ENABLED ? "tracking.explainerBody" : "tracking.adsDisabledBody")}
               </Text>
             </View>
 
-            <View
-              style={{
-                backgroundColor: colors.surface,
-                borderRadius: radius.lg,
-                padding: spacing.lg,
-                borderWidth: 1,
-                borderColor: colors.border,
-                gap: spacing.md,
-              }}
-            >
-              <View
-                style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}
-              >
-                <Shield size={18} color={colors.success} />
-                <Text
+            {REAL_ADS_ENABLED ? (
+              <>
+                <View
                   style={{
-                    fontSize: typography.base,
-                    fontWeight: typography.semibold,
-                    color: colors.text,
+                    backgroundColor: colors.surface,
+                    borderRadius: radius.lg,
+                    padding: spacing.lg,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    gap: spacing.md,
                   }}
                 >
-                  {t("tracking.systemStatus")}
-                </Text>
-              </View>
-              <Text
-                style={{
-                  fontSize: typography.base,
-                  color: colors.text,
-                  fontWeight: typography.semibold,
-                }}
-              >
-                {t(getSystemStatusTranslationKey(permissionStatus))}
-              </Text>
-              <Text
-                style={{
-                  fontSize: typography.sm,
-                  color: colors.textSecondary,
-                  lineHeight: 20,
-                }}
-              >
-                {Platform.OS === "ios"
-                  ? t("tracking.iosHint")
-                  : t("tracking.nonIosHint")}
-              </Text>
-            </View>
-
-            <View
-              style={{
-                backgroundColor: colors.surface,
-                borderRadius: radius.lg,
-                padding: spacing.lg,
-                borderWidth: 1,
-                borderColor: colors.border,
-                gap: spacing.md,
-              }}
-            >
-              <TouchableOpacity
-                onPress={() => {
-                  void handleEnablePersonalizedAds();
-                }}
-                disabled={updating}
-                activeOpacity={0.8}
-                style={{
-                  backgroundColor: colors.primary,
-                  borderRadius: radius.lg,
-                  padding: spacing.lg,
-                  opacity: updating ? 0.7 : 1,
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: typography.base,
-                    fontWeight: typography.bold,
-                    color: colors.textInverse,
-                    textAlign: "center",
-                  }}
-                >
-                  {t("tracking.enablePersonalized")}
-                </Text>
-                <Text
-                  style={{
-                    fontSize: typography.sm,
-                    color: "rgba(255,255,255,0.8)",
-                    textAlign: "center",
-                    marginTop: 6,
-                  }}
-                >
-                  {t("tracking.enablePersonalizedSubtitle")}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => {
-                  void handleUseNonPersonalizedAds();
-                }}
-                disabled={updating}
-                activeOpacity={0.8}
-                style={{
-                  backgroundColor: colors.surfaceSecondary,
-                  borderRadius: radius.lg,
-                  padding: spacing.lg,
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                  opacity: updating ? 0.7 : 1,
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: typography.base,
-                    fontWeight: typography.bold,
-                    color: colors.text,
-                    textAlign: "center",
-                  }}
-                >
-                  {t("tracking.useNonPersonalized")}
-                </Text>
-                <Text
-                  style={{
-                    fontSize: typography.sm,
-                    color: colors.textSecondary,
-                    textAlign: "center",
-                    marginTop: 6,
-                  }}
-                >
-                  {t("tracking.useNonPersonalizedSubtitle")}
-                </Text>
-              </TouchableOpacity>
-
-              {canOpenSettings ? (
-                <TouchableOpacity
-                  onPress={() => {
-                    void Linking.openSettings();
-                  }}
-                  activeOpacity={0.8}
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: spacing.sm,
-                    paddingTop: spacing.xs,
-                  }}
-                >
-                  <Smartphone size={16} color={colors.primary} />
+                  <View
+                    style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}
+                  >
+                    <Shield size={18} color={colors.success} />
+                    <Text
+                      style={{
+                        fontSize: typography.base,
+                        fontWeight: typography.semibold,
+                        color: colors.text,
+                      }}
+                    >
+                      {t("tracking.systemStatus")}
+                    </Text>
+                  </View>
                   <Text
                     style={{
-                      color: colors.primary,
-                      fontSize: typography.sm,
+                      fontSize: typography.base,
+                      color: colors.text,
                       fontWeight: typography.semibold,
                     }}
                   >
-                    {t("tracking.openSettings")}
+                    {t(getSystemStatusTranslationKey(permissionStatus))}
                   </Text>
-                </TouchableOpacity>
-              ) : null}
-            </View>
+                  <Text
+                    style={{
+                      fontSize: typography.sm,
+                      color: colors.textSecondary,
+                      lineHeight: 20,
+                    }}
+                  >
+                    {Platform.OS === "ios"
+                      ? t("tracking.iosHint")
+                      : t("tracking.nonIosHint")}
+                  </Text>
+                </View>
+
+                <View
+                  style={{
+                    backgroundColor: colors.surface,
+                    borderRadius: radius.lg,
+                    padding: spacing.lg,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    gap: spacing.md,
+                  }}
+                >
+                  <TouchableOpacity
+                    onPress={() => {
+                      void handleEnablePersonalizedAds();
+                    }}
+                    disabled={updating}
+                    activeOpacity={0.8}
+                    style={{
+                      backgroundColor: colors.primary,
+                      borderRadius: radius.lg,
+                      padding: spacing.lg,
+                      opacity: updating ? 0.7 : 1,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: typography.base,
+                        fontWeight: typography.bold,
+                        color: colors.textInverse,
+                        textAlign: "center",
+                      }}
+                    >
+                      {t("tracking.enablePersonalized")}
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: typography.sm,
+                        color: "rgba(255,255,255,0.8)",
+                        textAlign: "center",
+                        marginTop: 6,
+                      }}
+                    >
+                      {t("tracking.enablePersonalizedSubtitle")}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => {
+                      void handleUseNonPersonalizedAds();
+                    }}
+                    disabled={updating}
+                    activeOpacity={0.8}
+                    style={{
+                      backgroundColor: colors.surfaceSecondary,
+                      borderRadius: radius.lg,
+                      padding: spacing.lg,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                      opacity: updating ? 0.7 : 1,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: typography.base,
+                        fontWeight: typography.bold,
+                        color: colors.text,
+                        textAlign: "center",
+                      }}
+                    >
+                      {t("tracking.useNonPersonalized")}
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: typography.sm,
+                        color: colors.textSecondary,
+                        textAlign: "center",
+                        marginTop: 6,
+                      }}
+                    >
+                      {t("tracking.useNonPersonalizedSubtitle")}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {canOpenSettings ? (
+                    <TouchableOpacity
+                      onPress={() => {
+                        void Linking.openSettings();
+                      }}
+                      activeOpacity={0.8}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: spacing.sm,
+                        paddingTop: spacing.xs,
+                      }}
+                    >
+                      <Smartphone size={16} color={colors.primary} />
+                      <Text
+                        style={{
+                          color: colors.primary,
+                          fontSize: typography.sm,
+                          fontWeight: typography.semibold,
+                        }}
+                      >
+                        {t("tracking.openSettings")}
+                      </Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              </>
+            ) : null}
           </>
         )}
       </ScrollView>

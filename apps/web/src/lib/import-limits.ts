@@ -23,6 +23,30 @@ export interface PlanLimits {
   maxCardsPerDeck: number;
 }
 
+export interface ScanSourceCosts {
+  aiScan: number;
+  urlImport: number;
+  pdfImport: number;
+}
+
+/**
+ * Welche Import-Quellen kann der aktuelle LP-Stand bezahlen? (#701)
+ *
+ * Die Preise kommen live vom Server. Dadurch kann die Auswahl jede Quelle
+ * prüfen, ohne die LP-Wirtschaft noch einmal im Web festzuschreiben.
+ */
+export function affordableScanSources(balance: number, costs: ScanSourceCosts) {
+  const aiScan = balance >= costs.aiScan;
+  const urlImport = balance >= costs.urlImport;
+  const pdfImport = balance >= costs.pdfImport;
+  return {
+    aiScan,
+    urlImport,
+    pdfImport,
+    allAffordable: aiScan && urlImport && pdfImport,
+  };
+}
+
 /**
  * Ist die Deck-Grenze erreicht? `maxDecks` ist absichtlich optional: Liefert
  * der Server keine Grenzen mit (älterer Stand), wird NICHTS gesperrt. Lieber

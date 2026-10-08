@@ -15,7 +15,7 @@ import { useColors, spacing, radius, typography, shadows } from "../src/theme";
 import { usageFromBalanceResponse, useUsageStore } from "../src/store/usageStore";
 import { useRewardedAd } from "../src/features/ads/useRewardedAd";
 import { REAL_ADS_ENABLED } from "../src/features/ads/adsMode";
-import { buyStreakFreeze, getLpBalance, getStats, grantLpPackPurchase, isApiError } from "../src/lib/api";
+import { buyStreakFreeze, getLpBalance, getStats, isApiError } from "../src/lib/api";
 import {
   getRevenueCatAvailability,
   getRevenueCatOfferings,
@@ -149,21 +149,9 @@ export default function LpStoreScreen() {
         Alert.alert(t("lp.purchaseError"), result.error);
         return;
       }
-      // Purchase succeeded: grant LP via our API (transaction_id from RevenueCat)
-      // RevenueCat also sends a webhook as backup, but we grant immediately here for UX
-      const transactionId = `rc_${userId}_${pack.id}_${Date.now()}`;
-      try {
-        const grant = await grantLpPackPurchase(pack.id, transactionId);
-        setUsage({ lpBalance: grant.newBalance });
-        Alert.alert(
-          t("lp.purchaseSuccess"),
-          t("lp.purchaseSuccessBody", { lp: grant.lpGranted, balance: grant.newBalance })
-        );
-      } catch {
-        // Webhook will handle it as fallback
-        Alert.alert(t("lp.purchaseSuccessWebhook", { lp: pack.lp }));
-        void loadBalance();
-      }
+      // Only the verified RevenueCat webhook credits consumable LP.
+      Alert.alert(t("lp.purchaseSuccessWebhook", { lp: pack.lp }));
+      void loadBalance();
     } catch (err) {
       Alert.alert(t("lp.purchaseError"), err instanceof Error ? err.message : t("lp.purchaseErrorGeneric"));
     } finally {
@@ -365,7 +353,7 @@ export default function LpStoreScreen() {
             </View>
 
             {/* Rewarded ad (free only) */}
-            {tier === "free" && (
+            {REAL_ADS_ENABLED && tier === "free" && (
               <View style={{ gap: spacing.sm }}>
                 <TouchableOpacity
                   onPress={handleWatchAd}

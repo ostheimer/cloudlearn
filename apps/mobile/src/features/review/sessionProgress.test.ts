@@ -168,3 +168,17 @@ describe("keeping the modes apart", () => {
     expect(await loadSessionProgress("deck-1", "cloze")).toBeNull();
   });
 });
+
+// #697: a rating changes the due filter before the next opening.
+describe("resuming a changing due pile", () => {
+  it("accepts the saved next card after answered cards leave the due filter", () => {
+    expect(isProgressUsable(progress({ index: 2, cardId: "card-3", source: "due", total: 4, results: {
+      "card-1": { correct: true, overridden: false },
+      "card-2": { correct: false, overridden: false },
+    } }), ["card-2", "card-3", "card-4"], "due")).toBe(true);
+  });
+  it("round-trips the exact original card order", () => {
+    const saved = { ...progress({ index: 2, cardId: "card-3", source: "due", total: 4 }), cardIds: ["card-1", "card-2", "card-3", "card-4"] };
+    expect(parseSessionProgress(JSON.stringify(saved))).toEqual(saved);
+  });
+});

@@ -11,6 +11,7 @@
     "test": "pnpm -r --if-present test",
     "test:e2e": "pnpm -r --if-present test:e2e",
     "test:cloudlearn-smoke": "playwright test -c playwright.cloudlearn.config.ts",
+    "test:resume-local": "playwright test -c playwright.resume.config.ts",
     "release:mobile:check": "pnpm --filter @clearn/mobile release:check",
     "perf:smoke": "tsx --tsconfig apps/api/tsconfig.json scripts/perf-smoke.ts",
     "perf:http": "tsx --tsconfig apps/api/tsconfig.json scripts/perf-smoke.ts --http",
