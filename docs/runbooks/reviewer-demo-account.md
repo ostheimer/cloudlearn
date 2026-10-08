@@ -29,12 +29,12 @@ Dieses Runbook definiert, wie ein App-Review-/TestFlight-Demo-Konto vorbereitet 
 
 ## Review Notes ausfüllen
 
-In [docs/runbooks/app-store-review-notes.md](/docs/runbooks/app-store-review-notes.md) vor Submission ersetzen:
-
-- `<REVIEW_EMAIL>` durch die echte Demo-E-Mail
-- `<REVIEW_PASSWORD>` durch das Passwort aus dem Passwortmanager
-- Build-Nummer ergänzen
-- bekannte Einschränkungen ergänzen
+Die Vorlage in [docs/runbooks/app-store-review-notes.md](/docs/runbooks/app-store-review-notes.md)
+bleibt im Repository ohne Zugangsdaten. Vor Submission die bestätigte Demo-E-Mail
+und das Passwort aus dem Passwortmanager ausschließlich in die geschützten
+Review-Zugangsfelder von App Store Connect eintragen. Build-Nummer und bekannte
+Einschränkungen in die dortigen Review Notes übernehmen. Das Passwort niemals in
+die Repository-Datei oder in einen Commit schreiben.
 
 ## Nach jedem größeren Release prüfen
 

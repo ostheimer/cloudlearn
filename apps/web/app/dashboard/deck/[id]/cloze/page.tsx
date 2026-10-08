@@ -29,7 +29,7 @@ import {
   type SessionAwardState,
 } from "@/lib/learn-session-lp";
 import {
-  isProgressUsable,
+  resolveSessionResume,
   saveSessionProgress,
   type SessionProgress,
   type StoredCardResult,
@@ -87,7 +87,7 @@ export default function ClozePage() {
   const [results, setResults] = useState<(Result | null)[]>([]);
   // Wo eine frühere Runde dieses Decks stand, falls gemerkt. Wird nur
   // ANGEBOTEN, nie angewendet.
-  const [saved, setSaved] = useState<SessionProgress | null>(null);
+  const [saved, setSaved] = useState<SessionProgress | null | undefined>(undefined);
 
   const [earned, setEarned] = useState<number | null>(null);
   const [earnCapReached, setEarnCapReached] = useState(false);
@@ -148,7 +148,7 @@ export default function ClozePage() {
   const sourceTouchedRef = useRef(false);
   useEffect(() => {
     if (sourceRestoredRef.current || sourceTouchedRef.current) return;
-    if (phase !== "setup" || loading || !wobblySettled) return;
+    if (phase !== "setup" || loading || !wobblySettled || saved === undefined) return;
     sourceRestoredRef.current = true;
     const stored = loadSetup(deckId, "cloze");
     const counts = {
@@ -156,21 +156,17 @@ export default function ClozePage() {
       wobbly: allCards.filter((c) => wobblyIds.has(c.id)).length,
       due: allCards.filter((c) => isCardDue(c)).length,
     };
-    const wanted = resolveSource(stored?.source, counts);
+    const pausedDue = saved?.source === "due" && resolveSessionResume(saved, [], "due", allCards);
+    const wanted = pausedDue && (!stored?.source || stored.source === "due") ? "due" : resolveSource(stored?.source, counts);
     if (wanted) setSource(wanted);
     // Ohne gemerkte Wahl ist das Tagespensum die Voreinstellung (#610):
     // „Nur fällige", sobald es gerade welche gibt.
     else if (!stored?.source && counts.due > 0) setSource("due");
-  }, [deckId, phase, loading, wobblySettled, allCards, wobblyIds]);
+  }, [deckId, phase, loading, wobblySettled, allCards, wobblyIds, saved]);
 
   const studyPool = filterBySource(allCards, source, wobblyIds);
-  const canResume =
-    saved !== null &&
-    isProgressUsable(
-      saved,
-      studyPool.map((c) => c.id),
-      source
-    );
+  const resume = resolveSessionResume(saved, studyPool, source, allCards);
+  const canResume = resume !== null;
 
   const current = round[idx];
   const parsed = current ? buildPrompt(current, reverse) : null;
@@ -249,7 +245,7 @@ export default function ClozePage() {
     // Die Untergrenze wandert mit: Die übersprungenen Karten wurden letztes
     // Mal beantwortet und bewertet — der Zurück-Pfeil darf nicht in sie
     // hineinlaufen und eine zweite Bewertung einsammeln.
-    const from = Math.min(Math.max(startAt, 0), Math.max(cards.length - 1, 0));
+    const from = Math.min(Math.max(startAt, 0), cards.length);
     // Die Ergebnisse der letzten Sitzung wieder einfüllen, damit die Auswertung
     // die ganze Runde zählt und alte falsche Karten wieder im Wiederhol-Stapel
     // landen. Nur unterhalb der Untergrenze: ab der Einstiegskarte wird neu
@@ -271,7 +267,7 @@ export default function ClozePage() {
     setIdx(from);
     setFloor(from);
     setInput("");
-    setPhase("play");
+    setPhase(from >= cards.length ? "summary" : "play");
   }, [awardSession, round.length]);
 
   const setResultAt = (i: number, v: Result | null) =>
@@ -436,6 +432,7 @@ export default function ClozePage() {
       source,
       reverse,
       total: round.length,
+      cardIds: round.map((roundCard) => roundCard.id),
       ...(Object.keys(answered).length > 0 ? { results: answered } : {}),
     });
   }, [deckId, phase, round, idx, source, reverse, results]);
@@ -459,6 +456,7 @@ export default function ClozePage() {
         source,
         reverse,
         total: round.length,
+        cardIds: round.map((roundCard) => roundCard.id),
         ...(Object.keys(answered).length > 0 ? { results: answered } : {}),
       };
     } else {
@@ -634,7 +632,7 @@ export default function ClozePage() {
         />
 
         {/* Weitermachen — nur solange eine unterbrochene Runde noch passt */}
-        {canResume && saved && (
+        {resume && saved && (
           <button
             type="button"
             className="btn btn-primary btn-lg btn-block btn-resume"
@@ -646,12 +644,12 @@ export default function ClozePage() {
               // Beim Start die Wahl für dieses Deck merken (#610) — mit der
               // Richtung, in der die fortgesetzte Runde wirklich läuft.
               saveSetup(deckId, "cloze", { strict, reverse: saved.reverse, source });
-              void startRound(studyPool, saved.index, saved.results);
+              void startRound(resume.cards, resume.index, saved.results);
             }}
           >
             Weitermachen
             <small>
-              Karte {saved.index + 1} von {studyPool.length}
+              {resume.index >= resume.cards.length ? "Runde abgeschlossen" : `Karte ${resume.index + 1} von ${resume.cards.length}`}
             </small>
           </button>
         )}

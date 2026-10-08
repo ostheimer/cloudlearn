@@ -60,15 +60,17 @@ function toPersistedQueue(queue: QueueState): PersistedQueueState {
   };
 }
 
-async function persistQueue(queue: QueueState): Promise<void> {
-  try {
-    await AsyncStorage.setItem(
-      OFFLINE_QUEUE_STORAGE_KEY,
-      JSON.stringify(toPersistedQueue(queue))
-    );
-  } catch {
-    // Offline queue persistence is best-effort.
-  }
+let queuePersistence: Promise<void> = Promise.resolve();
+
+function persistQueue(queue: QueueState): Promise<void> {
+  const snapshot = JSON.stringify(toPersistedQueue(queue));
+  // One native write at a time: a slow old snapshot must never overwrite an
+  // awaited background checkpoint that already contains the latest review.
+  const next = queuePersistence.catch(() => {}).then(() =>
+    AsyncStorage.setItem(OFFLINE_QUEUE_STORAGE_KEY, snapshot),
+  );
+  queuePersistence = next;
+  return next;
 }
 
 function hasOperation(
@@ -209,7 +211,7 @@ function applyQueueUpdate(
 ) {
   set((state) => {
     const queue = update(state.queue);
-    void persistQueue(queue);
+    void persistQueue(queue).catch(() => {});
     return { queue };
   });
 }
@@ -259,6 +261,8 @@ interface OfflineQueueState {
   queue: QueueState;
   initialize: () => Promise<void>;
   enqueue: (operation: ReviewSyncOperation) => void;
+  /** Await native persistence before publishing a bookmark beyond these reviews. */
+  persistPending: () => Promise<void>;
   markInFlight: (operationIds: string[]) => void;
   finalizeSync: (
     acceptedOperationIds: string[],
@@ -321,6 +325,7 @@ export const useOfflineQueueStore = create<OfflineQueueState>((set, get) => ({
   },
   enqueue: (operation) =>
     applyQueueUpdate(set, (queue) => enqueueOperation(queue, operation)),
+  persistPending: () => persistQueue(get().queue),
   markInFlight: (operationIds) =>
     applyQueueUpdate(set, (queue) => markOperationsInFlight(queue, operationIds)),
   finalizeSync: (acceptedOperationIds, rejectedOperationIds, serverTimestamp) =>
@@ -369,7 +374,7 @@ export const useOfflineQueueStore = create<OfflineQueueState>((set, get) => ({
         ...initialQueueState,
         hydrated: true,
       };
-      void persistQueue(queue);
+      void persistQueue(queue).catch(() => {});
       set({ queue });
     },
 }));

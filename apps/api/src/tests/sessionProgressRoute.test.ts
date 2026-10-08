@@ -167,6 +167,29 @@ describe("PUT /api/v1/learn/progress", () => {
     );
   });
 
+  it("bewahrt die ursprüngliche Reihenfolge einer fälligen Runde", async () => {
+    const cardIds = ["55555555-5555-4555-8555-555555555555", CARD_ID];
+    const res = await PUT(putRequest({ ...validBody, source: "due", index: 1, total: 2, cardIds }));
+    expect(res.status).toBe(200);
+    expect(mockedSave).toHaveBeenCalledWith(
+      AUTH_USER_ID, DECK_ID, "flashcards", expect.objectContaining({ cardIds })
+    );
+  });
+
+  it.each([
+    { name: "leer", cardIds: [] },
+    { name: "unvollständig", cardIds: [CARD_ID] },
+    { name: "doppelte Karten", cardIds: [CARD_ID, CARD_ID] },
+    { name: "leere ID", cardIds: ["", CARD_ID] },
+    { name: "ungültige ID", cardIds: ["keine-uuid", CARD_ID] },
+    { name: "falsche Position", cardIds: [CARD_ID, "55555555-5555-4555-8555-555555555555"] },
+    { name: "über dem Limit", cardIds: Array.from({ length: 2001 }, () => CARD_ID) },
+  ])("lehnt unbrauchbare Kartenreihenfolgen ab: $name", async ({ cardIds }) => {
+    const res = await PUT(putRequest({ ...validBody, index: 1, total: 2, cardIds }));
+    expect(res.status).toBe(400);
+    expect(mockedSave).not.toHaveBeenCalled();
+  });
+
   it("antwortet 404, wenn das Deck nicht dem Nutzer gehört", async () => {
     mockedSave.mockResolvedValue(false);
     const res = await PUT(putRequest(validBody));

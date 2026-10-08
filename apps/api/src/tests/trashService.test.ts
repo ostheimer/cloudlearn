@@ -88,6 +88,7 @@ describe("restoreCardForUser", () => {
       deckDeleted: false,
     });
     dbMocks.countCardsInDeck.mockResolvedValue(1);
+    dbMocks.listCardsForDeck.mockResolvedValue([{ id: "x" }]);
 
     expect(await restoreCardForUser(USER_ID, CARD_ID)).toBe(true);
     expect(dbMocks.countCardsInDeck).toHaveBeenCalledWith(DECK_ID);
@@ -119,6 +120,9 @@ describe("restoreCardForUser", () => {
       deckDeleted: false,
     });
     dbMocks.countCardsInDeck.mockResolvedValue(getLimitsForTier("free").maxCardsPerDeck);
+    dbMocks.listCardsForDeck.mockResolvedValue(
+      Array.from({ length: getLimitsForTier("free").maxCardsPerDeck }, (_, i) => ({ id: `c${i}` }))
+    );
 
     await expect(restoreCardForUser(USER_ID, CARD_ID)).rejects.toMatchObject({
       code: "DECK_FULL",

@@ -1,6 +1,6 @@
 # Dashboard Release Handoff
 
-Stand: 2026-05-02
+Stand: 2026-09-28
 
 ## Ziel
 
@@ -9,13 +9,13 @@ Sobald ein externer Wert eingetragen wurde, muss der zugehörige Repo-Check erne
 
 ## App Store Connect
 
-- [ ] App `clearn` mit Bundle ID `app.clearn` anlegen oder prüfen.
+- [x] App `clearn` mit Bundle ID `app.clearn` in App Store Connect geprüft.
 - [x] `ascAppId` aus App Information → Apple ID kopieren: `6766691399`.
 - [x] `ascAppId` in [apps/mobile/eas.json](/apps/mobile/eas.json) unter `submit.production.ios.ascAppId` eintragen.
 - [ ] Datenschutz-URL hinterlegen: `https://clearn-web.vercel.app/privacy`
 - [ ] Support-URL hinterlegen: `https://clearn-web.vercel.app/support`
 - [ ] Review Notes aus [docs/runbooks/app-store-review-notes.md](/docs/runbooks/app-store-review-notes.md) übertragen.
-- [ ] In-App-Käufe anlegen:
+- [x] In-App-Käufe angelegt (22. September 2026; Store-Prüfung/Freigabe noch offen):
   - `ai.clearn.pro.monthly`
   - `ai.clearn.pro.annual`
   - `ai.clearn.lifetime`
@@ -35,34 +35,35 @@ Sobald ein externer Wert eingetragen wurde, muss der zugehörige Repo-Check erne
 
 ## RevenueCat
 
-- [ ] iOS-App mit Bundle ID `app.clearn` prüfen.
+- [x] iOS-App mit Bundle ID `app.clearn` und gültigen Apple-In-App-Kauf-Credentials geprüft (22. September 2026).
 - [ ] Android-App mit Package Name `app.clearn` prüfen.
-- [ ] Store-Produkte importieren oder manuell anlegen.
-- [ ] Entitlement `pro` mit Monthly/Annual verbinden.
-- [ ] Entitlement `lifetime` mit Lifetime-Produkt verbinden.
-- [ ] Offering `default` veröffentlichen.
-- [ ] API Keys als EAS Secrets setzen:
-  - `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY`
+- [x] Drei iOS-Store-Produkte manuell angelegt.
+- [x] Entitlement `pro` mit Monthly/Annual verbunden.
+- [x] Entitlement `lifetime` mit Lifetime-Produkt verbunden.
+- [x] Aktives Offering `default` mit `$rc_monthly`, `$rc_annual` und `$rc_lifetime` angelegt.
+- [x] Öffentlichen `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY` im EAS-Projekt für Development, Preview und Production gesetzt.
+- [ ] Android-Key setzen, sobald die Android-App und Play-Produkte eingerichtet sind:
   - `EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY`
-- [ ] Webhook-Secret erzeugen.
+- [ ] RevenueCat-Webhook mit `https://clearn-api.vercel.app/api/v1/subscription/webhook` und `Authorization: Bearer <REVENUECAT_WEBHOOK_SECRET>` anlegen; Sandbox und Produktion einschließen und eine echte Zustellung prüfen. Im Projekt ist noch kein Webhook gespeichert.
 
 ## Vercel
 
-- [ ] `REVENUECAT_WEBHOOK_SECRET` in `clearn-api` setzen.
+- [x] `REVENUECAT_WEBHOOK_SECRET` ist in `clearn-api` für Production als Secret vorhanden; der Wert wurde nicht offengelegt. Der Live-Webhook lehnt Anfragen ohne Authorization mit HTTP 401 ab.
+- Vercel-Secret-Werte sind nach dem Speichern nicht mehr lesbar. Ein leeres Bearbeitungsfeld bedeutet nicht, dass kein Wert gespeichert ist. Einen unbekannten Wert nur durch eine ausdrücklich autorisierte neue gemeinsame Kennung ersetzen; die API-Variable enthält den Wert ohne Präfix, RevenueCats Authorization-Feld `Bearer <Wert>`. Danach API neu deployen und RevenueCats Testzustellung mit HTTP 200 prüfen.
 - [ ] Supabase URL/Anon Key/Service Role Key für `clearn-api` prüfen.
-- [ ] Datenschutz-, Support- und Impressumsseiten im Projekt `clearn-web` live prüfen.
-- [ ] Production Deploys für `clearn-api`, `clearn-web` und `cloudlearn` grün prüfen.
+- [x] Datenschutz-, Support- und Impressumsseiten im Projekt `clearn-web` antworten live mit HTTP 200 (28. September 2026).
+- [x] Production Deploys für `clearn-api`, `clearn-web` und `cloudlearn` zeigen Commit `857b48c` und sind „Ready“ (28. September 2026).
 
 ## EAS / Build Secrets
 
-- [ ] Produktive AdMob App IDs setzen:
+- [ ] Nur bei `realAdsEnabled=true`: produktive AdMob App IDs setzen:
   - `EXPO_PUBLIC_ADMOB_APP_IOS_ID`
   - `EXPO_PUBLIC_ADMOB_APP_ANDROID_ID`
-- [ ] Produktive Rewarded-Ad Unit IDs setzen:
+- [ ] Nur bei `realAdsEnabled=true`: produktive Rewarded-Ad Unit IDs setzen:
   - `EXPO_PUBLIC_ADMOB_REWARDED_IOS_ID`
   - `EXPO_PUBLIC_ADMOB_REWARDED_ANDROID_ID`
-- [ ] RevenueCat Mobile API Keys setzen:
-  - `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY`
+- [x] RevenueCat-iOS-SDK-Key für Development, Preview und Production gesetzt.
+- [ ] RevenueCat-Android-SDK-Key setzen:
   - `EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY`
 - [ ] RevenueCat Entitlement IDs in EAS prüfen:
   - `EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_PRO=pro`
@@ -79,6 +80,7 @@ Sobald ein externer Wert eingetragen wurde, muss der zugehörige Repo-Check erne
 - [ ] Apple Provider aktivieren.
 - [ ] Account-Linking-Verhalten mit gleicher verifizierter E-Mail testen.
 - [ ] Migration `20260404120000_add_deleted_accounts.sql` auf Ziel-Datenbank anwenden.
+- [x] Migration `20260927222222_session_progress_card_ids.sql` auf der clearn-Zieldatenbank angewendet; nullable `uuid[]`-Spalte und Migrationsversion gelesen.
 
 ## Nach jedem Dashboard-Schritt prüfen
 
@@ -120,8 +122,16 @@ pnpm --filter @clearn/mobile testflight:check
 - `apps/mobile/google-play-service-account.json` fehlt lokal noch.
 - `apps/mobile/dashboard-readiness.local.json` fehlt bis die externen Dashboard-Schritte wirklich nachgewiesen sind.
 - `apps/mobile/testflight-readiness.local.json` fehlt bis zum ersten echten TestFlight-Smoke.
-- Store-Produkte und RevenueCat-Offerings müssen real verifiziert werden.
-- Production-Builds brechen ohne RevenueCat iOS-/Android-Key ab; `pnpm submit:check` meldet fehlende oder falsch formatierte Keys.
+- Store-Produkte und RevenueCat-Offering sind konfiguriert; ein echter Sandbox-Kauf und die Webhook-Zustellung müssen noch geprüft werden.
+- Der iOS-RevenueCat-Key ist in EAS gesetzt. Android-Key und Google-Play-Konfiguration bleiben für einen späteren Android-Build offen.
+- Für den App-Store-Produktionsbuild fehlt das App-Store-Provisioning-Profil für `app.clearn` in Expo. Das vorhandene Ad-hoc-Profil ersetzt es nicht.
 - Supabase OAuth Provider müssen produktiv aktiviert und auf Gerät getestet werden.
-- Produktive AdMob IDs müssen vor einem Release-Build gesetzt werden.
-- Production-Builds brechen ohne produktive AdMob App-IDs und Rewarded-Ad-Unit-IDs ab; `pnpm submit:check` meldet zusätzlich fehlende oder versehentliche Google-Test-IDs.
+- Echte Ads sind für dieses iOS-Paket deaktiviert. Produktive AdMob-IDs sind dafür nicht erforderlich; vor einer späteren Aktivierung muss die vollständige AdMob-/SSV-Konfiguration geprüft werden.
+
+## Privacy-Evidenz iOS 1.0 (5), 2026-09-28
+
+- Signiertes IPA von Commit `53bb91f`, EAS-Build `41320cc2-dc75-45c8-a804-c903fcb6aae9`: Google Mobile Ads / UMP ausgeschlossen; 15 Manifeste ohne Tracking-Domains oder Tracking `true`.
+- Sentry ist als Abhängigkeit vorhanden, aber `initCrashReporting` ist im echten Bundle eine leere Funktion; die optionale Absturzmeldung ist deaktiviert.
+- Zehn ASC-Entwurfsdatentypen sind nutzerverknüpft, für App-Funktionalität und ohne Tracking; `Other Data Types` zusätzlich für Product Personalization. `Contacts` bildet den privaten Freundesgraph ab.
+- Der verbliebene `NSUserTrackingUsageDescription`-Eintrag in Build 5 blockiert derzeit die Privacy-Veröffentlichung in ASC. Nach nativer Korrektur das Nachfolge-IPA erneut prüfen; ein gespeicherter Entwurf ist keine veröffentlichte Privacy-Antwort.
+- Keine Provider-Aufbewahrungszusagen aus dieser Source-/Binary-Prüfung ableiten. Details: [Privacy-Fragebogen](app-store-privacy-questionnaire.md).
