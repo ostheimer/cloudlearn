@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useEffect } from "react";
 import { act, create, type ReactTestRenderer, type ReactTestInstance } from "react-test-renderer";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { resources } from "../../i18n/resources";
 import { useOcrEditorState } from "../ocr/ocrEditorState";
 
 const mocks = vi.hoisted(() => ({
+  language: "de" as "de" | "en",
   alert: vi.fn(), push: vi.fn(), scanImage: vi.fn(), createDeck: vi.fn(), createCard: vi.fn(),
   listCardsInDeck: vi.fn(), listDecks: vi.fn(), loadScanDraft: vi.fn(), saveScanDraft: vi.fn(),
   clearScanDraft: vi.fn(), setUsage: vi.fn(), deductLp: vi.fn(),
@@ -36,7 +38,11 @@ vi.mock("lucide-react-native", () => Object.fromEntries([
   "Camera", "CheckCircle2", "FileText", "ImageIcon", "PenLine", "Lightbulb", "Save", "RotateCcw",
   "Sparkles", "ChevronRight", "Link2", "ArrowLeft", "Zap", "Layers", "Trash2", "Plus", "GripVertical",
 ].map(name => [name, () => null])));
-vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string, options?: unknown) => options ? `${key} ${JSON.stringify(options)}` : key }) }));
+function translate(key: string, values: Record<string, unknown> = {}) {
+  const value = resources[mocks.language].translation[key as keyof typeof resources.de.translation] ?? key;
+  return value.replace(/\{\{(\w+)\}\}/g, (_, name: string) => String(values[name] ?? `{{${name}}}`));
+}
+vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: translate }) }));
 vi.mock("../../theme", () => ({ useColors: () => ({}), spacing: {}, radius: {}, typography: {}, shadows: {} }));
 vi.mock("../../store/sessionStore", () => ({ useSessionStore: (select: (s: { userId: string }) => unknown) => select({ userId: "local-test" }) }));
 vi.mock("../../store/usageStore", () => ({
@@ -79,9 +85,9 @@ async function beginPress(label: string) {
   return { done: done! };
 }
 async function generatePhoto() {
-  const { done: generating } = await beginPress("Galerie");
-  if (mocks.alert.mock.calls.at(-1)?.[0] === "scan.costTitle") await answer("scan.costConfirm");
-  await generating;
+  const { done: generating } = await beginPress(translate("scan.galleryTitle"));
+  if (mocks.alert.mock.calls.at(-1)?.[0] === translate("scan.costTitle")) await answer("scan.costConfirm");
+  await act(async () => { await generating; });
   expect(text(renderer.root)).toContain("1 Karte erstellt");
 }
 async function save() {
@@ -92,15 +98,16 @@ async function save() {
 }
 async function answer(label: string) {
   const choices = mocks.alert.mock.calls.at(-1)![2] as { text: string; onPress?: () => void }[];
-  await act(async () => choices.find(c => c.text === label)!.onPress?.());
+  await act(async () => choices.find(c => c.text === translate(label))!.onPress?.());
 }
 function input(label: string) {
-  return renderer.root.findAllByType("TextInput" as never).find(n => n.props.accessibilityLabel === label)!;
+  return renderer.root.findAllByType("TextInput" as never).find(n => n.props.accessibilityLabel === translate(label))!;
 }
 beforeEach(() => {
   vi.stubGlobal("React", React);
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.clearAllMocks();
+  mocks.language = "de";
   useOcrEditorState.getState().reset();
   mocks.consent.mockResolvedValue(true);
   mocks.getLpBalance.mockResolvedValue({ lpBalance: 400, lpCostAiScan: 17, lpCostPdfImport: 29 });
@@ -121,6 +128,21 @@ afterEach(async () => {
 });
 
 describe("mounted Scan tab lifecycle", () => {
+  it.each([
+    { language: "de" as const, image: "Bild wählen", entry: "Text eingeben", back: "Andere Quelle wählen", create: "Karten erstellen" },
+    { language: "en" as const, image: "Choose an image", entry: "Enter text", back: "Choose another source", create: "Create cards" },
+  ])("renders the source and input controls in $language", async ({ language, image, entry, back, create }) => {
+    mocks.language = language;
+    await show(true);
+    expect(button(image)).toBeDefined();
+    expect(text(renderer.root)).toContain(resources[language].translation["scan.info"]);
+    await press(entry);
+    expect(button(back)).toBeDefined();
+    expect(text(renderer.root)).toContain(create);
+    await press(back);
+    expect(button(image)).toBeDefined();
+  });
+
   it("shows a new scan after saving, learning and returning, even if the deck was deleted", async () => {
     await show(true);
     await generatePhoto();
@@ -134,8 +156,8 @@ describe("mounted Scan tab lifecycle", () => {
     mocks.listDecks.mockResolvedValue({ decks: [] });
     const readsBeforeReturn = mocks.listDecks.mock.calls.length;
     await show(true);
-    expect(text(renderer.root)).toContain("scan.title");
-    expect(button("Galerie")).toBeDefined();
+    expect(text(renderer.root)).toContain("Lernmaterial erfassen");
+    expect(button("Bild wählen")).toBeDefined();
     expect(text(renderer.root)).not.toContain("Karten gespeichert");
     expect(text(renderer.root)).not.toContain("Foto-Test");
     expect(renderer.root.findAllByType("Image" as never)).toHaveLength(0);
@@ -152,9 +174,9 @@ describe("mounted Scan tab lifecycle", () => {
     if (destination) await press(destination);
     await show(false);
     await show(true);
-    expect(text(renderer.root)).toContain("scan.title");
+    expect(text(renderer.root)).toContain("Lernmaterial erfassen");
     expect(text(renderer.root)).not.toContain("Karten gespeichert");
-    expect(button("Galerie")).toBeDefined();
+    expect(button("Bild wählen")).toBeDefined();
   });
 
   it("preserves unsaved paid preview cards across tab changes", async () => {
@@ -202,7 +224,7 @@ describe("mounted Scan tab lifecycle", () => {
     await show(false);
     await act(async () => complete());
     await show(true);
-    expect(text(renderer.root)).toContain("scan.title");
+    expect(text(renderer.root)).toContain("Lernmaterial erfassen");
     expect(text(renderer.root)).not.toContain("Karten gespeichert");
   });
 
@@ -211,14 +233,14 @@ describe("mounted Scan tab lifecycle", () => {
     await generatePhoto();
     await save();
     await press("Neuen Scan starten");
-    expect(text(renderer.root)).toContain("scan.title");
+    expect(text(renderer.root)).toContain("Lernmaterial erfassen");
     expect(text(renderer.root)).not.toContain("Karten gespeichert");
   });
 });
 
 
 describe("#733 paid imports and preview safety", () => {
-  it.each(["Galerie", "PDF importieren", "camera"])("confirms live /usage costs before %s can send anything", async (source) => {
+  it.each(["Bild wählen", "PDF importieren", "camera"])("confirms live /usage costs before %s can send anything", async (source) => {
     await show(true);
     if (source === "camera") await press("Foto aufnehmen");
     let running: Promise<void>;
@@ -228,8 +250,8 @@ describe("#733 paid imports and preview safety", () => {
       running = (await beginPress(source)).done;
     }
     expect(mocks.getLpBalance).toHaveBeenCalledOnce();
-    expect(mocks.alert.mock.calls.at(-1)?.[0]).toBe("scan.costTitle");
-    expect(mocks.alert.mock.calls.at(-1)?.[1]).toContain(`"cost":${source === "PDF importieren" ? 29 : 17}`);
+    expect(mocks.alert.mock.calls.at(-1)?.[0]).toBe(translate("scan.costTitle"));
+    expect(mocks.alert.mock.calls.at(-1)?.[1]).toContain(`${source === "PDF importieren" ? 29 : 17} LP`);
     expect(mocks.scanImage).not.toHaveBeenCalled();
     expect(mocks.importPdf).not.toHaveBeenCalled();
     expect(mocks.consent).not.toHaveBeenCalled();
@@ -243,7 +265,7 @@ describe("#733 paid imports and preview safety", () => {
   it("retains Gemini consent after cost approval and never sends if it is declined", async () => {
     await show(true);
     mocks.consent.mockResolvedValue(false);
-    const { done: running } = await beginPress("Galerie");
+    const { done: running } = await beginPress("Bild wählen");
     await answer("scan.costConfirm");
     await act(async () => { await running!; });
     expect(mocks.consent).toHaveBeenCalledOnce();
@@ -254,8 +276,8 @@ describe("#733 paid imports and preview safety", () => {
   it("does not guess costs or send when /usage is unavailable", async () => {
     await show(true);
     mocks.getLpBalance.mockRejectedValue(new Error("offline"));
-    await press("Galerie");
-    expect(mocks.alert.mock.calls.at(-1)?.[1]).toBe("scan.costUnavailable");
+    await press("Bild wählen");
+    expect(mocks.alert.mock.calls.at(-1)?.[1]).toBe(translate("scan.costUnavailable"));
     expect(mocks.scanImage).not.toHaveBeenCalled();
     expect(mocks.deductLp).not.toHaveBeenCalled();
   });
@@ -275,7 +297,7 @@ describe("#733 paid imports and preview safety", () => {
     await generatePhoto();
     const deletion = renderer.root.findAllByType("TouchableOpacity" as never).find(n => n.props.accessibilityLabel === "Karte 1 löschen")!;
     await act(async () => deletion.props.onPress());
-    expect(mocks.alert.mock.calls.at(-1)?.[0]).toBe("scan.lastCardTitle");
+    expect(mocks.alert.mock.calls.at(-1)?.[0]).toBe(translate("scan.lastCardTitle"));
     expect(text(renderer.root)).toContain("1 Karte erstellt");
     expect(mocks.clearScanDraft).not.toHaveBeenCalled();
     await answer("scan.keepLastCard");
@@ -294,7 +316,7 @@ describe("#733 paid imports and preview safety", () => {
     await show(true);
     mocks.pickPdf.mockResolvedValue({ canceled: false, assets: [{ uri: "local.pdf", name: "large.pdf", ...asset }] });
     await press("PDF importieren");
-    expect(mocks.alert.mock.calls.at(-1)?.[1]).toBe("scan.pdfTooLarge");
+    expect(mocks.alert.mock.calls.at(-1)?.[1]).toBe(translate("scan.pdfTooLarge"));
     expect(mocks.getLpBalance).not.toHaveBeenCalled();
     expect(mocks.importPdf).not.toHaveBeenCalled();
     expect(mocks.deductLp).not.toHaveBeenCalled();
@@ -317,8 +339,8 @@ describe("#733 boundaries and repeated taps", () => {
 
   it("does not duplicate the cost dialog or import on a repeated source tap", async () => {
     await show(true);
-    const repeatedTap = button("Galerie").props.onPress;
-    const { done } = await beginPress("Galerie");
+    const repeatedTap = button("Bild wählen").props.onPress;
+    const { done } = await beginPress("Bild wählen");
     await act(async () => { await repeatedTap(); });
     expect(mocks.getLpBalance).toHaveBeenCalledOnce();
     expect(mocks.alert).toHaveBeenCalledOnce();
@@ -354,7 +376,7 @@ describe("#733 boundaries and repeated taps", () => {
   it("removes an ordinary card without warning but protects the remaining card", async () => {
     await show(true);
     mocks.scanImage.mockResolvedValue({ cards: [{ front: "A", back: "B" }, { front: "C", back: "D" }], deckTitle: "Two cards", fallbackUsed: false });
-    const { done } = await beginPress("Galerie");
+    const { done } = await beginPress("Bild wählen");
     await answer("scan.costConfirm");
     await act(async () => { await done; });
     const deleteFirst = () => renderer.root.findAllByType("TouchableOpacity" as never).find(n => n.props.accessibilityLabel === "Karte 1 löschen")!;
@@ -363,15 +385,42 @@ describe("#733 boundaries and repeated taps", () => {
     expect(mocks.alert).not.toHaveBeenCalled();
     expect(text(renderer.root)).toContain("1 Karte erstellt");
     await act(async () => deleteFirst().props.onPress());
-    expect(mocks.alert.mock.calls[0]?.[0]).toBe("scan.lastCardTitle");
+    expect(mocks.alert.mock.calls[0]?.[0]).toBe(translate("scan.lastCardTitle"));
   });
 
   it("rechecks affordability against the refreshed price before offering confirmation", async () => {
     await show(true);
     mocks.getLpBalance.mockResolvedValue({ lpBalance: 16, lpCostAiScan: 17, lpCostPdfImport: 29 });
-    await press("Galerie");
+    await press("Bild wählen");
     expect(mocks.scanImage).not.toHaveBeenCalled();
     expect(mocks.consent).not.toHaveBeenCalled();
     expect(mocks.alert).not.toHaveBeenCalled();
+  });
+});
+
+
+describe("#733 localized controls after #760 integration", () => {
+  it.each(["de", "en"] as const)("shows translated cost, title, deletion and PDF preflight controls in %s", async (language) => {
+    mocks.language = language;
+    await show(true);
+    const { done } = await beginPress(translate("scan.galleryTitle"));
+    expect(mocks.alert.mock.calls.at(-1)?.[0]).toBe(translate("scan.costTitle"));
+    expect(mocks.alert.mock.calls.at(-1)?.[1]).toBe(translate("scan.costBody", { cost: 17, balance: 400 }));
+    await answer("scan.costConfirm");
+    await act(async () => { await done; });
+    expect(input("scan.previewTitle").props.placeholder).toBe(translate("scan.previewTitlePlaceholder"));
+    await act(async () => input("scan.previewTitle").props.onChangeText("Ökologie"));
+    const deletion = renderer.root.findAllByType("TouchableOpacity" as never).find(n => n.props.accessibilityLabel === "Karte 1 löschen")!;
+    await act(async () => deletion.props.onPress());
+    expect(mocks.alert.mock.calls.at(-1)?.[0]).toBe(translate("scan.lastCardTitle"));
+    expect(mocks.alert.mock.calls.at(-1)?.[1]).toBe(translate("scan.lastCardBody"));
+    await answer("scan.keepLastCard");
+    expect(input("scan.previewTitle").props.value).toBe("Ökologie");
+    await act(async () => deletion.props.onPress());
+    await answer("scan.discardLastCard");
+    mocks.pickPdf.mockResolvedValue({ canceled: false, assets: [{ uri: "large.pdf", name: "large.pdf", size: 3_000_001 }] });
+    await press(translate("scan.pdfTitle"));
+    expect(mocks.alert.mock.calls.at(-1)?.[1]).toBe(translate("scan.pdfTooLarge"));
+    expect(mocks.importPdf).not.toHaveBeenCalled();
   });
 });

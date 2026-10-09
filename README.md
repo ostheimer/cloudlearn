@@ -858,7 +858,7 @@ clearn.ai verwendet ein **LP-System (Lernpunkte)** als universelle In-App-Währu
 | Erweiterte Statistiken | ❌ | ✅ | ✅ |
 | Werbefrei | ❌ | ✅ | ✅ |
 
-> **Hinweis zum Lifetime-Tier:** Lifetime ist im Code weiterhin verdrahtet: `packages/contracts/src/featureGates.ts`, `apps/api/src/services/revenueCatService.ts`, `apps/mobile/src/features/paywall/subscriptionMapping.ts` und `apps/mobile/src/features/paywall/subscriptionOffers.ts` erkennen Lifetime-Entitlements bzw. -Packages. Ob Lifetime im Store sichtbar ist, hängt von der RevenueCat-Offering-Konfiguration ab.
+> **Hinweis zum Lifetime-Tier:** Lifetime wird im öffentlichen iOS-App-Store angeboten. Die App lädt das Angebot und den lokalisierten Preis aus RevenueCat; `apps/mobile/src/features/paywall/subscriptionOffers.ts` ordnet das Lifetime-Package zu. Die bestehende Lifetime-Klassifizierung und die LP-Regeln bleiben unverändert.
 
 ### LP verdienen (kostenlos)
 

@@ -53,7 +53,7 @@ export default function TargetDeckPickerModal({
   onSelect,
 }: TargetDeckPickerModalProps) {
   const colors = useColors();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [search, setSearch] = useState("");
 
   useEffect(() => {
@@ -158,7 +158,7 @@ export default function TargetDeckPickerModal({
             shownDecks.map((deck) => {
               const free = freeCardSlots(deck, maxCardsPerDeck);
               const isFull = free !== null && free <= 0;
-              const hint = deckSlotsHint(free);
+              const hint = deckSlotsHint(free, i18n.language);
               const count = deck.cardCount ?? 0;
               const countLabel = `${count} ${count === 1 ? t("library.card") : t("library.cards")}`;
               return (

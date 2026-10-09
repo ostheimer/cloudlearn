@@ -1,3 +1,5 @@
+import { importCopy } from "@clearn/contracts";
+
 export const resources = {
   de: {
     translation: {
@@ -47,7 +49,7 @@ export const resources = {
       "review.cardOf": "Karte {{current}} von {{total}}",
       "review.loadingCards": "Fällige Karten laden...",
       "review.noCards": "Keine fälligen Karten",
-      "review.noCardsHint": "Scanne einen Text, um Flashcards zu generieren.",
+      "review.noCardsHint": importCopy.de.emptyLearn,
       "review.emptyScan": "Neuen Text scannen",
       "review.emptyLibrary": "Zur Bibliothek",
       "review.reload": "Neu laden",
@@ -197,14 +199,25 @@ export const resources = {
       "notifPrompt.later": "Später",
 
       // Scan screen
+      "scan.cameraTitle": importCopy.de.cameraTitle,
+      "scan.galleryTitle": importCopy.de.galleryTitle,
+      "scan.textTitle": importCopy.de.textTitle,
+      "scan.urlTitle": importCopy.de.urlTitle,
+      "scan.pdfTitle": importCopy.de.pdfTitle,
+      "scan.pdfHint": importCopy.de.pdfHint,
+      "scan.info": importCopy.de.info,
+      "scan.processing": importCopy.de.processing,
+      "scan.processingHint": importCopy.de.processingHint,
+      "scan.saving": importCopy.de.saving,
+      "scan.back": importCopy.de.back,
       "scan.title": "Lernmaterial erfassen",
       "scan.resultTitle": "Ergebnis",
-      "scan.cameraHint": "Lehrbuch, Tafel, Notizen",
-      "scan.galleryHint": "Foto oder Screenshot",
-      "scan.textHint": "Text tippen oder einfügen",
-      "scan.urlHint": "Webseite als Text",
-      "scan.generateBtn": "Flashcards generieren",
-      "scan.analyzeBtn": "URL analysieren",
+      "scan.cameraHint": importCopy.de.cameraHint,
+      "scan.galleryHint": importCopy.de.galleryHint,
+      "scan.textHint": importCopy.de.textHint,
+      "scan.urlHint": importCopy.de.urlHint,
+      "scan.generateBtn": importCopy.de.create,
+      "scan.analyzeBtn": importCopy.de.create,
       "scan.charCount": "{{current}} / {{max}} Zeichen",
 
       // Verständliche Fehlermeldungen beim Scannen (#609, Laras Wortlaute) —
@@ -775,7 +788,7 @@ export const resources = {
       "review.cardOf": "Card {{current}} of {{total}}",
       "review.loadingCards": "Loading due cards...",
       "review.noCards": "No cards due",
-      "review.noCardsHint": "Scan a text to generate flashcards.",
+      "review.noCardsHint": importCopy.en.emptyLearn,
       "review.emptyScan": "Scan a new text",
       "review.emptyLibrary": "To your library",
       "review.reload": "Reload",
@@ -904,14 +917,25 @@ export const resources = {
       "notifPrompt.later": "Later",
 
       // Scan screen
+      "scan.cameraTitle": importCopy.en.cameraTitle,
+      "scan.galleryTitle": importCopy.en.galleryTitle,
+      "scan.textTitle": importCopy.en.textTitle,
+      "scan.urlTitle": importCopy.en.urlTitle,
+      "scan.pdfTitle": importCopy.en.pdfTitle,
+      "scan.pdfHint": importCopy.en.pdfHint,
+      "scan.info": importCopy.en.info,
+      "scan.processing": importCopy.en.processing,
+      "scan.processingHint": importCopy.en.processingHint,
+      "scan.saving": importCopy.en.saving,
+      "scan.back": importCopy.en.back,
       "scan.title": "Capture study material",
       "scan.resultTitle": "Results",
-      "scan.cameraHint": "Textbook, board, notes",
-      "scan.galleryHint": "Photo or screenshot",
-      "scan.textHint": "Type or paste text",
-      "scan.urlHint": "Website as text",
-      "scan.generateBtn": "Generate flashcards",
-      "scan.analyzeBtn": "Analyze URL",
+      "scan.cameraHint": importCopy.en.cameraHint,
+      "scan.galleryHint": importCopy.en.galleryHint,
+      "scan.textHint": importCopy.en.textHint,
+      "scan.urlHint": importCopy.en.urlHint,
+      "scan.generateBtn": importCopy.en.create,
+      "scan.analyzeBtn": importCopy.en.create,
       "scan.charCount": "{{current}} / {{max}} characters",
 
       // Friendly scan error messages (#609) — mapping lives in

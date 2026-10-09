@@ -51,7 +51,10 @@ export function normalizeError(error: unknown): { code: string; message: string;
       return { code: "CARD_NOT_FOUND", message: error.message, status: 404 };
     }
 
-    return { code: "INTERNAL_ERROR", message: error.message, status: 500 };
+    // Unclassified errors are server failures. Their original text can contain
+    // table names, SQL fragments or provider details and must not cross the
+    // API boundary (#702). The request id remains available for diagnostics.
+    return { code: "INTERNAL_ERROR", message: "Internal server error", status: 500 };
   }
-  return { code: "INTERNAL_ERROR", message: "Unknown error", status: 500 };
+  return { code: "INTERNAL_ERROR", message: "Internal server error", status: 500 };
 }

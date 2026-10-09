@@ -2,6 +2,7 @@ import { type NextRequest } from "next/server";
 import { jsonError, jsonOk, normalizeError } from "@/lib/http";
 import { createRequestContext } from "@/lib/observability";
 import { getAuthUser } from "@/lib/auth";
+import { API_RATE_LIMITS, enforceUserRateLimit } from "@/lib/apiRateLimit";
 import { listCardsInFolderForUser } from "@/services/folderService";
 
 interface Params {
@@ -23,6 +24,7 @@ export async function GET(request: NextRequest, { params }: Params) {
   try {
     const auth = await getAuthUser(request);
     if (!auth) return jsonError(requestId, "UNAUTHORIZED", "Authentication required", 401);
+    await enforceUserRateLimit(auth.userId, "folder-cards", API_RATE_LIMITS.folderCards);
 
     const { id } = await params;
     const cards = await listCardsInFolderForUser(id, auth.userId);

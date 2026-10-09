@@ -35,6 +35,7 @@ import { fetchDeckStats } from "../src/lib/statsApi";
 import { LpRoundSummary } from "../src/components/LpRoundSummary";
 import { toggleCardStar } from "../src/lib/toggleCardStar";
 import CardEditor from "../src/components/CardEditor";
+import { cardEditorErrorMessage } from "../src/lib/cardEditorError";
 import {
   loadSetup,
   resolveSource,
@@ -156,6 +157,7 @@ export default function MatchScreen() {
   const [starredMap, setStarredMap] = useState<Record<string, boolean>>({});
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
   const [savingCard, setSavingCard] = useState(false);
+  const [cardEditorError, setCardEditorError] = useState<string | null>(null);
 
   // Load cards
   const loadCards = useCallback(async () => {
@@ -858,6 +860,11 @@ export default function MatchScreen() {
                       </View>
                       <TouchableOpacity
                         onPress={() => toggleCardStar(card.id, starredMap, setStarredMap)}
+                        accessibilityRole="button"
+                        accessibilityLabel={
+                          starredMap[card.id] ? "Markierung entfernen" : "Karte markieren"
+                        }
+                        accessibilityState={{ selected: starredMap[card.id] ?? false }}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       >
                         <Star
@@ -867,7 +874,12 @@ export default function MatchScreen() {
                         />
                       </TouchableOpacity>
                       <TouchableOpacity
-                        onPress={() => setEditingCardId(card.id)}
+                        onPress={() => {
+                          setCardEditorError(null);
+                          setEditingCardId(card.id);
+                        }}
+                        accessibilityRole="button"
+                        accessibilityLabel="Karte bearbeiten"
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       >
                         <Pencil size={17} color={colors.textTertiary} />
@@ -935,16 +947,22 @@ export default function MatchScreen() {
               : null
           }
           saving={savingCard}
-          onCancel={() => setEditingCardId(null)}
+          error={cardEditorError}
+          onCancel={() => {
+            setEditingCardId(null);
+            setCardEditorError(null);
+          }}
           onSave={async ({ front, back, difficulty }) => {
             if (!editingCardId) return;
+            setCardEditorError(null);
             setSavingCard(true);
             try {
               const { card: updated } = await updateCard(editingCardId, { front, back, difficulty });
               setGameCards((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
               setEditingCardId(null);
-            } catch {
+            } catch (error) {
               // Speichern fehlgeschlagen — Editor bleibt offen.
+              setCardEditorError(cardEditorErrorMessage(error));
             } finally {
               setSavingCard(false);
             }

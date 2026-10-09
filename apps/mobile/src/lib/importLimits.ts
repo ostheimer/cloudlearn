@@ -1,3 +1,4 @@
+import { importDeckSpaceHint } from "@clearn/contracts";
 /**
  * Plan-Grenzen im Scan-Ablauf (#411).
  *
@@ -124,18 +125,9 @@ export function deckSlotsLabel(title: string, freeSlots: number | null): string 
   return title;
 }
 
-/**
- * Platz-Hinweis für die Untertitel-Zeile des Scan-Ziel-Pickers (#612) — die
- * gleiche Staffel wie deckSlotsLabel, nur ohne den Titel davor: erst kurz vor
- * voll (NEARLY_FULL_THRESHOLD) gibt es überhaupt einen Hinweis, `null` heisst
- * „nichts anzeigen" (auch bei unbekannter Grenze, #603).
- */
-export function deckSlotsHint(freeSlots: number | null): string | null {
-  if (freeSlots === null) return null;
-  if (freeSlots <= 0) return "voll — kein Platz mehr";
-  if (freeSlots === 1) return "1 Platz frei";
-  if (freeSlots < NEARLY_FULL_THRESHOLD) return `${freeSlots} Plätze frei`;
-  return null;
+/** Available places in the scan target picker; unknown limits show no hint. */
+export function deckSlotsHint(freeSlots: number | null, language = "de"): string | null {
+  return importDeckSpaceHint(freeSlots, language);
 }
 
 /**

@@ -1114,7 +1114,7 @@ export default function ScanScreen() {
                 color: colors.text,
               }}
             >
-              Text eingeben
+              {t("scan.textTitle")}
             </Text>
             <TouchableOpacity
               onPress={() => setMode("choose")}
@@ -1132,7 +1132,7 @@ export default function ScanScreen() {
                   fontWeight: typography.semibold,
                 }}
               >
-                Zurück
+                {t("scan.back")}
               </Text>
             </TouchableOpacity>
           </View>
@@ -1259,7 +1259,7 @@ export default function ScanScreen() {
                 color: colors.text,
               }}
             >
-              URL importieren
+              {t("scan.urlTitle")}
             </Text>
             <TouchableOpacity
               onPress={() => setMode("choose")}
@@ -1277,7 +1277,7 @@ export default function ScanScreen() {
                   fontWeight: typography.semibold,
                 }}
               >
-                Zurück
+                {t("scan.back")}
               </Text>
             </TouchableOpacity>
           </View>
@@ -1556,24 +1556,12 @@ export default function ScanScreen() {
                 fontWeight: typography.semibold,
               }}
             >
-              {saving
-                ? "Karten werden gespeichert..."
-                : imageUri
-                  ? "Bild wird analysiert..."
-                  : sourceUrl.trim()
-                    ? "URL wird analysiert..."
-                    : pdfFileName
-                      ? "PDF wird analysiert..."
-                    : "Flashcards werden generiert..."}
+              {saving ? t("scan.saving") : t("scan.processing")}
             </Text>
             <Text
               style={{ fontSize: typography.sm, color: colors.textSecondary }}
             >
-              {saving
-                ? `${cards.length} Karten werden in deinem Deck gespeichert`
-                : pdfFileName
-                  ? `${pdfFileName} wird verarbeitet`
-                  : "Gemini AI verarbeitet dein Material"}
+              {t("scan.processingHint")}
             </Text>
           </View>
         )}
@@ -1632,7 +1620,7 @@ export default function ScanScreen() {
                     fontWeight: typography.bold,
                   }}
                 >
-                  Foto aufnehmen
+                  {t("scan.cameraTitle")}
                 </Text>
                 <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: typography.sm, marginTop: 2 }}>
                   {afford.aiScan
@@ -1686,7 +1674,7 @@ export default function ScanScreen() {
                     fontWeight: typography.bold,
                   }}
                 >
-                  Aus Galerie wählen
+                  {t("scan.galleryTitle")}
                 </Text>
                 <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: typography.sm, marginTop: 2 }}>
                   {afford.aiScan
@@ -1740,7 +1728,7 @@ export default function ScanScreen() {
                     fontWeight: typography.bold,
                   }}
                 >
-                  Text eingeben
+                  {t("scan.textTitle")}
                 </Text>
                 <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: typography.sm, marginTop: 2 }}>
                   {afford.aiScan
@@ -1794,7 +1782,7 @@ export default function ScanScreen() {
                     fontWeight: typography.bold,
                   }}
                 >
-                  URL importieren
+                  {t("scan.urlTitle")}
                 </Text>
                 <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: typography.sm, marginTop: 2 }}>
                   {afford.urlImport
@@ -1848,11 +1836,11 @@ export default function ScanScreen() {
                     fontWeight: typography.bold,
                   }}
                 >
-                  PDF importieren
+                  {t("scan.pdfTitle")}
                 </Text>
                 <Text style={{ color: "rgba(255,255,255,0.72)", fontSize: typography.sm, marginTop: 2 }}>
                   {afford.pdfImport
-                    ? "Text-PDF direkt in Lernkarten umwandeln"
+                    ? t("scan.pdfHint")
                     : t("lp.sourceTooExpensive", { balance: lpBalance, cost: lpCostPdfImport })}
                 </Text>
               </View>
@@ -1890,8 +1878,7 @@ export default function ScanScreen() {
                   flex: 1,
                 }}
               >
-                Gemini AI analysiert dein Material und erstellt automatisch
-                Flashcards aus Fotos, Screenshots, PDFs oder Text.
+                {t("scan.info")}
               </Text>
             </View>
           </View>
