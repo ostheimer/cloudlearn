@@ -10,21 +10,21 @@ const webRoot = join(dirname(fileURLToPath(import.meta.url)), "../..");
 // nur das Speichern schlug fehl. Der Hinweis muss VOR der Arbeit kommen.
 describe("web occlusion editor – Pro-Hinweis vorab", () => {
   const source = readFileSync(
-    join(webRoot, "app/dashboard/deck/[id]/occlusion/new/page.tsx"),
+    join(webRoot, "src/components/app/occlusion-editor.tsx"),
     "utf-8",
   ).replace(/\r\n/g, "\n");
 
   it("fragt den Tarif über den vorhandenen Getter ab (kein paralleler Helfer)", () => {
     // getLpBalance() ist der bestehende Weg zum Tarif im Web — die Profil-Seite
     // liest ihn schon genauso. src/lib/api.ts bleibt dabei unangetastet.
-    expect(source).toContain('import { createCard, deleteCard, isApiError, getLpBalance } from "@/lib/api";');
+    expect(source).toMatch(/import \{[^}]*getLpBalance[^}]*\} from "@\/lib\/api"/);
     expect(source).toContain("getLpBalance()");
   });
 
   it("sperrt NUR bei bestätigtem free — alles andere lässt den Editor arbeiten", () => {
     // Der Kern von fail-open: die Bedingung prüft auf "free", nicht auf
     // !== "pro". Sonst würde jeder unbekannte Zustand aussperren.
-    expect(source).toContain('if (proGate === "free") {');
+    expect(source).toContain('if (proGate === "free" && !isEditing) {');
     expect(source).toContain('setProGate(u.tier === "free" ? "free" : "pro");');
   });
 
@@ -41,7 +41,7 @@ describe("web occlusion editor – Pro-Hinweis vorab", () => {
     // unten zitiert die englische Server-Meldung („Upgrade to unlock it.") und
     // würde eine Suche über die Gesamtdatei fälschlich auslösen.
     const notice = source.slice(
-      source.indexOf('if (proGate === "free") {'),
+      source.indexOf('if (proGate === "free" && !isEditing) {'),
       source.indexOf("const drawBox = draw"),
     );
     expect(notice).not.toBe("");

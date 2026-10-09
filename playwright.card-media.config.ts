@@ -2,7 +2,7 @@ import { defineConfig } from "@playwright/test";
 
 // Local-only acceptance: all API/auth/storage/image responses are synthetic.
 export default defineConfig({
-  testDir: "./e2e", testMatch: "local.card-media.spec.ts", workers: 1, retries: 0,
+  testDir: "./e2e", testMatch: /local\.(card-media|occlusion-edit)\.spec\.ts$/, workers: 1, retries: 0,
   reporter: "list", timeout: 45_000,
   use: { baseURL: "http://127.0.0.1:4189", launchOptions: { channel: "chrome" }, trace: "retain-on-failure" },
   projects: [
