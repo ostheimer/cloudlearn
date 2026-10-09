@@ -1,13 +1,4 @@
-// Fragen-Erzeugung für den Multiple-Choice-Modus (Port von
-// apps/mobile/src/lib/quizQuestions.ts, ohne Bild-/Medienfragen). Erzeugt
-// Multiple-Choice- und Wahr/Falsch-Fragen aus den Karten eines Decks, gesteuert
-// über die im Setup gewählten Optionen (Richtung + Fragetypen).
-//
-// Kartentexte werden wie in der App vorab aufbereitet (#569): Bild-Markdown
-// raus, Übersetzungs-Zusätze raus, und der Lückensatz zeigt den Strich statt
-// {{cN::…}} — sonst stünde die Lösung sichtbar in der Frage.
-
-import { cleanTerm, formatCloze, summarizeCardMedia } from "./card-display";
+import { cleanTerm, formatCloze, summarizeCardMedia, type MarkdownImage } from "./card-display";
 
 export interface QuizCardInput {
   id: string;
@@ -19,9 +10,13 @@ export interface QuizCardInput {
   type?: string;
 }
 
-export type QuizType = "mc" | "trueFalse";
+export type QuizType = "mc" | "trueFalse" | "imageMc";
 
 export interface QuizQuestion {
+  questionImages?: MarkdownImage[];
+  optionImages?: MarkdownImage[][];
+  pairingImages?: MarkdownImage[];
+  correctAnswerImages?: MarkdownImage[];
   type: QuizType;
   cardId: string;
   questionText: string; // mc: die Frageseite; tf: die Aufforderung
@@ -38,6 +33,7 @@ export interface GenerateOptions {
   reverse?: boolean;
   // Vom Lernenden aktivierte Fragetypen — mindestens einer sollte true sein.
   allowMc?: boolean;
+  allowImage?: boolean;
   allowTrueFalse?: boolean;
   // Obergrenze der Rundenlänge (#570). Ohne Angabe: keine Grenze (alle Karten).
   // Begrenzt die FRAGEN, nicht die betrachteten Karten: Wird eine Karte
@@ -56,18 +52,6 @@ function shuffle<T>(arr: T[], randomFn: () => number): T[] {
     [a[i], a[j]] = [a[j]!, a[i]!];
   }
   return a;
-}
-
-function unique(items: string[]): string[] {
-  const seen = new Set<string>();
-  const result: string[] = [];
-  for (const item of items) {
-    const normalized = item.trim();
-    if (!normalized || seen.has(normalized.toLowerCase())) continue;
-    seen.add(normalized.toLowerCase());
-    result.push(normalized);
-  }
-  return result;
 }
 
 // Eine Lücken-Karte ist ein Satz mit Lücke ("______" oder {{cN::…}}). Ihre
@@ -91,8 +75,8 @@ function kindOf(type: string | undefined, fillIn: boolean): string {
 }
 
 /**
- * Der Fragen-Pool hinter generateQuestions: beide Seiten nach der Aufbereitung
- * nicht leer, Duplikate einmal. Herausgelöst, damit die Anzahl-Auswahl im
+ * Der Fragen-Pool hinter generateQuestions: Text oder Bild auf beiden Seiten,
+ * identische Scans einmal. Herausgelöst, damit die Anzahl-Auswahl im
  * Setup („Alle (N)", #612) mit EXAKT derselben Regel zählt — vorher prüfte sie
  * nur rohen Text: Karten, deren Seite nach der Aufbereitung leer ist (reines
  * Bild-Markdown), zählten mit, Doppel-Scans zählten doppelt.
@@ -100,41 +84,30 @@ function kindOf(type: string | undefined, fillIn: boolean): string {
 function buildQuestionPool(cards: QuizCardInput[], reverse: boolean) {
   const seenPairs = new Set<string>();
   return cards.flatMap((card) => {
-    // Aufbereitung wie die App: Bild-Markdown raus, Übersetzungs-Zusätze raus.
-    // Reine Bild-Karten haben danach keinen Text mehr und fallen weg — ohne
-    // Bildanzeige (Dateikopf) wäre ihre Frage nicht beantwortbar.
+    if (card.type === "occlusion") return [];
     const media = summarizeCardMedia({ front: card.front || "", back: card.back || "" });
     const front = cleanTerm(media.plainFront);
     const back = cleanTerm(media.plainBack);
-    if (!front || !back) return [];
-    // Decks enthalten Karten manchmal doppelt (Doppel-Scans) — Duplikate raus.
-    // Der Schlüssel nutzt den Satz MIT {{cN::…}}: zwei Lückensätze, die sich
-    // nur in der Lösung unterscheiden, sind keine Duplikate.
-    const key = `${front}|${back}`.toLowerCase();
+    if ((!front && !media.frontImages.length) || (!back && !media.backImages.length)) return [];
+    const key = JSON.stringify([front.toLowerCase(), back.toLowerCase(), media.frontImages.map(i => i.url), media.backImages.map(i => i.url)]);
     if (seenPairs.has(key)) return [];
     seenPairs.add(key);
     const fillIn = isFillIn(front);
-    // Frage-/Antwortseite folgt der Richtung; Lücken-Karten zeigen immer ihren
-    // Lückensatz (mit Strich statt Lücken-Code) und erwarten das fehlende Wort.
-    const questionSide = fillIn ? formatCloze(front).display : reverse ? back : front;
-    const answerSide = fillIn || !reverse ? back : front;
-    return [
-      {
-        card,
-        fillIn,
-        kind: kindOf(card.type, fillIn),
-        questionSide,
-        answerSide,
-        label: back || front,
-      },
-    ];
+    const flipped = reverse && !fillIn;
+    const questionSide = fillIn ? formatCloze(front).display : flipped ? back : front;
+    const answerSide = flipped ? front : back;
+    const questionImages = flipped ? media.backImages : media.frontImages;
+    const answerImages = flipped ? media.frontImages : media.backImages;
+    return [{ card, fillIn, kind: kindOf(card.type, fillIn), questionSide, answerSide,
+      questionImages, answerImages,
+      answerKey: answerSide.trim().toLowerCase() || JSON.stringify(answerImages.map(i => i.url)),
+    }];
   });
 }
 
 /**
  * Wie viele Fragen „Alle (N)" höchstens verspricht (#612) — dieselbe Regel,
- * mit der generateQuestions seinen Pool baut. Die Richtung spielt für die
- * Anzahl keine Rolle.
+ * mit der generateQuestions seinen Pool baut. Bilder zählen als Seite; die Richtung spielt für die Anzahl keine Rolle.
  */
 export function countQuizableCards(cards: QuizCardInput[]): number {
   return buildQuestionPool(cards, false).length;
@@ -148,69 +121,51 @@ export function generateQuestions(
   const reverse = opts.reverse ?? false;
   const allowMc = opts.allowMc ?? true;
   const allowTrueFalse = opts.allowTrueFalse ?? true;
+  const allowImage = opts.allowImage ?? true;
   const count = opts.count ?? Infinity;
-  if (cards.length < 2 || (!allowMc && !allowTrueFalse)) return [];
-
+  if (cards.length < 2 || (!allowMc && !allowTrueFalse && !allowImage)) return [];
   const enriched = buildQuestionPool(cards, reverse);
-
   const questions: QuizQuestion[] = [];
   for (const current of shuffle(enriched, randomFn)) {
     if (questions.length >= count) break;
-    const sameKind = enriched.filter(
-      (e) => e.card.id !== current.card.id && e.kind === current.kind
-    );
-    const isTF =
-      allowTrueFalse && (!allowMc || (randomFn() < 0.3 && cards.length >= 3));
-
+    const seen = new Set([current.answerKey]);
+    const sameKind = enriched.filter(e => {
+      if (e.card.id === current.card.id || e.kind !== current.kind || seen.has(e.answerKey)) return false;
+      seen.add(e.answerKey);
+      return true;
+    });
+    // The App's imageMc type, using the selected question side. Image-only
+    // questions always use it; mixed text/image cards use the same 35% mix.
+    const imageQuestion = allowImage && !current.fillIn && current.questionImages.length > 0 &&
+      (!current.questionSide || (!allowMc && !allowTrueFalse) || randomFn() < 0.35);
+    const isTF = !imageQuestion && allowTrueFalse && (!allowMc || (randomFn() < 0.3 && cards.length >= 3));
     if (isTF) {
       const isCorrect = randomFn() < 0.5;
-      const ownAnswer = (current.answerSide || current.label).toLowerCase();
-      const wrongPool = unique(sameKind.map((e) => e.answerSide || e.label)).filter(
-        (a) => a.toLowerCase() !== ownAnswer
-      );
-      const wrongAnswer = wrongPool[Math.floor(randomFn() * wrongPool.length)];
-      // Ohne gleichartige Falsch-Antwort ist die gezeigte Paarung zwangsläufig
-      // korrekt — dann als "Richtig" werten statt "Falsch" zu verlangen.
-      const effectiveIsCorrect = isCorrect || !wrongAnswer;
-      const shownAnswer =
-        !effectiveIsCorrect && wrongAnswer ? wrongAnswer : current.answerSide || current.label;
+      const wrong = sameKind[Math.floor(randomFn() * sameKind.length)];
+      const effectiveIsCorrect = isCorrect || !wrong;
+      const shown = effectiveIsCorrect ? current : wrong!;
       questions.push({
-        type: "trueFalse",
-        cardId: current.card.id,
-        questionText: TF_PROMPT,
-        options: [TRUE_LABEL, FALSE_LABEL],
-        correctIndex: effectiveIsCorrect ? 0 : 1,
+        type: "trueFalse", cardId: current.card.id, questionText: TF_PROMPT,
+        options: [TRUE_LABEL, FALSE_LABEL], correctIndex: effectiveIsCorrect ? 0 : 1,
         correctAnswer: effectiveIsCorrect ? TRUE_LABEL : FALSE_LABEL,
-        tfPairing: {
-          front: current.questionSide || current.label,
-          back: shownAnswer,
-          correctBack: current.answerSide || current.label,
-          isCorrect: effectiveIsCorrect,
-        },
+        questionImages: current.questionImages, pairingImages: shown.answerImages,
+        correctAnswerImages: current.answerImages,
+        tfPairing: { front: current.questionSide, back: shown.answerSide,
+          correctBack: current.answerSide, isCorrect: effectiveIsCorrect },
       });
       continue;
     }
-
-    // Nur erreichbar, wenn MC aktiv ist (isTF ist erzwungen, wenn MC aus ist).
-    const ownAnswer = (current.answerSide || current.label).toLowerCase();
-    const wrongAnswers = unique(
-      shuffle(sameKind.map((e) => e.answerSide || e.label), randomFn)
-    )
-      .filter((a) => a.toLowerCase() !== ownAnswer)
-      .slice(0, 3);
-    // Ohne mindestens einen gleichartigen Ablenker ist eine Auswahlfrage
-    // sinnlos — Karte überspringen statt Seiten/Sprachen zu mischen.
-    if (wrongAnswers.length === 0) continue;
-
-    const correctAnswer = current.answerSide || current.label;
-    const options = shuffle([correctAnswer, ...wrongAnswers], randomFn);
+    if (!imageQuestion && !allowMc) continue;
+    const wrongAnswers = shuffle(sameKind, randomFn).slice(0, 3);
+    if (!wrongAnswers.length) continue;
+    const entries = shuffle([current, ...wrongAnswers], randomFn);
     questions.push({
-      type: "mc",
-      cardId: current.card.id,
-      questionText: current.questionSide,
-      options,
-      correctIndex: options.indexOf(correctAnswer),
-      correctAnswer,
+      type: imageQuestion ? "imageMc" : "mc", cardId: current.card.id,
+      questionText: imageQuestion ? "Welches Element zeigt das Bild?" : current.questionSide,
+      questionImages: current.questionImages,
+      options: entries.map(e => e.answerSide), optionImages: entries.map(e => e.answerImages),
+      correctIndex: entries.indexOf(current), correctAnswer: current.answerSide,
+      correctAnswerImages: current.answerImages,
     });
   }
   return questions;

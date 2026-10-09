@@ -83,7 +83,7 @@ describe("generateQuestions — Ablenker nur aus derselben Kartenart (#380)", ()
     }
 
     // Schutz vor einem leeren Durchlauf: beide Arten haben wirklich Fragen erzeugt.
-    expect(occlusionQuestions).toBeGreaterThan(0);
+    expect(occlusionQuestions).toBe(0);
     expect(vocabQuestions).toBeGreaterThan(0);
   });
 
@@ -218,19 +218,19 @@ describe("generateQuestions — Kartentexte werden aufbereitet (#569)", () => {
       for (const q of generateQuestions(cards, { allowTrueFalse: false }, seeded(seed))) {
         expect(q.questionText).not.toContain("![");
         for (const opt of q.options) expect(opt).not.toContain("![");
-        if (q.cardId === "b1") expect(q.questionText).toBe("le soleil");
+        if (q.cardId === "b1") expect(q.questionText).toBe(q.type === "imageMc" ? "Welches Element zeigt das Bild?" : "le soleil");
       }
     }
   });
 
-  it("reine Bild-Karten fallen weg — ohne Bildanzeige wäre die Frage nicht beantwortbar", () => {
+  it("reine Bild-Karten sind als sichtbare Bildfrage spielbar", () => {
     const cards: QuizCardInput[] = [
       { id: "img1", front: "![Zellkern](https://example.com/z.png)", back: "Nucleus", type: "basic" },
       ...vocabCards,
     ];
     for (const seed of [1, 2, 3, 5, 7]) {
       const questions = generateQuestions(cards, {}, seeded(seed));
-      expect(questions.find((q) => q.cardId === "img1")).toBeUndefined();
+      expect(questions.find((q) => q.cardId === "img1")?.questionImages?.[0]?.url).toBe("https://example.com/z.png");
     }
   });
 });
@@ -256,12 +256,62 @@ describe("countQuizableCards — dieselbe Regel wie die Fragen-Erzeugung (#612)"
     ).toBe(2);
   });
 
-  it("zählt Karten nach der Aufbereitung — reine Bild-Seiten ohne Text fallen wie in der Erzeugung raus", () => {
+  it("zählt auch reine Bild-Seiten", () => {
     expect(
       countQuizableCards([
         { id: "i1", front: "![](https://example.com/zelle.png)", back: "Zellkern" },
         { id: "a", front: "la courbe", back: "die Kurve" },
       ])
-    ).toBe(1);
+    ).toBe(2);
   });
+});
+
+
+describe("quiz card media (#730)", () => {
+  const cards = [
+    { id: "a", front: "![](https://example.test/a.png)", back: "Alpha ![](https://example.test/back-a.png)" },
+    { id: "b", front: "![](https://example.test/b.png)", back: "Beta ![](https://example.test/back-b.png)" },
+    { id: "o", type: "occlusion", front: "![](https://example.test/o.png)", back: "Region" },
+  ];
+  it("creates image questions without exposing captions/answers and excludes occlusion", () => {
+    const qs = generateQuestions(cards, { allowTrueFalse: false }, () => 0);
+    expect(qs).toHaveLength(2);
+    for (const q of qs) {
+      expect(q.type).toBe("imageMc");
+      expect(q.questionText).toBe("Welches Element zeigt das Bild?");
+      expect(q.optionImages?.[q.correctIndex]?.[0]?.url).toBe(`https://example.test/back-${q.cardId}.png`);
+    }
+  });
+  it("respects reverse direction and keeps answer images out of the prompt", () => {
+    const qs = generateQuestions(cards, { reverse: true, allowTrueFalse: false, allowImage: false }, () => 0);
+    expect(qs).toHaveLength(2);
+    for (const q of qs) {
+      expect(q.questionImages?.[0]?.url).toBe(`https://example.test/back-${q.cardId}.png`);
+      expect(q.optionImages?.[q.correctIndex]?.[0]?.url).toBe(`https://example.test/${q.cardId}.png`);
+    }
+  });
+  it("shows a false pairing's media, never the real answer's media", () => {
+    const qs = generateQuestions(cards, { allowMc: false, allowImage: false }, () => 0.9);
+    expect(qs).toHaveLength(2);
+    for (const q of qs) {
+      expect(q.tfPairing?.isCorrect).toBe(false);
+      expect(q.pairingImages?.[0]?.url).not.toBe(`https://example.test/back-${q.cardId}.png`);
+      expect(q.correctAnswerImages?.[0]?.url).toBe(`https://example.test/back-${q.cardId}.png`);
+    }
+  });
+  it("deduplicates exact scans but preserves different images sharing the same labels", () => {
+    expect(countQuizableCards([...cards, { ...cards[0]!, id: "duplicate" }])).toBe(2);
+  });
+});
+
+
+it("never offers two identically labelled answers as competing choices", () => {
+  const cards = [
+    { id: "a", front: "A", back: "Paris ![](https://example.test/one.png)" },
+    { id: "b", front: "B", back: "Paris ![](https://example.test/two.png)" },
+    { id: "c", front: "C", back: "Berlin" },
+  ];
+  for (const q of generateQuestions(cards, { allowTrueFalse: false }, () => 0)) {
+    expect(q.options.filter(o => o === "Paris")).toHaveLength(1);
+  }
 });
