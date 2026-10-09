@@ -22,6 +22,7 @@
     "ios": "expo run:ios"
   },
   "dependencies": {
+    "@clearn/contracts": "workspace:*",
     "@expo/metro-runtime": "~6.1.2",
     "@gorhom/bottom-sheet": "^5.2.8",
     "@react-native-async-storage/async-storage": "2.2.0",

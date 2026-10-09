@@ -23,12 +23,14 @@ Letzte Aktualisierung: 2026-07-24
 | **Free** | 0 € | — | 0 LP¹ |
 | **Pro Monthly** | 4,99 € | monatlich, 7 Tage Gratis-Test | 300 LP |
 | **Pro Annual** | 39,99 € | jährlich (~3,33 €/Monat, −33%) | 300 LP/Monat |
+| **Lifetime** | Preis laut Store | einmaliger Kauf | 300 LP/Monat |
 
 ¹ Free-Nutzer erhalten aktuell ein einmaliges Startguthaben über den DB-Default `lp_balance = 10`; es gibt keinen monatlichen Free-Grant (`lpGrantPerMonth: 0`).
 
 Produkt-IDs (RevenueCat):
 - `ai.clearn.pro.monthly` (Auto-Renewing Subscription)
 - `ai.clearn.pro.annual` (Auto-Renewing Subscription)
+- `ai.clearn.lifetime` (Non-Consumable)
 
 ---
 
@@ -113,7 +115,7 @@ Monatliches Abo-Kontingent wird am 1. des Monats auf `lp_balance` aufaddiert (ni
 | Erweiterte Statistiken | ❌ | ✅ | ✅ |
 | Werbefrei | ❌ | ✅ | ✅ |
 
-Lifetime ist im Code vorhanden und wird über `EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_LIFETIME` klassifiziert; die Store-Sichtbarkeit hängt von RevenueCat Offerings ab.
+Lifetime wird im [öffentlichen iOS-App-Store](https://apps.apple.com/us/app/clearn/id6766691399) angeboten und im Kaufdialog über die RevenueCat Offerings geladen. Das Entitlement wird über `EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_LIFETIME` klassifiziert. Maßgeblich ist der lokalisierte Store-Preis; diese Dokumentationskorrektur ändert weder Preise noch LP-Regeln.
 
 ---
 
@@ -295,7 +297,7 @@ CREATE TABLE friend_streaks (
 | Phase | Inhalt | Priorität |
 |-------|--------|----------|
 | **Phase 1** | LP-System (Balance, Spend, Earn durch Lernen), featureGates anpassen, Paywall aktualisieren | P0 |
-| **Phase 2** | RevenueCat: Abo (ohne Lifetime) + Consumable Add-ons, Rewarded Ads (AdMob) | P0 |
+| **Phase 2** | RevenueCat: Abo und Lifetime + Consumable Add-ons, Rewarded Ads (AdMob) | P0 |
 | **Phase 3** | Referral-Programm, Friend-Streaks, Leaderboard | P1 |
 | **Phase 4** | Community-Decks (öffentlich teilen, bewerten), Share-Karte | P1 |
 | **Phase 5** | Flash Sales, saisonale Events, Win-Back-Push | P2 |
