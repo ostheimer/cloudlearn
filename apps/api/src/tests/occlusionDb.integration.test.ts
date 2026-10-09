@@ -4,7 +4,9 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const connectionString = process.env.CLOUDLEARN_OCCLUSION_TEST_DATABASE_URL;
-const db = new Client({ connectionString });
+const parentConnectionString = process.env.DATABASE_URL;
+let db = new Client({ connectionString });
+let temporaryDatabase: string | null = null;
 const user = "20000000-0000-4000-8000-000000000731";
 const foreign = "20000000-0000-4000-8000-000000000732";
 const deck = "10000000-0000-4000-8000-000000000731";
@@ -23,17 +25,38 @@ async function save(next: unknown[], expected: unknown[] | null = null, owner = 
   return r.rows[0].result;
 }
 
-describe.skipIf(!connectionString)("atomic occlusion SQL on disposable PostgreSQL (#731)", () => {
+describe.skipIf(!connectionString && !parentConnectionString)("atomic occlusion SQL on disposable PostgreSQL (#731)", () => {
   beforeAll(async () => {
-    const url = new URL(connectionString!);
-    if (url.hostname !== "127.0.0.1" || !url.pathname.startsWith("/cloudlearn_occlusion_test_")) throw new Error("Only the disposable local runner database is allowed");
+    let testConnectionString = connectionString;
+    // CI already provides disposable PostgreSQL. Use a separate fresh database
+    // so these destructive fixture resets cannot touch the LP tests' database.
+    if (!testConnectionString && parentConnectionString) {
+      const parent = new URL(parentConnectionString);
+      if (!["localhost", "127.0.0.1"].includes(parent.hostname)) throw new Error("Only local disposable PostgreSQL is allowed");
+      temporaryDatabase = `cloudlearn_occlusion_test_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+      const admin = new Client({ connectionString: parentConnectionString });
+      await admin.connect();
+      try { await admin.query(`create database ${temporaryDatabase}`); } finally { await admin.end(); }
+      parent.pathname = `/${temporaryDatabase}`;
+      testConnectionString = parent.toString();
+    }
+    const url = new URL(testConnectionString!);
+    if (!["localhost", "127.0.0.1"].includes(url.hostname) || !url.pathname.startsWith("/cloudlearn_occlusion_test_")) throw new Error("Only the disposable local runner database is allowed");
+    db = new Client({ connectionString: testConnectionString });
     await db.connect();
-    await db.query("create schema auth; create table auth.users(id uuid primary key); create function auth.uid() returns uuid language sql as 'select null::uuid'; create role anon; create role authenticated; create role service_role;");
+    await db.query("create schema auth; create table auth.users(id uuid primary key); create function auth.uid() returns uuid language sql as 'select null::uuid'; do $$ begin create role anon; exception when duplicate_object then null; end $$; do $$ begin create role authenticated; exception when duplicate_object then null; end $$; do $$ begin create role service_role; exception when duplicate_object then null; end $$;");
     for (const file of ["20260209230000_init.sql", "20260211120000_add_card_difficulty_tags.sql", "20260211180000_add_card_starred.sql", "20260212000000_add_fsrs_fields.sql", "20261009220000_edit_occlusion_image.sql"]) {
       await db.query(readFileSync(fileURLToPath(new URL(`../../supabase/migrations/${file}`, import.meta.url)), "utf8"));
     }
   });
-  afterAll(async () => { await db.end(); });
+  afterAll(async () => {
+    await db.end();
+    if (temporaryDatabase && parentConnectionString) {
+      const admin = new Client({ connectionString: parentConnectionString });
+      await admin.connect();
+      try { await admin.query(`drop database ${temporaryDatabase}`); } finally { await admin.end(); }
+    }
+  });
   beforeEach(async () => {
     await db.query("truncate cards, review_logs, decks, profiles, auth.users cascade");
     await db.query("insert into auth.users(id) values($1),($2);", [user, foreign]);
