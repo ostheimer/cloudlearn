@@ -37,7 +37,16 @@ describe("matchTileTexts (#569)", () => {
   });
 
   it("ohne jeden Text ist die Karte nicht spielbar", () => {
-    expect(matchTileTexts({ front: "![](https://example.com/x.png)", back: "Nucleus" })).toBeNull();
+    expect(matchTileTexts({ front: "![](https://example.com/x.png)", back: "Nucleus" })).toEqual({ front: "", back: "Nucleus" });
     expect(matchTileTexts({ front: "", back: "die Kurve" })).toBeNull();
   });
+});
+
+
+it("keeps ordinary images on the correct match tile (#730)", async () => {
+  const { matchTileMedia } = await import("./match-tiles");
+  const tiles = matchTileMedia({ front: "![](https://example.test/front.png)", back: "Answer ![](https://example.test/back.png)" });
+  expect(tiles?.front.images[0]?.url).toBe("https://example.test/front.png");
+  expect(tiles?.back.images[0]?.url).toBe("https://example.test/back.png");
+  expect(matchTileMedia({ front: "Question", back: "Answer", type: "occlusion" })).toBeNull();
 });

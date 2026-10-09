@@ -5527,3 +5527,17 @@ a.lp-way:hover {
   justify-content: flex-end;
   margin-top: 12px;
 }
+
+/* Ordinary card images in quiz prompts, options and match tiles (#730). */
+.card-side-media { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; width: 100%; margin-top: 8px; }
+.card-side-media img { display: block; max-width: 100%; width: auto; height: auto; max-height: 220px; object-fit: contain; border-radius: 10px; }
+.quiz-opt > span:first-child { min-width: 0; flex: 1; }
+.quiz-opt .card-side-media img { max-height: 120px; }
+.zu-tile:has(.card-side-media) { height: auto; min-height: 100px; padding: 16px; }
+.zu-tile .card-side-media img { max-height: 110px; }
+.quiz-sum .card-side-media img { max-height: 100px; }
+@media (max-width: 500px) {
+  .card-side-media img { max-height: 180px; }
+  .zu-tile:has(.card-side-media) { padding: 12px 8px; }
+  .zu-tile .card-side-media img { max-height: 90px; }
+}
