@@ -3439,6 +3439,24 @@ a.mode-card:hover {
   position: relative;
 }
 
+/* Full-card flip target; star/edit/speech remain sibling buttons above it. */
+.study-flip-control {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: var(--r-lg);
+  background: transparent;
+  cursor: pointer;
+}
+
+.study-flip-control:focus-visible {
+  outline: 3px solid var(--brand);
+  outline-offset: 4px;
+}
+
 /* Am Handy füllt die 220-px-Karte den Schirm; am Laptop und am iPad endet die
    Runde nach einem Drittel der Höhe und darunter bleibt alles leer. Dort darf
    die Karte mitwachsen.
