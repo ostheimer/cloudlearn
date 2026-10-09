@@ -63,3 +63,17 @@ describe("session progress database mapping", () => {
     });
   });
 });
+
+
+describe("session progress error handling (#702)", () => {
+  it("propagates database failures instead of reporting missing progress", async () => {
+    db.maybeSingle.mockResolvedValueOnce({ data: null, error: { message: "connection terminated" } });
+    await expect(getSessionProgress("user", "deck", "flashcards"))
+      .rejects.toThrow("getSessionProgress: connection terminated");
+  });
+
+  it("returns null only after a successful empty lookup", async () => {
+    db.maybeSingle.mockResolvedValueOnce({ data: null, error: null });
+    await expect(getSessionProgress("user", "deck", "cloze")).resolves.toBeNull();
+  });
+});
