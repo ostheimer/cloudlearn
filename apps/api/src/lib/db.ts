@@ -4,6 +4,7 @@
  * All functions are async and map between camelCase (code) and snake_case (DB).
  */
 
+import { HttpError } from "./http";
 import { createSupabaseAdminClient } from "./supabase";
 import { daysBetween, startOfLocalDayIso, startOfTodayLocalIso, todayLocal } from "./localDay";
 import { STREAK_REPAIR } from "./featureGates";
@@ -2926,4 +2927,25 @@ export async function listPushDevices(userId: string): Promise<PushDevice[]> {
     firstSeenAt: row.created_at,
     lastSeenAt: row.updated_at ?? row.created_at,
   }));
+}
+
+
+export interface OcclusionImageEdit {
+  userId: string; deckId: string; sourceImageUrl: string; maxCards: number;
+  expectedCards: { id: string; back: string; extraData: Record<string, unknown> }[];
+  regions: { x: number; y: number; w: number; h: number; label: string; cardIds: string[] }[];
+}
+
+export async function saveOcclusionImage(input: OcclusionImageEdit): Promise<{ updated: number; created: number; deleted: number }> {
+  const { data, error } = await getDb().rpc("edit_occlusion_image", {
+    p_user_id: input.userId, p_deck_id: input.deckId, p_image_path: input.sourceImageUrl,
+    p_expected: input.expectedCards, p_regions: input.regions, p_max_cards: input.maxCards,
+  });
+  if (error) {
+    if (error.message.includes("OCCLUSION_CONFLICT")) throw new HttpError("Das Bild wurde inzwischen geändert. Lade es erneut und prüfe deine Änderungen.", 409, "OCCLUSION_CONFLICT");
+    if (error.message.includes("DECK_FULL")) throw new HttpError("Dieses Deck ist voll. Leg für weitere Karten ein zweites Deck an.", 409, "DECK_FULL");
+    if (error.message.includes("DECK_NOT_FOUND")) throw new HttpError("Deck not found", 404, "DECK_NOT_FOUND");
+    throw new Error(`saveOcclusionImage: ${error.message}`);
+  }
+  return data as { updated: number; created: number; deleted: number };
 }

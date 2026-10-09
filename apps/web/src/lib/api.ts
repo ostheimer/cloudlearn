@@ -1227,3 +1227,13 @@ export interface PushDevice {
 export function listPushDevices(): Promise<{ devices: PushDevice[] }> {
   return authed<{ devices: PushDevice[] }>("/api/v1/push/devices");
 }
+
+
+/** Update exactly one existing occlusion image, atomically and with stale-edit protection. */
+export function editOcclusionImage(deckId: string, input: {
+  sourceImageUrl: string;
+  expectedCards: { id: string; back: string; extraData: Record<string, unknown> }[];
+  regions: { x: number; y: number; w: number; h: number; label: string; cardIds: string[] }[];
+}): Promise<{ updated: number; created: number; deleted: number }> {
+  return authed(`/api/v1/decks/${deckId}/occlusion`, { method: "PUT", body: JSON.stringify(input) });
+}

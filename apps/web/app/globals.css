@@ -5541,3 +5541,10 @@ a.lp-way:hover {
   .zu-tile:has(.card-side-media) { padding: 12px 8px; }
   .zu-tile .card-side-media img { max-height: 90px; }
 }
+
+.occ-gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 16px; margin-top: 20px; }
+.occ-image-card { min-width: 0; padding: 16px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); }
+.occ-image-card > img { width: 100%; height: 160px; object-fit: contain; border-radius: 8px; }
+.occ-image-card ul { padding-left: 20px; overflow-wrap: anywhere; }
+.occ-item .btn { font-size: .75rem; padding: 6px 8px; }
+@media (max-width: 500px) { .occ-item { flex-wrap: wrap; } .occ-item__in { min-width: 120px; } }
