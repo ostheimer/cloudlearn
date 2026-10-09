@@ -15,6 +15,8 @@ Die historischen Aussagen „Lara entscheidet vor jeder Änderung“ erzeugen f�
 
 ## Aktuelle Main-, CI- und Release-Nachweise
 
+**Späterer PM-Nachtrag vom selben Tag:** Die untenstehende Tabelle beschreibt den Audit-Zeitpunkt. CI wurde anschließend reaktiviert und geprüfte PRs übernommen. Aktueller Stand und Datenbank-/Release-Nachweise: [PM-Release-Nachtrag](../qa/pm-release-2026-10-09.md).
+
 | Nachweis | Ergebnis und Grenze |
 | --- | --- |
 | Main-CI [37040414362](https://github.com/ostheimer/cloudlearn/actions/runs/37040414362) | SUCCESS für exakt `6a896da`, 2. Oktober. Job-Schritte geprüft: Install, Lint, Typecheck, Tests, Restore-Probe, Web-Build, Mobile-Web-Build, Browser-Smoke. Dies ist ein datierter Nachweis dieses unveränderten Commits, kein neuer Lauf vom 9. Oktober. |
