@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState, type CSSProperties, type MouseEvent } from "react";
+import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import {
   getStats,
   getLpBalance,
@@ -43,7 +42,6 @@ import {
 // Deck und der Scan-Einstieg. Alles aus vorhandenen Daten — kein neues Backend.
 export default function HomePage() {
   const { userId } = useAuth();
-  const router = useRouter();
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [lp, setLp] = useState<number | null>(null);
   const [friendStreaks, setFriendStreaks] = useState<FriendStreak[]>([]);
@@ -551,36 +549,28 @@ export default function HomePage() {
           <span style={badge(false)}>Öffnen ›</span>
         </Link>
 
-        <Link href="/dashboard" style={tileStyle}>
-          <span style={tileIconBox("brand")} aria-hidden>
-            <Layers size={18} />
-          </span>
-          <span style={tileNum}>{decks}</span>
-          <span style={tileLabel}>Decks</span>
-          {/* Die Pille führt bei fälligen Karten in die Lernrunde statt in die
-              Bibliothek (#609) — die Kachel drumherum bleibt der Bibliothek
-              treu. Verschachtelte Links sind ungültiges HTML, deshalb ein
-              Klick-Abfang auf der Pille selbst. */}
-          <span
-            style={{ ...badge(due > 0), ...(due > 0 ? { cursor: "pointer" } : {}) }}
-            {...(due > 0
-              ? {
-                  role: "link",
-                  "aria-label":
-                    due === 1
-                      ? "1 fällige Karte jetzt lernen"
-                      : `${due} fällige Karten jetzt lernen`,
-                  onClick: (e: MouseEvent) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    router.push("/dashboard/learn");
-                  },
-                }
-              : {})}
+        <div style={tileStyle}>
+          <Link
+            href="/dashboard"
+            aria-label="Bibliothek öffnen"
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", color: "inherit", textDecoration: "none" }}
+          >
+            <span style={tileIconBox("brand")} aria-hidden>
+              <Layers size={18} />
+            </span>
+            <span style={tileNum}>{decks}</span>
+            <span style={tileLabel}>Decks</span>
+          </Link>
+          <Link
+            href={due > 0 ? "/dashboard/learn" : "/dashboard"}
+            style={badge(due > 0)}
+            aria-label={due > 0
+              ? due === 1 ? "1 fällige Karte jetzt lernen" : `${due} fällige Karten jetzt lernen`
+              : "Bibliothek öffnen"}
           >
             {due > 0 ? `${due} fällig ›` : "Bibliothek ›"}
-          </span>
-        </Link>
+          </Link>
+        </div>
 
         <Link href="/dashboard/stats" style={tileStyle}>
           {/* Grünes Kästchen ab 70 %, sonst grau — wie die App */}

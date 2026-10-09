@@ -23,7 +23,7 @@ import {
 } from "@/lib/api";
 import { buildFolderCountLabel, descendantFolders, folderPath } from "@/lib/folders";
 import { folderDeckCounts } from "@/lib/folder-deck-counts";
-import { handleMenuKey } from "@/lib/menu-keys";
+import { handleMenuFocus, handleMenuKey } from "@/lib/menu-keys";
 import { FolderCard, DeleteFolderModal, FolderNameModal } from "@/components/app/folder-ui";
 import { deckCountLabel } from "@/lib/deck-count-label";
 import {
@@ -159,11 +159,14 @@ export default function FolderDetailPage() {
     if (!openSubMenu) return;
     const close = () => setOpenSubMenu(null);
     const onKey = (e: KeyboardEvent) => handleMenuKey(e, close);
+    const onFocus = (e: FocusEvent) => handleMenuFocus(e, close);
     document.addEventListener("click", close);
     document.addEventListener("keydown", onKey);
+    document.addEventListener("focusin", onFocus);
     return () => {
       document.removeEventListener("click", close);
       document.removeEventListener("keydown", onKey);
+      document.removeEventListener("focusin", onFocus);
     };
   }, [openSubMenu]);
 
