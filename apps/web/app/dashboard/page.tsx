@@ -32,7 +32,7 @@ import {
 import { adviceForLimit } from "@/lib/import-limits";
 import { descendantFolders, folderPath } from "@/lib/folders";
 import { folderDeckCounts } from "@/lib/folder-deck-counts";
-import { handleMenuKey } from "@/lib/menu-keys";
+import { handleMenuFocus, handleMenuKey } from "@/lib/menu-keys";
 import { FolderCard, DeleteFolderModal } from "@/components/app/folder-ui";
 import { deckCountLabel } from "@/lib/deck-count-label";
 import { deckSlotsSummary, isDeckLimitReached } from "@/lib/import-limits";
@@ -260,11 +260,14 @@ export default function LibraryPage() {
     const close = () => setOpenMenu(null);
     // Escape schließt (Fokus zurück zum Auslöser), Pfeiltasten wandern (#613).
     const onKey = (e: KeyboardEvent) => handleMenuKey(e, close);
+    const onFocus = (e: FocusEvent) => handleMenuFocus(e, close);
     document.addEventListener("click", close);
     document.addEventListener("keydown", onKey);
+    document.addEventListener("focusin", onFocus);
     return () => {
       document.removeEventListener("click", close);
       document.removeEventListener("keydown", onKey);
+      document.removeEventListener("focusin", onFocus);
     };
   }, [openMenu]);
 
@@ -1018,30 +1021,30 @@ function DeckCard({
         </button>
         {menuOpen && (
           <div className="menu" role="menu" onClick={(e) => e.stopPropagation()}>
-            <Link href={`/dashboard/deck/${deck.id}`} role="menuitem">
+            <Link href={`/dashboard/deck/${deck.id}`} role="menuitem" tabIndex={-1}>
               <Play size={15} /> Lernen
             </Link>
-            <button type="button" role="menuitem" onClick={onRename}>
+            <button type="button" role="menuitem" tabIndex={-1} onClick={onRename}>
               <Pencil size={15} /> Umbenennen
             </button>
-            <button type="button" role="menuitem" onClick={onSpeechLanguages}>
+            <button type="button" role="menuitem" tabIndex={-1} onClick={onSpeechLanguages}>
               <Volume2 size={15} /> Sprache zum Vorlesen
             </button>
-            <button type="button" role="menuitem" onClick={onAddToFolder}>
+            <button type="button" role="menuitem" tabIndex={-1} onClick={onAddToFolder}>
               <FolderIcon size={15} /> Zu Ordner hinzufügen
             </button>
-            <button type="button" role="menuitem" onClick={onDuplicate}>
+            <button type="button" role="menuitem" tabIndex={-1} onClick={onDuplicate}>
               <Copy size={15} /> Duplizieren
             </button>
-            <button type="button" role="menuitem" onClick={onShare}>
+            <button type="button" role="menuitem" tabIndex={-1} onClick={onShare}>
               <Share size={15} /> Teilen
             </button>
             {/* Archivieren (#614) steht VOR dem Löschen und ist nicht rot:
                 es ist der harmlose Weg, ein Deck loszuwerden. */}
-            <button type="button" role="menuitem" onClick={onArchive}>
+            <button type="button" role="menuitem" tabIndex={-1} onClick={onArchive}>
               <Archive size={15} /> Archivieren
             </button>
-            <button type="button" role="menuitem" className="danger" onClick={onDelete}>
+            <button type="button" role="menuitem" tabIndex={-1} className="danger" onClick={onDelete}>
               <Trash size={15} /> Löschen
             </button>
           </div>
