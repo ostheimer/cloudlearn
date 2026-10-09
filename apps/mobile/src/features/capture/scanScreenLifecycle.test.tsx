@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useEffect } from "react";
 import { act, create, type ReactTestRenderer, type ReactTestInstance } from "react-test-renderer";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { resources } from "../../i18n/resources";
 import { useOcrEditorState } from "../ocr/ocrEditorState";
 
 const mocks = vi.hoisted(() => ({
+  language: "de" as "de" | "en",
   alert: vi.fn(), push: vi.fn(), scanImage: vi.fn(), createDeck: vi.fn(), createCard: vi.fn(),
   listCardsInDeck: vi.fn(), listDecks: vi.fn(), loadScanDraft: vi.fn(), saveScanDraft: vi.fn(),
   clearScanDraft: vi.fn(), setUsage: vi.fn(), deductLp: vi.fn(),
@@ -35,7 +37,7 @@ vi.mock("lucide-react-native", () => Object.fromEntries([
   "Camera", "CheckCircle2", "FileText", "ImageIcon", "PenLine", "Lightbulb", "Save", "RotateCcw",
   "Sparkles", "ChevronRight", "Link2", "ArrowLeft", "Zap", "Layers", "Trash2", "Plus", "GripVertical",
 ].map(name => [name, () => null])));
-vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
+vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string) => resources[mocks.language].translation[key as keyof typeof resources.de.translation] ?? key }) }));
 vi.mock("../../theme", () => ({ useColors: () => ({}), spacing: {}, radius: {}, typography: {}, shadows: {} }));
 vi.mock("../../store/sessionStore", () => ({ useSessionStore: (select: (s: { userId: string }) => unknown) => select({ userId: "local-test" }) }));
 vi.mock("../../store/usageStore", () => ({
@@ -73,7 +75,7 @@ async function press(label: string) {
   await act(async () => button(label).props.onPress());
 }
 async function generatePhoto() {
-  await press("Galerie");
+  await press("Bild wählen");
   expect(text(renderer.root)).toContain("1 Karte erstellt");
 }
 async function save() {
@@ -86,6 +88,7 @@ beforeEach(() => {
   vi.stubGlobal("React", React);
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.clearAllMocks();
+  mocks.language = "de";
   useOcrEditorState.getState().reset();
   mocks.loadScanDraft.mockResolvedValue(null);
   mocks.listDecks.mockResolvedValue({ decks: [] });
@@ -101,6 +104,21 @@ afterEach(async () => {
 });
 
 describe("mounted Scan tab lifecycle", () => {
+  it.each([
+    { language: "de" as const, image: "Bild wählen", entry: "Text eingeben", back: "Andere Quelle wählen", create: "Karten erstellen" },
+    { language: "en" as const, image: "Choose an image", entry: "Enter text", back: "Choose another source", create: "Create cards" },
+  ])("renders the source and input controls in $language", async ({ language, image, entry, back, create }) => {
+    mocks.language = language;
+    await show(true);
+    expect(button(image)).toBeDefined();
+    expect(text(renderer.root)).toContain(resources[language].translation["scan.info"]);
+    await press(entry);
+    expect(button(back)).toBeDefined();
+    expect(text(renderer.root)).toContain(create);
+    await press(back);
+    expect(button(image)).toBeDefined();
+  });
+
   it("shows a new scan after saving, learning and returning, even if the deck was deleted", async () => {
     await show(true);
     await generatePhoto();
@@ -114,8 +132,8 @@ describe("mounted Scan tab lifecycle", () => {
     mocks.listDecks.mockResolvedValue({ decks: [] });
     const readsBeforeReturn = mocks.listDecks.mock.calls.length;
     await show(true);
-    expect(text(renderer.root)).toContain("scan.title");
-    expect(button("Galerie")).toBeDefined();
+    expect(text(renderer.root)).toContain("Lernmaterial erfassen");
+    expect(button("Bild wählen")).toBeDefined();
     expect(text(renderer.root)).not.toContain("Karten gespeichert");
     expect(text(renderer.root)).not.toContain("Foto-Test");
     expect(renderer.root.findAllByType("Image" as never)).toHaveLength(0);
@@ -132,9 +150,9 @@ describe("mounted Scan tab lifecycle", () => {
     if (destination) await press(destination);
     await show(false);
     await show(true);
-    expect(text(renderer.root)).toContain("scan.title");
+    expect(text(renderer.root)).toContain("Lernmaterial erfassen");
     expect(text(renderer.root)).not.toContain("Karten gespeichert");
-    expect(button("Galerie")).toBeDefined();
+    expect(button("Bild wählen")).toBeDefined();
   });
 
   it("preserves unsaved paid preview cards across tab changes", async () => {
@@ -182,7 +200,7 @@ describe("mounted Scan tab lifecycle", () => {
     await show(false);
     await act(async () => complete());
     await show(true);
-    expect(text(renderer.root)).toContain("scan.title");
+    expect(text(renderer.root)).toContain("Lernmaterial erfassen");
     expect(text(renderer.root)).not.toContain("Karten gespeichert");
   });
 
@@ -191,7 +209,7 @@ describe("mounted Scan tab lifecycle", () => {
     await generatePhoto();
     await save();
     await press("Neuen Scan starten");
-    expect(text(renderer.root)).toContain("scan.title");
+    expect(text(renderer.root)).toContain("Lernmaterial erfassen");
     expect(text(renderer.root)).not.toContain("Karten gespeichert");
   });
 });

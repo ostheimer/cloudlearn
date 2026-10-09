@@ -1,3 +1,4 @@
+import { importDeckSpaceHint } from "@clearn/contracts";
 /**
  * Plan-Grenzen im Import-Ablauf des Webs (#411).
  *
@@ -164,10 +165,8 @@ export function deckSlotsSummary(
 
 /** Beschriftung eines Decks in der Zielauswahl: „Datenbanken · 43 Plätze frei". */
 export function deckOptionLabel(title: string, free: number | null): string {
-  if (free === null) return title;
-  if (free === 0) return `${title} · voll`;
-  if (free === 1) return `${title} · 1 Platz frei`;
-  return `${title} · ${free} Plätze frei`;
+  const hint = importDeckSpaceHint(free);
+  return hint === null ? title : `${title} · ${hint}`;
 }
 
 /**
