@@ -98,6 +98,8 @@ import TargetDeckPickerModal from "../../src/components/TargetDeckPickerModal";
 import { AuthPromptCard } from "../../src/components/AuthPromptCard";
 import { LpBadge } from "../../src/components/LpBadge";
 import { runScanSourceAction } from "../../src/lib/scanSourceAction";
+import { confirmScanCost } from "../../src/lib/scanCostConfirmation";
+import { MAX_SCAN_PDF_BYTES, MAX_SCAN_PDF_BASE64 } from "../../src/lib/scanPdfLimits";
 import { createAiImportConsentGate } from "../../src/lib/aiImportConsent";
 
 type InputMode = "choose" | "camera" | "text" | "url";
@@ -230,6 +232,7 @@ export default function ScanScreen() {
   const [mode, setMode] = useState<InputMode>("choose");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const paidImportPending = useRef(false);
 
   const selectSource = (
     feature: "aiScan" | "urlImport" | "pdfImport",
@@ -554,11 +557,18 @@ export default function ScanScreen() {
     }
 
     const asset = result.assets[0];
-    setPdfFileName(asset.name);
-    setPdfPageCount(null);
+    if (typeof asset.size === "number" && asset.size > MAX_SCAN_PDF_BYTES) {
+      Alert.alert(t(IMPORT_ERROR_TITLE_KEY), t("scan.pdfTooLarge"));
+      return;
+    }
 
     try {
       const fileBase64 = await readPickedPdfAsBase64(asset);
+      // Picker metadata may be absent or inaccurate. Check the encoded body too.
+      if (fileBase64.length > MAX_SCAN_PDF_BASE64) {
+        Alert.alert(t(IMPORT_ERROR_TITLE_KEY), t("scan.pdfTooLarge"));
+        return;
+      }
       await processPdf(fileBase64, asset.name);
     } catch (error: unknown) {
       // Hier landen nur unsere eigenen deutschen Lese-Fehler (readPickedPdfAsBase64).
@@ -567,19 +577,48 @@ export default function ScanScreen() {
     }
   };
 
+  const approvePaidImport = async (feature: "aiScan" | "pdfImport") => {
+    try {
+      const usage = await getLpBalance();
+      const cost = feature === "aiScan" ? usage.lpCostAiScan : usage.lpCostPdfImport;
+      if (!Number.isFinite(cost) || cost < 0 || !Number.isFinite(usage.lpBalance)) {
+        throw new Error("Invalid usage response");
+      }
+      setUsage(usageFromBalanceResponse(usage));
+      if (usage.lpBalance < cost) {
+        setLpModalFeature(feature);
+        setLpModalCost(cost);
+        setLpModalVisible(true);
+        return null;
+      }
+      const allowed = await confirmScanCost(
+        cost, usage.lpBalance,
+        (key, values) => values ? t(key, values) : t(key),
+        Alert.alert, Platform.OS,
+      );
+      return allowed ? { cost } : null;
+    } catch {
+      Alert.alert(t(IMPORT_ERROR_TITLE_KEY), t("scan.costUnavailable"));
+      return null;
+    }
+  };
+
   const processImage = async (
     base64: string,
     mimeType: "image/jpeg" | "image/png" | "image/webp"
   ) => {
-    if (!userId) return;
-    if (!(await confirmAiImport("photo", t, Alert.alert))) return;
+    if (!userId || paidImportPending.current) return;
+    paidImportPending.current = true;
     setLoading(true);
-    setCards([]);
-    setSaved(false);
-    setSourceUrl("");
-    setPdfFileName("");
-    setPdfPageCount(null);
     try {
+      const approval = await approvePaidImport("aiScan");
+      if (!approval) return;
+      if (!(await confirmAiImport("photo", t, Alert.alert))) return;
+      setCards([]);
+      setSaved(false);
+      setSourceUrl("");
+      setPdfFileName("");
+      setPdfPageCount(null);
       const idempotencyKey = getImportAttemptKey(
         `scan-img:${mimeType}:${base64}`,
         "scan-img"
@@ -594,7 +633,7 @@ export default function ScanScreen() {
         deductLp(result.usage.lpSpent);
         setUsage({ lpBalance: result.usage.lpBalance });
       } else {
-        deductLp(lpCostAiScan);
+        deductLp(approval.cost);
       }
     } catch (error: unknown) {
       if (shouldOpenLpModal(error)) {
@@ -605,23 +644,27 @@ export default function ScanScreen() {
       }
       Alert.alert(t(IMPORT_ERROR_TITLE_KEY), t(importErrorKey(error, "image")));
     } finally {
+      paidImportPending.current = false;
       setLoading(false);
     }
   };
 
   const processPdf = async (fileBase64: string, fileName: string) => {
-    if (!userId) return;
-    if (!(await confirmAiImport("pdf", t, Alert.alert))) return;
+    if (!userId || paidImportPending.current) return;
+    paidImportPending.current = true;
     setLoading(true);
-    setCards([]);
-    setSaved(false);
-    setImageUri(null);
-    setImageBase64(null);
-    setSourceUrl("");
-    setPdfFileName(fileName);
-    setPdfPageCount(null);
-
     try {
+      const approval = await approvePaidImport("pdfImport");
+      if (!approval) return;
+      if (!(await confirmAiImport("pdf", t, Alert.alert))) return;
+      setCards([]);
+      setSaved(false);
+      setImageUri(null);
+      setImageBase64(null);
+      setSourceUrl("");
+      setPdfFileName(fileName);
+      setPdfPageCount(null);
+
       const idempotencyKey = getImportAttemptKey(
         `import-pdf:${fileName}:${fileBase64}`,
         "import-pdf"
@@ -637,7 +680,7 @@ export default function ScanScreen() {
         deductLp(result.usage.lpSpent);
         setUsage({ lpBalance: result.usage.lpBalance });
       } else {
-        deductLp(lpCostPdfImport);
+        deductLp(approval.cost);
       }
     } catch (error: unknown) {
       if (shouldOpenLpModal(error)) {
@@ -648,6 +691,7 @@ export default function ScanScreen() {
       }
       Alert.alert(t(IMPORT_ERROR_TITLE_KEY), t(importErrorKey(error, "pdf")));
     } finally {
+      paidImportPending.current = false;
       setLoading(false);
     }
   };
@@ -747,7 +791,15 @@ export default function ScanScreen() {
     setCards((prev) => editCardField(prev, index, side, value));
   };
   const removeCard = (index: number) => {
-    setCards((prev) => removeCardAt(prev, index));
+    if (cards.length === 1) {
+      Alert.alert(t("scan.lastCardTitle"), t("scan.lastCardBody"), [
+        { text: t("scan.keepLastCard"), style: "cancel" },
+        { text: t("scan.discardLastCard"), style: "destructive", onPress: resetAll },
+      ]);
+      return;
+    }
+    // Rapid taps must not bypass the last-card confirmation with stale state.
+    setCards((prev) => prev.length > 1 ? removeCardAt(prev, index) : prev);
   };
   // #427: Eine leere Karte anhängen, die die Nutzerin selbst ausfüllt.
   const addCard = () => {
@@ -822,7 +874,7 @@ export default function ScanScreen() {
       return;
     }
     const title =
-      deckTitle || `Scan ${new Date().toLocaleDateString("de")}`;
+      deckTitle.trim() || `Scan ${new Date().toLocaleDateString("de")}`;
     // Retry after a partial save: a deck was already created for this scan, so
     // reuse it instead of creating a second one. saveCardsToDeck then skips the
     // cards it already inserted, so no duplicate deck and no duplicate cards.
@@ -1885,17 +1937,30 @@ export default function ScanScreen() {
               </View>
             ) : null}
 
-            {deckTitle ? (
-              <Text
+            <View style={{ gap: spacing.xs }}>
+              <Text style={{ color: colors.textSecondary, fontWeight: typography.semibold }}>
+                {t("scan.previewTitle")}
+              </Text>
+              <TextInput
+                value={deckTitle}
+                onChangeText={setDeckTitle}
+                editable={!saving && !saved && !savedDeckId}
+                maxLength={100}
+                accessibilityLabel={t("scan.previewTitle")}
+                placeholder={t("scan.previewTitlePlaceholder")}
+                placeholderTextColor={colors.textTertiary}
                 style={{
                   fontSize: typography.xl,
                   fontWeight: typography.bold,
                   color: colors.text,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  borderRadius: radius.md,
+                  padding: spacing.md,
+                  backgroundColor: colors.surface,
                 }}
-              >
-                {deckTitle}
-              </Text>
-            ) : null}
+              />
+            </View>
 
             {/* Kopfzeile der Vorschau (#609): Der Modellname („via
                 gemini-2.0-flash", im Notfall „via heuristic-fallback") sagt
