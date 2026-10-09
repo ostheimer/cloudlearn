@@ -36,7 +36,7 @@ do $$ begin
 end $$;
 -- Drop dependent tables too: CASCADE on profiles removes their foreign keys,
 -- not the tables, so reruns could otherwise retain rows without cleanup links.
-drop table if exists lp_transactions, rewards_claimed, streak_freeze_uses, monthly_lp_grants, friend_connections, friend_streaks, profiles cascade;
+drop table if exists review_logs, lp_transactions, rewards_claimed, streak_freeze_uses, monthly_lp_grants, friend_connections, friend_streaks, profiles cascade;
 create table profiles (
   id uuid primary key,
   lp_balance int not null default 10,
@@ -51,6 +51,10 @@ create table profiles (
   broken_streak int not null default 0,
   broken_on date,
   updated_at timestamptz not null default now()
+);
+create table review_logs (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references profiles(id) on delete cascade
 );
 create table lp_transactions (
   id uuid primary key default gen_random_uuid(),
@@ -90,6 +94,7 @@ suite("LP SQL functions (real Postgres integration)", () => {
     // Load the REAL function definitions from the migrations (no drift vs prod).
     await client.query(loadMigration("20260404130000_atomic_lp_operations.sql"));
     await client.query(loadMigration("20260708150000_atomic_claim_milestone.sql"));
+    await client.query(loadMigration("20260708130000_lp_session_earn_from_reviews.sql"));
     await client.query(loadMigration("20260709120000_idempotent_lp_purchase.sql"));
     await client.query(loadMigration("20260713110000_monthly_lp_grant.sql"));
     await client.query(loadMigration("20260713140000_streak_freeze.sql"));
@@ -582,4 +587,31 @@ suite("LP SQL functions (real Postgres integration)", () => {
       expect(other.rows[0]).toMatchObject({ granted: 100, already_granted: false, new_balance: 400 });
     });
   });
+
+  describe("session earn replay after a response readback failure (#702)", () => {
+    it("does not credit reviews or a milestone twice when the HTTP request is retried", async () => {
+      await seed(10);
+      await client.query("insert into review_logs (user_id) values ($1), ($1)", [USER]);
+      const earn = () => client.query(
+        "select * from earn_session_lp($1, 1, 1, 100, current_date)", [USER]
+      );
+      const claim = () => client.query(
+        "select * from claim_milestone_lp($1, 'first_review', 5)", [USER]
+      );
+      expect((await earn()).rows[0]).toMatchObject({ granted: 2, new_balance: 12 });
+      expect((await claim()).rows[0]).toMatchObject({ granted: 5, new_balance: 17 });
+      // The response readback fails AFTER these transactions committed. No
+      // rollback/refund is attempted; the caller retries the same endpoint.
+      expect((await earn()).rows[0]).toMatchObject({ granted: 0, new_balance: 17 });
+      expect((await claim()).rows[0]).toMatchObject({ granted: 0, already_claimed: true });
+      expect(await balance()).toBe(17);
+      expect((await client.query(
+        "select type, amount, reason from lp_transactions where user_id = $1 order by amount", [USER]
+      )).rows).toEqual([
+        { type: "earned", amount: 2, reason: "session" },
+        { type: "earned", amount: 5, reason: "milestone_first_review" },
+      ]);
+    });
+  });
+
 });
