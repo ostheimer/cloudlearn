@@ -1,6 +1,6 @@
 # Mobile scan acceptance — #733
 
-Source under test: `c410730`, integrating main `4d6711d` and copy PR #760.
+Initial native acceptance source (2026-10-09): `c410730`, integrating main `4d6711d` and copy PR #760.
 All four requested changes are implemented in the mobile scan flow:
 
 - Camera/gallery/PDF refresh `/usage` and confirm the returned LP price and balance before sending. Cancellation, unavailable costs and insufficient fresh balance prevent the request. The separate per-send Gemini consent remains required. A ref locks repeated callbacks through both dialogs and the request.
@@ -53,3 +53,18 @@ The screenshots are native 1179×2556 captures. New #733 controls and central #7
 Physical iPhone acceptance requires one future bundled iOS build: real camera permission/shutter, photo-library providers, PDF Files/iCloud providers and background/foreground draft recovery, then the same cost → consent → edit → save/new-or-existing sequence in DE/EN. The simulator cannot prove physical camera capture. Real Gemini extraction quality and production LP ledger behavior were not exercised. Mobile has no OTA; merging this PR alone will not change installed phones. Batch these changes into the next user-requested build after the running-build/quota check.
 
 This evidence supports review of the PR. The issue remains open and no merge, deployment or paid build is part of this handoff.
+
+## Current-main refresh — 2026-10-11
+
+PR #766 now includes main `dcd9adef171a67b2efb4ec54a60afac704ced14d`, including #744 and the official ECR Public Postgres mirror from #764. Integration was conflict-free in a new isolated worktree using the existing PR branch. The scan runtime, LP/PDF helpers and localized resources are byte-for-byte unchanged from the original PR head `abaa369`; the source edits in this refresh only strengthen the mounted test harness and acceptance cases.
+
+The real `TargetDeckPickerModal` now renders in the Scan tests instead of being replaced by `null`. The new DE/EN acceptance cases also run the actual `createAiImportConsentGate`, with native primitives, API calls and storage substituted by local mocks. In each language they prove:
+
+- Camera, gallery and PDF show fresh 17/29 LP confirmation before either consent or API call; cost cancel and actual consent cancel send nothing, while both approvals send exactly once and deduct the approved cost.
+- Title/question edits survive focus changes; keeping the last card preserves them; a new deck receives the trimmed title and edited card. The title locks after save and the completed result resets on tab return.
+- An oversized PDF sends nothing; exactly 3,000,000 bytes / 4,000,000 base64 characters reaches both dialogs and saves through the real existing-deck picker, using its original title and ID without creating a deck.
+- A stored partial-save draft resumes without importing again, keeps its title locked and inserts only the remaining card into the remembered deck.
+
+Current results: **40 mounted tests**, **91 targeted tests across five files**, and complete `pnpm run ci` passed: **2,371 tests, including 943 mobile**, with **56 API database-dependent tests skipped locally** because `DATABASE_URL` is unset. The ten core regression tests still fail against unmodified current-main `scan.tsx` (10 failed / 30 skipped), then pass with the PR implementation. Full refresh logs are retained under `/Users/andreas/.codex/evidence/cloudlearn/issue-733/2026-10-11/`.
+
+The screenshots/readbacks above retain their 2026-10-09 provenance; no new native simulator or physical-device run is claimed for this refresh. The scan runtime was compared to that tested source and is unchanged. Physical camera, real providers, background recovery and production AI/LP behavior remain the separate device gates described above. No paid build, real AI request, production mutation, merge or issue closure was performed.

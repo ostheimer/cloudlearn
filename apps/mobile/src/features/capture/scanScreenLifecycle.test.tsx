@@ -22,6 +22,7 @@ vi.mock("expo-router", () => ({
 vi.mock("react-native", () => ({
   ActivityIndicator: "ActivityIndicator", Image: "Image", ScrollView: "ScrollView",
   Text: "Text", TextInput: "TextInput", TouchableOpacity: "TouchableOpacity", View: "View",
+  Modal: ({ visible, children }: { visible: boolean; children: React.ReactNode }) => visible ? children : null,
   Alert: { alert: mocks.alert }, Platform: { OS: "ios" },
   Animated: { Value: class { setValue() {} }, View: "View" },
   PanResponder: { create: () => ({ panHandlers: {} }) },
@@ -36,13 +37,13 @@ vi.mock("expo-image-manipulator", () => ({ SaveFormat: { JPEG: "jpeg" }, manipul
 vi.mock("expo-document-picker", () => ({ getDocumentAsync: mocks.pickPdf }));
 vi.mock("lucide-react-native", () => Object.fromEntries([
   "Camera", "CheckCircle2", "FileText", "ImageIcon", "PenLine", "Lightbulb", "Save", "RotateCcw",
-  "Sparkles", "ChevronRight", "Link2", "ArrowLeft", "Zap", "Layers", "Trash2", "Plus", "GripVertical",
+  "Sparkles", "ChevronRight", "Link2", "ArrowLeft", "Zap", "Layers", "Trash2", "Plus", "GripVertical", "X", "Search",
 ].map(name => [name, () => null])));
 function translate(key: string, values: Record<string, unknown> = {}) {
   const value = resources[mocks.language].translation[key as keyof typeof resources.de.translation] ?? key;
   return value.replace(/\{\{(\w+)\}\}/g, (_, name: string) => String(values[name] ?? `{{${name}}}`));
 }
-vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: translate }) }));
+vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: translate, i18n: { language: mocks.language } }) }));
 vi.mock("../../theme", () => ({ useColors: () => ({}), spacing: {}, radius: {}, typography: {}, shadows: {} }));
 vi.mock("../../store/sessionStore", () => ({ useSessionStore: (select: (s: { userId: string }) => unknown) => select({ userId: "local-test" }) }));
 vi.mock("../../store/usageStore", () => ({
@@ -58,7 +59,6 @@ vi.mock("../../lib/api", () => ({
 vi.mock("./scanDraft", () => ({ loadScanDraft: mocks.loadScanDraft, saveScanDraft: mocks.saveScanDraft, clearScanDraft: mocks.clearScanDraft }));
 vi.mock("../../lib/aiImportConsent", () => ({ createAiImportConsentGate: () => mocks.consent }));
 vi.mock("../../components/LpInsufficientModal", () => ({ LpInsufficientModal: () => null }));
-vi.mock("../../components/TargetDeckPickerModal", () => ({ default: () => null }));
 vi.mock("../../components/AuthPromptCard", () => ({ AuthPromptCard: () => null }));
 vi.mock("../../components/LpBadge", () => ({ LpBadge: () => null }));
 import ScanScreen from "../../../app/(tabs)/scan";
@@ -422,5 +422,125 @@ describe("#733 localized controls after #760 integration", () => {
     await press(translate("scan.pdfTitle"));
     expect(mocks.alert.mock.calls.at(-1)?.[1]).toBe(translate("scan.pdfTooLarge"));
     expect(mocks.importPdf).not.toHaveBeenCalled();
+  });
+});
+
+// Mount the real Scan screen, destination picker and per-send consent gate.
+// Only native primitives, local persistence and API boundaries are substituted.
+describe.each(["de", "en"] as const)("#766 mounted acceptance in %s", (language) => {
+  beforeEach(async () => {
+    mocks.language = language;
+    const { createAiImportConsentGate } = await vi.importActual<typeof import("../../lib/aiImportConsent")>("../../lib/aiImportConsent");
+    mocks.consent.mockImplementation(createAiImportConsentGate("ios"));
+  });
+
+  async function start(source: "camera" | "gallery" | "pdf") {
+    if (source !== "camera") return beginPress(translate(source === "pdf" ? "scan.pdfTitle" : "scan.galleryTitle"));
+    if (renderer.root.findAllByType("CameraView" as never).length === 0) await press(translate("scan.cameraTitle"));
+    let done!: Promise<void>;
+    await act(async () => { done = renderer.root.findByType("CameraView" as never).findAllByType("TouchableOpacity" as never)[0]!.props.onPress(); });
+    return { done };
+  }
+
+  async function approve(source: "camera" | "gallery" | "pdf") {
+    const { done } = await start(source);
+    await answer("scan.costConfirm");
+    expect(mocks.alert.mock.calls.at(-1)?.[0]).toBe(translate("scan.aiConsentTitle"));
+    await answer("scan.aiConsentSend");
+    await act(async () => { await done; });
+  }
+
+  it.each(["camera", "gallery", "pdf"] as const)("gates %s on fresh LP approval and then actual per-send consent", async (source) => {
+    await show(true);
+    const cost = source === "pdf" ? 29 : 17;
+    const api = source === "pdf" ? mocks.importPdf : mocks.scanImage;
+    const first = await start(source);
+    expect(mocks.alert.mock.calls.at(-1)?.[1]).toBe(translate("scan.costBody", { cost, balance: 400 }));
+    expect(api).not.toHaveBeenCalled();
+    expect(mocks.consent).not.toHaveBeenCalled();
+    await answer("scan.costCancel");
+    await act(async () => { await first.done; });
+    expect(api).not.toHaveBeenCalled();
+    expect(mocks.deductLp).not.toHaveBeenCalled();
+
+    const second = await start(source);
+    await answer("scan.costConfirm");
+    expect(mocks.alert.mock.calls.at(-1)?.[0]).toBe(translate("scan.aiConsentTitle"));
+    expect(mocks.alert.mock.calls.at(-1)?.[1]).toBe(translate(source === "pdf" ? "scan.aiConsent.pdf" : "scan.aiConsent.photo"));
+    expect(api).not.toHaveBeenCalled();
+    await answer("scan.aiConsentCancel");
+    await act(async () => { await second.done; });
+    expect(api).not.toHaveBeenCalled();
+    expect(mocks.deductLp).not.toHaveBeenCalled();
+
+    await approve(source);
+    expect(mocks.getLpBalance).toHaveBeenCalledTimes(3);
+    expect(api).toHaveBeenCalledOnce();
+    expect(mocks.deductLp).toHaveBeenCalledExactlyOnceWith(cost);
+  });
+
+  it("edits and keeps the last card, saves a new deck once, then resets the saved result on return", async () => {
+    await show(true);
+    await approve("gallery");
+    await act(async () => {
+      input("scan.previewTitle").props.onChangeText("  Ökologie – bearbeitet  ");
+      renderer.root.findAllByType("TextInput" as never).find(n => n.props.value === "Was ist Aufbaumen?")!.props.onChangeText("Geänderte Frage");
+    });
+    await show(false);
+    await show(true);
+    const deletion = renderer.root.findAllByType("TouchableOpacity" as never).find(n => n.props.accessibilityLabel === "Karte 1 löschen")!;
+    await act(async () => deletion.props.onPress());
+    expect(mocks.alert.mock.calls.at(-1)?.[1]).toBe(translate("scan.lastCardBody"));
+    await answer("scan.keepLastCard");
+    expect(input("scan.previewTitle").props.value).toBe("  Ökologie – bearbeitet  ");
+    await save();
+    expect(mocks.createDeck).toHaveBeenCalledExactlyOnceWith("local-test", "Ökologie – bearbeitet", ["scan", "auto"]);
+    expect(mocks.createCard).toHaveBeenCalledExactlyOnceWith("local-test", "saved-deck", expect.objectContaining({ front: "Geänderte Frage" }));
+    expect(input("scan.previewTitle").props.editable).toBe(false);
+    await show(false);
+    await show(true);
+    expect(button(translate("scan.galleryTitle"))).toBeDefined();
+    expect(text(renderer.root)).not.toContain("Karten gespeichert");
+    expect(mocks.createCard).toHaveBeenCalledOnce();
+  });
+
+  it("rejects an oversized PDF, accepts the exact boundary and saves through the real existing-deck picker", async () => {
+    mocks.listDecks.mockResolvedValue({ decks: [{ id: "existing", title: "Vorhandenes Deck", cardCount: 3 }] });
+    await show(true);
+    mocks.pickPdf.mockResolvedValue({ canceled: false, assets: [{ name: "large.pdf", size: 3_000_001, base64: "small" }] });
+    await press(translate("scan.pdfTitle"));
+    expect(mocks.alert.mock.calls.at(-1)?.[1]).toBe(translate("scan.pdfTooLarge"));
+    expect(mocks.getLpBalance).not.toHaveBeenCalled();
+    expect(mocks.importPdf).not.toHaveBeenCalled();
+    mocks.pickPdf.mockResolvedValue({ canceled: false, assets: [{ name: "boundary.pdf", size: 3_000_000, base64: "a".repeat(4_000_000) }] });
+    await approve("pdf");
+    await act(async () => input("scan.previewTitle").props.onChangeText("Darf das Ziel nicht umbenennen"));
+    await press("Karten speichern");
+    await answer("Bestehendes Deck");
+    expect(text(renderer.root)).toContain(translate("scanSave.pickDeck"));
+    await press("Vorhandenes Deck");
+    expect(mocks.listCardsInDeck).toHaveBeenCalledWith("existing");
+    expect(mocks.createDeck).not.toHaveBeenCalled();
+    expect(mocks.createCard).toHaveBeenCalledExactlyOnceWith("local-test", "existing", expect.objectContaining({ front: "PDF question" }));
+    expect(text(renderer.root)).toContain("Deck: Vorhandenes Deck");
+    expect(text(renderer.root)).toContain("1 Karten gespeichert");
+  });
+
+  it("restores a partial-save draft and inserts only the remaining card without creating another deck", async () => {
+    mocks.loadScanDraft.mockResolvedValue({ cards: [{ front: "Gespeichert", back: "A" }, { front: "Offen", back: "B" }], deckTitle: "Entwurf", savedDeckId: "partial" });
+    mocks.listCardsInDeck.mockResolvedValue({ cards: [{ front: "Gespeichert", back: "A" }] });
+    await show(true);
+    await press("Weitermachen");
+    expect(input("scan.previewTitle").props.value).toBe("Entwurf");
+    expect(input("scan.previewTitle").props.editable).toBe(false);
+    expect(mocks.scanImage).not.toHaveBeenCalled();
+    expect(mocks.consent).not.toHaveBeenCalled();
+    await show(false);
+    await show(true);
+    await press("Karten speichern");
+    await answer("Neues Deck");
+    expect(mocks.createDeck).not.toHaveBeenCalled();
+    expect(mocks.createCard).toHaveBeenCalledExactlyOnceWith("local-test", "partial", { front: "Offen", back: "B" });
+    expect(text(renderer.root)).toContain("2 Karten gespeichert");
   });
 });
