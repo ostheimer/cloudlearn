@@ -72,4 +72,26 @@ Der Main-Lauf [38166928476](https://github.com/ostheimer/cloudlearn/actions/runs
 - Web: `dpl_9eHNrJdNbHhrER5TFjLtN1nLi68r`.
 - CloudLearn: `dpl_69eQwP2tCdmsfktDoWiqST4zJYHM`.
 
-Die drei bestehenden Implementierungs-Chats wurden mit dem aktuellen Main-Stand fortgesetzt: #761/#762 für Web-Bilder und Maskenverwaltung, #765 für Tastatur/Fokus und #766 für Scan-Kosten/Vorschau. Vor einer Übernahme werden die aktuellen Heads neu geprüft. Die Datenbankfunktion von #762 muss vor der abhängigen API-Veröffentlichung installiert und gelesen werden. Keine bezahlten App-Builds, echten KI-Aufrufe oder Nutzer-Datenänderungen wurden hierfür beauftragt.
+Die drei bestehenden Implementierungs-Chats wurden mit dem aktuellen Main-Stand fortgesetzt: #761/#762 für Web-Bilder und Maskenverwaltung, #765 für Tastatur/Fokus und #766 für Scan-Kosten/Vorschau. Die jeweils aktuellen Heads wurden unabhängig geprüft. Keine bezahlten App-Builds, echten KI-Aufrufe oder Nutzer-Datenänderungen wurden hierfür gestartet.
+
+### Übernommene Web- und Scan-Korrekturen
+
+| PR | Main-SHA | Erfolgreiche Main-CI | API / Web / CloudLearn, jeweils READY und production |
+| --- | --- | --- | --- |
+| #761 | `464f8c35380edb627958106418aabc4fc933056a` | [38167461227](https://github.com/ostheimer/cloudlearn/actions/runs/38167461227) | `dpl_9LENud74tdPEv4UffdrEsZcgbgnP` / `dpl_8eegXmWdaGzNhBe6rbrFYacsgbnP` / `dpl_6MW1HQSYvL8bVZC8fP9oDmVSu6Mg` |
+| #765 | `c24d3aa49b7eb6237248d243d8e502e3cf2046f9` | [38167640385](https://github.com/ostheimer/cloudlearn/actions/runs/38167640385) | `dpl_AzjhGSJmv5kxxBEvsGVY8PRF9m9X` / `dpl_AhBnUh1hdhen98jExNCztkKcudL7` / `dpl_J4YUcU5NdixWnPanoj8miNqqFUBj` |
+| #766 | `eac2d94bc691b72a538e587e3f8c9f1d8e774780` | [38167847498](https://github.com/ostheimer/cloudlearn/actions/runs/38167847498) | `dpl_2gsumBH7GCng9HKWCvFzTd3jDZNn` / `dpl_2Awehg49VNneXpu2K3HMEKq5QyM5` / `dpl_FkmgRohmxMFeKFCrgjVqi96z1QeF` |
+
+#761 schließt #730: Quiz/Match zeigen gewöhnliche Kartenbilder auf der passenden Seite; Bildfragen verraten ihre Antwort nicht durch die Bildbeschriftung. Lokale DE/EN-Inhalts-/Locale-Prüfungen auf Desktop und Mobile verwenden synthetische API-/Bilddaten. Occlusion bleibt ein eigener Lernmodus.
+
+#765 korrigiert sechs eng abgegrenzte Punkte aus #703. 52 Browserfälle, 24 gezielte Tests und Typecheck wurden auf dem aktuellen Head wiederholt. Tastaturbewertungen sind während der Kartenbearbeitung gesperrt; Dialoge und Menüs führen den Fokus kontrolliert zurück. #703 bleibt für seine übrigen Punkte offen.
+
+#766 implementiert die vier Scan-Punkte aus #733. Vor dem separaten KI-Consent wird der aktuelle LP-Preis bestätigt; Abbrechen erhält den Entwurf. Titeländerungen, Schutz der letzten Vorschaukarte und PDF-Größengrenzen sind mit echten gemounteten Komponenten geprüft. Zehn reproduzierte Fehlerfälle wurden vor dem Fix rot und danach grün ausgeführt; 91 gezielte Fälle und 2.371 lokale Tests bestanden. Die datierte iPhone-15-/iOS-26.5-Simulatorprüfung vom 9. Oktober verwendet synthetische Daten und blieb für den unveränderten Runtime-Code gültig. #733 bleibt bis zum gebündelten Build und der physischen Geräteabnahme offen. Ein Vercel-Deployment aktualisiert keine installierte iPhone-App.
+
+### Verbleibende Grenzen
+
+Die Liste „Noch offen“ oben ist der Stand vom 9. Oktober; diese Ergänzung ersetzt dessen inzwischen erledigte Implementierungspunkte. Der CI-Chat und die abgeschlossenen Tastatur-/Scan-Chats wurden archiviert; Gerätegates bleiben in den Issues sichtbar.
+
+#85 bleibt offen: `E2E Live` ist manuell deaktiviert und die vier Repository-Secrets `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `TEST_USER_EMAIL`, `TEST_USER_PASSWORD` fehlen. Der vorhandene Ablauf würde synthetische Testdatensätze produktiv erstellen, ändern und löschen. Ein dediziertes Testkonto und die Autorisierung dieses konkreten Live-Testwegs fehlen; kein Erfolgsnachweis aus einem übersprungenen Lauf ableiten.
+
+#758 bleibt vorbereitet und ungemergt: Google-Projekt und bewilligte Budgets fehlen. Die deaktivierten Standardwerte würden neue KI-Aufrufe blockieren. Budgetaktivierung, bezahlte Gerätebuilds und tatsächliche Geräteabnahme wurden nicht durch allgemeine CI-/Web-Erfolge ersetzt. Apple-Screenshot-/Dashboard-Angaben oben sind weiterhin die datierte Momentaufnahme, kein frisch bestätigter Status.
