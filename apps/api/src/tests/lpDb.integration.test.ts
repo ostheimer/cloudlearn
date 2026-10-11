@@ -33,6 +33,7 @@ do $$ begin
   if not exists (select from pg_roles where rolname = 'service_role') then
     create role service_role;
   end if;
+exception when duplicate_object then null;
 end $$;
 -- Drop dependent tables too: CASCADE on profiles removes their foreign keys,
 -- not the tables, so reruns could otherwise retain rows without cleanup links.
