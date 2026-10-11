@@ -385,6 +385,7 @@ export default function OcclusionLearnPage() {
         </button>
 
         <div className="center" style={{ marginTop: 12 }}>
+          <Link href={`/dashboard/deck/${deckId}/occlusion/images`} className="btn btn-ghost">Deine Bilder</Link>
           <Link
             href={`/dashboard/deck/${deckId}/occlusion/new`}
             className="btn btn-ghost"
