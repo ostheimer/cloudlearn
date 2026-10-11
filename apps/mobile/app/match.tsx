@@ -9,11 +9,12 @@ import {
   View,
   Dimensions,
 } from "react-native";
+import { useTranslation } from "react-i18next";
+import { StudyResult, repeatResultActions } from "../src/components/StudyResult";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   Trophy,
-  RotateCcw,
   Timer,
   Star,
   Pencil,
@@ -80,6 +81,7 @@ type Phase = "setup" | "playing" | "finished";
 
 export default function MatchScreen() {
   const colors = useColors();
+  const { t } = useTranslation();
   const userId = useSessionStore((s) => s.userId);
   const displayName = useDisplayName();
   const setUsage = useUsageStore((s) => s.setUsage);
@@ -701,10 +703,11 @@ export default function MatchScreen() {
   // Results
   if (phase === "finished") {
     const stars = errors === 0 ? 3 : errors <= 2 ? 2 : errors <= 4 ? 1 : 0;
+    const missedCards = gameCards.filter((card) => missedIds.has(card.id) && matchTileTexts(card) !== null);
 
     return (
       <>
-        {screenHeader("Ergebnis", "Zurück")}
+        {screenHeader(t("study.result"), t("study.back"))}
         <SafeAreaView
           edges={["bottom"]}
           style={{ flex: 1, backgroundColor: colors.background }}
@@ -714,226 +717,172 @@ export default function MatchScreen() {
               flexGrow: 1,
               justifyContent: "center",
               alignItems: "center",
-              padding: spacing.xxl,
+              paddingVertical: spacing.xl,
+              paddingHorizontal: spacing.sm,
               gap: spacing.xl,
             }}
             showsVerticalScrollIndicator={false}
           >
-            <View
-              style={{
-                width: 80,
-                height: 80,
-                borderRadius: 40,
-                backgroundColor: colors.successLight,
-                justifyContent: "center",
-                alignItems: "center",
-              }}
+            <StudyResult
+              headline={timed ? formatTime(elapsed) : t(displayName ? "study.matchDoneNamed" : "study.matchDone", { name: displayName })}
+              actions={repeatResultActions({
+                t, missedCount: missedCards.length, minimumMissed: 2,
+                retryMissed: () => startGame(missedCards, timed),
+                retryAll: () => startGame(playable, timed),
+                settings: () => setPhase("setup"),
+              })}
             >
-              {/* Immer die grüne Trophäe im grünen Kreis, auch ohne Zeit-Modus
-                  (App-Kanon, Stil A aus #595 Teil C / #699). */}
-              <Trophy size={40} color={colors.success} />
-            </View>
-
-            {/* Headline: time in Challenge, "Geschafft!" in Übungsmodus */}
-            <Text
-              style={{
-                fontSize: typography.xxxl,
-                fontWeight: typography.extrabold,
-                color: colors.text,
-              }}
-            >
-              {timed ? formatTime(elapsed) : `Geschafft${displayName ? `, ${displayName}` : ""}!`}
-            </Text>
-
-            {timed && isNewBest && (
-              <View
-                style={{
-                  backgroundColor: colors.warningLight,
-                  paddingHorizontal: spacing.lg,
-                  paddingVertical: spacing.sm,
-                  borderRadius: radius.full ?? 999,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: spacing.xs,
-                }}
-              >
-                <Trophy size={16} color={colors.warning} />
-                <Text
+              {timed && isNewBest && (
+                <View
                   style={{
-                    color: colors.warning,
-                    fontWeight: typography.bold,
-                    fontSize: typography.base,
+                    backgroundColor: colors.warningLight,
+                    paddingHorizontal: spacing.lg,
+                    paddingVertical: spacing.sm,
+                    borderRadius: radius.full ?? 999,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: spacing.xs,
                   }}
                 >
-                  Neue Bestzeit!
-                </Text>
-              </View>
-            )}
-
-            {/* Punkte-Rückmeldung, seit #611 geteilt: „+0 Lernpunkte" wird
-                weiterhin nicht behauptet — aber wenn der Tagesdeckel der Grund
-                ist, steht das jetzt da. */}
-            <LpRoundSummary earned={earnedLp} capReached={earnCapReached} dailyGoalText={dailyGoalText} />
-
-            <View style={{ flexDirection: "row", gap: spacing.sm }}>
-              {[0, 1, 2].map((i) => (
-                <Star
-                  key={i}
-                  size={28}
-                  color={i < stars ? colors.warning : colors.surfaceSecondary}
-                  fill={i < stars ? colors.warning : "none"}
-                />
-              ))}
-            </View>
-
-            <View style={{ gap: spacing.xs, alignItems: "center" }}>
-              <Text style={{ fontSize: typography.lg, color: colors.textSecondary }}>
-                {gameCards.length} Paare zugeordnet
-              </Text>
-              <Text
-                style={{
-                  fontSize: typography.base,
-                  color: errors === 0 ? colors.success : colors.error,
-                }}
-              >
-                {errors === 0 ? "Keine Fehler!" : `${errors} Fehler`}
-              </Text>
-              {timed && !isNewBest && bestTime != null && (
-                <Text
-                  style={{
-                    fontSize: typography.sm,
-                    color: colors.textTertiary,
-                    marginTop: spacing.xs,
-                  }}
-                >
-                  Bestzeit: {formatTime(bestTime)}
-                </Text>
+                  <Trophy size={16} color={colors.warning} />
+                  <Text
+                    style={{
+                      color: colors.warning,
+                      fontWeight: typography.bold,
+                      fontSize: typography.base,
+                    }}
+                  >
+                    {t("study.newBest")}
+                  </Text>
+                </View>
               )}
-            </View>
 
-            {/* Stern + Stift NUR hier im Ergebnis (Laras Entscheidung, #610) —
-                nicht live während der Runde, damit der Zeit-Modus nicht durch
-                Bearbeiten unterbrochen wird. */}
-            {gameCards.length > 0 && (
-              <View style={{ width: "100%", gap: spacing.sm }}>
+              {/* Punkte-Rückmeldung, seit #611 geteilt: „+0 Lernpunkte" wird
+                  weiterhin nicht behauptet — aber wenn der Tagesdeckel der Grund
+                  ist, steht das jetzt da. */}
+              <LpRoundSummary earned={earnedLp} capReached={earnCapReached} dailyGoalText={dailyGoalText} />
+
+              <View style={{ flexDirection: "row", gap: spacing.sm }}>
+                {[0, 1, 2].map((i) => (
+                  <Star
+                    key={i}
+                    size={28}
+                    color={i < stars ? colors.warning : colors.surfaceSecondary}
+                    fill={i < stars ? colors.warning : "none"}
+                  />
+                ))}
+              </View>
+
+              <View style={{ gap: spacing.xs, alignItems: "center" }}>
+                <Text style={{ fontSize: typography.lg, color: colors.textSecondary }}>
+                  {t("study.matchedPairs", { count: gameCards.length })}
+                </Text>
                 <Text
                   style={{
-                    fontSize: typography.xs,
-                    fontWeight: typography.bold,
-                    textTransform: "uppercase",
-                    letterSpacing: 0.5,
-                    color: colors.textTertiary,
+                    fontSize: typography.base,
+                    color: errors === 0 ? colors.success : colors.error,
                   }}
                 >
-                  Karten dieser Runde
+                  {errors === 0 ? t("study.noErrors") : t("study.errors", { count: errors })}
                 </Text>
-                {gameCards.map((card) => {
-                  const texts = matchTileTexts(card) ?? { front: card.front, back: card.back };
-                  const missed = missedIds.has(card.id);
-                  return (
-                    <View
-                      key={card.id}
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: spacing.sm,
-                        backgroundColor: missed ? colors.warningLight : colors.surface,
-                        borderRadius: radius.md,
-                        borderWidth: 1,
-                        borderColor: missed ? colors.warning : colors.border,
-                        padding: 12,
-                      }}
-                    >
-                      <View style={{ flex: 1, minWidth: 0 }}>
-                        <Text
-                          style={{ fontWeight: typography.semibold, color: colors.text, fontSize: typography.sm }}
-                          numberOfLines={1}
-                        >
-                          {texts.front}
-                        </Text>
-                        <Text
-                          style={{ color: colors.textSecondary, fontSize: typography.sm, marginTop: 2 }}
-                          numberOfLines={1}
-                        >
-                          {texts.back}
-                        </Text>
-                      </View>
-                      <TouchableOpacity
-                        onPress={() => toggleCardStar(card.id, starredMap, setStarredMap)}
-                        accessibilityRole="button"
-                        accessibilityLabel={
-                          starredMap[card.id] ? "Markierung entfernen" : "Karte markieren"
-                        }
-                        accessibilityState={{ selected: starredMap[card.id] ?? false }}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      >
-                        <Star
-                          size={18}
-                          color={starredMap[card.id] ? colors.warning : colors.textTertiary}
-                          fill={starredMap[card.id] ? colors.warning : "none"}
-                        />
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => {
-                          setCardEditorError(null);
-                          setEditingCardId(card.id);
-                        }}
-                        accessibilityRole="button"
-                        accessibilityLabel="Karte bearbeiten"
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      >
-                        <Pencil size={17} color={colors.textTertiary} />
-                      </TouchableOpacity>
-                    </View>
-                  );
-                })}
-                {missedIds.size > 0 && (
-                  <Text style={{ fontSize: typography.xs, color: colors.textTertiary }}>
-                    Orange umrandet: beim Zuordnen nicht auf Anhieb gewusst.
+                {timed && !isNewBest && bestTime != null && (
+                  <Text
+                    style={{
+                      fontSize: typography.sm,
+                      color: colors.textTertiary,
+                      marginTop: spacing.xs,
+                    }}
+                  >
+                    {t("study.bestTime", { time: formatTime(bestTime) })}
                   </Text>
                 )}
               </View>
-            )}
 
-            <View style={{ width: "100%", gap: spacing.sm }}>
-              <TouchableOpacity
-                onPress={() => startGame(playable, timed)}
-                style={{
-                  backgroundColor: colors.primary,
-                  paddingVertical: 14,
-                  borderRadius: radius.md,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: spacing.sm,
-                }}
-              >
-                <RotateCcw size={18} color={colors.textInverse} />
-                <Text
-                  style={{ color: colors.textInverse, fontWeight: typography.bold }}
-                >
-                  Alle nochmal
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setPhase("setup")}
-                style={{
-                  paddingVertical: 12,
-                  borderRadius: radius.md,
-                  alignItems: "center",
-                }}
-              >
-                <Text
-                  style={{
-                    color: colors.textSecondary,
-                    fontWeight: typography.semibold,
-                    fontSize: typography.base,
-                  }}
-                >
-                  Einstellungen
-                </Text>
-              </TouchableOpacity>
-            </View>
+              {/* Stern + Stift NUR hier im Ergebnis (Laras Entscheidung, #610) —
+                  nicht live während der Runde, damit der Zeit-Modus nicht durch
+                  Bearbeiten unterbrochen wird. */}
+              {gameCards.length > 0 && (
+                <View style={{ width: "100%", gap: spacing.sm }}>
+                  <Text
+                    style={{
+                      fontSize: typography.xs,
+                      fontWeight: typography.bold,
+                      textTransform: "uppercase",
+                      letterSpacing: 0.5,
+                      color: colors.textTertiary,
+                    }}
+                  >
+                    {t("study.roundCards")}
+                  </Text>
+                  {gameCards.map((card) => {
+                    const texts = matchTileTexts(card) ?? { front: card.front, back: card.back };
+                    const missed = missedIds.has(card.id);
+                    return (
+                      <View
+                        key={card.id}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: spacing.sm,
+                          backgroundColor: missed ? colors.warningLight : colors.surface,
+                          borderRadius: radius.md,
+                          borderWidth: 1,
+                          borderColor: missed ? colors.warning : colors.border,
+                          padding: 12,
+                        }}
+                      >
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <Text
+                            style={{ fontWeight: typography.semibold, color: colors.text, fontSize: typography.sm }}
+                            numberOfLines={1}
+                          >
+                            {texts.front}
+                          </Text>
+                          <Text
+                            style={{ color: colors.textSecondary, fontSize: typography.sm, marginTop: 2 }}
+                            numberOfLines={1}
+                          >
+                            {texts.back}
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          onPress={() => toggleCardStar(card.id, starredMap, setStarredMap)}
+                          accessibilityRole="button"
+                          accessibilityLabel={
+                            starredMap[card.id] ? "Markierung entfernen" : "Karte markieren"
+                          }
+                          accessibilityState={{ selected: starredMap[card.id] ?? false }}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Star
+                            size={18}
+                            color={starredMap[card.id] ? colors.warning : colors.textTertiary}
+                            fill={starredMap[card.id] ? colors.warning : "none"}
+                          />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => {
+                            setCardEditorError(null);
+                            setEditingCardId(card.id);
+                          }}
+                          accessibilityRole="button"
+                          accessibilityLabel="Karte bearbeiten"
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Pencil size={17} color={colors.textTertiary} />
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  })}
+                  {missedIds.size > 0 && (
+                    <Text style={{ fontSize: typography.xs, color: colors.textTertiary }}>
+                      {t("study.missedPairHint")}
+                    </Text>
+                  )}
+                </View>
+              )}
+
+            </StudyResult>
           </ScrollView>
         </SafeAreaView>
         <CardEditor

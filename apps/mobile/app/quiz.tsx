@@ -16,8 +16,6 @@ import {
   XCircle,
   ArrowLeft,
   ArrowRight,
-  Trophy,
-  RotateCcw,
   HelpCircle,
   Brain,
   Zap,
@@ -25,6 +23,7 @@ import {
   Pencil,
 } from "lucide-react-native";
 import { earnLp, getStats, listCardsInDeck, updateCard, type Card } from "../src/lib/api";
+import { StudyResult, repeatResultActions } from "../src/components/StudyResult";
 import CardEditor from "../src/components/CardEditor";
 import { dailyGoalLine } from "../src/lib/dailyGoalLine";
 import { cardEditorErrorMessage } from "../src/lib/cardEditorError";
@@ -440,7 +439,6 @@ export default function QuizScreen() {
   // Multiple Choice braucht mindestens 2 Karten für Ablenker — bei genau
   // einer falschen lieferte generateQuestions keine Fragen und der Knopf war
   // tot (#592); wie im Web erst ab 2 zeigen.
-  const canRetryWrong = wrongCards.length >= 2;
   const startQuizFrom = (sourceCards: Card[]) => {
     const q = generateQuestions(sourceCards, Math.min(count, sourceCards.length), quizCopy, Math.random, {
       reverse,
@@ -795,7 +793,7 @@ export default function QuizScreen() {
       <>
         <Stack.Screen
           options={{
-            title: "Ergebnis",
+            title: t("study.result"),
             headerBackTitle: "Zurück",
             headerTintColor: colors.primary,
             headerStyle: { backgroundColor: colors.background },
@@ -807,130 +805,114 @@ export default function QuizScreen() {
         >
           <ScrollView
             contentContainerStyle={{
-              padding: spacing.xxl,
+              paddingVertical: spacing.xl,
+              paddingHorizontal: spacing.sm,
               gap: spacing.xl,
               alignItems: "center",
             }}
           >
-            {/* Trophy — always green: a finished round is no fail; the
-                red/yellow/green grade belongs to the Test (Quiz is a learning
-                mode with instant per-question feedback). */}
-            <View
-              style={{
-                width: 80,
-                height: 80,
-                borderRadius: 40,
-                backgroundColor: colors.successLight,
-                justifyContent: "center",
-                alignItems: "center",
-                marginTop: spacing.xl,
-              }}
+            <StudyResult
+              headline={`${scorePercent}%`}
+              subtitle={t("study.correctCount", { correct: correctCount, total: answers.length })}
+              actions={repeatResultActions({
+                t, missedCount: wrongCards.length, minimumMissed: 2,
+                retryMissed: () => startQuizFrom(wrongCards), retryAll: startQuiz,
+                settings: () => setInSetup(true),
+              })}
             >
-              <Trophy size={40} color={colors.success} />
-            </View>
+              <Text
+                style={{
+                  fontSize: typography.base,
+                  color: colors.textTertiary,
+                  textAlign: "center",
+                }}
+              >
+                {correctCount === answers.length
+                  ? t(displayName ? "study.quizExcellentNamed" : "study.quizExcellent", { name: displayName })
+                  : scorePercent >= 80
+                  ? t("study.quizExcellent")
+                  : scorePercent >= 50
+                  ? t("study.quizGood")
+                  : t("study.quizKeepPracticing")}
+              </Text>
 
-            <Text
-              style={{
-                fontSize: typography.xxxl,
-                fontWeight: typography.extrabold,
-                color: colors.text,
-              }}
-            >
-              {scorePercent}%
-            </Text>
+              {/* Punkte-Rückmeldung, seit #611 geteilt: „+0 Lernpunkte" wird
+                  weiterhin nicht behauptet — aber wenn der Tagesdeckel der Grund
+                  ist, steht das jetzt da, statt die Frage offen zu lassen. */}
+              <LpRoundSummary earned={earnedLp} capReached={earnCapReached} dailyGoalText={dailyGoalText} />
 
-            <Text
-              style={{
-                fontSize: typography.base,
-                color: colors.text,
-              }}
-            >
-              {correctCount} von {answers.length} richtig
-            </Text>
-
-            <Text
-              style={{
-                fontSize: typography.base,
-                color: colors.textTertiary,
-                textAlign: "center",
-              }}
-            >
-              {correctCount === answers.length
-                ? `Hervorragend${displayName ? `, ${displayName}` : ""}! Du beherrschst den Stoff.`
-                : scorePercent >= 80
-                ? "Hervorragend! Du beherrschst den Stoff."
-                : scorePercent >= 50
-                ? "Gut! Etwas mehr Übung und du hast es drauf."
-                : "Weiter üben! Wiederholung ist der Schlüssel."}
-            </Text>
-
-            {/* Punkte-Rückmeldung, seit #611 geteilt: „+0 Lernpunkte" wird
-                weiterhin nicht behauptet — aber wenn der Tagesdeckel der Grund
-                ist, steht das jetzt da, statt die Frage offen zu lassen. */}
-            <LpRoundSummary earned={earnedLp} capReached={earnCapReached} dailyGoalText={dailyGoalText} />
-
-            {/* Answer summary */}
-            <View style={{ width: "100%", gap: spacing.sm }}>
-              {questions.map((q, i) => {
-                const wasCorrect = answers[i];
-                return (
-                  <View
-                    key={i}
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: spacing.md,
-                      backgroundColor: colors.surface,
-                      padding: spacing.md,
-                      borderRadius: radius.md,
-                      borderWidth: 1,
-                      borderColor: wasCorrect
-                        ? colors.success + "40"
-                        : colors.error + "40",
-                    }}
-                  >
-                    {wasCorrect ? (
-                      <CheckCircle2 size={20} color={colors.success} />
-                    ) : (
-                      <XCircle size={20} color={colors.error} />
-                    )}
-                    <View style={{ flex: 1 }}>
-                      {/* Wahr/Falsch: nur die Vorderseite plus „Richtig: Falsch"
-                          las sich wie ein Widerspruch, weil die geprüfte
-                          Zuordnung fehlte (#497). Farbe = hast du die Frage
-                          getroffen, Zeichen (=/≠) = gehört das Paar wirklich
-                          zusammen; der Satz nennt den getippten Knopf wörtlich
-                          und bei einem Schwindel-Paar folgt die echte Antwort. */}
-                      <Text
-                        style={{
-                          fontSize: typography.sm,
-                          color: colors.text,
-                          fontWeight: typography.medium,
-                        }}
-                        numberOfLines={q.type === "trueFalse" ? 3 : 1}
-                      >
-                        {q.type === "trueFalse"
-                          ? `${q.tfPairing!.front} ${q.tfPairing!.isCorrect ? "=" : "≠"} ${q.tfPairing!.back}`
-                          : q.questionText}
-                      </Text>
-                      {q.type === "trueFalse" && q.tfPairing ? (
-                        <>
-                          <Text
-                            style={{
-                              fontSize: typography.xs,
-                              color: colors.textSecondary,
-                              marginTop: 2,
-                            }}
-                          >
-                            {`Du hast „${
-                              wasCorrect === q.tfPairing.isCorrect ? "Richtig" : "Falsch"
-                            }“ getippt — ${
-                              wasCorrect ? "passt:" : "doch"
-                            } das Paar gehört ${
-                              q.tfPairing.isCorrect ? "wirklich" : "nicht"
-                            } zusammen.`}
-                          </Text>
-                          {!q.tfPairing.isCorrect && (
+              {/* Answer summary */}
+              <View style={{ width: "100%", gap: spacing.sm }}>
+                {questions.map((q, i) => {
+                  const wasCorrect = answers[i];
+                  return (
+                    <View
+                      key={i}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: spacing.md,
+                        backgroundColor: colors.surface,
+                        padding: spacing.md,
+                        borderRadius: radius.md,
+                        borderWidth: 1,
+                        borderColor: wasCorrect
+                          ? colors.success + "40"
+                          : colors.error + "40",
+                      }}
+                    >
+                      {wasCorrect ? (
+                        <CheckCircle2 size={20} color={colors.success} />
+                      ) : (
+                        <XCircle size={20} color={colors.error} />
+                      )}
+                      <View style={{ flex: 1 }}>
+                        {/* Wahr/Falsch: nur die Vorderseite plus „Richtig: Falsch"
+                            las sich wie ein Widerspruch, weil die geprüfte
+                            Zuordnung fehlte (#497). Farbe = hast du die Frage
+                            getroffen, Zeichen (=/≠) = gehört das Paar wirklich
+                            zusammen; der Satz nennt den getippten Knopf wörtlich
+                            und bei einem Schwindel-Paar folgt die echte Antwort. */}
+                        <Text
+                          style={{
+                            fontSize: typography.sm,
+                            color: colors.text,
+                            fontWeight: typography.medium,
+                          }}
+                          numberOfLines={q.type === "trueFalse" ? 3 : 1}
+                        >
+                          {q.type === "trueFalse"
+                            ? `${q.tfPairing!.front} ${q.tfPairing!.isCorrect ? "=" : "≠"} ${q.tfPairing!.back}`
+                            : q.questionText}
+                        </Text>
+                        {q.type === "trueFalse" && q.tfPairing ? (
+                          <>
+                            <Text
+                              style={{
+                                fontSize: typography.xs,
+                                color: colors.textSecondary,
+                                marginTop: 2,
+                              }}
+                            >
+                              {t(wasCorrect ? "study.pairAnswerCorrect" : "study.pairAnswerWrong", {
+                                answer: t(wasCorrect === q.tfPairing.isCorrect ? "quiz.trueLabel" : "quiz.falseLabel"),
+                                pairing: t(q.tfPairing.isCorrect ? "study.pairBelongs" : "study.pairDoesNotBelong"),
+                              })}
+                            </Text>
+                            {!q.tfPairing.isCorrect && (
+                              <Text
+                                style={{
+                                  fontSize: typography.xs,
+                                  color: colors.success,
+                                  marginTop: 2,
+                                }}
+                              >
+                                {t("study.actualAnswer", { answer: q.tfPairing.correctBack })}
+                              </Text>
+                            )}
+                          </>
+                        ) : (
+                          !wasCorrect && (
                             <Text
                               style={{
                                 fontSize: typography.xs,
@@ -938,90 +920,17 @@ export default function QuizScreen() {
                                 marginTop: 2,
                               }}
                             >
-                              Tatsächlich gehört dazu: {q.tfPairing.correctBack}
+                              {t("study.correctAnswer", { answer: q.correctAnswer })}
                             </Text>
-                          )}
-                        </>
-                      ) : (
-                        !wasCorrect && (
-                          <Text
-                            style={{
-                              fontSize: typography.xs,
-                              color: colors.success,
-                              marginTop: 2,
-                            }}
-                          >
-                            Richtig: {q.correctAnswer}
-                          </Text>
-                        )
-                      )}
+                          )
+                        )}
+                      </View>
                     </View>
-                  </View>
-                );
-              })}
-            </View>
+                  );
+                })}
+              </View>
 
-            {/* Actions */}
-            <View style={{ width: "100%", gap: spacing.sm }}>
-              {canRetryWrong && (
-                <TouchableOpacity
-                  onPress={() => startQuizFrom(wrongCards)}
-                  style={{
-                    backgroundColor: colors.primary,
-                    paddingVertical: 14,
-                    borderRadius: radius.md,
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Text style={{ color: colors.textInverse, fontWeight: typography.bold }}>
-                    Nur die nicht gewussten ({wrongCards.length})
-                  </Text>
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity
-                onPress={startQuiz}
-                style={{
-                  backgroundColor: canRetryWrong ? colors.surface : colors.primary,
-                  borderWidth: canRetryWrong ? 1 : 0,
-                  borderColor: colors.border,
-                  paddingVertical: 14,
-                  borderRadius: radius.md,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: spacing.sm,
-                }}
-              >
-                <RotateCcw size={18} color={canRetryWrong ? colors.text : colors.textInverse} />
-                <Text
-                  style={{
-                    color: canRetryWrong ? colors.text : colors.textInverse,
-                    fontWeight: typography.bold,
-                  }}
-                >
-                  Alle nochmal
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setInSetup(true)}
-                style={{
-                  paddingVertical: 12,
-                  borderRadius: radius.md,
-                  alignItems: "center",
-                }}
-              >
-                <Text
-                  style={{
-                    color: colors.textSecondary,
-                    fontWeight: typography.semibold,
-                    fontSize: typography.base,
-                  }}
-                >
-                  Einstellungen
-                </Text>
-              </TouchableOpacity>
-            </View>
+            </StudyResult>
           </ScrollView>
         </SafeAreaView>
       </>

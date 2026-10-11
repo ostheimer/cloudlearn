@@ -33,12 +33,12 @@ import {
   ArrowLeftRight,
   Star,
   Pencil,
-  Trophy,
   Volume2,
   Play,
   Pause,
   Timer,
 } from "lucide-react-native";
+import { StudyResult } from "../../src/components/StudyResult";
 import CardEditor from "../../src/components/CardEditor";
 import * as Speech from "expo-speech";
 import { AUTO_PLAY_SPEEDS, loadAutoPlaySpeed, saveAutoPlaySpeed } from "../../src/lib/autoplaySpeed";
@@ -1161,80 +1161,22 @@ function AuthenticatedLearnScreen({
                 </View>
               </View>
             ) : (
-              // Result: how many known + re-study only the missed ones. Same
-              // "Lernen" frame as the other modes — green trophy, never red, a
-              // finished round is never a fail.
-              <View style={{ flex: 1, justifyContent: "center", alignItems: "center", gap: spacing.md, paddingHorizontal: spacing.lg }}>
-                <View style={{
-                  width: 72, height: 72, borderRadius: 36, backgroundColor: c.successLight,
-                  justifyContent: "center", alignItems: "center",
-                }}>
-                  <Trophy size={34} color={c.success} />
-                </View>
-                <Text style={{ fontSize: typography.xxxl, fontWeight: typography.extrabold, textAlign: "center", color: c.text }}>
-                  {displayName
-                    ? t("review.resultTitleNamed", { name: displayName })
-                    : t("review.resultTitle")}
-                </Text>
-                <Text style={{ color: c.textSecondary, textAlign: "center", fontSize: typography.base }}>
-                  {resultTotal === 1
-                    ? t("review.resultBodyOne", { known: knownCount })
-                    : t("review.resultBody", { total: resultTotal, known: knownCount })}
-                </Text>
-                {/* Punkte-Rückmeldung (#611). Vorher rechnete dieser Bildschirm
-                    erst beim VERLASSEN ab — hier konnte also gar nichts stehen,
-                    und wer 20 Karten gelernt hatte, erfuhr nie, ob und warum
-                    Punkte ausblieben. */}
-                <LpRoundSummary earned={earnedLp} capReached={earnCapReached} dailyGoalText={dailyGoalText} />
-                <View style={{ width: "100%", maxWidth: 340, gap: spacing.sm, marginTop: spacing.sm }}>
-                  {missedCards.length > 0 && (
-                    <TouchableOpacity
-                      onPress={() => {
-                        void (async () => {
-                          await rearmForNextRound();
-                          start(missedCards);
-                        })();
-                      }}
-                      activeOpacity={0.85}
-                      style={{
-                        backgroundColor: c.primary, borderRadius: radius.md, paddingVertical: 14,
-                        alignItems: "center", justifyContent: "center",
-                      }}
-                    >
-                      <Text style={{ color: "#fff", fontWeight: typography.bold, fontSize: typography.base }}>
-                        {t("review.onlyWrong", { count: missedCards.length })}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                  <TouchableOpacity
-                    onPress={() => {
-                      void (async () => {
-                        await rearmForNextRound();
-                        await loadDueCards();
-                      })();
-                    }}
-                    activeOpacity={0.85}
-                    style={{
-                      backgroundColor: missedCards.length > 0 ? c.surface : c.primary,
-                      borderWidth: missedCards.length > 0 ? 1 : 0, borderColor: c.border,
-                      borderRadius: radius.md, paddingVertical: 14,
-                      flexDirection: "row", gap: spacing.sm, alignItems: "center", justifyContent: "center",
-                    }}
-                  >
-                    <RotateCcw size={18} color={missedCards.length > 0 ? c.text : "#fff"} />
-                    <Text style={{ color: missedCards.length > 0 ? c.text : "#fff", fontWeight: typography.bold, fontSize: typography.base }}>
-                      {t("review.againAll")}
-                    </Text>
-                  </TouchableOpacity>
-                  {deckId && (
-                    <TouchableOpacity onPress={() => router.back()} activeOpacity={0.85} style={{ paddingVertical: 12, alignItems: "center" }}>
-                      <Text style={{ color: c.textSecondary, fontWeight: typography.semibold, fontSize: typography.base }}>
-                        {t("review.done")}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
+              <StudyResult
+                headline={displayName ? t("review.resultTitleNamed", { name: displayName }) : t("review.resultTitle")}
+                subtitle={resultTotal === 1 ? t("review.resultBodyOne", { known: knownCount }) : t("review.resultBody", { total: resultTotal, known: knownCount })}
+                accessory={<LpRoundSummary earned={earnedLp} capReached={earnCapReached} dailyGoalText={dailyGoalText} />}
+                actions={[
+                  ...(missedCards.length > 0 ? [{
+                    label: t("review.onlyWrong", { count: missedCards.length }),
+                    onPress: () => { void (async () => { await rearmForNextRound(); start(missedCards); })(); },
+                    variant: "primary" as const,
+                  }] : []),
+                  { label: t("review.againAll"),
+                    onPress: () => { void (async () => { await rearmForNextRound(); await loadDueCards(); })(); },
+                    variant: missedCards.length > 0 ? "secondary" : "primary", reload: true },
+                  ...(deckId ? [{ label: t("review.done"), onPress: () => router.back(), variant: "ghost" as const }] : []),
+                ]}
+              />
             )
           ) : (
             <View style={{ flex: 1, gap: spacing.md }}>
