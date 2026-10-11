@@ -99,6 +99,23 @@ export function OcclusionEditor({ sourceCardId }: { sourceCardId?: string }) {
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [dirty]);
 
+  // Während ein Snapshot gespeichert wird, darf auch die App-Navigation
+  // außerhalb des Editors den noch laufenden Request nicht verlassen.
+  useEffect(() => {
+    if (!saving) return;
+    const blockNavigation = (event: MouseEvent) => {
+      if (savedRef.current || !(event.target instanceof Element) || !event.target.closest("a[href]")) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    };
+    document.addEventListener("click", blockNavigation, true);
+    document.addEventListener("auxclick", blockNavigation, true);
+    return () => {
+      document.removeEventListener("click", blockNavigation, true);
+      document.removeEventListener("auxclick", blockNavigation, true);
+    };
+  }, [saving]);
+
   // Tarif beim Öffnen abfragen — BEWUSST fail-open: nur ein bestätigtes "free"
   // sperrt. Fehler oder "läuft noch" bleiben "unknown" und lassen den Editor
   // normal arbeiten; jemanden auszusperren, der bezahlt hat, wäre schlimmer als
@@ -121,6 +138,7 @@ export function OcclusionEditor({ sourceCardId }: { sourceCardId?: string }) {
   }, []);
 
   function pickImage(f: File) {
+    if (saving) return;
     setFile(f);
     setImageSrc(URL.createObjectURL(f));
     setRegions([]);
@@ -149,12 +167,12 @@ export function OcclusionEditor({ sourceCardId }: { sourceCardId?: string }) {
     setDraw({ sx: p.x, sy: p.y, x: p.x, y: p.y });
   }
   function onMove(e: React.PointerEvent) {
-    if (!draw) return;
+    if (!draw || saving) return;
     const p = pct(e);
     setDraw({ ...draw, x: p.x, y: p.y });
   }
   function onUp() {
-    if (!draw) return;
+    if (!draw || saving) return;
     const x = Math.min(draw.sx, draw.x);
     const y = Math.min(draw.sy, draw.y);
     const w = Math.abs(draw.x - draw.sx);
@@ -168,12 +186,15 @@ export function OcclusionEditor({ sourceCardId }: { sourceCardId?: string }) {
     }
   }
 
-  const removeRegion = (i: number) => { setRegions((prev) => prev.filter((_, j) => j !== i)); setRedraw(null); };
-  const setLabel = (i: number, label: string) =>
+  const removeRegion = (i: number) => { if (saving) return; setRegions((prev) => prev.filter((_, j) => j !== i)); setRedraw(null); };
+  const setLabel = (i: number, label: string) => {
+    if (saving) return;
     setRegions((prev) => prev.map((r, j) => (j === i ? { ...r, label } : r)));
+  };
 
   async function save() {
     if (!userId || saving) return;
+    setDraw(null); setRedraw(null);
     if (isEditing) {
       if (!group || !dirty) return;
       setSaving(true); setError(null);
@@ -288,7 +309,10 @@ export function OcclusionEditor({ sourceCardId }: { sourceCardId?: string }) {
       <Link
         href={backHref}
         className="crumb"
+        aria-disabled={saving || undefined}
+        tabIndex={saving ? -1 : undefined}
         onClick={(e) => {
+          if (saving) { e.preventDefault(); return; }
           // Mit gezeichneten Kästchen erst nachfragen (#608) — die Navigation
           // übernimmt dann der „Verwerfen"-Knopf der Nachfrage.
           if (dirty) {
@@ -319,7 +343,9 @@ export function OcclusionEditor({ sourceCardId }: { sourceCardId?: string }) {
         {!isEditing && <button
           type="button"
           className="btn btn-ghost"
+          disabled={saving}
           onClick={() => {
+            if (saving) return;
             if (regions.length > 0) setConfirm("newImage");
             else fileInputRef.current?.click();
           }}
@@ -330,6 +356,7 @@ export function OcclusionEditor({ sourceCardId }: { sourceCardId?: string }) {
           ref={fileInputRef}
           type="file"
           accept="image/*"
+          disabled={saving}
           style={{ display: "none" }}
           onChange={(e) => {
             const f = e.target.files?.[0];
@@ -340,7 +367,7 @@ export function OcclusionEditor({ sourceCardId }: { sourceCardId?: string }) {
           }}
         />
         {regions.length > 0 && (
-          <button type="button" className="btn btn-ghost" onClick={() => setConfirm("clear")}>
+          <button type="button" className="btn btn-ghost" disabled={saving} onClick={() => { if (!saving) setConfirm("clear"); }}>
             Bereiche löschen
           </button>
         )}
@@ -380,6 +407,7 @@ export function OcclusionEditor({ sourceCardId }: { sourceCardId?: string }) {
                   type="button"
                   className="occ-rg__del"
                   aria-label={`Bereich ${i + 1} entfernen`}
+                  disabled={saving}
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={() => removeRegion(i)}
                 >
@@ -389,7 +417,7 @@ export function OcclusionEditor({ sourceCardId }: { sourceCardId?: string }) {
             ))}
             {drawBox && <div className="occ-draw" style={drawBox} />}
           </div>
-          {redraw !== null && <p className="occ-hint" role="status">Zeichne Bereich {redraw + 1} neu. <button type="button" className="btn btn-ghost" onClick={() => setRedraw(null)}>Abbrechen</button></p>}
+          {redraw !== null && <p className="occ-hint" role="status">Zeichne Bereich {redraw + 1} neu. <button type="button" className="btn btn-ghost" disabled={saving} onClick={() => { if (!saving) setRedraw(null); }}>Abbrechen</button></p>}
           <p className="occ-hint">
             {regions.length > 0
               ? `${regions.length} ${regions.length === 1 ? "Bereich" : "Bereiche"} markiert — beschrifte sie unten.`
@@ -415,6 +443,7 @@ export function OcclusionEditor({ sourceCardId }: { sourceCardId?: string }) {
                     type="button"
                     className="icon-btn"
                     aria-label={`Bereich ${i + 1} entfernen`}
+                    disabled={saving}
                     onClick={() => removeRegion(i)}
                   >
                     <Trash size={16} />
@@ -438,7 +467,7 @@ export function OcclusionEditor({ sourceCardId }: { sourceCardId?: string }) {
         className="btn btn-primary btn-lg btn-block"
         style={{ marginTop: 16 }}
         disabled={!imageSrc || (isEditing ? !dirty : regions.length === 0) || saving}
-        onClick={() => { if (isEditing && removedCount > 0) setConfirm("save"); else void save(); }}
+        onClick={() => { if (saving) return; if (isEditing && removedCount > 0) setConfirm("save"); else void save(); }}
       >
         {saving ? (
           "Wird gespeichert…"
@@ -457,7 +486,7 @@ export function OcclusionEditor({ sourceCardId }: { sourceCardId?: string }) {
         // die zerstörende Wahl braucht einen ausdrücklichen Knopfdruck.
         <Modal
           title={confirm === "save" ? "Entfernte Bereiche speichern?" : confirm === "clear" ? "Alle Bereiche löschen?" : "Änderungen verwerfen?"}
-          onClose={() => setConfirm(null)}
+          onClose={() => { if (!saving) setConfirm(null); }}
         >
           <p className="muted" style={{ margin: 0 }}>
             {confirm === "save"
@@ -470,7 +499,9 @@ export function OcclusionEditor({ sourceCardId }: { sourceCardId?: string }) {
             <button
               type="button"
               className="btn btn-ghost"
+              disabled={saving}
               onClick={() => {
+                if (saving) return;
                 const which = confirm;
                 setConfirm(null);
                 if (which === "save") void save();
@@ -484,7 +515,8 @@ export function OcclusionEditor({ sourceCardId }: { sourceCardId?: string }) {
             <button
               type="button"
               className="btn btn-primary"
-              onClick={() => setConfirm(null)}
+              disabled={saving}
+              onClick={() => { if (!saving) setConfirm(null); }}
               autoFocus
             >
               {confirm === "save" || confirm === "clear" ? "Abbrechen" : "Weiter zeichnen"}

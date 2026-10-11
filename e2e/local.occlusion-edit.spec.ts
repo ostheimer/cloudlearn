@@ -6,7 +6,7 @@ const path = `${userId}/${deckId}/image.png`;
 const regionA = { x: .1, y: .1, w: .2, h: .2, label: "Alpha" };
 const regionB = { x: .6, y: .3, w: .2, h: .2, label: "Beta" };
 type Region = typeof regionA & { cardIds: string[] };
-async function prepare(page: Page, english: boolean, failFirst = false) {
+async function prepare(page: Page, english: boolean, failFirst = false, beforeSave?: () => Promise<void>) {
   const cards = [0, 1, 2, 3, 4].map(i => ({ id: ids[i]!, userId, deckId, type: i === 4 ? "basic" : "occlusion", sourceImageUrl: i === 3 ? path.replace("image.png", "other.png") : path,
     front: "Original question", back: i === 0 ? (english ? "First region" : "Erster Bereich") : i === 3 ? "Other image" : i === 4 ? "Ordinary card" : (english ? "Second region" : "Zweiter Bereich"),
     extraData: { regions: [regionA, regionB], hideIndex: i === 1 || i === 2 ? 1 : 0, custom: "preserve" },
@@ -28,6 +28,7 @@ async function prepare(page: Page, english: boolean, failFirst = false) {
     if (pathname.startsWith("/api/v1/")) {
       if (pathname === `/api/v1/decks/${deckId}/cards`) return json({ cards: cards.filter(c => !c.deletedAt) });
       if (pathname === `/api/v1/decks/${deckId}/occlusion`) {
+        await beforeSave?.();
         if (failFirst && !failed) { failed = true; return route.fulfill({ status: 409, json: { code: "OCCLUSION_CONFLICT", message: "Das Bild wurde inzwischen geändert. Lade es erneut und prüfe deine Änderungen." } }); }
         const body = req.postDataJSON() as typeof writes[number];
         writes.push(body);
@@ -134,4 +135,82 @@ test("save conflicts preserve the editable draft and leaving needs a deliberate 
   await expect(page.getByLabel("Beschriftung Bereich 1", { exact: true })).toHaveValue("Retained draft");
   expect(fixture.writes).toEqual([]);
   expect(fixture.errors).toEqual([]); expect(fixture.unexpected).toEqual([]);
+});
+
+async function attemptClick(page: Page, selector: string) {
+  const target = page.locator(selector).first();
+  await target.scrollIntoViewIfNeeded();
+  const box = (await target.boundingBox())!;
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+}
+
+for (const removeBeforeSave of [false, true]) test(`a delayed edit PUT freezes region changes and navigation (${removeBeforeSave ? "confirmed removal" : "direct save"})`, async ({ page }, info) => {
+  let release!: () => void, started!: () => void;
+  const pending = new Promise<void>(resolve => { release = resolve; });
+  const received = new Promise<void>(resolve => { started = resolve; });
+  const fixture = await prepare(page, info.project.name.endsWith("en"), false, async () => { started(); await pending; });
+  try {
+    await page.goto(`/dashboard/deck/${deckId}/occlusion/edit/${ids[0]}`);
+    await page.getByLabel("Beschriftung Bereich 1", { exact: true }).fill("Saved snapshot");
+    if (removeBeforeSave) await page.locator(".occ-item").nth(1).getByRole("button", { name: "Bereich 2 entfernen", exact: true }).click();
+    await page.getByRole("button", { name: "Änderungen speichern", exact: true }).click();
+    if (removeBeforeSave) await page.getByRole("button", { name: "Speichern und in den Papierkorb", exact: true }).click();
+    await received;
+    await expect(page.getByRole("button", { name: "Wird gespeichert…", exact: true })).toBeDisabled();
+    await attemptClick(page, ".occ-rg__del");
+    await expect(page.locator(".occ-item")).toHaveCount(removeBeforeSave ? 1 : 2);
+    await attemptClick(page, ".occ-item .icon-btn");
+    await expect(page.locator(".occ-item")).toHaveCount(removeBeforeSave ? 1 : 2);
+    await attemptClick(page, ".occ-tools button");
+    await attemptClick(page, ".crumb");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(page).toHaveURL(new RegExp(`/occlusion/edit/${ids[0]}$`));
+    for (const button of await page.locator(".occ-rg__del, .occ-item button, .occ-tools button").all()) await expect(button).toBeDisabled();
+    await expect(page.getByLabel("Beschriftung Bereich 1", { exact: true })).toBeDisabled();
+    await draw(page, .1, .7, .2, .2);
+    await expect(page.locator(".occ-item")).toHaveCount(removeBeforeSave ? 1 : 2);
+    // Header/bottom navigation must not bypass the editor's own back link.
+    await attemptClick(page, "a[href='/dashboard']");
+    await expect(page).toHaveURL(new RegExp(`/occlusion/edit/${ids[0]}$`));
+    release();
+    await expect(page.getByRole("heading", { name: "Deine Bilder", exact: true })).toBeVisible();
+    expect(fixture.writes).toHaveLength(1);
+    expect(fixture.writes[0]!.regions.map(r => r.cardIds)).toEqual(removeBeforeSave ? [[ids[0]]] : [[ids[0]], [ids[1], ids[2]]]);
+    expect(fixture.cards[0]!.back).toBe("Saved snapshot");
+    expect(fixture.cards.filter(c => c.deletedAt).map(c => c.id)).toEqual(removeBeforeSave ? [ids[1], ids[2]] : []);
+    expect(fixture.errors).toEqual([]); expect(fixture.unexpected).toEqual([]);
+  } finally { release(); }
+});
+
+test("a delayed new-image upload freezes image replacement and clears, then unlocks the draft on failure", async ({ page }, info) => {
+  const fixture = await prepare(page, info.project.name.endsWith("en"));
+  let release!: () => void, started!: () => void;
+  const pending = new Promise<void>(resolve => { release = resolve; });
+  const received = new Promise<void>(resolve => { started = resolve; });
+  await page.route("**/storage/v1/object/card-images/**", async route => {
+    started(); await pending;
+    await route.fulfill({ status: 400, json: { statusCode: "400", error: "Synthetic failure", message: "Upload failed" } });
+  });
+  await page.route("**/storage/v1/object/card-images", route => route.fulfill({ json: [] }));
+  try {
+    await page.goto(`/dashboard/deck/${deckId}/occlusion/new`);
+    await page.locator("input[type=file]").setInputFiles({ name: "synthetic.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aoykAAAAASUVORK5CYII=", "base64") });
+    await draw(page, .1, .1, .3, .3);
+    await page.getByLabel("Beschriftung Bereich 1", { exact: true }).fill("Keep upload draft");
+    await page.getByRole("button", { name: "1 Occlusion-Karte erstellen", exact: true }).click();
+    await received;
+    await attemptClick(page, ".occ-tools button");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    for (const button of await page.locator(".occ-tools button, .occ-rg__del, .occ-item button").all()) await expect(button).toBeDisabled();
+    await expect(page.locator("input[type=file]")).toBeDisabled();
+    await attemptClick(page, ".crumb");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    release();
+    await expect(page.locator(".form-error")).toContainText("Bild-Upload fehlgeschlagen");
+    await expect(page.getByLabel("Beschriftung Bereich 1", { exact: true })).toBeEnabled();
+    await expect(page.getByLabel("Beschriftung Bereich 1", { exact: true })).toHaveValue("Keep upload draft");
+    await expect(page.getByRole("button", { name: "Anderes Bild", exact: true })).toBeEnabled();
+    expect(fixture.writes).toEqual([]);
+    expect(fixture.errors).toEqual([]); expect(fixture.unexpected).toEqual([]);
+  } finally { release(); }
 });
