@@ -1,6 +1,6 @@
 # PM-Release-Nachweise – 09.10.2026
 
-Dieser Nachtrag aktualisiert den datierten Read-only-Audit in `docs/audits/2026-10-09-open-issue-abgleich.md`. Dessen ursprüngliche Feststellungen bleiben als Momentaufnahme erhalten.
+Dieser Nachtrag aktualisiert den datierten Read-only-Audit in `docs/audits/2026-10-09-open-issue-abgleich.md`. Dessen ursprüngliche Feststellungen bleiben als Momentaufnahme erhalten. Der Nachtrag vom 11. Oktober steht am Ende; frühere Dashboard-Angaben sind datierte Nachweise.
 
 ## Übernommene Änderungen
 
@@ -61,3 +61,15 @@ Mobile Änderungen in #759/#760 erreichen vorhandene iPhones nicht durch diesen 
 - Apple: öffentlich weiterhin Version 1.0 mit einem iPhone-Screenshot, ohne iPad-Screenshots. Der interne Status der eingereichten fünf Bilder lässt sich derzeit wegen abgelaufener Anmeldung nicht lesen.
 
 Kein Sammel-Issue wird allein aufgrund einer Teilkorrektur geschlossen. Tests, Produktionsdeployment und tatsächliche Geräteabnahme bleiben getrennte Nachweise.
+
+## Nachtrag – 11.10.2026
+
+PR #764 wurde nach unabhängiger Prüfung als `dcd9adef171a67b2efb4ec54a60afac704ced14d` übernommen. Der CI-Dienst nutzt weiterhin PostgreSQL 16, bezieht dessen offizielles Image nun über `public.ecr.aws/docker/library/postgres:16`. Dadurch entfällt das anonyme Docker-Hub-Abruflimit. Datenbankprüfungen, Berechtigungen und Produktverhalten wurden nicht geändert; Website-Texte und README benötigen dafür keine Anpassung.
+
+Der Main-Lauf [38166928476](https://github.com/ostheimer/cloudlearn/actions/runs/38166928476) ist vollständig erfolgreich. Vercel bestätigt für exakt diesen Main-SHA alle drei Veröffentlichungen als `READY` mit Ziel `production`:
+
+- API: `dpl_6WoMmRSFAvzExv4T34YJ6Uhycy4S`.
+- Web: `dpl_9eHNrJdNbHhrER5TFjLtN1nLi68r`.
+- CloudLearn: `dpl_69eQwP2tCdmsfktDoWiqST4zJYHM`.
+
+Die drei bestehenden Implementierungs-Chats wurden mit dem aktuellen Main-Stand fortgesetzt: #761/#762 für Web-Bilder und Maskenverwaltung, #765 für Tastatur/Fokus und #766 für Scan-Kosten/Vorschau. Vor einer Übernahme werden die aktuellen Heads neu geprüft. Die Datenbankfunktion von #762 muss vor der abhängigen API-Veröffentlichung installiert und gelesen werden. Keine bezahlten App-Builds, echten KI-Aufrufe oder Nutzer-Datenänderungen wurden hierfür beauftragt.
