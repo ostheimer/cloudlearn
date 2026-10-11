@@ -58,6 +58,7 @@ export function OcclusionEditor({ sourceCardId }: { sourceCardId?: string }) {
 
   const stageRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cancelButtonRef = useRef<HTMLButtonElement>(null);
 
   const dirty = isEditing ? JSON.stringify(regions) !== JSON.stringify(initialRegionsRef.current) : regions.length > 0;
   const retainedIds = new Set(regions.flatMap(r => r.cardIds));
@@ -487,6 +488,7 @@ export function OcclusionEditor({ sourceCardId }: { sourceCardId?: string }) {
         <Modal
           title={confirm === "save" ? "Entfernte Bereiche speichern?" : confirm === "clear" ? "Alle Bereiche löschen?" : "Änderungen verwerfen?"}
           onClose={() => { if (!saving) setConfirm(null); }}
+          initialFocusRef={cancelButtonRef}
         >
           <p className="muted" style={{ margin: 0 }}>
             {confirm === "save"
@@ -515,6 +517,7 @@ export function OcclusionEditor({ sourceCardId }: { sourceCardId?: string }) {
             <button
               type="button"
               className="btn btn-primary"
+              ref={cancelButtonRef}
               disabled={saving}
               onClick={() => { if (!saving) setConfirm(null); }}
               autoFocus
