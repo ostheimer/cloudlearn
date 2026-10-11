@@ -95,6 +95,15 @@ test("grouped images edit, add/remove regions and persist retained siblings and 
   await shot(page, "editor", info.project.name);
   await page.getByRole("button", { name: "Änderungen speichern", exact: true }).click();
   await expect(page.getByRole("dialog")).toContainText("1 Karte wandert in den Papierkorb");
+  await expect(page.getByRole("button", { name: "Abbrechen", exact: true })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: "Speichern und in den Papierkorb", exact: true })).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(page.getByRole("button", { name: "Abbrechen", exact: true })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  expect(fixture.writes).toEqual([]);
+  await page.getByRole("button", { name: "Änderungen speichern", exact: true }).click();
   await page.getByRole("button", { name: "Abbrechen", exact: true }).click();
   expect(fixture.writes).toEqual([]);
   await page.getByRole("button", { name: "Änderungen speichern", exact: true }).click();
@@ -170,7 +179,7 @@ for (const removeBeforeSave of [false, true]) test(`a delayed edit PUT freezes r
     await draw(page, .1, .7, .2, .2);
     await expect(page.locator(".occ-item")).toHaveCount(removeBeforeSave ? 1 : 2);
     // Header/bottom navigation must not bypass the editor's own back link.
-    await attemptClick(page, "a[href='/dashboard']");
+    await attemptClick(page, "a[href='/dashboard']:visible");
     await expect(page).toHaveURL(new RegExp(`/occlusion/edit/${ids[0]}$`));
     release();
     await expect(page.getByRole("heading", { name: "Deine Bilder", exact: true })).toBeVisible();
@@ -210,6 +219,10 @@ test("a delayed new-image upload freezes image replacement and clears, then unlo
     await expect(page.getByLabel("Beschriftung Bereich 1", { exact: true })).toBeEnabled();
     await expect(page.getByLabel("Beschriftung Bereich 1", { exact: true })).toHaveValue("Keep upload draft");
     await expect(page.getByRole("button", { name: "Anderes Bild", exact: true })).toBeEnabled();
+    await page.getByRole("link", { name: "Zurück zum Deck", exact: true }).click();
+    await expect(page.getByRole("dialog", { name: "Änderungen verwerfen?" })).toBeVisible();
+    await page.getByRole("button", { name: "Weiter zeichnen", exact: true }).click();
+    await expect(page.getByLabel("Beschriftung Bereich 1", { exact: true })).toHaveValue("Keep upload draft");
     expect(fixture.writes).toEqual([]);
     expect(fixture.errors).toEqual([]); expect(fixture.unexpected).toEqual([]);
   } finally { release(); }
