@@ -14,6 +14,7 @@ import {
   type Card,
   type ReviewRating,
 } from "@/lib/api";
+import { CardSideMedia } from "@/components/app/card-side-media";
 import { CardEditor } from "@/components/app/card-editor";
 import { dailyGoalLine } from "@/lib/daily-goal-line";
 import { useDisplayName } from "@/lib/use-display-name";
@@ -74,6 +75,7 @@ export default function QuizPage() {
 
   // Im Setup-Menü gewählte Einstellungen
   const [reverse, setReverse] = useState(false);
+  const [allowImage, setAllowImage] = useState(true);
   const [allowMc, setAllowMc] = useState(true);
   const [allowTrueFalse, setAllowTrueFalse] = useState(true);
   const [source, setSource] = useState<CardSource>("all");
@@ -122,7 +124,7 @@ export default function QuizPage() {
     if (!deckId) return;
     try {
       const { cards: c } = await listCardsInDeck(deckId);
-      // Bild-Occlusion-Karten gehören nur in den Occlusion-Modus (kein Bild hier).
+      // Occlusion-Karten gehören weiterhin nur in den Occlusion-Modus.
       setCards(c.filter((x) => x.type !== "occlusion"));
       setError(null);
     } catch (e) {
@@ -136,7 +138,7 @@ export default function QuizPage() {
     load();
   }, [load]);
 
-  const anyType = allowMc || allowTrueFalse;
+  const anyType = allowMc || allowTrueFalse || allowImage;
   const total = questions.length;
   const q = questions[index];
   const answered = picked !== null;
@@ -165,6 +167,7 @@ export default function QuizPage() {
   useEffect(() => {
     const stored = loadSetup(deckId, "quiz");
     if (stored?.reverse !== undefined) setReverse(stored.reverse);
+    if (stored?.typeImage !== undefined) setAllowImage(stored.typeImage);
     if (stored?.typeMC !== undefined) setAllowMc(stored.typeMC);
     if (stored?.typeTF !== undefined) setAllowTrueFalse(stored.typeTF);
   }, [deckId]);
@@ -195,7 +198,7 @@ export default function QuizPage() {
     // Obergrenze der Anzahl ist der Vorrat der Quelle, die ab jetzt gilt —
     // der Klemm-Effekt oben zieht sie bei Quellenwechseln weiter mit.
     const pool = filterBySource(cards, wanted ?? source, wobblyIds);
-    const max = pool.filter((c) => (c.front || "").trim() && (c.back || "").trim()).length;
+    const max = countQuizableCards(pool);
     const storedCount = resolveCount(stored.count, max);
     if (storedCount !== null) setCount(storedCount);
   }, [deckId, phase, loading, wobblySettled, cards, wobblyIds, source]);
@@ -259,7 +262,7 @@ export default function QuizPage() {
   // setzt danach den Award-Zustand + offene Reviews zurück.
   const startQuizWith = useCallback(async (cardsForRound: Card[]) => {
     await awardSession(total);
-    const qs = generateQuestions(cardsForRound, { reverse, allowMc, allowTrueFalse, count });
+    const qs = generateQuestions(cardsForRound, { reverse, allowMc, allowTrueFalse, allowImage, count });
     awardStateRef.current = { finalized: false, inFlight: null };
     pendingReviewsRef.current = [];
     unsavedRef.current = 0;
@@ -274,7 +277,7 @@ export default function QuizPage() {
     setPicked(null);
     setAnswers([]);
     setPhase("play");
-  }, [reverse, allowMc, allowTrueFalse, count, awardSession, total]);
+  }, [reverse, allowMc, allowTrueFalse, allowImage, count, awardSession, total]);
 
   // „Alle nochmal" wie der Start: immer die gewählte Kartenquelle.
   const startQuiz = useCallback(
@@ -500,6 +503,11 @@ export default function QuizPage() {
               <i />
             </button>
           </div>
+          <div className="quiz-typerow">
+            <span>Bildfragen</span>
+            <button type="button" className={`cl-switch${allowImage ? " on" : ""}`} role="switch"
+              aria-checked={allowImage} aria-label="Bildfragen" onClick={() => setAllowImage(v => !v)}><i /></button>
+          </div>
           {!anyType && (
             <div style={{ fontSize: "0.75rem", color: "#ef4444", marginTop: 6 }}>
               Mindestens ein Typ muss an sein.
@@ -516,6 +524,7 @@ export default function QuizPage() {
             // als Absicht gespeichert, nicht als Zahl — das Deck darf wachsen.
             saveSetup(deckId, "quiz", {
               reverse,
+              typeImage: allowImage,
               typeMC: allowMc,
               typeTF: allowTrueFalse,
               source,
@@ -625,18 +634,20 @@ export default function QuizPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className={`quiz-sum__q${tf ? " quiz-sum__q--wrap" : ""}`}>
                       {label}
+                      <CardSideMedia images={qq.questionImages} concealCaption={qq.type === "imageMc"} />
+                      {tf && <CardSideMedia images={qq.pairingImages} />}
                     </div>
                     {tf ? (
                       <>
                         <div className="quiz-sum__note">{tfNote}</div>
                         {!tf.isCorrect && (
                           <div className="quiz-sum__fix">
-                            Tatsächlich gehört dazu: {tf.correctBack}
+                            Tatsächlich gehört dazu: {tf.correctBack}<CardSideMedia images={qq.correctAnswerImages} />
                           </div>
                         )}
                       </>
                     ) : (
-                      !ok && <div className="quiz-sum__fix">Richtig: {qq.correctAnswer}</div>
+                      !ok && <div className="quiz-sum__fix">Richtig: {qq.correctAnswer}<CardSideMedia images={qq.correctAnswerImages} /></div>
                     )}
                   </div>
                 </div>
@@ -755,19 +766,19 @@ export default function QuizPage() {
           </>
         )}
         <div className="quiz-eyebrow">
-          {q?.type === "trueFalse" ? "Wahr / Falsch" : "Multiple Choice"}
+          {q?.type === "trueFalse" ? "Wahr / Falsch" : q?.type === "imageMc" ? "BILD QUIZ" : "Multiple Choice"}
         </div>
         {q?.type === "trueFalse" && q.tfPairing ? (
           <>
             <div className="quiz-sub">{q.questionText}</div>
             <div className="tf-pair">
-              <div className="tf-pair__front">{q.tfPairing.front}</div>
+              <div className="tf-pair__front">{q.tfPairing.front}<CardSideMedia images={q.questionImages} /></div>
               <div className="tf-pair__hr" />
-              <div className="tf-pair__back">= {q.tfPairing.back}</div>
+              <div className="tf-pair__back">= {q.tfPairing.back}<CardSideMedia images={q.pairingImages} /></div>
             </div>
           </>
         ) : (
-          <div className="cl-q">{q?.questionText}</div>
+          <div className="cl-q">{q?.questionText}<CardSideMedia images={q?.questionImages} concealCaption={q?.type === "imageMc"} /></div>
         )}
       </div>
 
@@ -786,7 +797,7 @@ export default function QuizPage() {
               disabled={answered}
               onClick={() => pick(i)}
             >
-              <span>{opt}</span>
+              <span>{opt}<CardSideMedia images={q.optionImages?.[i]} /></span>
               {answered && isCorrect && <Check size={18} className="quiz-opt__mark" />}
               {answered && isPicked && !isCorrect && <X size={18} className="quiz-opt__mark" />}
             </button>
