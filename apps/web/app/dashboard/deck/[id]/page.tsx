@@ -664,6 +664,7 @@ export default function DeckDetailPage() {
                 <h2 className="h3" style={{ margin: 0 }}>
                   Bild-Karten (Occlusion)
                 </h2>
+                <Link href={`/dashboard/deck/${deckId}/occlusion/images`} className="btn btn-ghost">Deine Bilder</Link>
                 <span className="muted" style={{ fontSize: "0.78rem" }}>
                   {coarsePointer ? "zum Vergrößern antippen" : "zum Vergrößern anklicken"}
                 </span>
