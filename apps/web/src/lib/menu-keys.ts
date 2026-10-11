@@ -26,6 +26,12 @@ export function menuArrowTarget<T>(
 export function handleMenuKey(e: KeyboardEvent, close: () => void): void {
   const menu = document.querySelector<HTMLElement>('.pop [role="menu"]');
   if (!menu) return;
+  if (e.key === "Tab") {
+    // Let the browser move to the next/previous control before unmounting the
+    // focused item. Menu entries use -1; arrow keys provide navigation inside.
+    window.setTimeout(close, 0);
+    return;
+  }
   if (e.key === "Escape") {
     e.preventDefault();
     const trigger = menu
@@ -53,4 +59,10 @@ export function handleMenuKey(e: KeyboardEvent, close: () => void): void {
     e.preventDefault();
     target.focus();
   }
+}
+
+/** Focus can leave without Tab (e.g. assistive navigation or programmatic focus). */
+export function handleMenuFocus(e: FocusEvent, close: () => void): void {
+  const menu = document.querySelector<HTMLElement>('.pop [role="menu"]');
+  if (menu && e.target instanceof Node && !menu.contains(e.target)) close();
 }

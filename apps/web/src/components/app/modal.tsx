@@ -17,14 +17,28 @@ const FOCUSABLE =
  */
 export function useDialogFocus(
   boxRef: RefObject<HTMLElement | null>,
-  active: boolean = true
+  active: boolean = true,
+  initialFocusRef?: RefObject<HTMLElement | null>,
+  returnFocusOnDeactivate: boolean = true
 ) {
+  // Capture before child autoFocus runs, so closing returns to the actual opener.
+  const initialOpener = useRef(
+    active && typeof document !== "undefined" && document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null
+  );
+  // A suspended parent modal keeps its opener until it actually unmounts.
+  useEffect(() => {
+    if (returnFocusOnDeactivate) return;
+    const opener = initialOpener.current;
+    return () => { if (opener?.isConnected) opener.focus(); };
+  }, [returnFocusOnDeactivate]);
   useEffect(() => {
     if (!active) return;
     const box = boxRef.current;
     if (!box) return;
-    const opener =
-      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const opener = initialOpener.current ??
+      (document.activeElement instanceof HTMLElement ? document.activeElement : null);
 
     const focusables = () =>
       Array.from(box.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
@@ -32,9 +46,8 @@ export function useDialogFocus(
       );
 
     // Startfokus — außer ein Kind (autoFocus) hat ihn sich schon geholt.
-    if (!box.contains(document.activeElement)) {
-      (focusables()[0] ?? box).focus();
-    }
+    if (initialFocusRef?.current) initialFocusRef.current.focus();
+    else if (!box.contains(document.activeElement)) (focusables()[0] ?? box).focus();
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Tab") return;
@@ -60,24 +73,31 @@ export function useDialogFocus(
     return () => {
       document.removeEventListener("keydown", onKey, true);
       // Der Auslöser kann inzwischen verschwunden sein (z. B. Deck gelöscht).
-      if (opener?.isConnected) opener.focus();
+      if (returnFocusOnDeactivate && opener?.isConnected) opener.focus();
     };
-  }, [boxRef, active]);
+  }, [boxRef, active, initialFocusRef, returnFocusOnDeactivate]);
 }
 
 export function Modal({
   title,
   children,
   onClose,
+  active = true,
+  role = "dialog",
+  initialFocusRef,
 }: {
   title: string;
   children: ReactNode;
   onClose: () => void;
+  active?: boolean;
+  role?: "dialog" | "alertdialog";
+  initialFocusRef?: RefObject<HTMLElement | null>;
 }) {
   const boxRef = useRef<HTMLDivElement>(null);
-  useDialogFocus(boxRef);
+  useDialogFocus(boxRef, active, initialFocusRef, false);
 
   useEffect(() => {
+    if (!active) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
@@ -87,11 +107,13 @@ export function Modal({
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
     };
-  }, [onClose]);
+  }, [onClose, active]);
 
   return (
     <div
       className="modal-overlay"
+      inert={!active}
+      aria-hidden={!active || undefined}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -100,10 +122,11 @@ export function Modal({
       <div
         ref={boxRef}
         className="modal"
-        role="dialog"
+        role={role}
         aria-modal="true"
         aria-label={title}
         tabIndex={-1}
+        style={role === "alertdialog" ? { maxWidth: 340 } : undefined}
       >
         <h3 className="h3">{title}</h3>
         {children}
