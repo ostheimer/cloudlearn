@@ -44,6 +44,7 @@ function setup(allow: boolean) {
     lpCostAiScan: 10, lpCostPdfImport: 20, lpCostUrlImport: 15,
     t: (key: string) => key, Alert: { alert: vi.fn() },
     confirmAiImport: vi.fn(async () => allow),
+    approvePaidImport: vi.fn(async () => ({ cost: 10 })), paidImportPending: { current: false },
     normalizeOcrText: (text: string) => text.trim(), isHttpUrl: () => true,
     getImportAttemptKey: vi.fn(() => "attempt-1"), shouldOpenLpModal: () => false,
     IMPORT_ERROR_TITLE_KEY: "import.errorTitle", importErrorKey: () => "import.failed",
@@ -120,11 +121,13 @@ describe("AI imports require permission before transmission", () => {
     c.confirmAiImport = createAiImportConsentGate();
     const run = handler(name, c);
     const cancelled = run(...args);
+    await vi.waitFor(() => expect(alert).toHaveBeenCalledTimes(1));
     expect(c[api]).not.toHaveBeenCalled();
     alert.mock.calls[0]?.[2][0].onPress();
     await cancelled;
     expect(c[api]).not.toHaveBeenCalled();
     const accepted = run(...args);
+    await vi.waitFor(() => expect(alert).toHaveBeenCalledTimes(2));
     expect(c[api]).not.toHaveBeenCalled();
     alert.mock.calls[1]?.[2][1].onPress();
     await accepted;
@@ -139,7 +142,8 @@ describe("AI imports require permission before transmission", () => {
     for (const method of ["scanImage", "importPdf", "scanText", "importFromUrl"]) expect(c[method]).not.toHaveBeenCalled();
     expect(c.deductLp).not.toHaveBeenCalled();
     expect(c.setCards).not.toHaveBeenCalled();
-    expect(c.setLoading).not.toHaveBeenCalled();
+    if (kind === "photo" || kind === "pdf") expect(c.setLoading).toHaveBeenLastCalledWith(false);
+    else expect(c.setLoading).not.toHaveBeenCalled();
   });
 
   it.each(imports)("waits for $kind permission before sending", async ({ name, api, args }) => {
@@ -147,6 +151,7 @@ describe("AI imports require permission before transmission", () => {
     let resolve!: (allow: boolean) => void;
     c.confirmAiImport = vi.fn(() => new Promise<boolean>((done) => { resolve = done; }));
     const pending = handler(name, c)(...args);
+    await vi.waitFor(() => expect(c.confirmAiImport).toHaveBeenCalledOnce());
     expect(c[api]).not.toHaveBeenCalled();
     resolve(true);
     await pending;
