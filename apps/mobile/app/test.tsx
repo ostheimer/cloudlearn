@@ -21,8 +21,6 @@ import {
   XCircle,
   ArrowLeft,
   ArrowRight,
-  RotateCcw,
-  Trophy,
   HelpCircle,
   Check,
   Timer,
@@ -31,6 +29,7 @@ import {
   Pencil,
 } from "lucide-react-native";
 import { listCardsInDeck, recordTestAttempt, updateCard, getStats, type Card } from "../src/lib/api";
+import { StudyResult, repeatResultActions } from "../src/components/StudyResult";
 import CardEditor from "../src/components/CardEditor";
 import { dailyGoalLine } from "../src/lib/dailyGoalLine";
 import { cardEditorErrorMessage } from "../src/lib/cardEditorError";
@@ -342,19 +341,28 @@ export default function TestScreen() {
 
   const anyType = typeTF || typeMC || typeWritten;
 
-  const startTest = () => {
+  const [fellBackToWritten, setFellBackToWritten] = useState(false);
+  const startTestFrom = (sourceCards: Card[]) => {
     const types: TestQuestionType[] = [];
     if (typeTF) types.push("trueFalse");
     if (typeMC) types.push("mc");
     if (typeWritten) types.push("written");
     if (types.length === 0) return;
 
-    const qs = buildTestQuestions(pool, {
+    let qs = buildTestQuestions(sourceCards, {
       count: count || usableCount,
       types,
       reverse,
     });
+    // A subset can contain one card: choice-only questions then need the
+    // same written fallback as the web. Do not change the remembered setup.
+    let fellBack = false;
+    if (qs.length === 0 && !typeWritten) {
+      qs = buildTestQuestions(sourceCards, { count: count || usableCount, types: [...types, "written"], reverse });
+      fellBack = qs.length > 0;
+    }
     if (qs.length === 0) return;
+    setFellBackToWritten(fellBack);
 
     // Beim Start die Wahl für dieses Deck merken (#610). „Alle" wird als
     // Absicht gespeichert, nicht als Zahl — das Deck darf wachsen.
@@ -373,7 +381,7 @@ export default function TestScreen() {
     setQuestions(qs);
     // Stern-Stand für diese Runde (#610) — frisch aus den Karten, damit ein
     // Markieren in einer anderen Runde dazwischen nicht veraltet mitläuft.
-    setStarredMap(Object.fromEntries(pool.map((c) => [c.id, c.starred ?? false])));
+    setStarredMap(Object.fromEntries(sourceCards.map((c) => [c.id, c.starred ?? false])));
     setAnswers(qs.map(() => ({ ...EMPTY_ANSWER })));
     setGraded([]);
     setIdx(0);
@@ -384,8 +392,10 @@ export default function TestScreen() {
     roundKeyRef.current = `test-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     attemptRecordedRef.current = false;
     setAborted(false);
+    setDailyGoalText(null);
     setPhase("play");
   };
+  const startTest = () => startTestFrom(pool);
 
   const setAnswer = (i: number, patch: Partial<Answer>) => {
     setAnswers((prev) => prev.map((a, j) => (j === i ? { ...a, ...patch } : a)));
@@ -547,17 +557,15 @@ export default function TestScreen() {
   const percent =
     questions.length > 0 ? Math.round((scoredCount / questions.length) * 100) : 0;
 
-  // The wrong questions' source cards, ready to hand to a flashcard round. A
-  // test stays a test (no re-learning inside it); this just offers to practice
-  // the misses in the learning mode. `overridden` answers count as correct.
-  const wrongPracticeCards = (() => {
-    const ids = new Set(
-      questions.filter((_, i) => !(graded[i]?.correct || graded[i]?.overridden)).map((q) => q.cardId),
-    );
-    return allCards
-      .filter((c) => ids.has(c.id))
-      .map((c) => ({ id: c.id, front: c.front, back: c.back }));
-  })();
+  // Keep question order and card content; self-overridden answers are known.
+  const wrongCards = questions.flatMap((q, i) => {
+    const g = graded[i];
+    if (!g || g.correct || g.overridden) return [];
+    const card = allCards.find((c) => c.id === q.cardId);
+    return card ? [card] : [];
+  });
+  const wrongIds = new Set(wrongCards.map((c) => c.id));
+  const wrongPracticeCards = allCards.filter((c) => wrongIds.has(c.id)).map((c) => ({ id: c.id, front: c.front, back: c.back }));
   const practiceWrongCards = () => {
     if (wrongPracticeCards.length === 0) return;
     startReview(wrongPracticeCards);
@@ -777,23 +785,23 @@ export default function TestScreen() {
   if (phase === "result") {
     return (
       <>
-        {screenHeader("Ergebnis")}
+        {screenHeader(t("study.result"))}
         <SafeAreaView edges={["bottom"]} style={{ flex: 1, backgroundColor: colors.background }}>
-          <ScrollView contentContainerStyle={{ padding: spacing.xl, gap: spacing.lg }} showsVerticalScrollIndicator={false}>
-            <View style={{ alignItems: "center", gap: spacing.sm }}>
-              {/* Immer die grüne Trophäe im grünen Kreis (App-Kanon, Stil A aus
-                  #595 Teil C / #699) — keine rote mehr unter 50 %: das Urteil
-                  trägt die Prozentzahl, nicht das Symbol (wie im Web). */}
-              <View style={{ width: 76, height: 76, borderRadius: 38, backgroundColor: colors.successLight, justifyContent: "center", alignItems: "center" }}>
-                <Trophy size={38} color={colors.success} />
-              </View>
-              <Text style={{ fontSize: typography.xxxl, fontWeight: typography.extrabold, color: colors.text }}>{percent}%</Text>
-              <Text style={{ fontSize: typography.base, color: colors.textSecondary }}>{scoredCount} von {questions.length} richtig</Text>
+          <ScrollView contentContainerStyle={{ paddingVertical: spacing.xl, paddingHorizontal: spacing.sm }} showsVerticalScrollIndicator={false}>
+            <StudyResult
+              headline={`${percent}%`}
+              subtitle={t("study.correctCount", { correct: scoredCount, total: questions.length })}
+              actions={repeatResultActions({
+                t, missedCount: wrongCards.length,
+                retryMissed: () => startTestFrom(wrongCards), retryAll: startTest,
+                settings: () => setPhase("setup"), practiceMissed: practiceWrongCards,
+              })}
+            >
               {/* Persönliches Lob nur bei voller Punktzahl — eine Prüfung
                   bleibt sonst bewusst nüchtern (wie im Web). */}
               {percent === 100 && (
                 <Text style={{ fontSize: typography.base, fontWeight: typography.bold, color: colors.success }}>
-                  Volle Punktzahl — stark{displayName ? `, ${displayName}` : ""}!
+                  {t(displayName ? "study.fullScoreNamed" : "study.fullScore", { name: displayName })}
                 </Text>
               )}
               {/* Ohne diesen Satz sähe eine vorzeitig beendete Prüfung aus wie
@@ -801,8 +809,7 @@ export default function TestScreen() {
                   Fragen bezieht, als man sich vorgenommen hatte. */}
               {aborted && (
                 <Text style={{ fontSize: typography.sm, color: colors.textTertiary, textAlign: "center" }}>
-                  Vorzeitig beendet — gewertet sind die {questions.length}{" "}
-                  {questions.length === 1 ? "Frage" : "Fragen"}, die du beantwortet hast.
+                  {t(questions.length === 1 ? "study.endedEarlyOne" : "study.endedEarly", { count: questions.length })}
                 </Text>
               )}
               {dailyGoalText && (
@@ -810,61 +817,46 @@ export default function TestScreen() {
                   {dailyGoalText}
                 </Text>
               )}
-            </View>
-
-            {/* Durchsicht */}
-            <Text style={{ fontSize: typography.sm, color: colors.textSecondary, marginTop: spacing.sm }}>Durchsicht</Text>
-            {questions.map((q, i) => {
-              const a = answers[i] ?? { mc: null, tf: null, text: "" };
-              const g = graded[i] ?? { correct: false, overridden: false };
-              const ok = g.correct || g.overridden;
-              const yourAnswer =
-                q.type === "mc"
-                  ? a.mc != null ? q.options[a.mc] ?? "—" : "—"
-                  : q.type === "trueFalse"
-                    ? a.tf === true ? "Richtig" : a.tf === false ? "Falsch" : "—"
-                    : a.text.trim() || "—";
-              const solution =
-                q.type === "trueFalse"
-                  ? q.tfIsCorrect ? "Richtig" : "Falsch"
-                  : q.expected;
-              return (
-                <View key={i} style={{ ...cardStyle, gap: spacing.xs }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
-                    {ok ? <CheckCircle2 size={18} color={colors.success} /> : <XCircle size={18} color={colors.error} />}
-                    <Text style={{ flex: 1, fontSize: typography.sm, fontWeight: typography.semibold, color: colors.text }}>{q.prompt}</Text>
+              <View style={{ width: "100%", gap: spacing.lg }}>
+              {/* Durchsicht */}
+              <Text style={{ fontSize: typography.sm, color: colors.textSecondary, marginTop: spacing.sm }}>{t("study.review")}</Text>
+              {questions.map((q, i) => {
+                const a = answers[i] ?? { mc: null, tf: null, text: "" };
+                const g = graded[i] ?? { correct: false, overridden: false };
+                const ok = g.correct || g.overridden;
+                const yourAnswer =
+                  q.type === "mc"
+                    ? a.mc != null ? q.options[a.mc] ?? "—" : "—"
+                    : q.type === "trueFalse"
+                      ? a.tf === true ? t("quiz.trueLabel") : a.tf === false ? t("quiz.falseLabel") : "—"
+                      : a.text.trim() || "—";
+                const solution =
+                  q.type === "trueFalse"
+                    ? q.tfIsCorrect ? t("quiz.trueLabel") : t("quiz.falseLabel")
+                    : q.expected;
+                return (
+                  <View key={i} style={{ ...cardStyle, gap: spacing.xs }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+                      {ok ? <CheckCircle2 size={18} color={colors.success} /> : <XCircle size={18} color={colors.error} />}
+                      <Text style={{ flex: 1, fontSize: typography.sm, fontWeight: typography.semibold, color: colors.text }}>{q.prompt}</Text>
+                    </View>
+                    {q.type === "trueFalse" && (
+                      <Text style={{ fontSize: typography.sm, color: colors.textSecondary }}>{t("study.statement", { answer: q.tfShownBack })}</Text>
+                    )}
+                    <Text style={{ fontSize: typography.sm, color: ok ? colors.success : colors.error }}>{t("study.yourAnswer", { answer: yourAnswer })}</Text>
+                    {!ok && <Text style={{ fontSize: typography.sm, color: colors.text }}>{t("study.solution", { answer: solution })}</Text>}
+                    {q.type === "written" && !g.correct && !g.overridden && (
+                      <TouchableOpacity onPress={() => overrideCorrect(i)} activeOpacity={0.8} style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs, marginTop: spacing.xs, paddingVertical: 10, borderRadius: radius.md, borderWidth: 1, borderColor: colors.success }}>
+                        <Check size={16} color={colors.success} />
+                        <Text style={{ color: colors.success, fontWeight: typography.semibold, fontSize: typography.sm }}>{t("study.overrideCorrect")}</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
-                  {q.type === "trueFalse" && (
-                    <Text style={{ fontSize: typography.sm, color: colors.textSecondary }}>Aussage: {q.tfShownBack}</Text>
-                  )}
-                  <Text style={{ fontSize: typography.sm, color: ok ? colors.success : colors.error }}>Du: {yourAnswer}</Text>
-                  {!ok && <Text style={{ fontSize: typography.sm, color: colors.text }}>Lösung: {solution}</Text>}
-                  {q.type === "written" && !g.correct && !g.overridden && (
-                    <TouchableOpacity onPress={() => overrideCorrect(i)} activeOpacity={0.8} style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs, marginTop: spacing.xs, paddingVertical: 10, borderRadius: radius.md, borderWidth: 1, borderColor: colors.success }}>
-                      <Check size={16} color={colors.success} />
-                      <Text style={{ color: colors.success, fontWeight: typography.semibold, fontSize: typography.sm }}>Trotzdem als richtig zählen</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              );
-            })}
+                );
+              })}
 
-            <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
-              <TouchableOpacity onPress={startTest} activeOpacity={0.85} style={{ backgroundColor: colors.primary, paddingVertical: 14, borderRadius: radius.md, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm }}>
-                <RotateCcw size={18} color={colors.textInverse} />
-                <Text style={{ color: colors.textInverse, fontWeight: typography.bold }}>Alle nochmal</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setPhase("setup")} activeOpacity={0.85} style={{ paddingVertical: 12, borderRadius: radius.md, alignItems: "center" }}>
-                <Text style={{ color: colors.textSecondary, fontWeight: typography.semibold, fontSize: typography.base }}>Einstellungen</Text>
-              </TouchableOpacity>
-              {wrongPracticeCards.length > 0 && (
-                <TouchableOpacity onPress={practiceWrongCards} activeOpacity={0.85} style={{ paddingVertical: 8, alignItems: "center" }}>
-                  <Text style={{ color: colors.primary, fontWeight: typography.semibold, fontSize: typography.sm, textDecorationLine: "underline" }}>
-                    Falsche als Karteikarten üben ({wrongPracticeCards.length})
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
+              </View>
+            </StudyResult>
           </ScrollView>
         </SafeAreaView>
       </>
@@ -899,6 +891,9 @@ export default function TestScreen() {
               </View>
             </View>
 
+            {fellBackToWritten && (
+              <Text style={{ color: colors.textSecondary, fontSize: typography.sm }}>{t("study.writtenFallback")}</Text>
+            )}
             {/* Prompt */}
             <View style={{ ...cardStyle, position: "relative", padding: spacing.xl, gap: spacing.md }}>
               <TouchableOpacity
