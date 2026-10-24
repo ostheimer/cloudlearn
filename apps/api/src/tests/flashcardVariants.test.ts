@@ -89,3 +89,5 @@ describe("one generated card per fact, without mirrored basic/cloze variants", (
     expect(result.cards).toEqual([basic]);
   });
 });
+
+vi.mock("@/lib/geminiBudget", async (original) => ({ ...await original<typeof import("@/lib/geminiBudget")>(), reserveGeminiBudget: vi.fn(async () => "fixture"), settleGeminiBudget: vi.fn(async () => {}) }));

@@ -7,6 +7,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/idempotencyStore", () => ({
   getIdempotentResult: vi.fn(),
+  claimAiRequest: vi.fn(async () => ({ status: "claimed" })),
+  completeAiRequest: vi.fn(async () => {}),
+  releaseAiRequest: vi.fn(async () => {}),
 }));
 
 vi.mock("@/services/lpService", () => ({

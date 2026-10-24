@@ -77,7 +77,7 @@ const USER_ID = "22222222-2222-4222-8222-222222222222";
 function makeRequest() {
   return new Request("http://localhost/api/v1/scan/process", {
     method: "POST",
-    body: JSON.stringify({ imageBase64: "AAA", idempotencyKey: "k1" }),
+    body: JSON.stringify({ imageBase64: "A".repeat(100), idempotencyKey: "route-key-12345" }),
     headers: { "content-type": "application/json" },
   }) as never;
 }
@@ -156,4 +156,21 @@ describe("POST /api/v1/scan/process – LP refund on failure", () => {
     expect(body.usage.lpSpent).toBe(0);
     expect(mockedProcessScan).not.toHaveBeenCalled();
   });
+  it.each([["AI_DISABLED",503],["AI_BUDGET_EXHAUSTED",429],["AI_BUDGET_UNAVAILABLE",503],["AI_REQUEST_IN_PROGRESS",409]])("returns %s as a visible API error", async (code,status) => {
+    mockedRunLpChargedIdempotentRequest.mockRejectedValue(Object.assign(new Error("Die KI-Erstellung ist vorübergehend nicht verfügbar."),{code,status}));
+    const response = await POST(makeRequest());
+    expect(response.status).toBe(status);
+    expect(await response.json()).toMatchObject({ code, message: "Die KI-Erstellung ist vorübergehend nicht verfügbar." });
+    expect(mockedProcessScan).not.toHaveBeenCalled();
+  });
+
+  it("uses the validated payload for concurrent identity despite ignored fields or omitted defaults", async () => {
+    mockedProcessScan.mockResolvedValue(okResult as never);
+    await POST(makeRequest());
+    const a = mockedRunLpChargedIdempotentRequest.mock.calls[0]![0].requestFingerprint;
+    await POST(new Request("http://localhost/api/v1/scan/process", { method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({imageBase64:"A".repeat(100),idempotencyKey:"different-client-key",sourceLanguage:"de",preview:false,ignoredField:"noise"}) }) as never);
+    const b = mockedRunLpChargedIdempotentRequest.mock.calls[1]![0].requestFingerprint;
+    expect(b).toBe(a);
+  });
+
 });
