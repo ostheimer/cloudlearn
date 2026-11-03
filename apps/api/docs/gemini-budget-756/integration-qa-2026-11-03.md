@@ -54,8 +54,11 @@ PostgreSQL-16-Wegwerfcontainer, ausschließlich synthetische Daten:
 - Browser bei 1280×900 und 390×844: Abschaltmeldung sichtbar, Text erhalten,
   gespeicherte Karte weiterhin lernbar; keine Seitenfehler/externe Netzwerkziele.
 
-Aktuelles Main `0adf2ee765b25de06118c04358fc776b7a919932` enthält gegenüber der
-geprüften Basis nur PR-Vorlage und AGENTS-Qualitätsregeln, keinen neuen Produktcode.
+Integriertes Main `785c3254a687e1a322ac1f1fb2eb1adddb5ef529` enthält gegenüber
+der geprüften Basis PR-Vorlage, AGENTS-Qualitätsregeln und die separat in #769
+gemergte CI-Runnerkorrektur samt Nachweis, keinen neuen Produktcode.
+Produktcode, Tests, Manifeste und Lockfile sind nach der Integration bytegleich
+zum lokal geprüften kombinierten Stand `9d2613c53ae88aaa939b23745c968f13fa728fa6`.
 Daher keine unbegründete lokale Volltestwiederholung. Die bisherigen Vercel-Status
 vom Oktober sind kein neuer Remote-CI-Nachweis. Der GitHub-CI-Workflow ist am 03.11.2026 als `active` bestätigt.
 Vor Merge ist genau ein vollständiger CI-Lauf am endgültigen integrierten Head
@@ -128,3 +131,13 @@ Existenz-/Kompatibilitätsabgleich:
 Die Runnerkorrektur ist ausschließlich zur Wiederherstellung des verpflichtenden
 CI-Gates erforderlich. Der im Oktober geprüfte Budget-/Claim-Produktcode bleibt
 unverändert; finaler Head und grüne Run-URL werden im PR nachgetragen.
+
+
+## Separat gemergte CI-Korrektur und finale Gegenprobe
+
+Die Runnerkorrektur wurde inzwischen separat als [PR #769](https://github.com/ostheimer/cloudlearn/pull/769)
+auf Main gemergt. Dessen vollständiger [CI-Lauf 41603231458](https://github.com/ostheimer/cloudlearn/actions/runs/41603231458)
+bestand einschließlich Browserinstallation und Smoke-Test. Auch der vorherige
+integrierte #758-Stand bestand [41602831848](https://github.com/ostheimer/cloudlearn/actions/runs/41602831848).
+Der finale #758-Lauf prüft einmalig die Integration mit dem oben genannten Main;
+seine Run-URL und Ergebnisse werden ohne weiteren Code-Push im PR festgehalten.
