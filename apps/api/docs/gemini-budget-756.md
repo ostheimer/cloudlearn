@@ -95,3 +95,18 @@ node apps/api/docs/gemini-budget-756-ui.mjs
 [Abschaltung Desktop](gemini-budget-756/disabled-1280.png) · [Abschaltung Handybreite](gemini-budget-756/disabled-390.png) · [Lernen Desktop](gemini-budget-756/learning-1280.png) · [Lernen Handybreite](gemini-budget-756/learning-390.png). Screenshots wurden visuell zurückgelesen.
 
 Vor Merge beachten: Default-off sperrt neue Gemini-Erstellung nach Deployment bis zur bestätigten Aktivierung. Die Migration ist zuerst einzuspielen; ein fehlendes RPC führt ebenfalls zur Sperre. Die vier offenen externen Punkte bleiben Provider-Zuordnung, Spend-Cap-Prüfung, genehmigter Tages-/Monatsbetrag und Aktivierungs-/Live-Abnahme. Keine bezahlten Builds, keine echten KI-Aufrufe, kein Codex-Security-Scan.
+
+
+## Aktueller Integrations- und CI-Nachweis (03.11.2026)
+
+Der bestehende PR wird konfliktfrei mit Main `0adf2ee765b25de06118c04358fc776b7a919932`
+integriert. Produktcode und Lockfile entsprechen exakt der bereits lokal
+geprüften Integration `9d2613c53ae88aaa939b23745c968f13fa728fa6`.
+Die neuen Änderungen sind ausschließlich technische Dokumentation; kein
+künstlicher roter Dokumentationstest. GitHub-CI ist aktuell **active**; die
+frühere Meldung über einen manuell deaktivierten Workflow ist historisch.
+Der finale vollständige Remote-Lauf wird am aktualisierten PR-Head abgewartet.
+
+[Rot-Grün-Provenienz, Versions-/API-Abgleich und Integrationsnachweise](gemini-budget-756/integration-qa-2026-11-03.md).
+Betreiber-Konfiguration und Aktivierung werden getrennt koordiniert; Default-off
+ist weiterhin die ausdrückliche Release-Grenze.
