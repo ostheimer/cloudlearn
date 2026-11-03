@@ -8,7 +8,8 @@ on:
 
 jobs:
   checks:
-    runs-on: ubuntu-latest
+    # Keep the runner compatible with the locked Playwright 1.58.2 browsers.
+    runs-on: ubuntu-24.04
     services:
       # Throwaway Postgres for the LP SQL integration tests (lpDb.integration.test.ts)
       # and for the restore probe (scripts/restore-smoke.ts, #86). Both only ever
