@@ -94,3 +94,37 @@ Kein echter KI-Aufruf, EAS-Build oder Produktionszugriff durch diese Prüfung.
 Dieser Nachtrag ändert keine Programmlogik oder Runtime-Konfiguration und ist
 nirgends Programmeingabe. Doku-Ausnahme: Text, Quellen und Konsistenz geprüft;
 kein künstlicher roter Dokumentationstest.
+
+
+## Tatsächlicher CI-Blocker und minimale Korrektur (03.11.2026)
+
+Der erste vollständige Remote-Lauf am integrierten Head
+`ea70d7156d8c7b7faa8edb62f60b0c654e962362` ist
+[41602038330](https://github.com/ostheimer/cloudlearn/actions/runs/41602038330).
+Tests einschließlich SQL, Restore und Web-/App-Preview-Build waren erfolgreich.
+Der Fehler trat beim echten Prüfschritt `pnpm exec playwright install --with-deps chromium`
+auf: **Playwright does not support chromium on ubuntu26.04-x64**.
+
+Ursache ist die bewegliche Runner-Zuordnung `ubuntu-latest`, nicht ein fehlender
+Budgetguard-Test oder eine kaputte lokale Testinstallation. Die kleinste
+Korrektur pinnt ausschließlich den Runner dieses CI-Jobs auf `ubuntu-24.04`.
+Kein Produktcode, Paket oder Lockfile wird geändert; kein Gate wird übersprungen.
+Die bereits erfolgte Job-Ausführung reproduziert exakt den Infrastrukturfehler.
+Ein künstlicher Unit-Test der YAML-Zeichenfolge wäre kein gleichwertiger
+Installationsnachweis. Die wirksame Gegenprobe ist derselbe vollständige CI-Job
+auf dem unterstützten Runner einschließlich Browserinstallation und Smoke-Test.
+Sie wird am neuen finalen Head ausgeführt und muss vollständig grün werden.
+Die Doku-Ausnahme gilt nur für den Textnachtrag, nicht für diese Runnerkorrektur.
+
+Existenz-/Kompatibilitätsabgleich:
+
+- [GitHub Runner-Referenz](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)
+  führt `ubuntu-24.04` als unterstützten Standard-x64-Runner.
+- [Playwright-Quellcode exakt v1.58.2](https://github.com/microsoft/playwright/blob/v1.58.2/packages/playwright-core/src/server/registry/index.ts)
+  enthält Chromium-/Headless-Shell-Downloads für `ubuntu24.04-x64`; auch die
+  tatsächlich installierte Paketquelle und das Lockfile sind auf 1.58.2 geprüft.
+- Keine Verallgemeinerung dieser Fixfreigabe auf andere Workflows oder Provider.
+
+Die Runnerkorrektur ist ausschließlich zur Wiederherstellung des verpflichtenden
+CI-Gates erforderlich. Der im Oktober geprüfte Budget-/Claim-Produktcode bleibt
+unverändert; finaler Head und grüne Run-URL werden im PR nachgetragen.

@@ -110,3 +110,11 @@ Der finale vollständige Remote-Lauf wird am aktualisierten PR-Head abgewartet.
 [Rot-Grün-Provenienz, Versions-/API-Abgleich und Integrationsnachweise](gemini-budget-756/integration-qa-2026-11-03.md).
 Betreiber-Konfiguration und Aktivierung werden getrennt koordiniert; Default-off
 ist weiterhin die ausdrückliche Release-Grenze.
+
+
+Der finale Remote-Lauf am ersten Integrationshead scheiterte ausschließlich
+an der Browserinstallation auf Ubuntu 26.04. Die CI pinnt deshalb den von der
+gelockten Playwright-Version unterstützten Ubuntu-24.04-Runner. Details und
+reproduzierender roter CI-Lauf stehen im verlinkten Integrationsnachweis.
+Produktcode, Pakete und Lockfile bleiben unverändert; der vollständige Job
+wird am korrigierten finalen Head erneut als wirksame Gegenprobe ausgeführt.
