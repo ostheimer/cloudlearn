@@ -1,3 +1,5 @@
+import { pdfImportRequestSchema } from "@/lib/contracts";
+import { aiRequestIdentity } from "@/lib/aiRequestIdentity";
 import { type NextRequest } from "next/server";
 import { getEnv } from "@/lib/env";
 import { getAuthUser } from "@/lib/auth";
@@ -34,8 +36,7 @@ export async function POST(request: NextRequest) {
     const auth = await getAuthUser(request);
     if (!auth) return jsonError(requestId, "UNAUTHORIZED", "Authentication required", 401);
 
-    const body = await request.json();
-    body.userId = auth.userId;
+    const body = pdfImportRequestSchema.parse({ ...await request.json(), userId: auth.userId });
     const userId = auth.userId;
 
     const userSubscription = await getSubscriptionStatus(userId);
@@ -47,11 +48,13 @@ export async function POST(request: NextRequest) {
       return jsonError(requestId, "RATE_LIMITED", "Rate limit exceeded", 429);
     }
 
-    const idempotencyKey =
-      typeof body.idempotencyKey === "string" ? body.idempotencyKey : undefined;
+    const identity = aiRequestIdentity(userId, "pdfImport", body);
+    const idempotencyKey = identity.key;
+    body.idempotencyKey = idempotencyKey;
 
     const charged = await runLpChargedIdempotentRequest({
       idempotencyKey,
+      requestFingerprint: identity.fingerprint,
       userId,
       plan,
       feature: "pdfImport",
