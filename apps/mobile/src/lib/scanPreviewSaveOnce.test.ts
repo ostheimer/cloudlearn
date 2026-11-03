@@ -64,7 +64,7 @@ describe("Karten-Vorschau ist bearbeitbar und löschbar (#427)", () => {
     // Verlöre eine der beiden Funktionen ihren setCards-Aufruf, ginge die
     // Bearbeitung ins Leere.
     expect(source).toContain("setCards((prev) => editCardField(prev, index, side, value))");
-    expect(source).toContain("setCards((prev) => removeCardAt(prev, index))");
+    expect(source).toContain("setCards((prev) => prev.length > 1 ? removeCardAt(prev, index) : prev)");
   });
 
   it("entscheidet Editierbarkeit über die Medien-Analyse, nicht über plainFront", () => {

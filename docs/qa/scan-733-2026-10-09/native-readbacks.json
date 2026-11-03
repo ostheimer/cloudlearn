@@ -1,0 +1,513 @@
+{
+  "de-cancel-state": {
+    "balance": 383,
+    "decks": [
+      {
+        "id": "existing-733",
+        "title": "Bestehendes QA-Deck",
+        "userId": "733-local-user",
+        "tags": [],
+        "cardCount": 0,
+        "createdAt": "2026-10-09T20:49:30.063Z",
+        "updatedAt": "2026-10-09T20:49:30.191Z"
+      }
+    ],
+    "cards": []
+  },
+  "de-new-deck-state": {
+    "balance": 366,
+    "decks": [
+      {
+        "id": "existing-733",
+        "title": "Bestehendes QA-Deck",
+        "userId": "733-local-user",
+        "tags": [],
+        "cardCount": 0,
+        "createdAt": "2026-10-09T20:49:30.063Z",
+        "updatedAt": "2026-10-09T20:49:30.191Z"
+      },
+      {
+        "userId": "733-local-user",
+        "title": "Ökologie – geändert (DE)",
+        "tags": [
+          "scan",
+          "auto"
+        ],
+        "id": "deck-1",
+        "cardCount": 1,
+        "createdAt": "2026-10-09T21:01:03.621Z",
+        "updatedAt": "2026-10-09T21:01:03.625Z"
+      }
+    ],
+    "cards": [
+      {
+        "userId": "733-local-user",
+        "deckId": "deck-1",
+        "card": {
+          "front": "Wie funktioniert Photosynthese?",
+          "back": "Pflanzen wandeln Licht in chemische Energie um.",
+          "type": "basic",
+          "difficulty": "easy",
+          "tags": []
+        },
+        "id": "card-0"
+      }
+    ]
+  },
+  "de-pdf-rejected-state": {
+    "balance": 366,
+    "decks": [
+      {
+        "id": "existing-733",
+        "title": "Bestehendes QA-Deck",
+        "userId": "733-local-user",
+        "tags": [],
+        "cardCount": 0,
+        "createdAt": "2026-10-09T20:49:30.063Z",
+        "updatedAt": "2026-10-09T20:49:30.191Z"
+      },
+      {
+        "userId": "733-local-user",
+        "title": "Ökologie – geändert (DE)",
+        "tags": [
+          "scan",
+          "auto"
+        ],
+        "id": "deck-1",
+        "cardCount": 1,
+        "createdAt": "2026-10-09T21:01:03.621Z",
+        "updatedAt": "2026-10-09T21:01:03.625Z"
+      }
+    ],
+    "cards": [
+      {
+        "userId": "733-local-user",
+        "deckId": "deck-1",
+        "card": {
+          "front": "Wie funktioniert Photosynthese?",
+          "back": "Pflanzen wandeln Licht in chemische Energie um.",
+          "type": "basic",
+          "difficulty": "easy",
+          "tags": []
+        },
+        "id": "card-0"
+      }
+    ]
+  },
+  "de-existing-deck-state": {
+    "balance": 337,
+    "decks": [
+      {
+        "id": "existing-733",
+        "title": "Bestehendes QA-Deck",
+        "userId": "733-local-user",
+        "tags": [],
+        "cardCount": 2,
+        "createdAt": "2026-10-09T20:49:30.063Z",
+        "updatedAt": "2026-10-09T20:49:30.191Z"
+      },
+      {
+        "userId": "733-local-user",
+        "title": "Ökologie – geändert (DE)",
+        "tags": [
+          "scan",
+          "auto"
+        ],
+        "id": "deck-1",
+        "cardCount": 1,
+        "createdAt": "2026-10-09T21:01:03.621Z",
+        "updatedAt": "2026-10-09T21:01:03.625Z"
+      }
+    ],
+    "cards": [
+      {
+        "userId": "733-local-user",
+        "deckId": "deck-1",
+        "card": {
+          "front": "Wie funktioniert Photosynthese?",
+          "back": "Pflanzen wandeln Licht in chemische Energie um.",
+          "type": "basic",
+          "difficulty": "easy",
+          "tags": []
+        },
+        "id": "card-0"
+      },
+      {
+        "userId": "733-local-user",
+        "deckId": "existing-733",
+        "card": {
+          "front": "Was ist Photosynthese?",
+          "back": "Pflanzen wandeln Licht in chemische Energie um.",
+          "type": "basic",
+          "difficulty": "easy",
+          "tags": []
+        },
+        "id": "card-1"
+      },
+      {
+        "userId": "733-local-user",
+        "deckId": "existing-733",
+        "card": {
+          "front": "Was ist ein Ökosystem?",
+          "back": "Lebewesen und ihr Lebensraum.",
+          "type": "basic",
+          "difficulty": "easy",
+          "tags": []
+        },
+        "id": "card-2"
+      }
+    ]
+  },
+  "en-cancel-state": {
+    "balance": 337,
+    "decks": [
+      {
+        "id": "existing-733",
+        "title": "Bestehendes QA-Deck",
+        "userId": "733-local-user",
+        "tags": [],
+        "cardCount": 2,
+        "createdAt": "2026-10-09T20:49:30.063Z",
+        "updatedAt": "2026-10-09T20:49:30.191Z"
+      },
+      {
+        "userId": "733-local-user",
+        "title": "Ökologie – geändert (DE)",
+        "tags": [
+          "scan",
+          "auto"
+        ],
+        "id": "deck-1",
+        "cardCount": 1,
+        "createdAt": "2026-10-09T21:01:03.621Z",
+        "updatedAt": "2026-10-09T21:01:03.625Z"
+      }
+    ],
+    "cards": [
+      {
+        "userId": "733-local-user",
+        "deckId": "deck-1",
+        "card": {
+          "front": "Wie funktioniert Photosynthese?",
+          "back": "Pflanzen wandeln Licht in chemische Energie um.",
+          "type": "basic",
+          "difficulty": "easy",
+          "tags": []
+        },
+        "id": "card-0"
+      },
+      {
+        "userId": "733-local-user",
+        "deckId": "existing-733",
+        "card": {
+          "front": "Was ist Photosynthese?",
+          "back": "Pflanzen wandeln Licht in chemische Energie um.",
+          "type": "basic",
+          "difficulty": "easy",
+          "tags": []
+        },
+        "id": "card-1"
+      },
+      {
+        "userId": "733-local-user",
+        "deckId": "existing-733",
+        "card": {
+          "front": "Was ist ein Ökosystem?",
+          "back": "Lebewesen und ihr Lebensraum.",
+          "type": "basic",
+          "difficulty": "easy",
+          "tags": []
+        },
+        "id": "card-2"
+      }
+    ]
+  },
+  "en-new-deck-state": {
+    "balance": 320,
+    "decks": [
+      {
+        "id": "existing-733",
+        "title": "Bestehendes QA-Deck",
+        "userId": "733-local-user",
+        "tags": [],
+        "cardCount": 2,
+        "createdAt": "2026-10-09T20:49:30.063Z",
+        "updatedAt": "2026-10-09T20:49:30.191Z"
+      },
+      {
+        "userId": "733-local-user",
+        "title": "Ökologie – geändert (DE)",
+        "tags": [
+          "scan",
+          "auto"
+        ],
+        "id": "deck-1",
+        "cardCount": 1,
+        "createdAt": "2026-10-09T21:01:03.621Z",
+        "updatedAt": "2026-10-09T21:01:03.625Z"
+      },
+      {
+        "userId": "733-local-user",
+        "title": "Ecology – edited (EN)",
+        "tags": [
+          "scan",
+          "auto"
+        ],
+        "id": "deck-2",
+        "cardCount": 1,
+        "createdAt": "2026-10-09T21:05:28.312Z",
+        "updatedAt": "2026-10-09T21:05:28.312Z"
+      }
+    ],
+    "cards": [
+      {
+        "userId": "733-local-user",
+        "deckId": "deck-1",
+        "card": {
+          "front": "Wie funktioniert Photosynthese?",
+          "back": "Pflanzen wandeln Licht in chemische Energie um.",
+          "type": "basic",
+          "difficulty": "easy",
+          "tags": []
+        },
+        "id": "card-0"
+      },
+      {
+        "userId": "733-local-user",
+        "deckId": "existing-733",
+        "card": {
+          "front": "Was ist Photosynthese?",
+          "back": "Pflanzen wandeln Licht in chemische Energie um.",
+          "type": "basic",
+          "difficulty": "easy",
+          "tags": []
+        },
+        "id": "card-1"
+      },
+      {
+        "userId": "733-local-user",
+        "deckId": "existing-733",
+        "card": {
+          "front": "Was ist ein Ökosystem?",
+          "back": "Lebewesen und ihr Lebensraum.",
+          "type": "basic",
+          "difficulty": "easy",
+          "tags": []
+        },
+        "id": "card-2"
+      },
+      {
+        "userId": "733-local-user",
+        "deckId": "deck-2",
+        "card": {
+          "front": "How does photosynthesis work?",
+          "back": "Pflanzen wandeln Licht in chemische Energie um.",
+          "type": "basic",
+          "difficulty": "easy",
+          "tags": []
+        },
+        "id": "card-3"
+      }
+    ]
+  },
+  "en-pdf-rejected-state": {
+    "balance": 320,
+    "decks": [
+      {
+        "id": "existing-733",
+        "title": "Bestehendes QA-Deck",
+        "userId": "733-local-user",
+        "tags": [],
+        "cardCount": 2,
+        "createdAt": "2026-10-09T20:49:30.063Z",
+        "updatedAt": "2026-10-09T20:49:30.191Z"
+      },
+      {
+        "userId": "733-local-user",
+        "title": "Ökologie – geändert (DE)",
+        "tags": [
+          "scan",
+          "auto"
+        ],
+        "id": "deck-1",
+        "cardCount": 1,
+        "createdAt": "2026-10-09T21:01:03.621Z",
+        "updatedAt": "2026-10-09T21:01:03.625Z"
+      },
+      {
+        "userId": "733-local-user",
+        "title": "Ecology – edited (EN)",
+        "tags": [
+          "scan",
+          "auto"
+        ],
+        "id": "deck-2",
+        "cardCount": 1,
+        "createdAt": "2026-10-09T21:05:28.312Z",
+        "updatedAt": "2026-10-09T21:05:28.312Z"
+      }
+    ],
+    "cards": [
+      {
+        "userId": "733-local-user",
+        "deckId": "deck-1",
+        "card": {
+          "front": "Wie funktioniert Photosynthese?",
+          "back": "Pflanzen wandeln Licht in chemische Energie um.",
+          "type": "basic",
+          "difficulty": "easy",
+          "tags": []
+        },
+        "id": "card-0"
+      },
+      {
+        "userId": "733-local-user",
+        "deckId": "existing-733",
+        "card": {
+          "front": "Was ist Photosynthese?",
+          "back": "Pflanzen wandeln Licht in chemische Energie um.",
+          "type": "basic",
+          "difficulty": "easy",
+          "tags": []
+        },
+        "id": "card-1"
+      },
+      {
+        "userId": "733-local-user",
+        "deckId": "existing-733",
+        "card": {
+          "front": "Was ist ein Ökosystem?",
+          "back": "Lebewesen und ihr Lebensraum.",
+          "type": "basic",
+          "difficulty": "easy",
+          "tags": []
+        },
+        "id": "card-2"
+      },
+      {
+        "userId": "733-local-user",
+        "deckId": "deck-2",
+        "card": {
+          "front": "How does photosynthesis work?",
+          "back": "Pflanzen wandeln Licht in chemische Energie um.",
+          "type": "basic",
+          "difficulty": "easy",
+          "tags": []
+        },
+        "id": "card-3"
+      }
+    ]
+  },
+  "en-existing-deck-state": {
+    "balance": 291,
+    "decks": [
+      {
+        "id": "existing-733",
+        "title": "Bestehendes QA-Deck",
+        "userId": "733-local-user",
+        "tags": [],
+        "cardCount": 4,
+        "createdAt": "2026-10-09T20:49:30.063Z",
+        "updatedAt": "2026-10-09T20:49:30.191Z"
+      },
+      {
+        "userId": "733-local-user",
+        "title": "Ökologie – geändert (DE)",
+        "tags": [
+          "scan",
+          "auto"
+        ],
+        "id": "deck-1",
+        "cardCount": 1,
+        "createdAt": "2026-10-09T21:01:03.621Z",
+        "updatedAt": "2026-10-09T21:01:03.625Z"
+      },
+      {
+        "userId": "733-local-user",
+        "title": "Ecology – edited (EN)",
+        "tags": [
+          "scan",
+          "auto"
+        ],
+        "id": "deck-2",
+        "cardCount": 1,
+        "createdAt": "2026-10-09T21:05:28.312Z",
+        "updatedAt": "2026-10-09T21:05:28.312Z"
+      }
+    ],
+    "cards": [
+      {
+        "userId": "733-local-user",
+        "deckId": "deck-1",
+        "card": {
+          "front": "Wie funktioniert Photosynthese?",
+          "back": "Pflanzen wandeln Licht in chemische Energie um.",
+          "type": "basic",
+          "difficulty": "easy",
+          "tags": []
+        },
+        "id": "card-0"
+      },
+      {
+        "userId": "733-local-user",
+        "deckId": "existing-733",
+        "card": {
+          "front": "Was ist Photosynthese?",
+          "back": "Pflanzen wandeln Licht in chemische Energie um.",
+          "type": "basic",
+          "difficulty": "easy",
+          "tags": []
+        },
+        "id": "card-1"
+      },
+      {
+        "userId": "733-local-user",
+        "deckId": "existing-733",
+        "card": {
+          "front": "Was ist ein Ökosystem?",
+          "back": "Lebewesen und ihr Lebensraum.",
+          "type": "basic",
+          "difficulty": "easy",
+          "tags": []
+        },
+        "id": "card-2"
+      },
+      {
+        "userId": "733-local-user",
+        "deckId": "deck-2",
+        "card": {
+          "front": "How does photosynthesis work?",
+          "back": "Pflanzen wandeln Licht in chemische Energie um.",
+          "type": "basic",
+          "difficulty": "easy",
+          "tags": []
+        },
+        "id": "card-3"
+      },
+      {
+        "userId": "733-local-user",
+        "deckId": "existing-733",
+        "card": {
+          "front": "Was ist Photosynthese?",
+          "back": "Pflanzen wandeln Licht in chemische Energie um.",
+          "type": "basic",
+          "difficulty": "easy",
+          "tags": []
+        },
+        "id": "card-4"
+      },
+      {
+        "userId": "733-local-user",
+        "deckId": "existing-733",
+        "card": {
+          "front": "Was ist ein Ökosystem?",
+          "back": "Lebewesen und ihr Lebensraum.",
+          "type": "basic",
+          "difficulty": "easy",
+          "tags": []
+        },
+        "id": "card-5"
+      }
+    ]
+  }
+}

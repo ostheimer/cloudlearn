@@ -165,7 +165,7 @@ export function LearnSession({
   const reviewBufferRef = useRef(createReviewSendBuffer());
   // Die Karte selbst — nach jeder Bewertung wandert der Tastatur-Fokus hierher
   // zurück (siehe rate).
-  const cardRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLButtonElement>(null);
   // Stift-Knopf (#610): öffnet den Karten-Editor, ohne die Runde zu verlassen.
   const [editing, setEditing] = useState(false);
 
@@ -508,7 +508,7 @@ export function LearnSession({
   // (#610). Der Horcher hängt am Fenster, damit er auch greift, wenn der Fokus
   // gerade nirgendwo Bestimmtem sitzt.
   useEffect(() => {
-    if (done || total === 0) return;
+    if (done || total === 0 || editing) return;
     const onKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       const ratingIndex = ratingKeyIndex(
@@ -517,7 +517,8 @@ export function LearnSession({
           ctrlKey: e.ctrlKey,
           metaKey: e.metaKey,
           altKey: e.altKey,
-          targetTag: target?.tagName,
+          // The flip control owns these shortcuts; other buttons keep their own keys.
+          targetTag: target === cardRef.current ? undefined : target?.tagName,
           targetIsEditable: target?.isContentEditable,
         },
         flipped
@@ -530,7 +531,7 @@ export function LearnSession({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [flipped, rate, done, total]);
+  }, [flipped, rate, done, total, editing]);
 
   // Zurück zur vorigen Karte: die noch ungesendete Bewertung wird verworfen
   // (Rückgängig), Zähler und Wiederholungs-Stapel drehen zurück. Nur bis zur
@@ -825,23 +826,22 @@ export function LearnSession({
       </div>
 
       <div
-        ref={cardRef}
         className={`flip study-card${flipped ? " is-flipped" : ""}${
           frontImage || backImage ? " flip--media" : ""
         }`}
-        role="button"
-        tabIndex={0}
-        aria-label="Karte umdrehen"
-        onClick={() => setFlipped((v) => !v)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            setFlipped((v) => !v);
-          }
-        }}
       >
-        <div className="flip__inner">
-          <div className="flip__face flip__face--front">
+        <button
+          ref={cardRef}
+          type="button"
+          className="study-flip-control"
+          aria-label="Karte umdrehen"
+          aria-pressed={flipped}
+          aria-describedby="study-card-content learning-keyboard-help"
+          aria-keyshortcuts="Enter Space"
+          onClick={() => setFlipped((v) => !v)}
+        />
+        <div className="flip__inner" id="study-card-content">
+          <div className="flip__face flip__face--front" aria-hidden={flipped}>
             {currentDeckTitle && <span className="flip__deck">{currentDeckTitle}</span>}
             <span className="flip__label">Frage</span>
             {frontImage && (
@@ -855,7 +855,7 @@ export function LearnSession({
               {coarsePointer ? "Tippen zum Umdrehen" : "Klicken zum Umdrehen"}
             </span>
           </div>
-          <div className="flip__face flip__face--back">
+          <div className="flip__face flip__face--back" aria-hidden={!flipped}>
             {currentDeckTitle && <span className="flip__deck">{currentDeckTitle}</span>}
             <span className="flip__label">Antwort</span>
             {backImage && (
@@ -907,9 +907,11 @@ export function LearnSession({
         )}
       </div>
 
-      {/* Bewertungs-Knöpfe immer sichtbar — wie die App (Laras Wahl). Die
-          Zifferntaste steht im Tooltip und in aria-keyshortcuts: am Laptop
-          entdeckbar, ohne die Knöpfe am Handy mit sinnlosen Zahlen zu füllen. */}
+      <p id="learning-keyboard-help" className="muted" style={{ fontSize: "0.85rem", textAlign: "center" }}>
+        Tastatur: Enter oder Leertaste dreht die Karte um. Nach dem Umdrehen:
+        1–4 bewertet (1 Nochmal, 2 Schwer, 3 Gut, 4 Leicht).
+      </p>
+      {/* Bewertungs-Knöpfe bleiben zusätzlich zur sichtbaren Tastaturhilfe bedienbar. */}
       <div className="rating-row">
         {RATINGS.map((r, i) => (
           <button

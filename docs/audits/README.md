@@ -4,6 +4,7 @@ Rohbefunde großer Durchgänge, aufgehoben zum Nachschlagen. **Sie sind Momentau
 
 | Datei | Was drinsteht |
 | --- | --- |
+| `2026-10-09-open-issue-abgleich.md` | Vollabgleich aller 21 offenen Issues gegen Main, acht offene PRs und Release-Evidenz; Teilanforderungen, Gerätegates und nächste Pakete. |
 | `2026-07-28-app-vs-web-vergleich.md` | Bildschirm-für-Bildschirm-Vergleich App gegen Web (7 parallele Lese-Durchgänge): fehlende Funktionen, abweichende Wortlaute, andere Reihenfolgen und Einstellwerte. Daraus entstanden #563–#571. |
 | `2026-07-29-nutzerblick-audit.md` | Sechs Rollen-Durchgänge (neue Nutzerin, tägliche Lernerin, Pro-Zahler, Free am Limit, Randfälle, Produkt-Blick): Fehler, Datenverlust-Momente, Erlebnis-Probleme und Vorschläge mit Aufwand. Daraus entstanden #603–#614. |
 

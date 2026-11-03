@@ -3,6 +3,7 @@ import { z } from "zod";
 import { jsonError, jsonOk, normalizeError } from "@/lib/http";
 import { createRequestContext } from "@/lib/observability";
 import { getAuthUser } from "@/lib/auth";
+import { API_RATE_LIMITS, enforceUserRateLimit } from "@/lib/apiRateLimit";
 import { restoreCardForUser, restoreDeckForUser } from "@/services/trashService";
 
 /**
@@ -25,6 +26,7 @@ export async function POST(request: NextRequest) {
   try {
     const auth = await getAuthUser(request);
     if (!auth) return jsonError(requestId, "UNAUTHORIZED", "Authentication required", 401);
+    await enforceUserRateLimit(auth.userId, "trash-restore", API_RATE_LIMITS.trashRestore);
 
     const parsed = requestSchema.parse(await request.json());
 

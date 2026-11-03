@@ -9,7 +9,7 @@ vi.mock("react-native", () => Object.fromEntries(
 vi.mock("react-native-safe-area-context", () => ({ SafeAreaView: "SafeAreaView" }));
 vi.mock("lucide-react-native", () => ({ X: () => null, Layers: () => null, Plus: () => null, Search: () => null }));
 vi.mock("../theme", () => ({ useColors: () => ({}), spacing: {}, radius: {}, typography: {} }));
-vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
+vi.mock("react-i18next", () => ({ useTranslation: () => ({ i18n: { language: "de" }, t: (key: string) => key }) }));
 import TargetDeckPickerModal from "./TargetDeckPickerModal";
 
 let renderer: ReactTestRenderer;

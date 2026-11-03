@@ -19,8 +19,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/supabase", () => ({ createSupabaseAdminClient: vi.fn() }));
+vi.mock("@/lib/rateLimit", () => ({ checkRateLimit: vi.fn().mockResolvedValue(true) }));
 vi.mock("@/lib/auth", () => ({ getAuthUser: vi.fn() }));
 vi.mock("@/lib/http", () => ({
+  HttpError: class HttpError extends Error {
+    constructor(
+      message: string,
+      public status: number,
+      public code: string
+    ) {
+      super(message);
+    }
+  },
   jsonOk: (_requestId: string, data: unknown, status = 200) => ({
     status,
     json: async () => data,
@@ -29,11 +39,14 @@ vi.mock("@/lib/http", () => ({
     status,
     json: async () => ({ code, message, request_id: requestId }),
   }),
-  normalizeError: (error: unknown) => ({
-    code: "INTERNAL_ERROR",
-    message: error instanceof Error ? error.message : "Unknown error",
-    status: 500,
-  }),
+  normalizeError: (error: unknown) => {
+    const typed = error as { code?: unknown; message?: unknown; status?: unknown };
+    return {
+      code: typeof typed.code === "string" ? typed.code : "INTERNAL_ERROR",
+      message: typeof typed.message === "string" ? typed.message : "Unknown error",
+      status: typeof typed.status === "number" ? typed.status : 500,
+    };
+  },
 }));
 vi.mock("@/lib/observability", () => ({
   createRequestContext: () => ({ requestId: "req-folder-counts-1" }),
@@ -255,6 +268,40 @@ describe("listCardsInFolder – alle Karten des Ordners in einem Rutsch", () => 
     ]);
   });
 
+  it.each([1999, 2000])("liefert %i Karten vollständig innerhalb der Grenze (#702)", async (count) => {
+    const rows = Array.from({ length: count }, (_, i) =>
+      cardRow(`c${i}`, DECK_A, "2026-07-01T00:00:00.000Z")
+    );
+    const { db } = makeDbMock({
+      folders: { data: folderRow, error: null },
+      folder_decks: [{ deck_id: DECK_A }],
+      cards: rows,
+    });
+    mockedCreateDb.mockReturnValue(db);
+    expect(await listCardsInFolder(FOLDER_A, USER_ID, 2000)).toHaveLength(count);
+  });
+
+  it("bricht einen übergroßen Ordner nach höchstens 2001 Karten ehrlich ab (#702)", async () => {
+    const rows = Array.from({ length: 2001 }, (_, i) =>
+      cardRow(`c${i}`, DECK_A, "2026-07-01T00:00:00.000Z")
+    );
+    const { db, calls } = makeDbMock({
+      folders: { data: folderRow, error: null },
+      folder_decks: [{ deck_id: DECK_A }],
+      cards: rows,
+    });
+    mockedCreateDb.mockReturnValue(db);
+
+    await expect(listCardsInFolder(FOLDER_A, USER_ID, 2000)).rejects.toMatchObject({
+      limit: 2000,
+    });
+    expect(calls.filter((c) => c.method === "range").map((c) => c.args)).toEqual([
+      [0, 999],
+      [1000, 1999],
+      [2000, 2000],
+    ]);
+  });
+
   it("fragt die Karten mit einer Abfrage über alle Deck-IDs ab", async () => {
     const { db, calls } = makeDbMock({
       folders: { data: folderRow, error: null },
@@ -397,4 +444,54 @@ describe("GET /api/v1/folders/[id]/cards – Vertrag", () => {
     expect(response.status).toBe(401);
     expect(mockedCreateDb).not.toHaveBeenCalled();
   });
+
+  it("antwortet bei mehr als 2000 Karten mit einer ehrlichen Grenze statt Timeout (#702)", async () => {
+    mockedGetAuthUser.mockResolvedValue({ userId: USER_ID, email: "lara@example.com" });
+    const { db } = makeDbMock({
+      folders: { data: folderRow, error: null },
+      folder_decks: [{ deck_id: DECK_A }],
+      cards: Array.from({ length: 2001 }, (_, i) =>
+        cardRow(`c${i}`, DECK_A, "2026-07-01T00:00:00.000Z")
+      ),
+    });
+    mockedCreateDb.mockReturnValue(db);
+
+    const response = await GET_CARDS(request(), params);
+    const body = (await response.json()) as { code: string; message: string };
+
+    expect(response.status).toBe(413);
+    expect(body.code).toBe("FOLDER_TOO_LARGE");
+    expect(body.message).toContain("2000");
+  });
+
+  it.each([
+    ["ASCII", "x", 1_100_000],
+    ["UTF-8", "🧠", 280_000],
+  ] as const)("begrenzt auch die JSON-Bytes bei nur zwei großen %s-Karten (#702)", async (_name, text, repeats) => {
+    mockedGetAuthUser.mockResolvedValue({ userId: USER_ID, email: "lara@example.com" });
+    const rows = [cardRow("c1", DECK_A, "2026-07-01T00:00:00.000Z"), cardRow("c2", DECK_A, "2026-07-01T00:00:00.000Z")]
+      .map((row) => ({ ...row, back: text.repeat(repeats) }));
+    const { db } = makeDbMock({
+      folders: { data: folderRow, error: null }, folder_decks: [{ deck_id: DECK_A }], cards: rows,
+    });
+    mockedCreateDb.mockReturnValue(db);
+    const response = await GET_CARDS(request(), params);
+    expect(response.status).toBe(413);
+    expect(await response.json()).toMatchObject({
+      code: "FOLDER_TOO_LARGE", message: expect.stringContaining("zu umfangreich"),
+    });
+  });
+
+  it("liefert große Texte unter dem Byte-Budget vollständig", async () => {
+    mockedGetAuthUser.mockResolvedValue({ userId: USER_ID, email: "lara@example.com" });
+    const row = { ...cardRow("c1", DECK_A, "2026-07-01T00:00:00.000Z"), back: "ä".repeat(950_000) };
+    const { db } = makeDbMock({
+      folders: { data: folderRow, error: null }, folder_decks: [{ deck_id: DECK_A }], cards: [row],
+    });
+    mockedCreateDb.mockReturnValue(db);
+    const response = await GET_CARDS(request(), params);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ cards: [{ back: row.back }] });
+  });
+
 });

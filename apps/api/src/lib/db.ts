@@ -4,6 +4,7 @@
  * All functions are async and map between camelCase (code) and snake_case (DB).
  */
 
+import { HttpError } from "./http";
 import { createSupabaseAdminClient } from "./supabase";
 import { daysBetween, startOfLocalDayIso, startOfTodayLocalIso, todayLocal } from "./localDay";
 import { STREAK_REPAIR } from "./featureGates";
@@ -964,6 +965,17 @@ export async function markFriendStreakDay(userId: string): Promise<void> {
  *  about the rest — no error, no marker. See selectAllRows. */
 const POSTGREST_PAGE = 1000;
 
+/** Eine gebündelte Abfrage hat ihre ausdrücklich gesetzte Obergrenze überschritten. */
+export class RowLimitExceededError extends Error {
+  constructor(
+    context: string,
+    public readonly limit: number
+  ) {
+    super(`${context} exceeds ${limit} rows`);
+    this.name = "RowLimitExceededError";
+  }
+}
+
 /**
  * Every row a query matches, not just PostgREST's first page.
  *
@@ -985,15 +997,23 @@ async function selectAllRows<T>(
     data: T[] | null;
     error: { message: string } | null;
   }>,
-  context: string
+  context: string,
+  maxRows?: number
 ): Promise<T[]> {
   const rows: T[] = [];
   for (let offset = 0; ; offset += POSTGREST_PAGE) {
-    const { data, error } = await page(offset, offset + POSTGREST_PAGE - 1);
+    // Bei einer Grenze genau eine zusätzliche Zeile anfordern: Sie beweist,
+    // dass das Ergebnis zu groß ist, ohne den Rest noch zu übertragen (#702).
+    const requested =
+      maxRows === undefined ? POSTGREST_PAGE : Math.min(POSTGREST_PAGE, maxRows + 1 - offset);
+    const { data, error } = await page(offset, offset + requested - 1);
     if (error) throw new Error(`${context}: ${error.message}`);
     const batch = data ?? [];
     rows.push(...batch);
-    if (batch.length < POSTGREST_PAGE) return rows;
+    if (maxRows !== undefined && rows.length > maxRows) {
+      throw new RowLimitExceededError(context, maxRows);
+    }
+    if (batch.length < requested) return rows;
   }
 }
 
@@ -1711,7 +1731,8 @@ export async function countDecksByFolder(userId: string): Promise<Record<string,
  */
 export async function listCardsInFolder(
   folderId: string,
-  userId: string
+  userId: string,
+  maxRows?: number
 ): Promise<CardRecord[] | null> {
   const folder = await getFolder(folderId, userId);
   if (!folder) return null;
@@ -1747,7 +1768,8 @@ export async function listCardsInFolder(
         .order("created_at", { ascending: true })
         .order("id", { ascending: true })
         .range(from, to),
-    "listCardsInFolder"
+    "listCardsInFolder",
+    maxRows
   );
 
   const cards = rows.map(mapCardRow);
@@ -2528,7 +2550,8 @@ export async function getSessionProgress(
     .eq("deck_id", deckId)
     .eq("mode", mode)
     .maybeSingle();
-  if (error || !data) return null;
+  if (error) throw new Error(`getSessionProgress: ${error.message}`);
+  if (!data) return null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const row = data as any;
   return {
@@ -2736,39 +2759,25 @@ export async function getDeletedDeck(
   return { id: data.id, title: data.title, deletedAt: data.deleted_at };
 }
 
-/**
- * Deck zurückholen, samt der Karten, die MIT ihm gelöscht wurden.
- *
- * Reihenfolge Karten -> Deck, genau umgekehrt zu softDeleteDeck: bricht der
- * zweite Schritt ab, hängen lebende Karten unter einem noch gelöschten Deck.
- * Alle gehärteten Leser joinen auf lebende Decks (#495), diese Karten bleiben
- * also unsichtbar statt in einem sichtbar leeren Deck zu fehlen — und ein
- * zweiter Versuch heilt es vollständig.
- */
-export async function restoreDeck(deckId: string, userId: string): Promise<boolean> {
+export type RestoreDeckResult = "restored" | "not_found" | "limit_reached";
+
+/** Deck und seine gleichzeitig gelöschten Karten atomar innerhalb des Limits zurückholen. */
+export async function restoreDeckWithinLimit(
+  deckId: string,
+  userId: string,
+  maxDecks: number
+): Promise<RestoreDeckResult> {
   const db = getDb();
-  const deck = await getDeletedDeck(deckId, userId);
-  if (!deck) return false;
-
-  const { error: cardsError } = await db
-    .from("cards")
-    .update({ deleted_at: null })
-    .eq("deck_id", deckId)
-    .eq("user_id", userId)
-    .eq("deleted_at", deck.deletedAt);
-  if (cardsError) throw new Error(`restoreDeck cards: ${cardsError.message}`);
-
-  const now = new Date().toISOString();
-  const { data, error } = await db
-    .from("decks")
-    .update({ deleted_at: null, updated_at: now })
-    .eq("id", deckId)
-    .eq("user_id", userId)
-    .not("deleted_at", "is", null)
-    .select("id")
-    .maybeSingle();
-  if (error) throw new Error(`restoreDeck: ${error.message}`);
-  return !!data;
+  const { data, error } = await db.rpc("restore_deck_with_limit", {
+    p_deck: deckId,
+    p_user: userId,
+    p_max_decks: maxDecks,
+  });
+  if (error) throw new Error(`restoreDeckWithinLimit: ${error.message}`);
+  if (data !== "restored" && data !== "not_found" && data !== "limit_reached") {
+    throw new Error("restoreDeckWithinLimit: invalid response");
+  }
+  return data;
 }
 
 /** Eine einzeln gelöschte Karte samt Zustand ihres Decks. */
@@ -2904,4 +2913,25 @@ export async function listPushDevices(userId: string): Promise<PushDevice[]> {
     firstSeenAt: row.created_at,
     lastSeenAt: row.updated_at ?? row.created_at,
   }));
+}
+
+
+export interface OcclusionImageEdit {
+  userId: string; deckId: string; sourceImageUrl: string; maxCards: number;
+  expectedCards: { id: string; back: string; extraData: Record<string, unknown> }[];
+  regions: { x: number; y: number; w: number; h: number; label: string; cardIds: string[] }[];
+}
+
+export async function saveOcclusionImage(input: OcclusionImageEdit): Promise<{ updated: number; created: number; deleted: number }> {
+  const { data, error } = await getDb().rpc("edit_occlusion_image", {
+    p_user_id: input.userId, p_deck_id: input.deckId, p_image_path: input.sourceImageUrl,
+    p_expected: input.expectedCards, p_regions: input.regions, p_max_cards: input.maxCards,
+  });
+  if (error) {
+    if (error.message.includes("OCCLUSION_CONFLICT")) throw new HttpError("Das Bild wurde inzwischen geändert. Lade es erneut und prüfe deine Änderungen.", 409, "OCCLUSION_CONFLICT");
+    if (error.message.includes("DECK_FULL")) throw new HttpError("Dieses Deck ist voll. Leg für weitere Karten ein zweites Deck an.", 409, "DECK_FULL");
+    if (error.message.includes("DECK_NOT_FOUND")) throw new HttpError("Deck not found", 404, "DECK_NOT_FOUND");
+    throw new Error(`saveOcclusionImage: ${error.message}`);
+  }
+  return data as { updated: number; created: number; deleted: number };
 }

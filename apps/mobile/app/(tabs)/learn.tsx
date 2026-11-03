@@ -33,12 +33,12 @@ import {
   ArrowLeftRight,
   Star,
   Pencil,
-  Trophy,
   Volume2,
   Play,
   Pause,
   Timer,
 } from "lucide-react-native";
+import { StudyResult } from "../../src/components/StudyResult";
 import CardEditor from "../../src/components/CardEditor";
 import * as Speech from "expo-speech";
 import { AUTO_PLAY_SPEEDS, loadAutoPlaySpeed, saveAutoPlaySpeed } from "../../src/lib/autoplaySpeed";
@@ -64,6 +64,7 @@ import {
   updateCard,
 } from "../../src/lib/api";
 import { dailyGoalLine } from "../../src/lib/dailyGoalLine";
+import { cardEditorErrorMessage } from "../../src/lib/cardEditorError";
 import {
   DEFAULT_SPEECH_LANGUAGE,
   toSpeechLanguage,
@@ -241,6 +242,7 @@ function AuthenticatedLearnScreen({
   // Stift-Knopf (#610): öffnet den Karten-Editor, ohne die Runde zu verlassen.
   const [editingCard, setEditingCard] = useState(false);
   const [savingCard, setSavingCard] = useState(false);
+  const [cardEditorError, setCardEditorError] = useState<string | null>(null);
 
   const awardStateRef = useRef<SessionAwardState>({ finalized: false, inFlight: null });
   const pendingReviewsRef = useRef<Promise<unknown>[]>([]);
@@ -406,6 +408,7 @@ function AuthenticatedLearnScreen({
             id: card.id,
             front: card.front,
             back: card.back,
+            difficulty: card.difficulty,
             starred: card.starred,
             // Fürs Vorlesen: sagt, welche Deck-Sprachen für diese Karte gelten.
             deckId: card.deckId,
@@ -592,14 +595,18 @@ function AuthenticatedLearnScreen({
         mode: "flashcard",
       }),
     });
-    if (previous) await sendReview(previous);
+    const sends: Promise<void>[] = [];
+    if (previous) sends.push(sendReview(previous));
     // The last card has nothing after it to release the buffer, and the summary
     // screen reads the streak, so send it now. The summary has no back arrow (see
     // the `!completed` render guard), so it can't be re-rated from there.
     if (useReviewSession.getState().completed) {
       const last = reviewBuffer.flush();
-      if (last) await sendReview(last);
+      if (last) sends.push(sendReview(last));
     }
+    // Register the final review/count before yielding to slow HTTP: completed
+    // already makes the result effect eligible, including its LP request.
+    await Promise.all(sends);
   };
 
   const handleSwipe = (rating: ReviewRating) => {
@@ -1154,80 +1161,22 @@ function AuthenticatedLearnScreen({
                 </View>
               </View>
             ) : (
-              // Result: how many known + re-study only the missed ones. Same
-              // "Lernen" frame as the other modes — green trophy, never red, a
-              // finished round is never a fail.
-              <View style={{ flex: 1, justifyContent: "center", alignItems: "center", gap: spacing.md, paddingHorizontal: spacing.lg }}>
-                <View style={{
-                  width: 72, height: 72, borderRadius: 36, backgroundColor: c.successLight,
-                  justifyContent: "center", alignItems: "center",
-                }}>
-                  <Trophy size={34} color={c.success} />
-                </View>
-                <Text style={{ fontSize: typography.xxxl, fontWeight: typography.extrabold, textAlign: "center", color: c.text }}>
-                  {displayName
-                    ? t("review.resultTitleNamed", { name: displayName })
-                    : t("review.resultTitle")}
-                </Text>
-                <Text style={{ color: c.textSecondary, textAlign: "center", fontSize: typography.base }}>
-                  {resultTotal === 1
-                    ? t("review.resultBodyOne", { known: knownCount })
-                    : t("review.resultBody", { total: resultTotal, known: knownCount })}
-                </Text>
-                {/* Punkte-Rückmeldung (#611). Vorher rechnete dieser Bildschirm
-                    erst beim VERLASSEN ab — hier konnte also gar nichts stehen,
-                    und wer 20 Karten gelernt hatte, erfuhr nie, ob und warum
-                    Punkte ausblieben. */}
-                <LpRoundSummary earned={earnedLp} capReached={earnCapReached} dailyGoalText={dailyGoalText} />
-                <View style={{ width: "100%", maxWidth: 340, gap: spacing.sm, marginTop: spacing.sm }}>
-                  {missedCards.length > 0 && (
-                    <TouchableOpacity
-                      onPress={() => {
-                        void (async () => {
-                          await rearmForNextRound();
-                          start(missedCards);
-                        })();
-                      }}
-                      activeOpacity={0.85}
-                      style={{
-                        backgroundColor: c.primary, borderRadius: radius.md, paddingVertical: 14,
-                        alignItems: "center", justifyContent: "center",
-                      }}
-                    >
-                      <Text style={{ color: "#fff", fontWeight: typography.bold, fontSize: typography.base }}>
-                        {t("review.onlyWrong", { count: missedCards.length })}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                  <TouchableOpacity
-                    onPress={() => {
-                      void (async () => {
-                        await rearmForNextRound();
-                        await loadDueCards();
-                      })();
-                    }}
-                    activeOpacity={0.85}
-                    style={{
-                      backgroundColor: missedCards.length > 0 ? c.surface : c.primary,
-                      borderWidth: missedCards.length > 0 ? 1 : 0, borderColor: c.border,
-                      borderRadius: radius.md, paddingVertical: 14,
-                      flexDirection: "row", gap: spacing.sm, alignItems: "center", justifyContent: "center",
-                    }}
-                  >
-                    <RotateCcw size={18} color={missedCards.length > 0 ? c.text : "#fff"} />
-                    <Text style={{ color: missedCards.length > 0 ? c.text : "#fff", fontWeight: typography.bold, fontSize: typography.base }}>
-                      {t("review.againAll")}
-                    </Text>
-                  </TouchableOpacity>
-                  {deckId && (
-                    <TouchableOpacity onPress={() => router.back()} activeOpacity={0.85} style={{ paddingVertical: 12, alignItems: "center" }}>
-                      <Text style={{ color: c.textSecondary, fontWeight: typography.semibold, fontSize: typography.base }}>
-                        {t("review.done")}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
+              <StudyResult
+                headline={displayName ? t("review.resultTitleNamed", { name: displayName }) : t("review.resultTitle")}
+                subtitle={resultTotal === 1 ? t("review.resultBodyOne", { known: knownCount }) : t("review.resultBody", { total: resultTotal, known: knownCount })}
+                accessory={<LpRoundSummary earned={earnedLp} capReached={earnCapReached} dailyGoalText={dailyGoalText} />}
+                actions={[
+                  ...(missedCards.length > 0 ? [{
+                    label: t("review.onlyWrong", { count: missedCards.length }),
+                    onPress: () => { void (async () => { await rearmForNextRound(); start(missedCards); })(); },
+                    variant: "primary" as const,
+                  }] : []),
+                  { label: t("review.againAll"),
+                    onPress: () => { void (async () => { await rearmForNextRound(); await loadDueCards(); })(); },
+                    variant: missedCards.length > 0 ? "secondary" : "primary", reload: true },
+                  ...(deckId ? [{ label: t("review.done"), onPress: () => router.back(), variant: "ghost" as const }] : []),
+                ]}
+              />
             )
           ) : (
             <View style={{ flex: 1, gap: spacing.md }}>
@@ -1500,6 +1449,9 @@ function AuthenticatedLearnScreen({
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={toggleStar}
+                    accessibilityRole="button"
+                    accessibilityLabel={isStarred ? "Markierung entfernen" : "Karte markieren"}
+                    accessibilityState={{ selected: isStarred }}
                     activeOpacity={0.6}
                     hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
                     style={{ width: 44, height: 44, justifyContent: "center", alignItems: "center" }}
@@ -1507,7 +1459,12 @@ function AuthenticatedLearnScreen({
                     <Star size={22} color={isStarred ? c.warning : c.textTertiary} fill={isStarred ? c.warning : "none"} />
                   </TouchableOpacity>
                   <TouchableOpacity
-                    onPress={() => setEditingCard(true)}
+                    onPress={() => {
+                      setCardEditorError(null);
+                      setEditingCard(true);
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Karte bearbeiten"
                     activeOpacity={0.6}
                     hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
                     style={{ width: 44, height: 44, justifyContent: "center", alignItems: "center" }}
@@ -1522,21 +1479,35 @@ function AuthenticatedLearnScreen({
       </SafeAreaView>
       <CardEditor
         visible={editingCard}
-        card={current ? { front: current.front, back: current.back, difficulty: "medium" } : null}
+        card={
+          current
+            ? { front: current.front, back: current.back, difficulty: current.difficulty ?? "medium" }
+            : null
+        }
         saving={savingCard}
-        onCancel={() => setEditingCard(false)}
-        onSave={async ({ front, back }) => {
+        error={cardEditorError}
+        onCancel={() => {
+          setEditingCard(false);
+          setCardEditorError(null);
+        }}
+        onSave={async ({ front, back, difficulty }) => {
           if (!current) return;
+          setCardEditorError(null);
           setSavingCard(true);
           try {
-            const { card: updated } = await updateCard(current.id, { front, back });
+            const { card: updated } = await updateCard(current.id, { front, back, difficulty });
             // Nur die editierte Karte patchen (#610) — ein Neuladen der Runde
             // würde Fortschritt, Index und Bewertungen dieser Sitzung zerstören.
-            patchCard(current.id, { front: updated.front, back: updated.back });
+            patchCard(current.id, {
+              front: updated.front,
+              back: updated.back,
+              difficulty: updated.difficulty,
+            });
             setEditingCard(false);
-          } catch {
+          } catch (error) {
             // Speichern fehlgeschlagen — Editor bleibt offen, Lernerin kann es
             // erneut versuchen, statt den Text kommentarlos zu verlieren.
+            setCardEditorError(cardEditorErrorMessage(error));
           } finally {
             setSavingCard(false);
           }

@@ -11,7 +11,7 @@ const webRoot = join(dirname(fileURLToPath(import.meta.url)), "../..");
 // im roten Banner und die Nutzerin stand vor einer Sackgasse.
 describe("web occlusion editor – paywall message", () => {
   const source = readFileSync(
-    join(webRoot, "app/dashboard/deck/[id]/occlusion/new/page.tsx"),
+    join(webRoot, "src/components/app/occlusion-editor.tsx"),
     "utf-8",
   ).replace(/\r\n/g, "\n");
 

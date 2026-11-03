@@ -10,7 +10,9 @@ import { useDisplayName } from "@/lib/use-display-name";
 import { useWobblyIds } from "@/lib/use-wobbly-ids";
 import { filterBySource, isCardDue, type CardSource } from "@/lib/card-source";
 import { loadSetup, resolveSource, saveSetup } from "@/lib/setup-memory";
-import { matchTileTexts } from "@/lib/match-tiles";
+import { CardSideMedia } from "@/components/app/card-side-media";
+import type { MarkdownImage } from "@/lib/card-display";
+import { matchTileMedia } from "@/lib/match-tiles";
 import { cardListPreview } from "@/lib/card-display";
 import { toggleCardStar } from "@/lib/toggle-card-star";
 import { CardSourcePicker } from "@/components/app/card-source-picker";
@@ -36,7 +38,7 @@ import {
 
 const MAX_PAIRS = 6;
 
-type Tile = { id: string; text: string; cardId: string; side: "front" | "back" };
+type Tile = { id: string; text: string; images: MarkdownImage[]; cardId: string; side: "front" | "back" };
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -117,7 +119,7 @@ export default function MatchPage() {
     if (!deckId) return;
     try {
       const { cards: c } = await listCardsInDeck(deckId);
-      // Bild-Occlusion-Karten gehören nur in den Occlusion-Modus (kein Bild hier).
+      // Occlusion-Karten gehören weiterhin nur in den Occlusion-Modus.
       setCards(c.filter((x) => x.type !== "occlusion"));
       setError(null);
     } catch (e) {
@@ -169,17 +171,16 @@ export default function MatchPage() {
   }, [deckId, phase, loading, wobblySettled, cards, wobblyIds]);
 
   // Die gewählte Kartenquelle (Alle / Nur markierte / Nur Wackelkandidaten).
-  // Spielbar sind nur Karten, deren beide Seiten nach der Aufbereitung (#569)
-  // Text haben — reine Bild-Karten ohne Beschriftung ergeben keine Kachel.
+  // Beide Seiten brauchen Inhalt: Text oder ein gewöhnliches Kartenbild.
   const sourced = filterBySource(cards, source, wobblyIds);
-  const playable = sourced.filter((card) => matchTileTexts(card) !== null);
+  const playable = sourced.filter((card) => matchTileMedia(card) !== null);
   const pairCount = Math.min(MAX_PAIRS, playable.length);
   const gamePairs = tiles.length / 2;
 
   const startGameWith = useCallback(
     (sourceCards: Card[], withTimer: boolean) => {
       const usable = sourceCards.flatMap((card) => {
-        const texts = matchTileTexts(card);
+        const texts = matchTileMedia(card);
         return texts ? [{ card, texts }] : [];
       });
       const selectedCards = shuffle(usable).slice(0, Math.min(MAX_PAIRS, usable.length));
@@ -187,13 +188,15 @@ export default function MatchPage() {
       for (const { card, texts } of selectedCards) {
         newTiles.push({
           id: `${card.id}-front`,
-          text: texts.front,
+          text: texts.front.text,
+          images: texts.front.images,
           cardId: card.id,
           side: "front",
         });
         newTiles.push({
           id: `${card.id}-back`,
-          text: texts.back,
+          text: texts.back.text,
+          images: texts.back.images,
           cardId: card.id,
           side: "back",
         });
@@ -343,7 +346,7 @@ export default function MatchPage() {
     );
   }
 
-  if (cards.filter((card) => matchTileTexts(card) !== null).length < 2) {
+  if (cards.filter((card) => matchTileMedia(card) !== null).length < 2) {
     return (
       <div className="empty-state">
         <div className="ic" aria-hidden>
@@ -693,7 +696,7 @@ export default function MatchPage() {
               onClick={() => tap(tile)}
             >
               <span className={`zu-dot zu-dot--${tile.side}`} aria-hidden />
-              <span>{tile.text}</span>
+              <span>{tile.text}<CardSideMedia images={tile.images} /></span>
             </button>
           );
         })}

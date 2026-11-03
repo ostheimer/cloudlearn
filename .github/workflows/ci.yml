@@ -15,7 +15,9 @@ jobs:
       # touch this disposable server — never production.
       # Those tests skip themselves when DATABASE_URL is unset (e.g. local runs).
       postgres:
-        image: postgres:16
+        # Docker Official Image mirror; avoid Docker Hub's anonymous pull limit.
+        # https://gallery.ecr.aws/docker/library/postgres
+        image: public.ecr.aws/docker/library/postgres:16
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: clearn_test

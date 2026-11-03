@@ -436,7 +436,7 @@ export default function FolderDetailScreen() {
       Alert.alert(t("learn.noDueCards"), t("learn.noDueCardsMessage"));
       return;
     }
-    startPreset(dueCards.map((c) => ({ id: c.id, front: c.front, back: c.back, starred: c.starred })));
+    startPreset(dueCards);
     router.push("/(tabs)/learn");
   }, [dueCards, t, startPreset, router]);
 
@@ -457,7 +457,7 @@ export default function FolderDetailScreen() {
         Alert.alert(t("learn.noCardsToLearn"), t("learn.noCardsToLearnMessage"));
         return;
       }
-      startPreset(filtered.map((c) => ({ id: c.id, front: c.front, back: c.back, starred: c.starred })));
+      startPreset(filtered);
       router.push("/(tabs)/learn");
     } catch {
       Alert.alert(t("common.error"), t("learn.loadError"));

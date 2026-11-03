@@ -184,14 +184,16 @@ describe("Rückfrage vor dem Speichern (#570, Variante 3)", () => {
   });
 
   it("gibt dem Ziel-Deck-Picker denselben Platz-Hinweis ohne Titel (#612)", () => {
-    // Gleiche Staffel wie deckSlotsLabel: erst kurz vor voll ein Hinweis,
-    // unbekannte Grenze (#603) heisst "nichts anzeigen, nie sperren".
+    // Alle bekannten freien Plätze anzeigen; unbekannte Grenzen bleiben ohne Hinweis.
     expect(deckSlotsHint(null)).toBeNull();
-    expect(deckSlotsHint(90)).toBeNull();
-    expect(deckSlotsHint(NEARLY_FULL_THRESHOLD)).toBeNull();
+    expect(deckSlotsHint(90)).toBe("90 Plätze frei");
+    expect(deckSlotsHint(NEARLY_FULL_THRESHOLD)).toBe("30 Plätze frei");
     expect(deckSlotsHint(12)).toBe("12 Plätze frei");
     expect(deckSlotsHint(1)).toBe("1 Platz frei");
-    expect(deckSlotsHint(0)).toBe("voll — kein Platz mehr");
+    expect(deckSlotsHint(0)).toBe("voll");
+    expect(deckSlotsHint(90, "en")).toBe("90 spaces available");
+    expect(deckSlotsHint(1, "en")).toBe("1 space available");
+    expect(deckSlotsHint(0, "en")).toBe("full");
   });
 });
 

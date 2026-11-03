@@ -9,7 +9,7 @@ export default function SupportPage() {
     <ContentPage
       eyebrow="Support"
       title="Hilfe für clearn"
-      lead="Hier landet alles, was für App Store und tägliche Nutzung wichtig ist: Support-Kontakt, typische Themen und der schnellste Weg zur Lösung."
+      lead="Du brauchst Hilfe mit clearn? Hier findest du unseren Kontakt und erfährst, welche Angaben uns helfen, dein Problem zu lösen."
     >
       <PageSection id="beta" title="Direkter Kontakt">
         <p style={{ margin: 0 }}>
@@ -30,11 +30,11 @@ export default function SupportPage() {
 
       <PageSection title="Wobei wir helfen">
         <ul style={{ margin: 0, paddingLeft: 20 }}>
-          <li>Anmeldung, Passwort-Reset und E-Mail-Bestätigung</li>
+          <li>Anmeldung, Passwort zurücksetzen und E-Mail-Bestätigung</li>
           <li>PDF-, Bild-, Text- oder URL-Import</li>
           <li>Lernpunkte, Pro, Lifetime, Käufe und Wiederherstellung</li>
           <li>Datenschutzanfragen und Konto-Löschung</li>
-          <li>Feedback und reproduzierbare Bugs</li>
+          <li>Feedback und Fehler melden</li>
         </ul>
       </PageSection>
 
@@ -57,7 +57,7 @@ export default function SupportPage() {
       <PageSection title="Für schnelle Hilfe mitschicken">
         <ul style={{ margin: 0, paddingLeft: 20 }}>
           <li>Gerät, Betriebssystem und App-Version</li>
-          <li>Welche Funktion betroffen ist, zum Beispiel Scan, Lernen oder Paywall</li>
+          <li>Welche Funktion betroffen ist, zum Beispiel Scan, Lernen oder Käufe</li>
           <li>Eine kurze Beschreibung des Problems und nach Möglichkeit ein Screenshot</li>
         </ul>
       </PageSection>

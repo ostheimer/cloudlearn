@@ -1,6 +1,7 @@
 import { createSupabaseAdminClient } from "@/lib/supabase";
 import { getLimitsForTier, LP_EARN_RULES, lpCostForFeature, STREAK_FREEZE, STREAK_REPAIR } from "@/lib/featureGates";
 import { todayLocal } from "@/lib/localDay";
+import { HttpError } from "@/lib/http";
 import { getStreakInfo, hasAnyReviewLog } from "@/lib/db";
 import { logError } from "@/lib/observability";
 import type { MilestoneAward, MilestoneKey, SubscriptionTier } from "@/lib/contracts";
@@ -47,6 +48,23 @@ export async function getLpProfile(userId: string): Promise<LpProfile> {
     adsToday: isSameDay ? (data?.lp_ads_today ?? 0) : 0,
     lpPeriodStart: data?.lp_period_start ?? today,
   };
+}
+
+/** A post-credit response must use an existing stored balance, never the profile default. */
+export async function getPersistedLpBalance(userId: string): Promise<number> {
+  const { data, error } = await getDb()
+    .from("profiles")
+    .select("lp_balance")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error || !data || !Number.isSafeInteger(data.lp_balance)) {
+    throw new HttpError(
+      "Der aktuelle Lernpunktestand konnte nicht gelesen werden. Bitte versuche es erneut.",
+      503,
+      "LP_BALANCE_UNAVAILABLE"
+    );
+  }
+  return data.lp_balance;
 }
 
 // ─── Spend ────────────────────────────────────────────────────────────────────

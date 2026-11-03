@@ -11,7 +11,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { X, Check } from "lucide-react-native";
+import { AlertTriangle, X, Check } from "lucide-react-native";
 import { difficultyLabel } from "../lib/cardLabels";
 import { useColors, spacing, radius, typography } from "../theme";
 
@@ -26,6 +26,8 @@ export default function CardEditor({
   visible,
   card,
   saving,
+  error,
+  notice,
   onSave,
   onCancel,
 }: {
@@ -36,6 +38,8 @@ export default function CardEditor({
     difficulty: string;
   } | null;
   saving: boolean;
+  error?: string | null;
+  notice?: string;
   onSave: (data: { front: string; back: string; difficulty: string }) => void;
   onCancel: () => void;
 }) {
@@ -43,18 +47,18 @@ export default function CardEditor({
   const [front, setFront] = useState("");
   const [back, setBack] = useState("");
   const [difficulty, setDifficulty] = useState("medium");
+  const savedFront = card?.front ?? "";
+  const savedBack = card?.back ?? "";
+  const savedDifficulty = card?.difficulty ?? "medium";
 
   useEffect(() => {
-    if (card) {
-      setFront(card.front);
-      setBack(card.back);
-      setDifficulty(card.difficulty);
-    } else {
-      setFront("");
-      setBack("");
-      setDifficulty("medium");
-    }
-  }, [card, visible]);
+    // Saving/error state re-renders the parent with a fresh card object.
+    // Only reset when opening or when the saved values actually change;
+    // otherwise a failed save destroys the draft before it can be retried.
+    setFront(savedFront);
+    setBack(savedBack);
+    setDifficulty(savedDifficulty);
+  }, [savedFront, savedBack, savedDifficulty, visible]);
 
   const isValid = front.trim().length > 0 && back.trim().length > 0;
 
@@ -171,6 +175,7 @@ export default function CardEditor({
           <ScrollView
             contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}
           >
+            {notice && <Text style={{ color: colors.textSecondary }}>{notice}</Text>}
             {/* Front */}
             <View style={{ gap: spacing.sm }}>
               <Text
@@ -265,6 +270,9 @@ export default function CardEditor({
                     <TouchableOpacity
                       key={d}
                       onPress={() => setDifficulty(d)}
+                      accessibilityRole="radio"
+                      accessibilityLabel={label}
+                      accessibilityState={{ checked: difficulty === d }}
                       activeOpacity={0.8}
                       style={{
                         flex: 1,
@@ -294,6 +302,24 @@ export default function CardEditor({
                 })}
               </View>
             </View>
+
+            {error && (
+              <View
+                accessibilityRole="alert"
+                accessibilityLiveRegion="assertive"
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: spacing.sm,
+                  padding: spacing.md,
+                  borderRadius: radius.md,
+                  backgroundColor: colors.errorLight,
+                }}
+              >
+                <AlertTriangle size={18} color={colors.error} />
+                <Text style={{ flex: 1, color: colors.error }}>{error}</Text>
+              </View>
+            )}
           </ScrollView>
         </SafeAreaView>
       </KeyboardAvoidingView>

@@ -7,6 +7,7 @@ export interface ReviewCard {
   id: string;
   front: string;
   back: string;
+  difficulty?: string;
   starred?: boolean;
   /**
    * Deck der Karte — nur fürs Vorlesen gebraucht (#571): Im Lern-Tab liegen
@@ -94,7 +95,10 @@ interface ReviewSessionState {
    * Runde neu laden — das würde Index, Fortschritt und Bewertungen dieser
    * Sitzung zerstören.
    */
-  patchCard: (cardId: string, updates: Partial<Pick<ReviewCard, "front" | "back">>) => void;
+  patchCard: (
+    cardId: string,
+    updates: Partial<Pick<ReviewCard, "front" | "back" | "difficulty">>
+  ) => void;
 }
 
 export const useReviewSession = create<ReviewSessionState>((set, get) => ({

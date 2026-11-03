@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { importCopy } from "@clearn/contracts";
+
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/app/auth-context";
@@ -59,6 +61,8 @@ import {
 
 // Ablauf wie im Scan-Bildschirm der App: erst die Quelle wählen ("choose"),
 // dann die Eingabe für diese Quelle.
+const copy = importCopy.de;
+
 type Mode = "choose" | "photo" | "gallery" | "text" | "url" | "pdf";
 
 /** #427: Karte von `from` an Stelle `to` verschieben (Ziehgriff-Reihenfolge). */
@@ -964,8 +968,8 @@ export default function ImportPage() {
                     <Camera size={22} />
                   </span>
                   <span className="source-card__body">
-                    <span className="source-card__title">Foto aufnehmen</span>
-                    <span className="source-card__hint">Buchseite, Tafel, Notizen</span>
+                    <span className="source-card__title">{copy.cameraTitle}</span>
+                    <span className="source-card__hint">{copy.cameraHint}</span>
                   </span>
                   {usage && (
                     <span className="source-card__cost">
@@ -986,9 +990,8 @@ export default function ImportPage() {
                   <ImageIcon size={22} />
                 </span>
                 <span className="source-card__body">
-                  <span className="source-card__title">Bild wählen</span>
-                  {/* Wortlaut der App (scan.cameraHint) */}
-                  <span className="source-card__hint">Lehrbuch, Tafel, Notizen</span>
+                  <span className="source-card__title">{copy.galleryTitle}</span>
+                  <span className="source-card__hint">{copy.galleryHint}</span>
                 </span>
                 {usage && (
                   <span className="source-card__cost">
@@ -1008,8 +1011,8 @@ export default function ImportPage() {
                   <TextType size={22} />
                 </span>
                 <span className="source-card__body">
-                  <span className="source-card__title">Text eingeben</span>
-                  <span className="source-card__hint">Zusammenfassung, Notizen, Definitionen</span>
+                  <span className="source-card__title">{copy.textTitle}</span>
+                  <span className="source-card__hint">{copy.textHint}</span>
                 </span>
                 {usage && (
                   <span className="source-card__cost">
@@ -1029,8 +1032,8 @@ export default function ImportPage() {
                   <LinkIcon size={22} />
                 </span>
                 <span className="source-card__body">
-                  <span className="source-card__title">URL importieren</span>
-                  <span className="source-card__hint">Webseite als Lernkarten</span>
+                  <span className="source-card__title">{copy.urlTitle}</span>
+                  <span className="source-card__hint">{copy.urlHint}</span>
                 </span>
                 {usage && (
                   <span className="source-card__cost">
@@ -1051,8 +1054,8 @@ export default function ImportPage() {
                     <FileText size={22} />
                   </span>
                   <span className="source-card__body">
-                    <span className="source-card__title">PDF importieren</span>
-                    <span className="source-card__hint">Skript, Handout, Zusammenfassung</span>
+                    <span className="source-card__title">{copy.pdfTitle}</span>
+                    <span className="source-card__hint">{copy.pdfHint}</span>
                   </span>
                   {usage && (
                     <span className="source-card__cost">
@@ -1085,8 +1088,7 @@ export default function ImportPage() {
             <div className="info-note">
               <Sparkles size={16} />
               <span>
-                Die KI liest dein Material und macht daraus automatisch Frage-Antwort-Karten — aus
-                Foto, Text, Webseite oder PDF.
+                {copy.info}
               </span>
             </div>
           </>
@@ -1101,7 +1103,7 @@ export default function ImportPage() {
               }}
               disabled={busy}
             >
-              <ArrowLeft size={16} /> Andere Quelle wählen
+              <ArrowLeft size={16} /> {copy.back}
             </button>
 
             {mode === "text" && (
@@ -1258,11 +1260,10 @@ export default function ImportPage() {
               }
             >
               {busy ? (
-                // Wortlaut der App während der Verarbeitung („Flashcards werden generiert...")
-                "Flashcards werden generiert…"
+                copy.processing
               ) : (
                 <>
-                  <Sparkles size={18} /> Karten erstellen
+                  <Sparkles size={18} /> {copy.create}
                   {cost !== null && (
                     <span className="btn-cost">
                       <Zap size={13} /> {cost}
@@ -1274,7 +1275,7 @@ export default function ImportPage() {
 
             {busy && (
               <p className="muted center" style={{ marginTop: 14 }}>
-                Das kann ein paar Sekunden dauern — die KI liest dein Material und formt Karten.
+                {copy.processingHint}
               </p>
             )}
           </>

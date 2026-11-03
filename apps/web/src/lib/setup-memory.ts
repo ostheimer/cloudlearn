@@ -25,6 +25,7 @@ export interface StoredSetup {
   strict?: boolean;
   /** „Auf Zeit" (Prüfung/Zuordnen). */
   timed?: boolean;
+  typeImage?: boolean;
   typeMC?: boolean;
   typeTF?: boolean;
   typeWritten?: boolean;
@@ -49,6 +50,7 @@ const BOOLEAN_FIELDS = [
   "reverse",
   "strict",
   "timed",
+  "typeImage",
   "typeMC",
   "typeTF",
   "typeWritten",

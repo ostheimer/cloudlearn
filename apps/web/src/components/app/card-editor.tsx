@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { Modal } from "@/components/app/modal";
 import { adviceForLimit } from "@/lib/import-limits";
 import { AlertTriangle } from "@/components/icons";
@@ -31,6 +31,8 @@ export function CardEditor({
   // Nachfrage vor dem Verwerfen (#608): Escape, Klick neben das Fenster und
   // „Abbrechen" werfen sonst halbfertigen Text kommentarlos weg.
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const keepEditingRef = useRef<HTMLButtonElement>(null);
+  const frontRef = useRef<HTMLTextAreaElement>(null);
   const dirty =
     front !== (initial?.front ?? "") ||
     back !== (initial?.back ?? "") ||
@@ -70,13 +72,20 @@ export function CardEditor({
   }
 
   return (
-    <Modal title={initial ? "Karte bearbeiten" : "Neue Karte"} onClose={requestClose}>
+    <>
+    <Modal
+      title={initial ? "Karte bearbeiten" : "Neue Karte"}
+      onClose={requestClose}
+      active={!confirmDiscard}
+      initialFocusRef={frontRef}
+    >
       <form onSubmit={submit} style={{ display: "grid", gap: 16 }}>
         <div className="card-editor">
           <div className="field">
             <label htmlFor="front">Vorderseite (Frage)</label>
             <textarea
               id="front"
+              ref={frontRef}
               className="textarea"
               value={front}
               onChange={(e) => setFront(e.target.value)}
@@ -131,44 +140,23 @@ export function CardEditor({
           </button>
         </div>
       </form>
-      {confirmDiscard && (
-        // Liegt im DOM hinter dem Editor-Overlay und damit optisch darüber —
-        // dieselben Modal-Bausteine, nur schmaler. Klick neben das Fenster
-        // heißt hier „Weiter bearbeiten": Die zerstörende Wahl braucht einen
-        // ausdrücklichen Knopfdruck.
-        <div
-          className="modal-overlay"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) setConfirmDiscard(false);
-          }}
-        >
-          <div
-            className="modal"
-            role="alertdialog"
-            aria-modal="true"
-            aria-label="Änderungen verwerfen?"
-            style={{ maxWidth: 340 }}
-          >
-            <h3 className="h3">Änderungen verwerfen?</h3>
-            <p className="muted" style={{ margin: 0 }}>
-              Dein eingetippter Text geht sonst verloren.
-            </p>
-            <div className="modal__actions">
-              <button type="button" className="btn btn-ghost" onClick={onClose}>
-                Verwerfen
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => setConfirmDiscard(false)}
-                autoFocus
-              >
-                Weiter bearbeiten
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </Modal>
+    {confirmDiscard && (
+      <Modal
+        title="Änderungen verwerfen?"
+        role="alertdialog"
+        onClose={() => setConfirmDiscard(false)}
+        initialFocusRef={keepEditingRef}
+      >
+        <p className="muted" style={{ margin: 0 }}>Dein eingetippter Text geht sonst verloren.</p>
+        <div className="modal__actions">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>Verwerfen</button>
+          <button ref={keepEditingRef} type="button" className="btn btn-primary" onClick={() => setConfirmDiscard(false)}>
+            Weiter bearbeiten
+          </button>
+        </div>
+      </Modal>
+    )}
+    </>
   );
 }

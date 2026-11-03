@@ -364,7 +364,7 @@ export default function ClozePage() {
   // Der Horcher hängt am Fenster, weil das gesperrte Feld keine Tasten mehr
   // bekommt, und läuft nur im aufgedeckten Zustand.
   useEffect(() => {
-    if (phase !== "play" || !revealed) return;
+    if (phase !== "play" || !revealed || editing) return;
     const onKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       const advance = shouldAdvanceOnEnter({
@@ -373,6 +373,7 @@ export default function ClozePage() {
         metaKey: e.metaKey,
         altKey: e.altKey,
         targetTag: target?.tagName,
+        targetIsEditable: target?.isContentEditable,
       });
       if (!advance) return;
       e.preventDefault();
@@ -383,7 +384,7 @@ export default function ClozePage() {
     // `next` ist bei jedem Render neu, hängt aber nur an Werten, die in den
     // Abhängigkeiten stehen — der Horcher wird pro Karte einmal neu gesetzt.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, revealed, idx, round.length, floor]);
+  }, [phase, revealed, idx, round.length, floor, editing]);
 
   // Tagesziel im Rundenergebnis (#610): jede Karte wurde schon während der
   // Runde einzeln ans Backend gemeldet, `reviewsToday` ist beim Abschluss also

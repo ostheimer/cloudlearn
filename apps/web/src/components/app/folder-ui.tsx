@@ -88,13 +88,13 @@ export function FolderCard({
         </button>
         {menuOpen && (
           <div className="menu" role="menu" onClick={(e) => e.stopPropagation()}>
-            <Link href={`/dashboard/folder/${folder.id}`} role="menuitem">
+            <Link href={`/dashboard/folder/${folder.id}`} role="menuitem" tabIndex={-1}>
               <FolderIcon size={15} /> Öffnen
             </Link>
-            <button type="button" role="menuitem" onClick={onRename}>
+            <button type="button" role="menuitem" tabIndex={-1} onClick={onRename}>
               <Pencil size={15} /> Umbenennen
             </button>
-            <button type="button" role="menuitem" className="danger" onClick={onDelete}>
+            <button type="button" role="menuitem" tabIndex={-1} className="danger" onClick={onDelete}>
               <Trash size={15} /> Löschen
             </button>
           </div>

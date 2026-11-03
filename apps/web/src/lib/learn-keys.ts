@@ -39,7 +39,7 @@ export function ratingKeyIndex(event: LearnKeyEvent, flipped: boolean): number |
   // soll nicht still Karten bewerten.
   if (event.targetIsEditable) return null;
   const tag = event.targetTag?.toUpperCase();
-  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return null;
+  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || tag === "BUTTON" || tag === "A") return null;
   if (!flipped) return null;
   const index = RATING_KEYS.indexOf(event.key);
   return index === -1 ? null : index;
@@ -64,6 +64,7 @@ export function shouldAdvanceOnEnter(event: LearnKeyEvent): boolean {
   if (event.key !== "Enter") return false;
   if (event.ctrlKey || event.metaKey || event.altKey) return false;
   const tag = event.targetTag?.toUpperCase();
-  if (tag === "BUTTON" || tag === "A") return false;
+  if (event.targetIsEditable) return false;
+  if (tag === "BUTTON" || tag === "A" || tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return false;
   return true;
 }

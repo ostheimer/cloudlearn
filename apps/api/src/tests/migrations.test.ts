@@ -539,6 +539,34 @@ describe("supabase migrations", () => {
     expect(sql.replace(/\s+/g, " ")).toContain("set search_path = ''");
   });
 
+  it("serialisiert Deck-Restores pro Nutzer und prüft das Limit in derselben Transaktion (#702)", () => {
+    const sql = readFileSync(
+      join(apiRoot, "supabase/migrations/20260802010000_atomic_deck_restore.sql"),
+      "utf-8"
+    )
+      .replace(/--[^\n]*/g, "")
+      .toLowerCase()
+      .replace(/\s+/g, " ");
+
+    expect(sql).toContain("create or replace function public.restore_deck_with_limit");
+    expect(sql).toContain("perform pg_advisory_xact_lock(hashtextextended(p_user::text, 0))");
+    expect(sql).toContain("from public.decks where id = p_deck and user_id = p_user and deleted_at is not null for update");
+    expect(sql).toContain("from public.decks where user_id = p_user and deleted_at is null");
+    expect(sql).toContain("deleted_at = v_deleted_at");
+
+    const lock = sql.indexOf("pg_advisory_xact_lock");
+    const count = sql.indexOf("select count(*)");
+    expect(lock).toBeGreaterThan(-1);
+    expect(count).toBeGreaterThan(lock);
+
+    expect(sql).toContain(
+      "revoke execute on function public.restore_deck_with_limit(uuid, uuid, integer) from anon, authenticated"
+    );
+    expect(sql).toContain(
+      "grant execute on function public.restore_deck_with_limit(uuid, uuid, integer) to service_role"
+    );
+  });
+
   it("jede create-table-Migration ab 20260722 aktiviert RLS in derselben Datei", () => {
     // Die Fehlerklasse „neue Tabelle offen, bis jemand zusperrt" hat viermal
     // zugeschlagen. Für neue Migrationen ist RLS in derselben Datei Pflicht.

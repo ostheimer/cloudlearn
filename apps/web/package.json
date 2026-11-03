@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@clearn/contracts": "workspace:*",
     "@supabase/supabase-js": "^2.95.3",
     "next": "^15.5.6",
     "react": "^19.2.0",

@@ -41,8 +41,8 @@ describe("ratingKeyIndex", () => {
     expect(ratingKeyIndex({ key: "2", targetIsEditable: true }, true)).toBeNull();
   });
 
-  it("bewertet weiter, wenn die Taste auf einem Knopf oder der Karte landet", () => {
-    expect(ratingKeyIndex({ key: "3", targetTag: "BUTTON" }, true)).toBe(2);
+  it("lässt Knöpfen ihre eigene Bedienung, bewertet aber auf der Karte", () => {
+    expect(ratingKeyIndex({ key: "3", targetTag: "BUTTON" }, true)).toBeNull();
     expect(ratingKeyIndex({ key: "3", targetTag: "DIV" }, true)).toBe(2);
   });
 });
@@ -57,6 +57,13 @@ describe("shouldAdvanceOnEnter", () => {
     // „Trotzdem als richtig zählen" soll gelten lassen, nicht weiterblättern.
     expect(shouldAdvanceOnEnter({ key: "Enter", targetTag: "BUTTON" })).toBe(false);
     expect(shouldAdvanceOnEnter({ key: "Enter", targetTag: "a" })).toBe(false);
+  });
+
+  it("schluckt kein Enter in editierbaren Feldern", () => {
+    for (const targetTag of ["INPUT", "TEXTAREA", "SELECT"]) {
+      expect(shouldAdvanceOnEnter({ key: "Enter", targetTag })).toBe(false);
+    }
+    expect(shouldAdvanceOnEnter({ key: "Enter", targetIsEditable: true })).toBe(false);
   });
 
   it("reagiert nur auf Enter und nicht mit Zusatztasten", () => {
