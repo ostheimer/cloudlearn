@@ -1,93 +1,68 @@
-<!-- BEGIN: agent-pr-quality-v1 -->
-## KI-Änderungen und PR-Qualität
+# Project knowledge
 
-Diese drei Regeln gelten für KI-erstellte oder wesentlich KI-bearbeitete Änderungen. Bei Widersprüchen zu älteren Vorgaben zu PR-Größe, Testnachweisen oder API-Prüfung gilt dieser Abschnitt; sonstige Projekt-, Sicherheits- und Freigabegrenzen bleiben bestehen.
+CloudLearn is a flashcard learning product: an Expo mobile app (`apps/mobile`), a Next.js web
+client and legal pages (`apps/web`), and an API (`apps/api`). Architecture and setup are in
+`README.md`; plans in `ROADMAP.md` and `BACKLOG.md`; runbooks in `docs/runbooks/`.
 
-1. **Kleine, zusammenhängende PRs.** Ein PR behandelt ein klar benanntes Problem oder Ergebnis. Unabhängige Features, Refactorings und Formatierungen trennen. Zusammengehörige Implementierung, Tests und nötige Dokumentation bleiben gemeinsam; keine künstlichen Mini-PRs oder starren Zeilenlimits. Größere untrennbare Änderungen im PR begründen und prüfbar gliedern.
-2. **Verhaltensänderungen brauchen einen wirksamen Test.** Bei Bugfixes zuerst einen reproduzierenden Regressionstest schreiben und seinen Fehlschlag am unveränderten Stand bestätigen; danach muss derselbe Test mit dem Fix bestehen. Für neue Funktionen einen passenden Akzeptanztest analog vor/nach der Implementierung prüfen. Bei bereits geschriebenem Code die Gegenprobe isoliert gegen den Ausgangsstand oder mit gezielt zurückgenommener Implementierung ausführen, ohne fremde Arbeit anzutasten. Der rote Nachweis muss am fehlenden/falschen Verhalten liegen, nicht an einer kaputten Testumgebung. Test, Befehl, Ausgangs-/Änderungsstand und Ergebnisse im PR dokumentieren. Ist eine automatisierte Gegenprobe sachlich nicht sinnvoll oder sicher möglich, konkrete Begründung und einen gleichwertigen reproduzierbaren Prüfnachweis festhalten; nie einen Rot-Grün-Nachweis erfinden. Bestehende Tests nicht abschwächen, nur um Grün zu erhalten.
-3. **Funktionen, APIs und Pakete gezielt prüfen.** Im Review neue oder geänderte Aufrufe, Imports und Abhängigkeiten auf Existenz und Kompatibilität mit der tatsächlich eingesetzten Version prüfen: Repository-Definition/Export, Manifest und Lockfile sowie bei externen APIs die offizielle Dokumentation oder Paketquelle abgleichen. Signaturen und Rückgabewerte mitprüfen. Neue Pakete auch auf korrekten Namen und Herkunft prüfen. Typecheck, Build und passende Integrationstests ergänzen diesen Abgleich; grüne Tests mit gemockten APIs allein sind kein Existenznachweis. Quellen/Prüfbefehle und Ergebnis im PR festhalten.
-
-**Doku-Ausnahme:** Reine, nicht ausführbare Dokumentations- oder Kommentaränderungen ohne Einfluss auf Verhalten, Build, Konfiguration, Schema oder Abhängigkeiten benötigen keinen künstlich fehlschlagenden Test. Stattdessen zutreffende Text-, Link-, Beispiel- und Konsistenzprüfungen dokumentieren. Ausführbare Codebeispiele, generierte Konfiguration oder als Programmeingabe genutzte Dokumente sind nicht automatisch ausgenommen. Gemischte PRs prüfen den verhaltensändernden Teil regulär. Die Ausnahme im PR ausdrücklich begründen.
-<!-- END: agent-pr-quality-v1 -->
-
-# Agent Guidance
-
-## Bug workflow
-
-When a bug is reported, don't start by fixing it. Start by writing a test that reproduces the bug. Then fix the bug and prove it with a passing test.
-
-## Test commands
+## Commands
 
 ```bash
-# All workspace checks
-pnpm run ci
-
-# Unit + integration tests
-npx vitest run
-
-# E2E tests
-npx playwright test
-
-# Mobile tests
-pnpm --filter @clearn/mobile test
-
-# Mobile simulator/dev server
-pnpm --filter @clearn/mobile dev
+pnpm run ci                       # lint + typecheck + tests of all workspaces
+npx vitest run                    # unit + integration tests
+npx playwright test               # E2E tests
+pnpm --filter @clearn/mobile test # mobile tests
+pnpm --filter @clearn/mobile dev  # mobile simulator/dev server
 ```
+
+## Deploy
+
+- Web and API are deployed by Vercel from `main`. Vercel projects: `clearn-api`
+  (`apps/api/vercel.json`, includes two cron jobs), `clearn-web` (`apps/web/vercel.json`) and
+  `cloudlearn` (root `vercel.json`, builds the mobile web export to `apps/mobile/dist`).
+- The mobile app is not deployed by Vercel. Production is `clearn-api.vercel.app` (live E2E
+  and perf workflows run against it).
 
 ## Mobile shipping reality (no OTA)
 
-- `expo-updates` is **not installed**: production OTA does not work despite the
-  `updates.url` in `app.json`. **Every app change reaches devices only via a new
-  `eas build`** — code merged to main is invisible on phones until then.
-- The current dev machine is Windows (no Xcode/simulators). On-device testing
-  runs via `eas build --platform ios --profile preview` from `apps/mobile`
-  (internal distribution; the registered iPhones install from the build page).
-- Production/TestFlight builds are currently blocked: the required
-  `EXPO_PUBLIC_REVENUECAT_*` keys are not set in the EAS environment.
-
-### Build frugality (builds cost money — mandatory)
-
-EAS builds burn paid cloud minutes / plan quota (22 iOS builds in July 2026,
-8 on a single day — that is the anti-pattern). Every agent must:
-
-1. **Only build when the user wants to test.** Never auto-build after each
-   merge — collect finished work and ship ONE build at the end.
-2. **Check for a running build first**: `eas build:list --platform ios
-   --limit 3` — if a build for the same commit is NEW/IN_PROGRESS, use its
-   build page instead of starting another. Cancel accidental duplicates
-   (`eas build:cancel <id>`).
-3. **Tell the user before spending.** Lara is a student and does not know
-   cloud pricing models — anything that costs money or quota (builds, paid
-   APIs) must be flagged to her *before* doing it, unprompted.
+- `expo-updates` is **not installed**: production OTA does not work despite the `updates.url`
+  in `app.json`. **Every app change reaches devices only via a new `eas build`**. Code merged
+  to main is invisible on phones until then.
+- On-device testing runs via `eas build --platform ios --profile preview` from `apps/mobile`
+  (internal distribution, registered iPhones install from the build page).
+- Production/TestFlight builds need the `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY` and
+  `EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY` secrets in the EAS environment.
+- EAS builds burn paid cloud minutes / plan quota (22 iOS builds in July 2026, 8 on one day).
+  Every build costs money; `eas build:list --platform ios --limit 3` shows running builds,
+  `eas build:cancel <id>` cancels duplicates.
 
 ## featureGates.ts sync
 
-The LP economy (tier limits, LP costs, earn rules, pack prices) is deliberately
-duplicated across independently-deployed apps. `apps/api/src/lib/featureGates.ts`
-is the **runtime source of truth** — the server is authoritative. Clients read
-live costs from `/usage` rather than hard-coding them.
+The LP economy (tier limits, LP costs, earn rules, pack prices) is deliberately duplicated
+across independently deployed apps. `apps/api/src/lib/featureGates.ts` is the **runtime source
+of truth**; clients read live costs from `/usage` instead of hard-coding them.
 
-The code copies are now **machine-enforced**: `packages/testkit/src/lpEconomyConsistency.test.ts`
-imports the real exported values and fails CI (#212) the moment any drift apart.
-So when you change LP economics, change **both** code copies together — the guard
-tells you which one you missed:
+The code copies are machine-enforced: `packages/testkit/src/lpEconomyConsistency.test.ts`
+imports the real exported values and fails CI when they drift apart. When LP economics change,
+change all code copies together:
+
 - `apps/api/src/lib/featureGates.ts` (runtime authority)
-- `packages/contracts/src/featureGates.ts` (shared-typing mirror — must equal the API)
-- `apps/mobile/src/features/paywall/lpPackOffers.ts` (pack IDs + LP amounts; prices come from RevenueCat, not from us)
+- `packages/contracts/src/featureGates.ts` (shared-typing mirror, must equal the API)
+- `apps/mobile/src/features/paywall/lpPackOffers.ts` (pack IDs and LP amounts; prices come from
+  RevenueCat)
 
-These doc mirrors are **not** covered by the guard — update them by hand:
-- `README.md` section "Monetarisierung"
-- `docs/monetization/MONETIZATION_CONCEPT.md`
+These doc mirrors are not covered by the guard and must be updated by hand:
+`README.md` section "Monetarisierung" and `docs/monetization/MONETIZATION_CONCEPT.md`.
 
-## Live implementation notes
+## Implementation notes
 
-**inMemoryStore.ts is active:** `apps/api/src/lib/inMemoryStore.ts` is used by `scripts/perf-smoke.ts` and `apps/api/src/tests/dueCardsOcclusion.test.ts`, and `apps/api/src/lib/db.ts` mirrors its record shapes. It is not dead code — do not delete it. (This note previously claimed community decks, B2B and beta feedback used it. That was never true: each of those kept its own module-level array. Community and B2B were removed in #425; beta feedback still has its own array in `betaFeedbackService.ts`.)
-
-**paywallState.ts is deprecated:** `apps/mobile/src/features/paywall/paywallState.ts` is marked deprecated but not yet removed. Do not add new features to it — use `featureGates.ts` and the canonical paywall flow instead.
-
-**Free-tier limits are not enforced server-side yet:** `countUserDecks()` and `countUserCards()` exist in `apps/api/src/lib/db.ts` but `POST /api/v1/decks` and `POST /api/v1/cards` do not yet call them. Enforcing this is tracked as CL-MON-03.
-
-**Tracking Preferences screen:** `apps/mobile/app/tracking-preferences.tsx` implements the App Tracking Transparency (ATT) consent flow. It is accessible from the Profile tab. This screen is required for App Store compliance and must not be removed.
-
-**Web legal pages:** `apps/web/app/impressum/`, `apps/web/app/privacy/`, and `apps/web/app/support/` are deployed and required routes. They are separate from the main landing page and the learn client.
+- `apps/api/src/lib/inMemoryStore.ts` is live code, not dead: `scripts/perf-smoke.ts` and
+  `apps/api/src/tests/dueCardsOcclusion.test.ts` use it, and `apps/api/src/lib/db.ts` mirrors
+  its record shapes. Deleting it breaks both.
+- `apps/mobile/src/features/paywall/paywallState.ts` is deprecated (replaced by the
+  server-synced `usageStore.ts`), kept only for a test. Use `featureGates.ts` and the
+  canonical paywall flow for new work.
+- `apps/mobile/app/tracking-preferences.tsx` implements the App Tracking Transparency consent
+  flow, reachable from the Profile tab. It is required for App Store compliance and must not
+  be removed.
+- `apps/web/app/impressum/`, `apps/web/app/privacy/` and `apps/web/app/support/` are required
+  routes, separate from the landing page and the learn client.
