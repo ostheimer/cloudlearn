@@ -53,7 +53,7 @@ Pro-User: 300 LP Monatsgrant = 60 Scans oder 37 URL-Importe.
 
 | Aktion | LP | Limit | Anmerkung |
 |--------|----|-------|----------|
-| Abgeschlossene Lernsession (min. 5 Karten) | +5 LP | Tagescap: 30 LP Free, 100 LP Pro/Lifetime | Wird über `earnLp("session")` verbucht |
+| Bewertete Karte | +1 LP | Tageslimit: 30 LP Free, 100 LP Pro/Lifetime | Wird über `earnLp("session")` verbucht |
 | Tagesziel erreicht | +10 LP | 1× pro Tag | API-Regel vorhanden; Mobile-Trigger separat prüfen |
 | 7-Tage-Streak | +25 LP | Einmalig | `rewards_claimed` verhindert doppelte Auszahlung |
 | 30-Tage-Streak | +100 LP | Einmalig | — |
@@ -82,6 +82,8 @@ Gekaufte LP verfallen **nicht** (kein Ablaufdatum).
 
 ### 3.4 LP durch Rewarded Ads verdienen
 
+Rewarded Ads sind in der App deaktiviert. Die folgenden Platzierungen und das Limit beschreiben das vorgesehene Modell bei Aktivierung.
+
 | Platzierung | Wann | LP |
 |-------------|------|----|
 | Rewarded Video im Scan-Screen | Freiwillig, wenn LP knapp | +5 LP |
@@ -94,7 +96,7 @@ Gekaufte LP verfallen **nicht** (kein Ablaufdatum).
 **Ein einziger Topf** (`lp_balance`). Kein Unterschied ob verdient, gekauft oder Abo-Kontingent.
 Monatliches Abo-Kontingent wird am 1. des Monats auf `lp_balance` aufaddiert (nicht ersetzt).
 
-**Balance-Cap:** Bewusste Entscheidung (Issue #84, 24.07.2026): Es gibt **keinen** LP-Balance-Cap — weder für verdiente noch für gekaufte LP. Das Ansparen wird ausschließlich über die Tagescaps (`lpEarnCapPerDay`, `lpAdCapPerDay`) begrenzt; große LP-Packs werden vollständig gutgeschrieben. Bitte nicht erneut als Lücke melden.
+**LP-Guthaben:** Laut [Entscheidung vom 24.07.2026](https://github.com/ostheimer/cloudlearn/issues/84#issuecomment-5067562888) hat das Guthaben keine Obergrenze. Lernverdienst hat ein Tageslimit. Startguthaben, Boni, monatliches Abo-Kontingent und Käufe können das Guthaben zusätzlich erhöhen. Gekaufte LP werden vollständig gutgeschrieben.
 
 ---
 
@@ -216,19 +218,13 @@ Lifetime wird im [öffentlichen iOS-App-Store](https://apps.apple.com/us/app/cle
 | URL-Import | 15 LP | 8 LP | ~0,010 € | 0,0007 € |
 | PDF-Import | 20 LP | 12 LP | ~0,020 € | 0,0010 € |
 
-### Szenarien
+### Beispiel für den Lernverdienst
 
-| Nutzertyp | LP/Monat | API-Kosten | Einnahmen | Marge |
-|-----------|----------|------------|-----------|-------|
-| Free, passiv (nur Basis) | 10 | ~0,03 € | ~0,30 € (Ads) | +0,27 € |
-| Free, fleißig (30 LP/Tag-Cap genutzt) | 900 | ~0,45 € | ~0,80 € (Ads) | +0,35 € |
-| Free, kauft Basis-Paket (300 LP) | 310 | ~0,16 € | 2,49 € + Ads | +3,13 € |
-| Pro, normal | 300 | ~0,75 € | 4,99 € | +4,24 € (85%) |
-| Pro, Power + Bonus | 335 | ~0,84 € | 4,99 € | +4,15 € (83%) |
+Ein Free-Konto kann bei 30 LP Lernverdienst pro Tag in 30 Tagen 900 LP aus Lernen ansparen. Beim vollständigen Verbrauch entspräche das 90 KI-Scans oder 45 PDF-Importen. Mit den obigen Schätzwerten wären das rund 0,45 € beziehungsweise 0,90 € an API-Kosten. Startguthaben, Boni und früher angesparte LP kommen gegebenenfalls hinzu. Rewarded Ads tragen aktuell weder LP noch Einnahmen bei. Das Beispiel beschreibt den laufenden Lernverdienst. Bereits angespartes Guthaben kann auch gebündelt verbraucht werden.
 
-**Worst Case:** Free-User farmt max. Lernen (30 LP/Tag × 30 = ~900 LP) + max. Rewarded Ads (20 LP/Tag × 30 = ~600 LP) = ~1.500 LP. API-Kosten je nach Feature-Mix: ~0,75 € (nur KI-Scans) bis ~1,50 € (nur PDF-Imports). Werbeeinnahmen durch tägliche Ad-Nutzung: grob ~1,50 €. → `lpEarnCapPerDay` und `lpAdCapPerDay` begrenzen das Missbrauchsrisiko.
+### Skalierung mit angenommenen Werbeeinnahmen
 
-### Skalierung
+Dieses Szenario setzt aktivierte Rewarded Ads voraus.
 
 | MAU | Free (80%) | Pro (8%) | Add-on-Käufer (5%) | Monatsumsatz (geschätzt) |
 |-----|-----------|---------|--------------------|-----------------------|
