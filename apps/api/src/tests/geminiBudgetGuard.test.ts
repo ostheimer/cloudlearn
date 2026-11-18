@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-const state = vi.hoisted(() => ({ remaining: 1, fail: false, disabled: false, settlements: [] as unknown[] }));
+const state = vi.hoisted(() => ({ remaining: 1, fail: false, failSettlement: false, disabled: false, settlements: [] as unknown[] }));
 vi.mock("@/lib/supabase", () => ({ createSupabaseAdminClient: () => ({ rpc: vi.fn(async (name, args) => {
   if (state.fail) return { error: { message: "store down" }, data: null };
   if (name === "reserve_gemini_budget") {
@@ -8,11 +8,12 @@ vi.mock("@/lib/supabase", () => ({ createSupabaseAdminClient: () => ({ rpc: vi.f
     return { data: { status: "reserved", reservationId: crypto.randomUUID() }, error: null };
   }
   state.settlements.push(args);
+  if (state.failSettlement) return { error: { message: "settlement down" }, data: null };
   return { data: { status: "settled" }, error: null };
 }) }) }));
 import { generateFlashcardsFromImage, generateFlashcardsFromText, generateFlashcardsFromWebContent } from "@/lib/flashcardGenerator";
 const response = () => ({ ok: true, json: async () => ({ usageMetadata: { promptTokenCount: 100, candidatesTokenCount: 50, thoughtsTokenCount: 20, totalTokenCount: 170 }, candidates: [{ content: { parts: [{ text: JSON.stringify({ title: "Biologie", cards: [{ front: "Was ist eine Zelle?", back: "Eine Einheit", type: "basic", difficulty: "medium", tags: [] }] }) }] } }] }) });
-beforeEach(() => { state.remaining = 1; state.fail = false; state.disabled = false; state.settlements = []; vi.stubEnv("GEMINI_API_KEY", "local-test-key"); vi.stubGlobal("fetch", vi.fn(async () => response())); });
+beforeEach(() => { state.remaining = 1; state.fail = false; state.failSettlement = false; state.disabled = false; state.settlements = []; vi.stubEnv("GEMINI_API_KEY", "local-test-key"); vi.stubGlobal("fetch", vi.fn(async () => response())); });
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 describe("#756 provider guard", () => {
   it("does not call Gemini when exhausted", async () => { state.remaining = 0; await expect(generateFlashcardsFromImage("image", "image/jpeg", "de")).rejects.toMatchObject({ code: "AI_BUDGET_EXHAUSTED" }); expect(fetch).not.toHaveBeenCalled(); });
@@ -32,6 +33,24 @@ describe("control errors and uncertain billing", () => {
     const job = source === "text" ? generateFlashcardsAsync("Ausreichend langer Lerntext.", "de") : generateFlashcardsFromUrlContentAsync({ sourceUrl: "https://example.test", pageTitle: "Test", extractedText: "Lerntext", images: [] }, "de");
     await expect(job).rejects.toMatchObject({ code: "AI_DISABLED" }); expect(fetch).not.toHaveBeenCalled();
   });
+  it("surfaces an accounting outage even after an earlier chunk exhausts ordinary HTTP retries", async () => {
+    state.remaining = 10;
+    state.failSettlement = true;
+    const text = "a".repeat(8_000) + "b".repeat(4_000);
+    const send = vi.fn(async (_url: string, init: RequestInit) => {
+      const input = JSON.parse(String(init.body)).contents[0].parts[1].text as string;
+      if (input.endsWith("a")) return { ok: false, status: 502 };
+      return response();
+    });
+    vi.stubGlobal("fetch", send);
+
+    await expect(generateFlashcardsAsync(text, "de")).rejects.toMatchObject({
+      code: "AI_BUDGET_UNAVAILABLE",
+    });
+    expect(send).toHaveBeenCalledTimes(4);
+    expect(state.settlements).toHaveLength(1);
+  });
+
   it("retains holds when usage is absent or inconsistent", async () => {
     await settleGeminiBudget("test", undefined);
     await settleGeminiBudget("test", { promptTokenCount: 10, candidatesTokenCount: 20, totalTokenCount: 5 });

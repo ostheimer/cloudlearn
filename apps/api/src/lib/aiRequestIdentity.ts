@@ -8,10 +8,23 @@ export function aiRequestIdentity(userId: string, feature: string, body: Record<
   if (typeof body.idempotencyKey !== "string" || body.idempotencyKey.length < 8 || body.idempotencyKey.length > 128) {
     throw new HttpError("Ein gültiger Wiederholungsschlüssel ist erforderlich.", 422, "VALIDATION_ERROR");
   }
-  const payload = Object.fromEntries(Object.entries(body).filter(([k]) => k !== "idempotencyKey" && k !== "userId"));
+  const { idempotencyKey, userId: _requestUser, ...payload } = body;
+  if (feature === "urlImport") {
+    // URL import always extracts text and skips images.
+    delete payload.maxImages;
+  }
+  if (feature === "aiScan") {
+    // Match processScan's image precedence and default MIME type.
+    if (payload.imageBase64) {
+      delete payload.extractedText;
+      payload.imageMimeType ??= "image/jpeg";
+    } else {
+      delete payload.imageMimeType;
+    }
+  }
   const digest = (input: unknown) => createHash("sha256").update(JSON.stringify(canonical(input))).digest("hex");
   const fingerprint = `ai:v1:${digest([userId, feature, payload])}`;
-  return { key: `ai:v1:${digest([userId, feature, body.idempotencyKey, payload])}`, fingerprint };
+  return { key: `ai:v1:${digest([userId, feature, idempotencyKey, payload])}`, fingerprint };
 }
 function canonical(input: unknown): unknown {
   if (Array.isArray(input)) return input.map(canonical);

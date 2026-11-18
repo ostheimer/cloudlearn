@@ -118,6 +118,11 @@ export async function generateFlashcardsFromText(
   // whole generation fails. A visibly failed import can be repeated; a deck
   // quietly missing a third of its subject cannot even be noticed.
   const settled = await Promise.allSettled(chunks.map((chunk) => askWithRetry(() => ask(chunk))));
+  // A control failure must reach the route so it can refund LP. A provider
+  // error in another chunk would otherwise send the whole job to heuristics.
+  const controlFailure = settled.find(r => r.status === "rejected" && isAiControlError(r.reason));
+  if (controlFailure?.status === "rejected") throw controlFailure.reason;
+
   const failed = settled.find(r => r.status === "rejected");
   if (failed?.status === "rejected") throw failed.reason;
   const results = settled.map(r => (r as PromiseFulfilledResult<FlashcardGenerationResult>).value);
