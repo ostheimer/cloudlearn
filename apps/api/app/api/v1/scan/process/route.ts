@@ -29,12 +29,11 @@ export async function POST(request: NextRequest) {
     }
 
     const identity = aiRequestIdentity(userId, "aiScan", body);
-    const idempotencyKey = identity.key;
-    body.idempotencyKey = idempotencyKey;
 
     const charged = await runLpChargedIdempotentRequest({
-      idempotencyKey,
+      idempotencyKey: identity.key,
       requestFingerprint: identity.fingerprint,
+      legacyIdempotencyKey: body.idempotencyKey,
       userId,
       plan,
       feature: "aiScan",

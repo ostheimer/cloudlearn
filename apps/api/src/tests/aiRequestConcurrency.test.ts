@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const state = vi.hoisted(() => ({ claimed: false, fail: false, response: null as unknown }));
-vi.mock("@/lib/idempotencyStore", async (original) => ({ ...await original<typeof import("@/lib/idempotencyStore")>(), getIdempotentResult: vi.fn(async () => null) }));
 vi.mock("@/lib/supabase", () => ({ createSupabaseAdminClient: () => ({ rpc: vi.fn(async (name, args) => {
   if (state.fail) return { data: null, error: { message: "offline" } };
   if (name === "claim_ai_request") {

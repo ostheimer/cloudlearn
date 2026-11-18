@@ -11,7 +11,6 @@ import {
   type PdfImportResponse,
 } from "@/lib/contracts";
 import { recordScan } from "@/lib/db";
-import { getIdempotentResult, storeIdempotentResult } from "@/lib/idempotencyStore";
 import { reserveImportTarget, storeImportedCards } from "@/lib/importCapacity";
 import { generateFlashcardsAsync } from "@/lib/llm";
 import { extractPdfText } from "@/lib/pdf";
@@ -79,10 +78,6 @@ export async function processPdfImport(
   userId: string
 ): Promise<PdfImportResponse> {
   const parsed = pdfImportRequestSchema.parse(input);
-  const existing = await getIdempotentResult<PdfImportResponse>(parsed.idempotencyKey);
-  if (existing) {
-    return existing;
-  }
 
   // Same plan limits as the scan path (#411), checked before the model runs so
   // a full deck refunds instead of half-delivering.
@@ -123,7 +118,6 @@ export async function processPdfImport(
       generatedCount: cards.length,
       savedCount: 0,
     };
-    await storeIdempotentResult(parsed.idempotencyKey, previewResponse);
     return previewResponse;
   }
 
@@ -157,6 +151,5 @@ export async function processPdfImport(
     savedCount: stored.savedCount,
   };
 
-  await storeIdempotentResult(parsed.idempotencyKey, response);
   return response;
 }

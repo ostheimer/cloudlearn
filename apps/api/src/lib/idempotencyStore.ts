@@ -22,6 +22,24 @@ export async function getIdempotentResult<T>(key: string): Promise<T | null> {
   return data.response as T;
 }
 
+/**
+ * Pre-rollout results were stored under the raw client key without ownership.
+ * Read only the key so an unscoped response can never be returned to a caller.
+ */
+export async function hasLegacyIdempotencyKey(key: string): Promise<boolean> {
+  const db = createSupabaseAdminClient();
+  if (!db) throw claimUnavailable();
+
+  let result;
+  try {
+    result = await db.from("idempotency_keys").select("key").eq("key", key).maybeSingle();
+  } catch {
+    throw claimUnavailable();
+  }
+  if (result.error) throw claimUnavailable();
+  return result.data !== null;
+}
+
 export async function storeIdempotentResult(key: string, value: unknown): Promise<void> {
   const db = createSupabaseAdminClient();
   if (!db) return;

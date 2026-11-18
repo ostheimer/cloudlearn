@@ -92,40 +92,8 @@ describe("urlImportService", () => {
     mockedRecordScan.mockResolvedValue("scan-1");
   });
 
-  it("returns idempotent result when available", async () => {
-    mockedGetIdempotentResult.mockResolvedValue({
-      requestId: "req-idempotent",
-      model: "gemini-3-flash",
-      fallbackUsed: false,
-      cards: [
-        {
-          front: "F",
-          back: "B",
-          type: "basic",
-          difficulty: "medium",
-          tags: [],
-        },
-      ],
-      sourceUrl: "https://example.com",
-      imagesUsed: 0,
-    });
-
-    const response = await processUrlImport(
-      {
-        userId: "6e5db9e4-7e48-4e11-8d8c-6ca90c18d42a",
-        sourceUrl: "https://example.com",
-        idempotencyKey: "import-001-key",
-      },
-      "req-idempotent",
-      "6e5db9e4-7e48-4e11-8d8c-6ca90c18d42a"
-    );
-
-    expect(response.requestId).toBe("req-idempotent");
-    expect(mockedExtractUrlContent).not.toHaveBeenCalled();
-    expect(mockedGenerateFromUrl).not.toHaveBeenCalled();
-  });
-
-  it("extracts URL text, generates cards and stores response — without loading images (#534)", async () => {
+  it("extracts URL text and saves cards without loading images or using the shared response cache (#534)", async () => {
+    mockedGetIdempotentResult.mockResolvedValue({ requestId: "unscoped-cache-fixture" });
     mockedExtractUrlContent.mockResolvedValue({
       sourceUrl: "https://de.wikipedia.org/wiki/Mitochondrium",
       pageTitle: "Mitochondrium",
@@ -188,7 +156,8 @@ describe("urlImportService", () => {
       "https://de.wikipedia.org/wiki/Mitochondrium",
       "Mitochondrien sind die Kraftwerke der Zelle."
     );
-    expect(mockedStoreIdempotentResult).toHaveBeenCalledTimes(1);
+    expect(mockedGetIdempotentResult).not.toHaveBeenCalled();
+    expect(mockedStoreIdempotentResult).not.toHaveBeenCalled();
 
     expect(response).toMatchObject({
       requestId: "req-2",

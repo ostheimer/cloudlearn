@@ -175,6 +175,8 @@ describe("Vorschau: erzeugen ohne zu speichern (#427)", () => {
     expect(result.savedCount).toBe(0);
     expect(result.generatedCount).toBe(6);
     expect(result.deckTitle).toBe("PIT Kapitel 4");
+    expect(mockedGetIdempotentResult).not.toHaveBeenCalled();
+    expect(mockedStoreIdempotentResult).not.toHaveBeenCalled();
   });
 
   it("legt auch bei PDF und URL nichts an", async () => {

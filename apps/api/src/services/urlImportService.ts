@@ -4,7 +4,6 @@ import {
   type UrlImportResponse,
 } from "@/lib/contracts";
 import { recordScan } from "@/lib/db";
-import { getIdempotentResult, storeIdempotentResult } from "@/lib/idempotencyStore";
 import { reserveImportTarget, storeImportedCards } from "@/lib/importCapacity";
 import {
   generateFlashcardsFromUrlContentAsync,
@@ -19,10 +18,6 @@ export async function processUrlImport(
   userId: string
 ): Promise<UrlImportResponse> {
   const parsed = urlImportRequestSchema.parse(input);
-  const existing = await getIdempotentResult<UrlImportResponse>(parsed.idempotencyKey);
-  if (existing) {
-    return existing;
-  }
 
   // Same plan limits as the scan path (#411), checked before the model runs so
   // a full deck refunds instead of half-delivering.
@@ -80,7 +75,6 @@ export async function processUrlImport(
       generatedCount: cards.length,
       savedCount: 0,
     };
-    await storeIdempotentResult(parsed.idempotencyKey, previewResponse);
     return previewResponse;
   }
 
@@ -113,6 +107,5 @@ export async function processUrlImport(
     savedCount: stored.savedCount,
   };
 
-  await storeIdempotentResult(parsed.idempotencyKey, response);
   return response;
 }

@@ -31,7 +31,16 @@ Bei Netzwerkfehler, HTTP-Fehler, unlesbarer Antwort oder fehlender/inkonsistente
 
 Die drei KI-Routen erzeugen serverseitig einen SHA-256-Schlüssel aus authentifiziertem Nutzer, Operation, Client-Schlüssel und validiertem, von unbekannten Feldern bereinigtem und kanonisiertem Input. Dadurch sind alte globale Cache-Schlüssel nicht länger vertrauenswürdig für diese Routen. Ein zweiter SHA-256-Fingerprint enthält den Inhalt ohne Client-Schlüssel: gleichzeitig identische Jobs werden auch bei verschiedenen Client-Schlüsseln abgefangen. Ein späterer bewusst neuer Client-Schlüssel darf nach Abschluss einen neuen Job starten.
 
-`claim_ai_request` beansprucht den Job vor dem LP-Abzug. Ein partieller eindeutiger Index lässt genau einen `processing`-Claim je Inhalts-Fingerprint zu. Ein Konkurrent erhält `409 AI_REQUEST_IN_PROGRESS`, ohne LP-Abzug und ohne Gemini-Aufruf. Ein fertiger Claim liefert das gespeicherte Ergebnis, auch wenn der ältere Ergebnis-Cache ausfällt. Abschluss und Freigabe sind durch die zufällige Owner-ID abgesichert.
+`claim_ai_request` beansprucht den Job vor dem LP-Abzug. Ein partieller eindeutiger Index lässt genau einen `processing`-Claim je Inhalts-Fingerprint zu. Ein Konkurrent erhält `409 AI_REQUEST_IN_PROGRESS`, ohne LP-Abzug und ohne Gemini-Aufruf. Ein fertiger Claim liefert das gespeicherte Ergebnis ausschließlich aus der Claim-Tabelle. Abschluss und Freigabe sind durch die zufällige Owner-ID abgesichert.
+
+Für neu beanspruchte Jobs prüft die API vor dem LP-Abzug die Existenz des
+rohen Client-Schlüssels im alten gemeinsamen Cache. Der alte Cache enthält
+keine zuverlässige Nutzerzuordnung. Die API liest daher nur die Schlüsselspalte
+und antwortet bei einem Treffer mit `409 AI_REQUEST_LEGACY_CONFLICT`.
+Der Nutzer kann zuerst seine Karten prüfen. Ein Ausfall dieser Prüfung sperrt
+den Job mit `503 AI_REQUEST_UNAVAILABLE`. Die drei Generierungsdienste lesen
+und schreiben keine Antworten mehr im gemeinsamen Cache. Der separate
+Speicher-Endpunkt bleibt unverändert.
 
 Claims laufen **nicht** per Zeitablauf ab: ein alter Prozess kann noch beim Provider laufen. Ein abgestürzter Job bleibt gesperrt, bis ein Operator bestätigt, dass kein Job mehr läuft, LP/Kartenspeicherung und Providerkosten geprüft und den Claim gezielt behandelt hat. Bei erfolgreicher Verarbeitung und fehlgeschlagenem Claim-Abschluss bleiben Claim und LP-Abzug erhalten, weil Karten schon gespeichert sein können. Während eines normalen Fehlers werden LP wie bisher bestmöglich zurückgebucht; ein fehlgeschlagener LP-Refund wird zur Nachbearbeitung protokolliert.
 
@@ -56,7 +65,7 @@ update public.gemini_budget_config set enabled = false where id = 1;
 
 Erst nach genehmigtem Projekt/Beträgen/Preisen aktivieren. Niemals Periodenzähler zurücksetzen, um das Monatslimit zu umgehen. Bei Limitänderung bleiben bestehende Reservierungen und Ausgaben erhalten; ein abgesenktes Limit kann sofort blockieren. Ein Wechsel des Google-Projekts setzt clearns bestehende Ausgabenzähler ebenfalls nicht zurück.
 
-Fehlerantworten: `AI_DISABLED` (503), `AI_BUDGET_EXHAUSTED` (429), `AI_BUDGET_UNAVAILABLE` (503), `AI_REQUEST_IN_PROGRESS` (409), `AI_REQUEST_UNAVAILABLE` (503). Sie enthalten verständlichen deutschen Text mit echten Umlauten. Fehlerhafte Budget- oder Claim-RPCs starten keinen neuen Provideraufruf. Ein LP-Abzug vor gesperrter Generation wird über den vorhandenen Fehler-/Refund-Weg behandelt. Bereits fertige Replays benötigen keinen neuen Provideraufruf.
+Fehlerantworten: `AI_DISABLED` (503), `AI_BUDGET_EXHAUSTED` (429), `AI_BUDGET_UNAVAILABLE` (503), `AI_REQUEST_IN_PROGRESS` (409), `AI_REQUEST_LEGACY_CONFLICT` (409), `AI_REQUEST_UNAVAILABLE` (503). Sie enthalten verständlichen deutschen Text mit echten Umlauten. Fehlerhafte Budget- oder Claim-RPCs starten keinen neuen Provideraufruf. Ein LP-Abzug vor gesperrter Generation wird über den vorhandenen Fehler-/Refund-Weg behandelt. Bereits fertige Replays benötigen keinen neuen Provideraufruf.
 
 ## Offizielle Quellen, geprüft am 09.10.2026
 

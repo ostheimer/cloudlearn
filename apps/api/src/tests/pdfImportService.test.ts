@@ -93,43 +93,8 @@ describe("pdfImportService", () => {
     mockedRecordScan.mockResolvedValue("scan-1");
   });
 
-  it("returns idempotent result when available", async () => {
-    mockedGetIdempotentResult.mockResolvedValue({
-      requestId: "req-idempotent",
-      model: "gemini-3-flash",
-      fallbackUsed: false,
-      cards: [
-        {
-          front: "F",
-          back: "B",
-          type: "basic",
-          difficulty: "medium",
-          tags: [],
-        },
-      ],
-      deckTitle: "Biologie Skript",
-      fileName: "skript.pdf",
-      pageCount: 12,
-      extractedCharacters: 1200,
-    });
-
-    const response = await processPdfImport(
-      {
-        userId: "6e5db9e4-7e48-4e11-8d8c-6ca90c18d42a",
-        fileName: "skript.pdf",
-        fileBase64: "A".repeat(200),
-        idempotencyKey: "pdf-import-001-key",
-      },
-      "req-idempotent",
-      "6e5db9e4-7e48-4e11-8d8c-6ca90c18d42a"
-    );
-
-    expect(response.requestId).toBe("req-idempotent");
-    expect(mockedExtractPdfText).not.toHaveBeenCalled();
-    expect(mockedGenerateFlashcardsAsync).not.toHaveBeenCalled();
-  });
-
-  it("extracts PDF text, generates cards and stores response", async () => {
+  it("extracts PDF text and saves cards without using the shared response cache", async () => {
+    mockedGetIdempotentResult.mockResolvedValue({ requestId: "unscoped-cache-fixture" });
     mockedExtractPdfText.mockResolvedValue({
       pageCount: 12,
       extractedText: "Mitochondrien erzeugen ATP durch oxidative Phosphorylierung.",
@@ -181,7 +146,8 @@ describe("pdfImportService", () => {
       "pdf:Biologie_Skript.pdf",
       "Mitochondrien erzeugen ATP durch oxidative Phosphorylierung."
     );
-    expect(mockedStoreIdempotentResult).toHaveBeenCalledTimes(1);
+    expect(mockedGetIdempotentResult).not.toHaveBeenCalled();
+    expect(mockedStoreIdempotentResult).not.toHaveBeenCalled();
     expect(response).toMatchObject({
       requestId: "req-2",
       model: "gemini-3-flash",

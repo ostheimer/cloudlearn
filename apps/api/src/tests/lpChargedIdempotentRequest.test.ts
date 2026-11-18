@@ -6,8 +6,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/idempotencyStore", () => ({
-  getIdempotentResult: vi.fn(),
-  claimAiRequest: vi.fn(async () => ({ status: "claimed" })),
+  claimAiRequest: vi.fn(),
   completeAiRequest: vi.fn(async () => {}),
   releaseAiRequest: vi.fn(async () => {}),
 }));
@@ -21,12 +20,12 @@ vi.mock("@/lib/lpRefund", () => ({
   refundOnFailure: vi.fn(),
 }));
 
-import { getIdempotentResult } from "@/lib/idempotencyStore";
+import { claimAiRequest } from "@/lib/idempotencyStore";
 import { refundOnFailure } from "@/lib/lpRefund";
 import { runLpChargedIdempotentRequest } from "@/lib/lpChargedIdempotentRequest";
 import { getLpProfile, spendLp } from "@/services/lpService";
 
-const mockedGetIdempotentResult = vi.mocked(getIdempotentResult);
+const mockedClaimAiRequest = vi.mocked(claimAiRequest);
 const mockedGetLpProfile = vi.mocked(getLpProfile);
 const mockedSpendLp = vi.mocked(spendLp);
 const mockedRefundOnFailure = vi.mocked(refundOnFailure);
@@ -37,10 +36,11 @@ const cachedPayload = { requestId: "req-1", cards: [{ front: "q", back: "a" }] }
 describe("runLpChargedIdempotentRequest", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedClaimAiRequest.mockResolvedValue({ status: "claimed" });
   });
 
-  it("returns the cached result without spending LP on idempotent replay", async () => {
-    mockedGetIdempotentResult.mockResolvedValue(cachedPayload);
+  it("replays a completed claim without spending LP", async () => {
+    mockedClaimAiRequest.mockResolvedValue({ status: "complete", response: cachedPayload });
     mockedGetLpProfile.mockResolvedValue({
       balance: 42,
       earnedToday: 0,
@@ -68,8 +68,7 @@ describe("runLpChargedIdempotentRequest", () => {
     expect(process).not.toHaveBeenCalled();
   });
 
-  it("spends LP and runs processing on a cache miss", async () => {
-    mockedGetIdempotentResult.mockResolvedValue(null);
+  it("spends LP and runs processing for a new claim", async () => {
     mockedSpendLp.mockResolvedValue({ allowed: true, newBalance: 90, cost: 10 });
 
     const fresh = { requestId: "req-2", cards: [] };
@@ -94,8 +93,7 @@ describe("runLpChargedIdempotentRequest", () => {
     expect(process).toHaveBeenCalledOnce();
   });
 
-  it("refunds LP when processing throws after a cache miss", async () => {
-    mockedGetIdempotentResult.mockResolvedValue(null);
+  it("refunds LP when processing a new claim throws", async () => {
     mockedSpendLp.mockResolvedValue({ allowed: true, newBalance: 80, cost: 20 });
 
     const process = vi.fn().mockRejectedValue(new Error("fetch failed"));
@@ -121,7 +119,6 @@ describe("runLpChargedIdempotentRequest", () => {
   });
 
   it("returns insufficient_lp without calling process", async () => {
-    mockedGetIdempotentResult.mockResolvedValue(null);
     mockedSpendLp.mockResolvedValue({ allowed: false, newBalance: 3, cost: 10 });
 
     const process = vi.fn();
