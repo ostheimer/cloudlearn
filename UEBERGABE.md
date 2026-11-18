@@ -202,7 +202,6 @@ Liste neu anlegen:
 
 ## 7. Konventionen & wichtige Befehle
 
-- **Bug-Workflow** (`AGENTS.md`): erst Test schreiben, der den Bug reproduziert — dann fixen.
 - **LP-/Tier-Änderungen:** `packages/contracts/src/featureGates.ts` ist die kanonische
   Quelle; Spiegel synchron halten: `apps/api/src/lib/featureGates.ts`,
   `apps/mobile/src/features/paywall/lpPackOffers.ts`, README „Monetarisierung",
