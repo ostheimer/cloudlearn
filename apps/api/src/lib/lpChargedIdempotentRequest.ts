@@ -1,4 +1,6 @@
-import { getIdempotentResult } from "@/lib/idempotencyStore";
+import { randomUUID } from "node:crypto";
+import { HttpError } from "./http";
+import { claimAiRequest, completeAiRequest, releaseAiRequest, hasLegacyIdempotencyKey } from "@/lib/idempotencyStore";
 import { refundOnFailure } from "@/lib/lpRefund";
 import type { SubscriptionTier } from "@/lib/contracts";
 import { getLpProfile, spendLp } from "@/services/lpService";
@@ -15,11 +17,13 @@ export type LpChargedIdempotentResult<T> =
   | { kind: "insufficient_lp"; usage: LpRequestUsage };
 
 /**
- * Charges LP for a paid import/scan only after confirming the idempotency key
- * has no cached result. Retries with the same key must not debit LP again.
+ * Claims a generation job before charging LP. Completed jobs replay only
+ * from the AI claim store, which is separate from the raw import-save cache.
  */
 export async function runLpChargedIdempotentRequest<T>(params: {
   idempotencyKey: string | undefined;
+  requestFingerprint?: string;
+  legacyIdempotencyKey?: string;
   userId: string;
   plan: SubscriptionTier;
   feature: LpFeature;
@@ -29,35 +33,44 @@ export async function runLpChargedIdempotentRequest<T>(params: {
 }): Promise<LpChargedIdempotentResult<T>> {
   const { idempotencyKey, userId, plan, feature, requestId, refundReason, process } = params;
 
-  if (idempotencyKey) {
-    const cached = await getIdempotentResult<T>(idempotencyKey);
-    if (cached) {
-      const profile = await getLpProfile(userId);
-      return {
-        kind: "ok",
-        result: cached,
-        usage: { lpSpent: 0, lpBalance: profile.balance },
-      };
-    }
+  if (!idempotencyKey) throw new HttpError("Ein Wiederholungsschlüssel ist erforderlich.", 422, "VALIDATION_ERROR");
+  const owner = randomUUID();
+  const claim = await claimAiRequest<T>(idempotencyKey, owner, params.requestFingerprint);
+  if (claim.status === "in_progress") {
+    throw new HttpError("Diese KI-Anfrage wird bereits verarbeitet. Bitte warte kurz und versuche es erneut.", 409, "AI_REQUEST_IN_PROGRESS");
+  }
+  if (claim.status === "complete") {
+    const profile = await getLpProfile(userId);
+    return { kind: "ok", result: claim.response, usage: { lpSpent: 0, lpBalance: profile.balance } };
   }
 
-  const lpResult = await spendLp(userId, plan, feature);
-  if (!lpResult.allowed) {
-    return {
-      kind: "insufficient_lp",
-      usage: { lpSpent: 0, lpBalance: lpResult.newBalance },
-    };
-  }
-
+  let spent = 0;
+  let processed = false;
   try {
+    if (params.legacyIdempotencyKey && await hasLegacyIdempotencyKey(params.legacyIdempotencyKey)) {
+      throw new HttpError(
+        "Diese Anfrage wurde bereits verarbeitet. Prüfe deine Karten, bevor du einen neuen Import startest.",
+        409,
+        "AI_REQUEST_LEGACY_CONFLICT"
+      );
+    }
+    const lpResult = await spendLp(userId, plan, feature);
+    if (!lpResult.allowed) {
+      await releaseAiRequest(idempotencyKey, owner);
+      return { kind: "insufficient_lp", usage: { lpSpent: 0, lpBalance: lpResult.newBalance } };
+    }
+    spent = lpResult.cost;
     const result = await process();
-    return {
-      kind: "ok",
-      result,
-      usage: { lpSpent: lpResult.cost, lpBalance: lpResult.newBalance },
-    };
+    processed = true;
+    await completeAiRequest(idempotencyKey, owner, result);
+    return { kind: "ok", result, usage: { lpSpent: lpResult.cost, lpBalance: lpResult.newBalance } };
   } catch (error) {
-    await refundOnFailure(userId, lpResult.cost, refundReason, requestId);
+    // Once processing succeeded it may have saved cards already. Keep the claim
+    // and charge on completion-store failure; a replay must never rerun that job.
+    if (!processed) {
+      if (spent > 0) await refundOnFailure(userId, spent, refundReason, requestId);
+      await releaseAiRequest(idempotencyKey, owner);
+    }
     throw error;
   }
 }

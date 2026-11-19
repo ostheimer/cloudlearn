@@ -1,3 +1,4 @@
+import { isAiControlError } from "./geminiBudget";
 import type { Flashcard } from "./contracts";
 import { flashcardListSchema } from "./contracts";
 import {
@@ -60,7 +61,8 @@ export async function generateFlashcardsAsync(
     const result = await generateFlashcardsFromText(text, language);
     const cards = flashcardListSchema.parse(result.cards);
     return { title: result.title, cards, model: "gemini-3-flash", fallbackUsed: false };
-  } catch {
+  } catch (error) {
+    if (isAiControlError(error)) throw error;
     // Fallback to heuristic
     const fallback = generateFlashcardsFromTextSync(text, language);
     const cards = flashcardListSchema.parse(fallback.cards);
@@ -121,6 +123,7 @@ export async function generateFlashcardsFromUrlContentAsync(
       fallbackUsed: false,
     };
   } catch (primaryError) {
+    if (isAiControlError(primaryError)) throw primaryError;
     if (primaryError instanceof Error) {
       console.warn(`[llm] URL import fallback after retries: ${primaryError.message}`);
     } else {
@@ -153,6 +156,7 @@ async function generateUrlCardsWithRetry(
         images: input.images,
       });
     } catch (error) {
+      if (isAiControlError(error)) throw error;
       lastError = error;
     }
   }

@@ -4,7 +4,6 @@ import {
   type ScanProcessResponse,
 } from "@/lib/contracts";
 import { recordScan } from "@/lib/db";
-import { getIdempotentResult, storeIdempotentResult } from "@/lib/idempotencyStore";
 import { reserveImportTarget, storeImportedCards } from "@/lib/importCapacity";
 import {
   generateFlashcardsAsync,
@@ -19,12 +18,6 @@ export async function processScan(
   userId: string
 ): Promise<ScanProcessResponse> {
   const parsed = scanProcessRequestSchema.parse(input);
-  const existing = await getIdempotentResult<ScanProcessResponse>(
-    parsed.idempotencyKey
-  );
-  if (existing) {
-    return existing;
-  }
 
   // Plan limits apply to the AI paths too (#411). Checked BEFORE the model runs
   // so a full deck neither costs a generation nor keeps the user's Lernpunkte:
@@ -78,7 +71,6 @@ export async function processScan(
       generatedCount: cards.length,
       savedCount: 0,
     };
-    await storeIdempotentResult(parsed.idempotencyKey, previewResponse);
     return previewResponse;
   }
 
@@ -112,6 +104,5 @@ export async function processScan(
     savedCount: stored.savedCount,
   };
 
-  await storeIdempotentResult(parsed.idempotencyKey, response);
   return response;
 }
