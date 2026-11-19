@@ -864,7 +864,7 @@ clearn.ai verwendet ein **LP-System (Lernpunkte)** als universelle In-App-Währu
 
 | Aktion | LP |
 |--------|----|
-| Abgeschlossene Review-Session (min. 5 Karten) | +5 |
+| Bewertete Karte | +1 bis zum Tageslimit (30 LP Free, 100 LP Pro und Lifetime) |
 | Tagesziel erreicht | +10 Bonus |
 | Streak-Meilenstein 7 Tage | +25 |
 | Streak-Meilenstein 30 Tage | +100 |
